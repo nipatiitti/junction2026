@@ -12,7 +12,7 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`offers/`](offers/README.md)       | `Offers`       | Direct offers to drivers near a gig's pickup                    |
 | [`bundling/`](bundling/README.md)   | `Bundler`      | Which orders' cars go together in one gig                       |
 
-Five folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Six folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                |
@@ -22,6 +22,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`scarcity_cost/`](scarcity_cost/README.md)       | `ScarcityAdmission`                    | Admission with the town's quotas per driver priced in     |
 | [`bundling_more/`](bundling_more/README.md)       | `WaitingBundler`                       | Every order waits for a chain, so more cars share a gig   |
 | [`bundling_cheaper/`](bundling_cheaper/README.md) | `CheapBundler`                         | A bundle keeps a smaller share of its cars' solo bill     |
+| [`ratchet/`](ratchet/README.md)                   | `RatchetPricing`, `TrustAdmission`, …  | A price ratchet per dealer and flat fees priced by risk   |
 
 [`bench/`](bench/README.md) is not a strategy either: it compares versions of `dispatch.py` on the same seeds.
 
