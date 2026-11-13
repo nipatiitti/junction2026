@@ -321,6 +321,7 @@ class Desk:
             prices = self.pricing.prices(request, kinds, ride.rung)
             self.pricing.sent(request)
             self.admission.quoted(request, ride)
+            self.meant.add(request["id"])
             self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
             self.count[f"quoted rung {ride.rung}"] += 1
         elif self.level > 3:  # a price far above the list price loses at no cost; up to level 3 every quote wins
@@ -328,8 +329,6 @@ class Desk:
             self.outbox.append(
                 {"type": "quote", "requestId": request["id"], "prices": {first["kind"]: 10 * first["listPriceCents"]}}
             )
-        if kinds:
-            self.meant.add(request["id"])
 
     def load(self) -> list[Ride]:
         """Our rides that still wait for a driver, for admission to weigh a new request against."""
