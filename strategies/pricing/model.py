@@ -7,7 +7,6 @@ No network: `price` takes a request and returns a price for each option, and `ob
 from __future__ import annotations
 
 import math
-from collections import deque
 from dataclasses import dataclass, field
 
 HOUR, DAY = 60, 24 * 60
@@ -30,20 +29,19 @@ class Params:
     key_limit: float = 0.25  # an offset stays within ±25%
     floor: float = 0.9  # the multiplier never falls below 0.9 times the list price
     ceiling: float = 2.0
-    # The price war: this many losses in the last `war_window` outcomes of a day, on at least
-    # `war_places` pickup places, is the price war. During it, quote `war_cut` times the usual
-    # price, or decline when `war_cut` is None.
-    war_window: int = 20
-    war_losses: int = 18
+    # The price war: the world's multiplier falls `war_drop` (in logs) below its level at the day's
+    # first outcome, with losses on at least `war_places` pickup places. Until 18:00 the multiplier
+    # follows the war down, or we decline with `war_decline`; then it returns to the day's level.
+    war_drop: float = 0.15
     war_places: int = 6
-    war_cut: float | None = 0.8
-    # The outage: at least `outage_wins` wins of the last `outage_window` outcomes of a region on
-    # one day, at a higher win share than the rest of the day, is the outage. Prices there rise by
-    # `outage_boost` until 18:00, or until `outage_losses` of the last `outage_window` boosted quotes lose.
-    outage_window: int = 6
-    outage_wins: int = 6
+    war_decline: bool = False
+    # The outage: a region whose win share today is above the rest of the day's, by `outage_gap` and
+    # by `outage_z` in a two-proportion test, with at least `outage_min` outcomes on each side. Its
+    # requests then start at `outage_boost` times the price, and that boost learns until 18:00.
+    outage_min: int = 12
+    outage_z: float = 2.5
+    outage_gap: float = 0.15
     outage_boost: float = 1.2
-    outage_losses: int = 3
     trust: bool = True  # level 8: add 1% per order the dealer counts
     decline_factor: int = 10  # a declined option is quoted at ten times its list price
 
@@ -55,16 +53,13 @@ class Quote:
     at: int  # when the request arrived
     keys: tuple[str, ...]
     pickup: str
-    places: frozenset[str]
-    normal: bool  # priced by the learned multiplier alone: neither the war nor the outage changed it
-    outage: bool
+    outage: bool  # priced with the outage boost
 
 
 @dataclass
 class Outcome:
     won: bool
     pickup: str
-    places: frozenset[str]
     updates: list[tuple[str, float]] = field(default_factory=list)  # what the outcome added to the estimate
 
 
@@ -76,10 +71,12 @@ class PricingModel:
         self.log_m = math.log(START.get(level, 1.0))  # the world's multiplier on the list price, in logs
         self.offset: dict[str, float] = {}  # "pickup:<place>", "delivery:<place>", "dealer:<id>" -> log offset
         self.quotes: dict[str, Quote] = {}  # request id -> the quote waiting for its outcome
-        self.today: dict[int, list[Outcome]] = {}  # day -> the outcomes of normal quotes in 08:00-18:00
+        self.today: dict[int, list[Outcome]] = {}  # day -> the outcomes of usual quotes in 08:00-18:00
+        self.day_open: dict[int, float] = {}  # day -> the world's multiplier at the day's first outcome
         self.war_day: int | None = None
-        self.outage: tuple[int, frozenset[str]] | None = None  # (day, places of the region)
-        self.outage_seen: dict[int, deque[bool]] = {}  # day -> the outcomes of the boosted quotes
+        self.war_over = False  # the multiplier is back at the war day's opening level
+        self.outage: tuple[int, frozenset[str]] | None = None  # (day, the pickup places of the region)
+        self.outage_log = 0.0  # the outage boost, in logs, learned from the boosted quotes
         self.near = neighbours(places or {})
         # Dealer trust, counted from the ledger.
         self.trust: dict[str, int] = {}
@@ -90,14 +87,15 @@ class PricingModel:
     # --- prices -------------------------------------------------------------------------------
 
     def multiplier(self, request: dict, now: int) -> float:
-        """The multiplier on the list price for this request now, before any price war cut."""
+        """The multiplier on the list price for this request now."""
         if self.level <= 3:
             return 1.0
+        self.end_war(now)
         keys = request_keys(request)
         log_m = self.log_m + sum(self.offset.get(k, 0.0) for k in keys)
         m = min(self.p.ceiling, max(self.p.floor, math.exp(log_m)))
         if self.in_outage(request, now):
-            m *= self.p.outage_boost
+            m *= math.exp(self.outage_log)
         if self.level >= 8 and self.p.trust:
             self.settle(now)
             m *= 1 + self.trust.get(request["dealerId"], 0) / 100
@@ -109,29 +107,27 @@ class PricingModel:
             first = request["options"][0]
             return {first["kind"]: first["listPriceCents"]}
         m = self.multiplier(request, now)
-        war = self.in_war(now)
-        outage = self.in_outage(request, now)
-        if war:
-            factor = self.p.decline_factor if self.p.war_cut is None else m * self.p.war_cut
-        else:
-            factor = m
+        factor = self.p.decline_factor if self.in_war(now) and self.p.war_decline else m
         self.quotes[request["id"]] = Quote(
             at=request["arrivedAt"],
             keys=request_keys(request),
             pickup=request["legs"][0]["pickup"]["placeId"],
-            places=request_places(request),
-            normal=not war and not outage,
-            outage=outage,
+            outage=self.in_outage(request, now),
         )
         return {o["kind"]: max(1, int(o["listPriceCents"] * factor + 0.5)) for o in request["options"]}
 
     def in_war(self, now: int) -> bool:
-        return self.war_day == now // DAY and now % DAY < WORK_TO
+        return self.war_day == now // DAY and in_hours(now)
 
     def in_outage(self, request: dict, now: int) -> bool:
-        if self.outage is None or self.outage[0] != now // DAY or now % DAY >= WORK_TO:
+        if self.outage is None or self.outage[0] != now // DAY or not in_hours(now):
             return False
-        return bool(request_places(request) & self.outage[1])
+        return request["legs"][0]["pickup"]["placeId"] in self.outage[1]
+
+    def end_war(self, now: int) -> None:
+        """At 18:00 on the war day the competitor's prices are back, and so is our multiplier."""
+        if self.war_day is not None and not self.war_over and now >= self.war_day * DAY + WORK_TO:
+            self.log_m, self.war_over = self.day_open[self.war_day], True
 
     # --- learning -----------------------------------------------------------------------------
 
@@ -147,28 +143,28 @@ class PricingModel:
             self.ledger(event["line"])
 
     def outcome(self, request_id: str, won: bool) -> None:
+        """Tracks a quantile of the winning price: a win pushes the multiplier up and a loss down, so it
+        settles where `target_win` of the quotes win. Each step fades the older results."""
         quote = self.quotes.pop(request_id, None)
         if quote is None:
             return
-        day = quote.at // DAY
+        day, error = quote.at // DAY, (1.0 if won else 0.0) - self.p.target_win
         if quote.outage:
-            seen = self.outage_seen.setdefault(day, deque(maxlen=self.p.outage_window))
-            seen.append(won)
-            if len(seen) >= self.p.outage_losses and sum(not w for w in seen) >= self.p.outage_losses:
-                self.outage = None  # the boost loses: the region was not down, or is back
+            self.outage_log = min(math.log(1.5), max(0.0, self.outage_log + 2 * self.p.key_step * error))
             return
-        if not quote.normal or (day == self.war_day and in_hours(quote.at)):
-            return  # a price war teaches nothing about the usual price
-        # Track a quantile of the winning price: a win pushes the multiplier up, a loss down, so it
-        # settles where `target_win` of the quotes win. Each step fades the older results.
-        error = (1.0 if won else 0.0) - self.p.target_win
+        if day == self.war_day and in_hours(quote.at):
+            if not self.p.war_decline and not self.war_over:  # follow the war, but leave the lanes alone
+                self.apply([("", self.p.step * error)])
+            return
+        if in_hours(quote.at):
+            self.day_open.setdefault(day, self.log_m)
         updates = [("", self.p.step * error)] + [(k, self.p.key_step * error) for k in quote.keys]
         self.apply(updates)
         if not in_hours(quote.at):
             return
         outcomes = self.today.setdefault(day, [])
-        outcomes.append(Outcome(won, quote.pickup, quote.places, updates))
-        if self.level >= 8:
+        outcomes.append(Outcome(won, quote.pickup, updates))
+        if self.level >= 8 and day > 0 and self.war_day is None:
             self.detect_war(day, outcomes)
         if self.level >= 6 and day != self.war_day and (self.outage is None or self.outage[0] != day):
             self.detect_outage(day, outcomes)
@@ -183,34 +179,35 @@ class PricingModel:
                 self.offset[key] = min(lim, max(-lim, self.offset.get(key, 0.0) + sign * delta))
 
     def detect_war(self, day: int, outcomes: list[Outcome]) -> None:
-        """A run of losses on many lanes on one day is the price war: undo what its losses taught."""
-        recent = outcomes[-self.p.war_window :]
-        if len(recent) < self.p.war_window:
+        """The world's multiplier falling far below the day's opening, on many lanes, is the price war.
+        Monday has no usual level to fall from, so a war on Monday is only followed, not flagged."""
+        if self.log_m > self.day_open[day] - self.p.war_drop:
             return
-        losses = sum(not o.won for o in recent)
-        if losses >= self.p.war_losses and len({o.pickup for o in recent}) >= self.p.war_places:
+        if len({o.pickup for o in outcomes if not o.won}) >= self.p.war_places:
             self.war_day = day
-            for o in reversed(recent):
-                if not o.won:
-                    self.apply(o.updates, -1.0)
 
     def detect_outage(self, day: int, outcomes: list[Outcome]) -> None:
-        """A run of wins in one region, more than on the rest of the day, is the outage there."""
-        if not self.near:
-            return
-        best: tuple[int, frozenset[str]] | None = None
+        """A region that wins far more often than the rest of the day is the outage there. What its
+        wins taught the world and its lanes today is undone, and the region gets its own boost."""
+        best: tuple[float, frozenset[str]] | None = None
         for region in self.near.values():
-            inside = [o for o in outcomes if o.places & region]
-            recent = inside[-self.p.outage_window :]
-            if len(recent) < self.p.outage_window or sum(o.won for o in recent) < self.p.outage_wins:
+            inside = [o for o in outcomes if o.pickup in region]
+            n_in, n_out = len(inside), len(outcomes) - len(inside)
+            if n_in < self.p.outage_min or n_out < self.p.outage_min:
                 continue
-            outside = [o for o in outcomes if not o.places & region]
-            share_out = sum(o.won for o in outside) / len(outside) if outside else self.p.target_win
-            share_in = sum(o.won for o in inside) / len(inside)
-            if share_in > share_out + 0.2 and (best is None or len(inside) > best[0]):
-                best = (len(inside), region)
-        if best is not None:
-            self.outage = (day, best[1])
+            w_in = sum(o.won for o in inside)
+            p_in, p_out = w_in / n_in, (sum(o.won for o in outcomes) - w_in) / n_out
+            pooled = (w_in + p_out * n_out) / (n_in + n_out)
+            spread = math.sqrt(pooled * (1 - pooled) * (1 / n_in + 1 / n_out)) or 1.0
+            z = (p_in - p_out) / spread
+            if p_in - p_out >= self.p.outage_gap and z >= self.p.outage_z and (best is None or z > best[0]):
+                best = (z, region)
+        if best is None:
+            return
+        self.outage, self.outage_log = (day, best[1]), math.log(self.p.outage_boost)
+        for o in outcomes:
+            if o.pickup in best[1]:
+                self.apply(o.updates, -1.0)
 
     # --- dealer trust -------------------------------------------------------------------------
 
@@ -251,10 +248,6 @@ def request_keys(request: dict) -> tuple[str, ...]:
         f"delivery:{leg['delivery']['placeId']}",
         f"dealer:{request['dealerId']}",
     )
-
-
-def request_places(request: dict) -> frozenset[str]:
-    return frozenset(p for leg in request["legs"] for p in (leg["pickup"]["placeId"], leg["delivery"]["placeId"]))
 
 
 def km(a: tuple[float, float], b: tuple[float, float]) -> float:
