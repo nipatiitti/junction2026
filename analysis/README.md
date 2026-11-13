@@ -598,3 +598,26 @@ so the kept orders' on-time share and margin are what they were with that compet
 week's prices, so a replayed quote dearer than the week's winning one is unknown, and starter weeks (list price,
 every option) can judge few quotes. Fees and offers get no answers from drivers, so a plan below what a driver took,
 or an offer to a driver who did not book, is unknown.
+
+## Pricing and fees on the probes, the starter and the saved weeks
+
+The page has four more sections (#145). Two score pricing and fees where a week cannot: on `probe.py`'s rows in
+`out/probe` (`--probe` for another folder), which come with the team's release. Each probed seed's request stream,
+drivers and map are its passive week. Without probe rows, the two sections say so.
+
+| Section                     | What runs                                                                                                                            | What it is scored on                                                                                                                                                           |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Pricing on the probes       | the desk's `PricingModel` through the seed's request stream on the probed days, each request quoted at its first option              | the quote flip of each probed request, the highest multiple of the list price that wins it: revenue won against the list price, every fixed multiple and the flip              |
+| Fees on the probes          | the desk's `FeePlanner` and the starter's `BaselineFees` (strategies/baseline) for each fee-probed order, from the minute it was won | the fee flip, the lowest flat fee a driver booked within the probe's window: each schedule books at its first step at or over it before the last pickup, and pays that step    |
+| Every strategy against none | nothing: each week's own score                                                                                                       | the starter's played weeks next to the saved runs of `dispatch.py`, the ladder and the TypeScript starter at one level: margin, revenue, orders, on time, ranked, fees per car |
+| Every saved week            | nothing: each saved run's score and `meta.json`'s `version`                                                                          | margin and on-time share by the commit that played the week (grouped by `meta.json`'s policy), with the best and worst week of each seed                                       |
+
+Pricing learns as in a week: a request without a probed flip wins or loses against a flip drawn from the same day's
+probed requests (the same draws on every run), and only the probed requests are scored. Dealer trust stays at zero:
+it needs deliveries. Fees plan at the order's list price. `out/replay.csv` has one more row per probed seed and number,
+with the experiment `probe` and the strategy `pricing-probes` or `fees-probes`.
+
+Limits: `probe.py`'s parent world wins nothing, so the competitor has not raised its prices for the probed dealers,
+and the level 8 quote probes cover Monday and Tuesday only. A fee flip is the fee a driver took at the post: a
+schedule that reaches it hours later may find that driver gone, and the starter's steep fees after a deadline warning
+are left out. The starter's weeks and our saved runs are played on different seeds.
