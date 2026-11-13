@@ -159,7 +159,7 @@ deletes the worlds in play, so they free the team's practice slots. A week's fol
 is in play: after a harder kill, the next run deletes that world and plays the week again, or saves it if it ended. `--workers` weeks run at once (default 4), and the scraper always leaves
 `--keep-free` practice slots (default 2) for teammates. A week with a policy that acts takes about 2,000 requests: a
 few minutes at 175 ms a request through a Claude Code cloud proxy. The scraper's client goes through `HTTPS_PROXY`
-when one is set, so there the proxy adds the team key and `SPREAD_KEY` can be a placeholder.
+when one is set (see [Claude Code cloud environments](#claude-code-cloud-environments)).
 
 `summary.json` has one entry per level and policy (`L8/explore`) and a catalogue of every event kind:
 
@@ -196,8 +196,15 @@ Variables belong to one cloud environment. Every session that starts in that env
 that works on this repository needs both variables in its settings:
 
 - `SPREAD_URL=https://spread.bahnexpress.com`
-- `SPREAD_KEY`, the real team key. The Python client connects straight to the server, so a placeholder with a network
-  secret does not work.
+- `SPREAD_KEY`, the team key, or a placeholder when the environment has the key as a network secret for
+  `spread.bahnexpress.com`.
+
+How the key reaches the server: `dispatch.py`, `scrape.py` and the bench create their client with `ProxyClient` from
+`spread_proxy.py`. When `HTTPS_PROXY` is set, as in a cloud session, it tunnels each request through that proxy and
+trusts the CA in `SSL_CERT_FILE`; the proxy swaps the placeholder for the real key. Without `HTTPS_PROXY`, or for a host
+in `NO_PROXY`, it connects straight to the server, as the kit's client does. The vendored kit is unchanged. The live
+event stream of `dispatch.py --final` still connects straight to the server, so play a final where `SPREAD_KEY` holds
+the real key.
 
 ## Working in parallel
 
