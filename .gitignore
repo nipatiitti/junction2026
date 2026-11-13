@@ -25,3 +25,12 @@ vite.config.ts.timestamp-*
 test-results
 # SQLite
 *.db
+
+# Python
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+
+# Spread reveals written by spread-reveal-csv
+/reveal-*

@@ -16,6 +16,9 @@ time.
 
 ### Setup
 
+The system is Python, run with [uv](https://docs.astral.sh/uv/) on Python 3.15. `uv sync` installs Python and the
+packages. If it cannot find Python 3.15, update uv first (`uv self update`).
+
 The kit reads two variables. Copy `.env.example` to `.env` and put the team key in `SPREAD_KEY`. `.env` is not
 committed.
 
@@ -27,18 +30,22 @@ SPREAD_KEY=<the team key>
 ### Play a practice week
 
 ```sh
-pnpm spread --level 8 --seed spread-1   # a whole practice week; the same seed gives the same week
-pnpm spread:reveal <world id>           # write an ended week and its reveal to CSV files
-pnpm spread:final                       # play our copy of a test final or of the final
+uv run --env-file .env dispatch.py --level 8 --seed spread-1   # a whole practice week with our system
+uv run --env-file .env spread-starter --level 8 --seed spread-1 # the same week with the organisers' unchanged starter
+uv run --env-file .env spread-reveal-csv <world id>             # write an ended week and its reveal to CSV files
+uv run --env-file .env dispatch.py --final                      # play our copy of a test final or of the final
 ```
 
-`--level` is 1 to 8 (the final is level 8). `--board` plays a ranking run: each ranking world can be played once and
-its score stays on the public rankings, so agree on it in the team first. A level 8 week takes about five minutes from
-a Claude Code cloud session.
+Leave out `--env-file .env` where the two variables are already set, as in a Claude Code cloud session.
 
-`spread/` holds the organisers' TypeScript kit of 13 November, formatted with Biome. It needs no packages and runs on
-Node 22.18 or later. `starter.ts` is the system that we change. `spread.ts` and `types.ts` are the organisers' client:
-keep them as they are, so a new kit version is a copy and a `pnpm format`.
+`--level` is 1 to 8 (the final is level 8). The same seed gives the same week, so compare two versions of the system
+on the same seeds. `--board` plays a ranking run: each ranking world can be played once and its score stays on the
+public rankings, so agree on it in the team first.
+
+- `dispatch.py` is our system. It starts as a copy of the organisers' starter, formatted with ruff.
+- `vendor/` holds the organisers' Python kit of 13 November as a wheel. uv installs it as the package `spread`: the
+  API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
+- `tests/` holds fast tests that need no network: `uv run pytest`.
 
 ### The baseline to beat
 
@@ -51,22 +58,18 @@ them in time.
 | 7     | -€50,442.49 | 817        | 52.3%   | no     |
 | 8     | -€72,612.51 | 949        | 45.5%   | no     |
 
+We measured these with the organisers' TypeScript starter, before we chose Python. They match the handbook to the
+cent, and the handbook says that both starters play alike. The Python starter has not been run against the server
+yet.
+
 ### Claude Code cloud environments
 
-Variables and secrets belong to one cloud environment. Every session that starts in that environment gets them. The
-`Junction2026` environment has:
+Variables belong to one cloud environment. Every session that starts in that environment gets them. Each environment
+that works on this repository needs both variables in its settings:
 
-- the variable `SPREAD_URL=https://spread.bahnexpress.com`;
-- the variable `SPREAD_KEY=proxy-injected`, a placeholder;
-- a network secret for the host `spread.bahnexpress.com` that holds the real team key. The session's proxy puts the
-  real key on each request, so the key is not stored as plain text.
-
-`pnpm spread` and `pnpm spread:reveal` send their requests through that proxy, so they work with the placeholder. To
-use another cloud environment, add the same two variables and the network secret in its settings.
-
-A final is different: it sends events over a WebSocket, and a WebSocket cannot go through the proxy. To play a final
-from a cloud session, put the real key in that environment's `SPREAD_KEY` variable. `pnpm spread:final` then connects
-without the proxy. On your own computer, `.env` is enough for all three commands.
+- `SPREAD_URL=https://spread.bahnexpress.com`
+- `SPREAD_KEY`, the real team key. The Python client connects straight to the server, so a placeholder with a network
+  secret does not work.
 
 ## Creating a project
 

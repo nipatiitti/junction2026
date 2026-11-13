@@ -9,9 +9,9 @@
 We are building a dispatch system for Spread, Bahn's Junction 2026 challenge: it quotes
 car dealers and pays freelance drivers to move the cars, for one simulated week.
 
-- Before you work on anything under `spread/`, read `docs/spread/HANDBOOK.md`. `RULES.md`
-  and `API.md` next to it are the full references. `README.md` has the setup, the dates
-  and the baseline to beat.
+- The system is `dispatch.py`, in Python, run with uv. Before you change it, read
+  `docs/spread/HANDBOOK.md`. `RULES.md` and `API.md` next to it are the full references.
+  `README.md` has the setup, the dates and the baseline to beat.
 - Practice weeks are free and repeatable: the same seed and level give the same week.
   Compare two versions of the system on the same seeds.
 - Ask for approval before you play a ranking run (`--board`) or a final (`--final`). Each
@@ -166,8 +166,13 @@ in and keep it current. Every row must be a single copy-pasteable command.
 | Lint only (no writes)       | `pnpm lint`                                                   |
 | Type check                  | `pnpm check`                                                  |
 | Push schema to the database | `pnpm db:push`                                                |
-| Play a Spread practice week | `pnpm spread --level 8 --seed spread-1`                       |
-| Write an ended week to CSV  | `pnpm spread:reveal <world id>`                               |
+| Install Python dependencies | `uv sync`                                                     |
+| Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`                |
+| Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                         |
+| Run one Python test file    | `uv run pytest tests/test_dispatch.py`                        |
+| Run Python tests by name    | `uv run pytest -k "<name>"`                                   |
+| Run all Python tests        | `uv run pytest`                                               |
+| Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .`           |
 
 ## Definition of done
 
