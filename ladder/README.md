@@ -54,6 +54,12 @@ opening fees start again from their priors.
 uv run ladder/rehearse.py --seed spread-1 --restart-at 3600   # a restart on Wednesday at 12:00
 ```
 
+That command, at rung 4 and commit `0c39f83`: +€8,930.71, 332 orders, 99.1% on time, against +€9,325.82, 337 orders
+and 99.1% for the practice week of the same commit and seed. The desk rebuilt itself on Wednesday at 12:00 and went on,
+and 6 of its 540 quotes after the restart came too late, at three times the final's speed. A first rehearsal, with a
+desk that sent its actions after each event rather than each page, won 33 orders on Monday against 82 in practice: at
+that speed it fell behind the clock, and its quotes came after the dealers had decided.
+
 ## The ladder
 
 | Rung | Takes                 | What it needs                                                                                                       |
