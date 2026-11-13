@@ -34,6 +34,7 @@ from spread.types import (
 
 from spread_proxy import ProxyClient
 from strategies.admission import Admission, Held
+from strategies.pricing import PricingModel, places_from_map
 
 HOUR, DAY = 60, 24 * 60
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -79,7 +80,9 @@ class Desk:
         self.posts: dict[str, PostAction] = {}  # gig id -> the post that made it
         self.urgent: set[str] = set()  # the orders whose deadline warning has come
         # Decides which requests to take, from the driver list and the map, loaded once (strategies/admission).
-        self.admission = Admission(world.roster(), world.client.map(), level)
+        world_map = world.client.map()
+        self.admission = Admission(world.roster(), world_map, level)
+        self.pricing = PricingModel(level, places_from_map(world_map))  # the price of a quote (strategies/pricing)
 
     def rejoin(self, snapshot: DeskSnapshot, history: list[DeskEvent]) -> None:
         """Rebuilds what it knows from the world, so a starter that stopped keeps its orders. Then answers
@@ -95,6 +98,10 @@ class Desk:
                     gig["id"],
                 )
         self.requests = {e["request"]["id"]: e["request"] for e in history if e["kind"] == "price_request"}
+        # The history rebuilds dealer trust. It cannot tell the quotes admission declined from the others,
+        # so the price multiplier learns again from the level's start.
+        for event in history:
+            self.pricing.observe(event)
         self.urgent = {e["orderId"] for e in history if e["kind"] == "deadline_close"}
         self.orders = {
             o["id"]: o for o in snapshot["orders"] if o["id"] in self.requests and o["status"] != "cancelled"
@@ -119,6 +126,7 @@ class Desk:
 
     def handle(self, event: DeskEvent) -> None:
         self.admission.observe(event)
+        self.pricing.observe(event)
         if event["kind"] == "price_request":
             self.quote(event["request"])
         elif event["kind"] == "order_won":
@@ -150,15 +158,19 @@ class Desk:
             self.orders[order_id]["deliveredAt"][leg] = at
 
     def quote(self, request: PriceRequest) -> None:
-        """Quotes the list price of the option that admission picks. A request admission declines gets a
-        price far above the list price, which loses at no cost; up to level 3 every quote wins, so no quote."""
+        """Quotes the options that admission picks, at the price that strategies/pricing learns. A request
+        admission declines gets a price far above the list price, which loses at no cost; up to level 3
+        every quote wins, so no quote."""
         self.requests[request["id"]] = request
         held = [
             Held(o, bool(g := self.gigs_of(o["id"])) and all(x in self.booked for x in g)) for o in self.orders.values()
         ]
+        # Admission weighs the margin at the price we would quote, and pricing prices the options it picks.
+        self.admission.params.price_factor = self.pricing.multiplier(request, self.now)
         verdict = self.admission.assess(request, held, self.now)
         if verdict.accept:
-            prices = {o["kind"]: o["listPriceCents"] for o in request["options"] if o["kind"] in verdict.options}
+            priced = self.pricing.price(request, self.now)
+            prices = {kind: cents for kind, cents in priced.items() if kind in verdict.options}
         elif self.level > 3:
             prices = {o["kind"]: 10 * o["listPriceCents"] for o in request["options"][:1]}
         else:
