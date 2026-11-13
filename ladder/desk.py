@@ -31,7 +31,7 @@ from ladder import fees
 from ladder.admission import Admission
 from ladder.market import Market
 from ladder.pricing import Pricing
-from ladder.rides import RUNGS, Ride, classify, needs_charging
+from ladder.rides import RUNGS, Ride, classify, needs_charging, next_morning
 from strategies.notes import NO_FACTS, NoteFacts, Snow, delivery_window, pickup_window, read_note
 
 HOUR, DAY = 60, 24 * 60
@@ -54,15 +54,6 @@ POLL = 14
 RETRY_AFTER = 2 * HOUR  # a car that was not ready, or a closed site, is tried again this much later
 TWELVE_HOURS = 12 * HOUR  # a gig with more than one car may plan at most this much driving
 TOMORROW = True  # rung 4: post a car ready today as a gig for the next business morning
-MORNING = 7 * HOUR  # when that gig's pickup window opens
-
-
-def next_morning(now: int) -> int:
-    """07:00 on the next business day (Monday to Friday) after `now`."""
-    day = now // DAY + 1
-    while day % 7 in (5, 6):
-        day += 1
-    return day * DAY + MORNING
 
 
 LIVE = ("open", "booked", "working")
@@ -290,7 +281,7 @@ class Desk:
         kinds = self.admission.options(request, ride, self.now, self.load())
         self.count[f"requests rung {ride.rung}"] += 1
         if kinds:
-            prices = self.pricing.prices(request, kinds)
+            prices = self.pricing.prices(request, kinds, ride.rung)
             self.pricing.sent(request)
             self.admission.quoted(request, ride)
             self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})

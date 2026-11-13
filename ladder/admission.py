@@ -14,10 +14,17 @@ from collections import Counter
 from spread.types import DeskEvent, PriceRequest
 
 from ladder.market import Market
-from ladder.rides import Ride
+from ladder.rides import Ride, next_morning
+
+
+def pickup_day(ride: Ride) -> int:
+    """The day a driver collects the car: a car ready today goes as a gig for the next business morning (rung 4)."""
+    return next_morning(ride.ready) // DAY if ride.today else ride.ready // DAY
+
 
 HOUR, DAY = 60, 24 * 60
 MIN_SLACK = 5 * HOUR  # an option needs this much time beyond the drive, from when the car can go to its deadline
+PRIVATE_SLACK = HOUR  # a private delivery is due in its booked hour: the time to spare is the hour itself
 AREA = 60  # road minutes between two pickups that draw on the same drivers
 SHARE = 0.10  # we let drivers' supply near a pickup (Market.supply) carry this many waiting cars of ours each day
 LEAST = 3  # but at least this many
@@ -67,7 +74,8 @@ class Admission:
         kinds = [
             option["kind"]
             for option in request["options"]
-            if self.deadline(option["deadline"], ride) - start - ride.drive >= MIN_SLACK
+            if self.deadline(option["deadline"], ride) - start - ride.drive
+            >= (PRIVATE_SLACK if ride.private else MIN_SLACK)
             # A car ready today goes on a later option only: it needs the evening to find a driver.
             and not (ride.today and option["kind"] == "same_day")
         ]
@@ -88,14 +96,14 @@ class Admission:
 
     def busy(self, ride: Ride, load: list[Ride]) -> bool:
         """True when our cars that wait for a driver near this pickup, on its day, fill what its drivers carry."""
-        day = ride.ready // DAY
+        day = pickup_day(ride)
         near = [r for r in load if self.near(r, ride, day)]
         waiting = len(near) + WIN * sum(1 for r in self.pending.values() if self.near(r, ride, day))
         capacity = max(LEAST, SHARE * ride.pickup_supply) * self.tightening()
         return waiting + 1 > capacity
 
     def near(self, other: Ride, ride: Ride, day: int) -> bool:
-        return other.ready // DAY == day and self.market.drive(other.pickup, ride.pickup) <= AREA
+        return pickup_day(other) == day and self.market.drive(other.pickup, ride.pickup) <= AREA
 
     def decline(self, reason: str) -> list[str]:
         self.declined[reason] += 1

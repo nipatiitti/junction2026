@@ -1,0 +1,114 @@
+# The ride ladder
+
+A second dispatch system for Spread, built from scratch and independent of the root `dispatch.py` (issue #82). It
+climbs a ladder of ride difficulty: it takes only the rides that are easy to move on time at a profit, and unlocks
+harder kinds of rides one rung at a time, each with the handling it needs. At level 8 there are too few drivers for
+every car, so which cars we take matters more than anything else.
+
+## Run it
+
+From the repository root, with `SPREAD_URL` and `SPREAD_KEY` set (add `--env-file .env` after `uv run` to read them
+from `.env`):
+
+```sh
+uv run ladder/play.py --level 8 --seed spread-1             # a practice week, at the default rung
+uv run ladder/play.py --level 8 --seed spread-1 --rung 2    # take rides up to rung 2
+uv run ladder/play.py --final                               # our copy of a test final or of the final
+```
+
+| Option    | Default                     | What it does                                                         |
+| --------- | --------------------------- | -------------------------------------------------------------------- |
+| `--level` | `8`                         | The practice level, 1 to 8. The final is level 8.                    |
+| `--seed`  | random                      | The same seed gives the same week.                                   |
+| `--rung`  | `$LADDER_RUNG`, else `TOP_RUNG` | The hardest rung of rides to take (see below).                   |
+| `--board` | off                         | Plays our next ranking run. Agree on it in the team first.           |
+| `--final` | off                         | Plays our copy of the final from the live stream.                    |
+
+It prints the starter's lines: `Practice world <id>, level <level>.` first, a line for each day, and at the end a
+summary of what the ladder did (requests by rung, quotes, posts, warnings, the learned price and opening fees).
+Each week is saved like `dispatch.py`'s (`record.Recorder`), under the policy `ladder`, so
+`select * from weeks where policy = 'ladder'` in `out/spread.sqlite` lists them. While all eight practice slots are
+taken, it waits for one, as the bench does.
+
+To compare rungs on the bench, which passes only `--level` and `--seed`, set the rung in the environment:
+
+```sh
+LADDER_RUNG=2 uv run python -m strategies.bench ladder/play.py dispatch.py --seeds spread-1..spread-5
+```
+
+## The ladder
+
+| Rung | Takes                    | What it needs                                                                          |
+| ---: | ------------------------ | -------------------------------------------------------------------------------------- |
+|    1 | Easy rides               | One plain car between dealer sites, no note, ready on a later day, a drive of up to 4 hours, drivers near both ends |
+|    2 | Notes                    | The note reader (`strategies/notes`) sets the pickup and delivery windows, the licence and the plates |
+|    3 | Special cars             | Premium cars (experienced drivers only), electric cars that need a charging stop, private addresses |
+|    4 | Rides ready today        | A later option only; the gig is posted for the next business morning                 |
+|    5 | Trade-ins                | Both cars in one gig when the drive fits the 12-hour rule, else one gig each            |
+|    6 | Long and remote rides    | A drive over 4 hours, or few drivers near the pickup or the delivery                    |
+
+A ride's rung is the hardest thing it asks for (`rides.py`). `--rung n` takes every ride of rungs 1 to n.
+
+### Why this order
+
+In the starter's level 8 week (`data/scrape/starter/L8/smoke-1`, 809 orders), what decided whether a car arrived on
+time was mostly when it was ready, against when its request came:
+
+| Car ready                         | Orders | On time | First booking at the opening fee | Median minutes to book |
+| --------------------------------- | -----: | ------: | -------------------------------: | ---------------------: |
+| Within 3 hours of the request     |    336 |   30.1% |                            14.6% |                  1,012 |
+| Later the same day                |     21 |   33.3% |                            33.3% |                    419 |
+| On the next day                   |    385 |   62.3% |                            62.6% |                     16 |
+| 2 or more days later              |     67 |   71.6% |                            25.4% |                    209 |
+
+A gig for the next day reaches drivers when they plan that day, and they book it at once. Drives over 4 hours were
+on time 18% to 31% of the time, premium cars 23%, trade-ins 14%, private deliveries 28%. A note made no difference
+by itself. Drivers near the pickup made little difference; drivers near the delivery did: easy rides into towns
+with few drivers booked at their opening fee 37% of the time, against 84% to 96% elsewhere.
+
+## How it works
+
+| File           | What it holds                                                                                     |
+| -------------- | ------------------------------------------------------------------------------------------------- |
+| `play.py`      | The entry point. It puts the repository root on the import path, as the bench runs it from here |
+| `main.py`      | The loop for practice weeks and for the final, the daily lines, saving the week                  |
+| `desk.py`      | What we know of the week, and our answers: quotes, posts, reprices                                |
+| `rides.py`     | The ladder: the rung of each request                                                              |
+| `admission.py` | Which requests to quote, and which of their options                                               |
+| `pricing.py`   | The price of a quote, learned from our wins and losses, and the dealers' trust                    |
+| `fees.py`      | Fee schedules, and the opening fee learned for each rung                                          |
+| `market.py`    | The map and the driver list: road minutes, and the drivers within reach of a place               |
+
+- **One decision pass a step.** Events only update what the desk knows. After all of a step's events, `tick`
+  quotes the requests that wait, posts every car without a live gig, and reprices the gigs whose plan changed. A
+  desk that restarts in the final rebuilds its books from the world's events and snapshot, and the next tick fills
+  any gap.
+- **Few requests.** While requests keep coming, the clock stops every 14 minutes rather than at each request or win:
+  the dealer decides 15 minutes after the request, on our last quote. A level 8 week takes about 300 requests.
+- **Admission.** A request is quoted when its rung is taken, an option leaves 5 hours beyond the drive, and our cars
+  that still wait for a driver near its pickup, on its day, are fewer than a tenth of the drivers within reach. That
+  share shrinks when our estimate of the on-time share falls under 95%. A car ready today is quoted on later options
+  only.
+- **Prices.** The list price times a multiplier that rises 2.5% after a win and falls 2.5% after a loss, so it
+  settles where half of our quotes win, just under the competitor. Each dealer has its own offset on top, and at
+  level 8 its trust: 1% for each order delivered to it on time, up to 25%, halved by a late one. Never under 1.25
+  times the typical fee.
+- **Fees.** A gig opens at the rung's opening fee and stays flat while there is time, so drivers learn that our fees
+  do not rise. It rises 20% at 07:00 on the day of its last pickup minute, then from the deadline warning, 3 hours
+  before that minute, to 1.5 times the typical fee and 0.2 more every 30 minutes up to 2.2. A car that is already
+  late gets 1.6, rising every hour to 2.6: a car never delivered costs twice its price. After a drop, the gig opens at
+  least 10% over the dropped fee. The opening fee of each rung moves up when its gigs book only after a raise, and
+  never falls more than 5% under its start: a next-day gig gets its driver from the first wave of notifications or
+  not at all.
+
+## Bench results
+
+Level 8. `spread-1`, rung 1, first version (opening fee 1.0): +€2,856.27, 93 orders, 100% on time, 281 requests. All
+93 gigs booked, 88 at the opening fee, half of them within a minute. Dealers took `same_day` on 74 of them.
+
+The same seed at rung 2 with the opening fee learned down to 0.72: +€3,235.82, 111 orders, 91.0% on time. Nine of the
+ten late cars were next-day cars that no driver booked at the cut opening fee; no raise up to 2.2 found one before
+their windows closed, and each was booked a minute after it expired. Hence the floor on the opening fee.
+
+For comparison on `spread-1`: the starter −€72,612.51 (45.5% on time), `dispatch.py` with admission control −€94.87
+(95.9%).

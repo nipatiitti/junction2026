@@ -27,6 +27,7 @@ RUNGS = [
 TOP_RUNG = 1  # the hardest rung built so far: the default of --rung
 NOTES_RUNG, SPECIAL_RUNG, TODAY_RUNG, TRADE_IN_RUNG, REMOTE_RUNG = 2, 3, 4, 5, 6
 
+MORNING = 7 * 60  # rung 4 posts a car ready today for 07:00 on the next business day
 CHARGE_KM = 200  # an electric car under 30% on a route over this needs a charging stop (rule 3)
 REMOTE_SUPPLY = 8.0  # fewer drivers than this within reach of the pickup (Market.supply) makes a ride remote
 # Fewer drivers than this within reach of the delivery makes a ride remote too: its driver has a dear trip home. Easy
@@ -58,6 +59,14 @@ class Ride:
     private: bool  # a stop at a private address
     note: bool
     bulk: bool  # one of a dealer group's cars from one yard (batchId)
+
+
+def next_morning(now: int) -> int:
+    """07:00 on the next business day (Monday to Friday) after `now`."""
+    day = now // DAY + 1
+    while day % 7 in (5, 6):
+        day += 1
+    return day * DAY + MORNING
 
 
 def needs_charging(market: Market, leg: dict) -> bool:

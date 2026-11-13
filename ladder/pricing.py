@@ -20,7 +20,9 @@ STEP = 0.025  # the world multiplier moves this much (in log) after each win or 
 DEALER_STEP = 0.02  # a dealer's offset moves this much after each of its outcomes
 DEALER_CAP = 0.15  # a dealer's offset stays within this (in log)
 LOWEST, HIGHEST = 0.9, 2.2  # the world multiplier stays within these
-FLOOR = 1.25  # never quote below this times the typical fee: under it a car does not pay its driver
+# Never quote below this times the typical fee, by rung: under it a car does not pay its driver. Harder rungs pay
+# more to their drivers.
+FLOOR = {1: 1.25, 2: 1.25, 3: 1.4, 4: 1.35, 5: 1.4, 6: 1.6}
 TRUST_CAP = 25  # level 8: each dealer counts up to 25 orders delivered on time, each worth 1% more
 
 
@@ -38,13 +40,13 @@ class Pricing:
         trust = 1 + min(self.trust[dealer], TRUST_CAP) / 100 if self.level >= 8 else 1.0
         return math.exp(self.world + self.dealer[dealer]) * trust
 
-    def prices(self, request: PriceRequest, kinds: list[str]) -> dict[str, int]:
+    def prices(self, request: PriceRequest, kinds: list[str], rung: int) -> dict[str, int]:
         """The price of each option kind that we quote. Up to level 3 every quote wins at the list price."""
         options = {option["kind"]: option for option in request["options"]}
         if self.level <= 3:
             return {kind: options[kind]["listPriceCents"] for kind in kinds}
         m = self.multiplier(request["dealerId"])
-        floor = int(FLOOR * request["referenceFeeCents"] + 0.5)  # the typical fee is for all the request's cars
+        floor = int(FLOOR.get(rung, 1.25) * request["referenceFeeCents"] + 0.5)  # the fee is for all its cars
         return {kind: max(int(options[kind]["listPriceCents"] * m + 0.5), floor) for kind in kinds}
 
     def sent(self, request: PriceRequest) -> None:
