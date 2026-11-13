@@ -107,6 +107,8 @@ class Week:
         self.meta = json.loads((folder / "meta.json").read_text())
         self.level: int = self.meta["level"]
         self.experiment = experiment_of(folder)
+        if self.experiment == "runs" and self.meta.get("policy") not in (None, "dispatch"):
+            self.experiment = f"runs-{self.meta['policy']}"  # saved weeks of another system, such as ladder/
         with gzip.open(folder / "events.jsonl.gz", "rt", encoding="utf-8") as file:
             self.events = sorted((json.loads(line) for line in file), key=lambda e: (e["at"], e["seq"]))
         self.reveal = read_gz(folder / "reveal.json.gz")
@@ -584,8 +586,8 @@ def replay_week(folder: str) -> dict:
 
 # ---------------------------------------------------------------- the page
 
-GROUP_ORDER = ["runs", "starter", "explore-win", "explore-flat", "explore-slow", "explore-ceiling"]
-GROUP_NAME = {"runs": "our dispatch.py", "starter": "starter"}
+GROUP_ORDER = ["runs", "runs-ladder", "starter", "explore-win", "explore-flat", "explore-slow", "explore-ceiling"]
+GROUP_NAME = {"runs": "our dispatch.py", "runs-ladder": "our ladder", "starter": "starter"}
 
 
 def group_key(week: dict) -> tuple:
@@ -959,7 +961,7 @@ def section_bundling(results: list[dict]) -> str:
             (
                 "Every order the week won goes through the bundler's pool as dispatch.py sends it: an order of a batch "
                 "waits for the batch's other cars, then the pool builds chains. The ring is the share the week itself "
-                "posted in gigs with several orders (only our dispatch.py bundles)."
+                "posted in gigs with several orders (the starter and the explore weeks never bundle)."
             )
         ],
     )
