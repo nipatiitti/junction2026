@@ -1,8 +1,12 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
-    "includes": ["**", "!pnpm-lock.yaml", "!**/*.svg", "!.github", "!.claude", "!.opencode", "!docs/spread"]
+    "includes": ["**", "!pnpm-lock.yaml", "!.claude", "!docs/spread"]
   },
   "formatter": {
     "indentStyle": "space",
@@ -16,17 +20,16 @@
       "trailingCommas": "all"
     }
   },
-  "css": {
-    "parser": { "tailwindDirectives": true }
-  },
-  "html": {
-    "experimentalFullSupportEnabled": true,
-    "formatter": { "enabled": true, "indentScriptAndStyle": true }
-  },
   "linter": {
-    "rules": { "preset": "recommended" }
+    "rules": {
+      "preset": "recommended"
+    }
   },
   "assist": {
-    "actions": { "source": { "organizeImports": "on" } }
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   }
 }
