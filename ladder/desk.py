@@ -410,7 +410,11 @@ class Desk:
             return fees.late(self.now, fee, self.level, floor)
         if job.warned:
             return fees.warned(self.now, fee, self.level, floor)
-        return fees.normal(self.now, fee, last_pickup, self.level, self.opening.multiple(job.ride.rung), floor)
+        # A short ride's typical fee is a small share of its price and can be less than the trip there and home
+        # costs a driver: such cars got deadline warnings ten times as often. They open at a share of the price.
+        price = job.order["priceCents"] * fee / job.request["referenceFeeCents"]  # the price of the gig's cars
+        opening = max(self.opening.multiple(job.ride.rung), fees.PRICE_SHARE * price / fee)
+        return fees.normal(self.now, fee, last_pickup, self.level, opening, floor)
 
     def carry(self, action: PostAction, gig_id: str) -> None:
         """Remembers a gig the world accepted, and the legs it carries."""

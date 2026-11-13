@@ -16,13 +16,13 @@ uv run ladder/play.py --level 8 --seed spread-1 --rung 2    # take rides up to r
 uv run ladder/play.py --final                               # our copy of a test final or of the final
 ```
 
-| Option    | Default                     | What it does                                                         |
-| --------- | --------------------------- | -------------------------------------------------------------------- |
-| `--level` | `8`                         | The practice level, 1 to 8. The final is level 8.                    |
-| `--seed`  | random                      | The same seed gives the same week.                                   |
-| `--rung`  | `$LADDER_RUNG`, else `TOP_RUNG` | The hardest rung of rides to take (see below).                   |
-| `--board` | off                         | Plays our next ranking run. Agree on it in the team first.           |
-| `--final` | off                         | Plays our copy of the final from the live stream.                    |
+| Option    | Default                         | What it does                                               |
+| --------- | ------------------------------- | ---------------------------------------------------------- |
+| `--level` | `8`                             | The practice level, 1 to 8. The final is level 8.          |
+| `--seed`  | random                          | The same seed gives the same week.                         |
+| `--rung`  | `$LADDER_RUNG`, else `TOP_RUNG` | The hardest rung of rides to take (see below).             |
+| `--board` | off                             | Plays our next ranking run. Agree on it in the team first. |
+| `--final` | off                             | Plays our copy of the final from the live stream.          |
 
 It prints the starter's lines: `Practice world <id>, level <level>.` first, a line for each day, and at the end a
 summary of what the ladder did (requests by rung, quotes, posts, warnings, the learned price and opening fees).
@@ -38,14 +38,14 @@ LADDER_RUNG=2 uv run python -m strategies.bench ladder/play.py dispatch.py --see
 
 ## The ladder
 
-| Rung | Takes                    | What it needs                                                                          |
-| ---: | ------------------------ | -------------------------------------------------------------------------------------- |
-|    1 | Easy rides               | One plain car between dealer sites, no note, ready on a later day, a drive of up to 4 hours, drivers near both ends |
-|    2 | Notes                    | The note reader (`strategies/notes`) sets the pickup and delivery windows, the licence and the plates |
-|    3 | Special cars             | Premium cars (experienced drivers only), electric cars that need a charging stop, private addresses |
-|    4 | Rides ready today        | A later option only; the gig is posted for the next business morning                 |
-|    5 | Trade-ins                | Both cars in one gig when the drive fits the 12-hour rule, else one gig each            |
-|    6 | Long and remote rides    | A drive over 4 hours, or few drivers near the pickup or the delivery                    |
+| Rung | Takes                 | What it needs                                                                                                       |
+| ---: | --------------------- | ------------------------------------------------------------------------------------------------------------------- |
+|    1 | Easy rides            | One plain car between dealer sites, no note, ready on a later day, a drive of up to 4 hours, drivers near both ends |
+|    2 | Notes                 | The note reader (`strategies/notes`) sets the pickup and delivery windows, the licence and the plates               |
+|    3 | Special cars          | Premium cars (experienced drivers only), electric cars that need a charging stop, private addresses                 |
+|    4 | Rides ready today     | A later option only; the gig is posted for the next business morning                                                |
+|    5 | Trade-ins             | Both cars in one gig when the drive fits the 12-hour rule, else one gig each                                        |
+|    6 | Long and remote rides | A drive over 4 hours, or few drivers near the pickup or the delivery                                                |
 
 A ride's rung is the hardest thing it asks for (`rides.py`). `--rung n` takes every ride of rungs 1 to n.
 
@@ -54,12 +54,12 @@ A ride's rung is the hardest thing it asks for (`rides.py`). `--rung n` takes ev
 In the starter's level 8 week (`data/scrape/starter/L8/smoke-1`, 809 orders), what decided whether a car arrived on
 time was mostly when it was ready, against when its request came:
 
-| Car ready                         | Orders | On time | First booking at the opening fee | Median minutes to book |
-| --------------------------------- | -----: | ------: | -------------------------------: | ---------------------: |
-| Within 3 hours of the request     |    336 |   30.1% |                            14.6% |                  1,012 |
-| Later the same day                |     21 |   33.3% |                            33.3% |                    419 |
-| On the next day                   |    385 |   62.3% |                            62.6% |                     16 |
-| 2 or more days later              |     67 |   71.6% |                            25.4% |                    209 |
+| Car ready                     | Orders | On time | First booking at the opening fee | Median minutes to book |
+| ----------------------------- | -----: | ------: | -------------------------------: | ---------------------: |
+| Within 3 hours of the request |    336 |   30.1% |                            14.6% |                  1,012 |
+| Later the same day            |     21 |   33.3% |                            33.3% |                    419 |
+| On the next day               |    385 |   62.3% |                            62.6% |                     16 |
+| 2 or more days later          |     67 |   71.6% |                            25.4% |                    209 |
 
 A gig for the next day reaches drivers when they plan that day, and they book it at once. Drives over 4 hours were
 on time 18% to 31% of the time, premium cars 23%, trade-ins 14%, private deliveries 28%. A note made no difference
@@ -68,16 +68,16 @@ with few drivers booked at their opening fee 37% of the time, against 84% to 96%
 
 ## How it works
 
-| File           | What it holds                                                                                     |
-| -------------- | ------------------------------------------------------------------------------------------------- |
+| File           | What it holds                                                                                   |
+| -------------- | ----------------------------------------------------------------------------------------------- |
 | `play.py`      | The entry point. It puts the repository root on the import path, as the bench runs it from here |
-| `main.py`      | The loop for practice weeks and for the final, the daily lines, saving the week                  |
-| `desk.py`      | What we know of the week, and our answers: quotes, posts, reprices                                |
-| `rides.py`     | The ladder: the rung of each request                                                              |
-| `admission.py` | Which requests to quote, and which of their options                                               |
-| `pricing.py`   | The price of a quote, learned from our wins and losses, and the dealers' trust                    |
-| `fees.py`      | Fee schedules, and the opening fee learned for each rung                                          |
-| `market.py`    | The map and the driver list: road minutes, and the drivers within reach of a place               |
+| `main.py`      | The loop for practice weeks and for the final, the daily lines, saving the week                 |
+| `desk.py`      | What we know of the week, and our answers: quotes, posts, reprices                              |
+| `rides.py`     | The ladder: the rung of each request                                                            |
+| `admission.py` | Which requests to quote, and which of their options                                             |
+| `pricing.py`   | The price of a quote, learned from our wins and losses, and the dealers' trust                  |
+| `fees.py`      | Fee schedules, and the opening fee learned for each rung                                        |
+| `market.py`    | The map and the driver list: road minutes, and the drivers within reach of a place              |
 
 - **One decision pass a step.** Events only update what the desk knows. After all of a step's events, `tick`
   quotes the requests that wait, posts every car without a live gig, and reprices the gigs whose plan changed. A

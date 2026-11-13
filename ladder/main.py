@@ -11,6 +11,7 @@ import argparse
 import os
 import sys
 import time
+import traceback
 from collections import Counter
 
 from spread.client import Client, SpreadError, Unreachable, World
@@ -165,6 +166,12 @@ def main() -> None:
                 except Unreachable as error:
                     print(f"spread: {error}. Trying again in 5 seconds.", file=sys.stderr, flush=True)
                     time.sleep(5)
+                except Exception:  # noqa: BLE001  (the final runs on without us: rebuild and go on)
+                    # A new desk rebuilds its books and reads the stream after the last event the world has, so an
+                    # event that broke this one is not read again.
+                    traceback.print_exc()
+                    print("The desk stopped on the error above. Rebuilding in 2 seconds.", file=sys.stderr, flush=True)
+                    time.sleep(2)
         else:
             world = create(client, args.level, args.seed, args.board)
             name = f"{'Ranking run' if args.board else 'Practice world'} {world.id}"
