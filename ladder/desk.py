@@ -322,7 +322,6 @@ class Desk:
 
     def post_legs(self, job: Job, legs: list[int]) -> None:
         order = job.order
-        fee = job.request["referenceFeeCents"] * len(legs) / len(order["legs"])
         action: PostAction = {
             "type": "post",
             "stops": [stop for leg in legs for stop in self.stops(job, leg)],
@@ -330,11 +329,22 @@ class Desk:
                 "experienced": any(self.audience(job, leg)["experienced"] for leg in legs),
                 "manualLicence": any(self.audience(job, leg)["manualLicence"] for leg in legs),
             },
-            "schedule": self.schedule(job, fee),
+            "schedule": self.schedule(job, legs),
         }
         self.outbox.append(action)
         self.posting.update((order["id"], leg) for leg in legs)
         self.count["late posts" if self.now >= order["lastPickupAt"] else "posts"] += 1
+
+    def fee_base(self, job: Job, legs: list[int]) -> float:
+        """The typical fee for some of the order's cars. When the dealer has sent a car farther than the request
+        said (order_changed), it grows with the drive: the driver of a farther car wants more."""
+        share = job.request["referenceFeeCents"] * len(legs) / len(job.order["legs"])
+        asked = sum(self.leg_drive(job.request["legs"][leg]) for leg in legs)
+        now = sum(self.leg_drive(job.order["legs"][leg]) for leg in legs)
+        return share * max(1.0, now / asked) if asked else share
+
+    def leg_drive(self, leg: dict) -> int:
+        return self.market.drive(leg["pickup"]["placeId"], leg["delivery"]["placeId"])
 
     def trade_in_drive(self, order: Order) -> int:
         """Road minutes of a trade-in in one gig: new car out, to the old car's pickup, old car back."""
@@ -402,17 +412,17 @@ class Desk:
             self.facts[request["id"]] = read_note(note and note["text"], request["arrivedAt"])
         return self.facts[request["id"]]
 
-    def schedule(self, job: Job, fee: float, floor: int = 0) -> list[FeeStep]:
-        """The fee plan from now: normal while the car can be on time, steep after its deadline warning, and the
-        late plan once its last pickup minute has passed."""
-        last_pickup = job.order["lastPickupAt"]
+    def schedule(self, job: Job, legs: list[int], floor: int = 0) -> list[FeeStep]:
+        """The fee plan from now for a gig of some of the order's cars: normal while the car can be on time, steep
+        after its deadline warning, and the late plan once its last pickup minute has passed."""
+        fee, last_pickup = self.fee_base(job, legs), job.order["lastPickupAt"]
         if self.now >= last_pickup:
             return fees.late(self.now, fee, self.level, floor)
         if job.warned:
             return fees.warned(self.now, fee, self.level, floor)
         # A short ride's typical fee is a small share of its price and can be less than the trip there and home
         # costs a driver: such cars got deadline warnings ten times as often. They open at a share of the price.
-        price = job.order["priceCents"] * fee / job.request["referenceFeeCents"]  # the price of the gig's cars
+        price = job.order["priceCents"] * len(legs) / len(job.order["legs"])  # the price of the gig's cars
         opening = max(self.opening.multiple(job.ride.rung), fees.PRICE_SHARE * price / fee)
         return fees.normal(self.now, fee, last_pickup, self.level, opening, floor)
 
@@ -439,9 +449,8 @@ class Desk:
         job = self.jobs.get(gig.order_id) if gig else None
         if gig is None or job is None or gig.status != "open":
             return
-        fee = job.request["referenceFeeCents"] * len(gig.legs) / len(job.order["legs"])
         floor = max(fees.now_fee(gig.schedule, self.now), int(gig.booked_fee * fees.REBOOK))
-        schedule = self.schedule(job, fee, floor)
+        schedule = self.schedule(job, gig.legs, floor)
         gig.action = {**gig.action, "schedule": schedule}
         self.outbox.append({"type": "reprice", "gigId": gig_id, "schedule": schedule})
 
