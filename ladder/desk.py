@@ -54,6 +54,7 @@ WAKE_ON_BUSY: list[DeskEventKind] = [k for k in WAKE_ON if k not in ("price_requ
 POLL = 14
 RETRY_AFTER = 2 * HOUR  # a car that was not ready, or a closed site, is tried again this much later
 TWELVE_HOURS = 12 * HOUR  # a gig with more than one car may plan at most this much driving
+REFUSALS = 3  # posts of one car the world may refuse before the desk stops posting it
 TOMORROW = True  # rung 4: post a car ready today as a gig for the next business morning
 
 
@@ -91,6 +92,8 @@ class Job:
     manual: set[int] = field(default_factory=set)
     plates: set[int] = field(default_factory=set)
     posted: set[int] = field(default_factory=set)  # legs that have had a gig
+    plain: set[int] = field(default_factory=set)  # legs to post without windows of their own, after a refusal
+    refusals: dict[int, int] = field(default_factory=dict)  # leg -> posts of it the world refused
 
     def undelivered(self) -> list[int]:
         return [leg for leg, at in enumerate(self.order["deliveredAt"]) if at is None]
@@ -146,13 +149,18 @@ class Desk:
                     self.refused(action, result["reason"])
 
     def refused(self, action: PostAction, reason: str) -> None:
-        """A post the world refused: usually a stop window that has ended. The car goes again at the next tick
-        without its own pickup window, so the order's window applies, or runs to the end of the world."""
+        """A post the world refused, usually for a stop window. The car goes again at the next tick without windows
+        of its own, so the order's windows apply, or run to the end of the world. After REFUSALS refusals the desk
+        stops posting the car, so a post the world keeps refusing never loops."""
         print(f"Post refused: {reason}", file=sys.stderr, flush=True)
         job = self.jobs.get(action["stops"][0]["orderId"])
         if job is not None:
-            for stop in action["stops"]:
-                job.pickup_from.pop(stop["leg"], None)
+            for leg in {stop["leg"] for stop in action["stops"]}:
+                job.pickup_from.pop(leg, None)
+                job.plain.add(leg)
+                job.refusals[leg] = job.refusals.get(leg, 0) + 1
+                if job.refusals[leg] == REFUSALS:
+                    print(f"Gave up posting {job.order['id']} leg {leg}.", file=sys.stderr, flush=True)
 
     # What we know
 
@@ -319,7 +327,7 @@ class Desk:
             if gig_id is not None and self.gigs[gig_id].status in LIVE:
                 continue
             job.gigs.pop(leg, None)
-            if (order["id"], leg) not in self.posting:
+            if (order["id"], leg) not in self.posting and job.refusals.get(leg, 0) < REFUSALS:
                 waiting.append(leg)
         if waiting == [0, 1] and self.trade_in_drive(order) <= TWELVE_HOURS:
             self.post_legs(job, [0, 1])
@@ -381,13 +389,17 @@ class Desk:
         if late:
             stated = {"from": stated["from"], "to": max(stated["to"], self.now + 7 * DAY)}
         snow = self.snow.get(pickup_place["placeId"], []) + self.snow.get(delivery_place["placeId"], [])
+        if leg in job.plain:  # the world refused this car's windows: the order's own apply
+            return [pickup, delivery]
         not_before = job.pickup_from.get(leg, 0)
         if not late and self.tomorrow(job, leg):
             not_before = max(not_before, next_morning(self.now))
         window = pickup_window(stated, pickup_place["hours"], facts, self.now, not_before, snow)
         if window is None and not_before > self.now:
             window = {"from": not_before, "to": max(stated["to"], not_before + 7 * DAY)}
-        if window is not None and window["to"] > self.now:
+        # A private seller's slot is fixed: the world plans the pickup in it, and books the next business day's
+        # slot itself when it passes (order_changed). A window of our own there could only be refused.
+        if window is not None and window["to"] > self.now and not pickup_place["privateAddress"]:
             pickup["window"] = window
         if facts and not late:
             base = {
@@ -404,6 +416,8 @@ class Desk:
         Drivers book a gig for the next day at once and rarely book one that is ready now (README.md)."""
         if not TOMORROW or leg != 0 or not job.ride.today or job.order["option"] == "same_day":
             return False
+        if job.order["legs"][0]["pickup"]["privateAddress"]:
+            return False  # a private seller's slot is fixed
         morning = next_morning(self.now)
         return job.order["legs"][0]["pickup"]["window"]["to"] - morning >= job.ride.drive + HOUR
 

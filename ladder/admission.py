@@ -70,6 +70,9 @@ class Admission:
             return self.decline(f"rung {ride.rung}: {ride.why}")
         if ride.drive > LONGEST:
             return self.decline("a drive over 8 hours")
+        if ride.today and request["legs"][0]["pickup"]["privateAddress"]:
+            # A private seller's slot is today: the car cannot go as a gig for the next morning.
+            return self.decline("a private pickup today")
         kinds = [option["kind"] for option in request["options"] if self.fits(option, ride, now)]
         if self.level <= 3 and request["options"][0]["kind"] not in kinds:
             return self.decline("first option too tight")  # up to level 3 the dealer takes the first option
