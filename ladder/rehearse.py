@@ -1,5 +1,6 @@
 """Rehearses the final on a practice world. A second client moves the world's clock as the final's clock runs, sped
-up, while the ladder plays it the way it plays the final: from the live event stream, rebuilding its books first.
+up, while the ladder plays it the way it plays the final: from the world's events as they come, after rebuilding its
+books from the world.
 `--restart-at` stops the desk at a world minute and starts a new one, which must rebuild from the world.
 
     uv run ladder/rehearse.py --seed spread-1                         # a whole week, 3 times the final's speed
