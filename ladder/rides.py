@@ -24,7 +24,7 @@ RUNGS = [
     "trade-ins",  # two cars in one gig, or two gigs over the 12-hour limit
     "long and remote rides",  # a drive over 4 hours, or few drivers near the pickup
 ]
-TOP_RUNG = 1  # the hardest rung built so far: the default of --rung
+TOP_RUNG = 4  # the default of --rung: the best rung on the bench so far (README.md)
 NOTES_RUNG, SPECIAL_RUNG, TODAY_RUNG, TRADE_IN_RUNG, REMOTE_RUNG = 2, 3, 4, 5, 6
 
 MORNING = 7 * 60  # rung 4 posts a car ready today for 07:00 on the next business day

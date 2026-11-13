@@ -14,17 +14,15 @@ from collections import Counter
 from spread.types import DeskEvent, PriceRequest
 
 from ladder.market import Market
-from ladder.rides import Ride, next_morning
-
-
-def pickup_day(ride: Ride) -> int:
-    """The day a driver collects the car: a car ready today goes as a gig for the next business morning (rung 4)."""
-    return next_morning(ride.ready) // DAY if ride.today else ride.ready // DAY
-
+from ladder.rides import REMOTE_RUNG, Ride, next_morning
 
 HOUR, DAY = 60, 24 * 60
 MIN_SLACK = 5 * HOUR  # an option needs this much time beyond the drive, from when the car can go to its deadline
 PRIVATE_SLACK = HOUR  # a private delivery is due in its booked hour: the time to spare is the hour itself
+# A long or remote ride (rung 6) needs a long search: from now to its deadline, beyond the drive, at least this. That
+# leaves 18 hours before its deadline warning: such rides found a driver only with a day to look (README.md).
+REMOTE_SEARCH = 21 * HOUR
+LONGEST = 8 * HOUR  # a longer drive is never taken: on time 18% of the time in the starter's week
 AREA = 60  # road minutes between two pickups that draw on the same drivers
 SHARE = 0.10  # we let drivers' supply near a pickup (Market.supply) carry this many waiting cars of ours each day
 LEAST = 3  # but at least this many
@@ -70,15 +68,9 @@ class Admission:
         """The option kinds to quote, or none to decline."""
         if ride.rung > self.rung:
             return self.decline(f"rung {ride.rung}: {ride.why}")
-        start = max(ride.ready, now)
-        kinds = [
-            option["kind"]
-            for option in request["options"]
-            if self.deadline(option["deadline"], ride) - start - ride.drive
-            >= (PRIVATE_SLACK if ride.private else MIN_SLACK)
-            # A car ready today goes on a later option only: it needs the evening to find a driver.
-            and not (ride.today and option["kind"] == "same_day")
-        ]
+        if ride.drive > LONGEST:
+            return self.decline("a drive over 8 hours")
+        kinds = [option["kind"] for option in request["options"] if self.fits(option, ride, now)]
         if self.level <= 3 and request["options"][0]["kind"] not in kinds:
             return self.decline("first option too tight")  # up to level 3 the dealer takes the first option
         if not kinds:
@@ -86,6 +78,18 @@ class Admission:
         if self.busy(ride, load):
             return self.decline("drivers near the pickup are busy")
         return kinds[:1] if self.level <= 3 else kinds
+
+    def fits(self, option: dict, ride: Ride, now: int) -> bool:
+        """True when the option leaves a driver time: enough beyond the drive from when the car can go, and for a
+        long or remote ride a day's search from now. A car ready today goes on a later option only: it needs the
+        evening to find a driver."""
+        deadline = self.deadline(option["deadline"], ride)
+        slack = deadline - max(ride.ready, now) - ride.drive
+        if slack < (PRIVATE_SLACK if ride.private else MIN_SLACK):
+            return False
+        if ride.rung >= REMOTE_RUNG and deadline - now - ride.drive < REMOTE_SEARCH:
+            return False
+        return not (ride.today and option["kind"] == "same_day")
 
     @staticmethod
     def deadline(stated: int, ride: Ride) -> int:
@@ -113,3 +117,8 @@ class Admission:
         share = self.on_time / (self.on_time + self.late)
         reasons = ", ".join(f"{reason} {n:,}" for reason, n in self.declined.most_common())
         return f"Admission: on-time estimate {share:.1%}; declined: {reasons}"
+
+
+def pickup_day(ride: Ride) -> int:
+    """The day a driver collects the car: a car ready today goes as a gig for the next business morning (rung 4)."""
+    return next_morning(ride.ready) // DAY if ride.today else ride.ready // DAY
