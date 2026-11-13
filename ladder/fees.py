@@ -21,6 +21,7 @@ HOUR, DAY = 60, 24 * 60
 OPENING = {1: 1.0, 2: 1.0, 3: 1.1, 4: 1.05, 5: 1.1, 6: 1.2}
 LOWER, HIGHER = 0.005, 0.05  # the opening falls this much (in log) after a booking at it, rises this after a raise
 FLOOR_SHARE = 0.95  # the opening stays at least this share of its start
+PRICE_SHARE = 0.5  # and a gig opens at no less than this share of the price of its cars
 HIGHEST = 1.5  # and at most this
 MORNING = 1.2  # times the opening, from 07:00 on the day of the last pickup minute, while no driver has booked
 MORNING_HOUR = 7  # drivers read nothing from 23:00 to 07:00
