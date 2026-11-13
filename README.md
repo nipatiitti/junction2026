@@ -1,5 +1,9 @@
 # sv
 
+## Challenge docs
+
+Short versions of the Spread challenge documents (rules, handbook, API, judging) are in [`docs/`](docs/README.md).
+
 Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
 
 ## Creating a project
