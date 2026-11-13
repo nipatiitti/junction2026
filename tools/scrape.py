@@ -1,7 +1,7 @@
 """Plays many practice weeks on different seeds and levels, and saves each week's raw data for an offline model
-of the server. `stats.py` turns the saved weeks into distributions. README.md says how to run both.
+of the server. `stats.py` turns the saved weeks into distributions. tools/README.md says how to run both.
 
-    uv run scrape.py --policy passive --levels 6,7,8 --seeds 20
+    uv run python -m tools.scrape --policy passive --levels 6,7,8 --seeds 20
 
 Each week goes to <out>/L<level>/<seed>/: events.jsonl.gz (every event), reveal.json.gz, snapshot.json.gz (the
 orders and gigs at the end), drivers.json.gz, score.json and meta.json (every setting of the scrape), and what the
@@ -36,10 +36,10 @@ from spread.client import Client, SpreadError, World
 from spread.starter import WAKE_ON, Desk, pickups
 from spread.types import Order, PriceRequest
 
-from db import add_week, connect, load_folders
-from record import all_events, safe_name, write_json
-from spread_proxy import ProxyClient
-from stats import load_week
+from tools.db import add_week, connect, load_folders
+from tools.record import all_events, safe_name, write_json
+from tools.spread_proxy import ProxyClient
+from tools.stats import load_week
 
 POLICIES = ("passive", "starter", "explore", "dispatch")
 HOUR, DAY = 60, 24 * 60
@@ -388,7 +388,9 @@ def git_commit() -> str | None:
     """The commit of the scraper, so a week says which code played it."""
 
     def git(*args: str) -> subprocess.CompletedProcess:
-        return subprocess.run(["git", *args], check=False, capture_output=True, text=True, cwd=Path(__file__).parent)
+        return subprocess.run(
+            ["git", *args], check=False, capture_output=True, text=True, cwd=Path(__file__).parents[1]
+        )
 
     try:
         head, dirty = git("rev-parse", "HEAD"), git("status", "--porcelain")
