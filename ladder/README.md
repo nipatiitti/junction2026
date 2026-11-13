@@ -11,18 +11,19 @@ From the repository root, with `SPREAD_URL` and `SPREAD_KEY` set (add `--env-fil
 from `.env`):
 
 ```sh
-uv run ladder/play.py --level 8 --seed spread-1             # a practice week, at the default rung
-uv run ladder/play.py --level 8 --seed spread-1 --rung 2    # take rides up to rung 2
+uv run ladder/play.py --level 8 --seed spread-1             # a practice week, at the default rung (4)
+uv run ladder/play.py --level 8 --seed spread-1 --rung 1    # easy rides only
+uv run ladder/rehearse.py --seed spread-1                   # play the final's code path on a practice world
 uv run ladder/play.py --final                               # our copy of a test final or of the final
 ```
 
-| Option    | Default                         | What it does                                               |
-| --------- | ------------------------------- | ---------------------------------------------------------- |
-| `--level` | `8`                             | The practice level, 1 to 8. The final is level 8.          |
-| `--seed`  | random                          | The same seed gives the same week.                         |
-| `--rung`  | `$LADDER_RUNG`, else `TOP_RUNG` | The hardest rung of rides to take (see below).             |
-| `--board` | off                             | Plays our next ranking run. Agree on it in the team first. |
-| `--final` | off                             | Plays our copy of the final from the live stream.          |
+| Option    | Default                | What it does                                               |
+| --------- | ---------------------- | ---------------------------------------------------------- |
+| `--level` | `8`                    | The practice level, 1 to 8. The final is level 8.          |
+| `--seed`  | random                 | The same seed gives the same week.                         |
+| `--rung`  | `$LADDER_RUNG`, else 4 | The hardest rung of rides to take (see below).             |
+| `--board` | off                    | Plays our next ranking run. Agree on it in the team first. |
+| `--final` | off                    | Plays our copy of the final from the live stream.          |
 
 It prints the starter's lines: `Practice world <id>, level <level>.` first, a line for each day, and at the end a
 summary of what the ladder did (requests by rung, quotes, posts, warnings, the learned price and opening fees).
@@ -36,6 +37,18 @@ To compare rungs on the bench, which passes only `--level` and `--seed`, set the
 LADDER_RUNG=2 uv run python -m strategies.bench ladder/play.py dispatch.py --seeds spread-1..spread-5
 ```
 
+### Rehearse the final
+
+The final plays from the live event stream, a code path that practice weeks never take. `rehearse.py` plays it on a
+practice world: a second client moves the world's clock as the final's clock runs (`--speed 3`, three times as
+fast, takes about 12 minutes), and `--restart-at <minute>` stops the desk at that world minute and starts a new one,
+which must rebuild its books from the world, as after a crash in the final. In the final, `--final` rebuilds the
+desk after any error and reads the stream on from the last event the world has.
+
+```sh
+uv run ladder/rehearse.py --seed spread-1 --restart-at 3600   # a restart on Wednesday at 12:00
+```
+
 ## The ladder
 
 | Rung | Takes                 | What it needs                                                                                                       |
@@ -45,7 +58,7 @@ LADDER_RUNG=2 uv run python -m strategies.bench ladder/play.py dispatch.py --see
 |    3 | Special cars          | Premium cars (experienced drivers only), electric cars that need a charging stop, private addresses                 |
 |    4 | Rides ready today     | A later option only; the gig is posted for the next business morning                                                |
 |    5 | Trade-ins             | Both cars in one gig when the drive fits the 12-hour rule, else one gig each                                        |
-|    6 | Long and remote rides | A drive over 4 hours, or few drivers near the pickup or the delivery                                                |
+|    6 | Long and remote rides | A drive over 4 hours (up to 8), or few drivers near the pickup or the delivery; quoted only with a day to search    |
 
 A ride's rung is the hardest thing it asks for (`rides.py`). `--rung n` takes every ride of rungs 1 to n.
 
@@ -85,26 +98,55 @@ with few drivers booked at their opening fee 37% of the time, against 84% to 96%
   any gap.
 - **Few requests.** While requests keep coming, the clock stops every 14 minutes rather than at each request or win:
   the dealer decides 15 minutes after the request, on our last quote. A level 8 week takes about 300 requests.
-- **Admission.** A request is quoted when its rung is taken, an option leaves 5 hours beyond the drive, and our cars
-  that still wait for a driver near its pickup, on its day, are fewer than a tenth of the drivers within reach. That
-  share shrinks when our estimate of the on-time share falls under 95%. A car ready today is quoted on later options
-  only.
+- **Admission.** A request is quoted when its rung is taken, an option leaves 5 hours beyond the drive (1 hour for a
+  private delivery, which is due in its booked hour), and our cars that still wait for a driver near its pickup, on
+  its day, are fewer than a tenth of the drivers within reach. That share shrinks when our estimate of the on-time
+  share falls under 95%. A car ready today is quoted on later options only. A long or remote ride needs 21 hours from
+  now to its deadline beyond the drive, and a drive over 8 hours is never taken.
 - **Prices.** The list price times a multiplier that rises 2.5% after a win and falls 2.5% after a loss, so it
   settles where half of our quotes win, just under the competitor. Each dealer has its own offset on top, and at
   level 8 its trust: 1% for each order delivered to it on time, up to 25%, halved by a late one. Never under 1.25
-  times the typical fee.
+  times the typical fee on rungs 1 and 2, and up to 1.6 times on the harder rungs, whose drivers cost more.
 - **Fees.** A gig opens at the rung's opening fee and stays flat while there is time, so drivers learn that our fees
   do not rise. It rises 20% at 07:00 on the day of its last pickup minute, then from the deadline warning, 3 hours
   before that minute, to 1.5 times the typical fee and 0.2 more every 30 minutes up to 2.2. A car that is already
   late gets 1.6, rising every hour to 2.6: a car never delivered costs twice its price. After a drop, the gig opens at
   least 10% over the dropped fee. The opening fee of each rung moves up when its gigs book only after a raise, and
   never falls more than 5% under its start: a next-day gig gets its driver from the first wave of notifications or
-  not at all.
+  not at all. A gig opens at no less than half the price of its cars: on the 22 ladder weeks before this rule,
+  cars whose typical fee was under 45% of their price (short rides) got deadline warnings 11.6% of the time,
+  against 4.5% at 45% to 60% and 1.3% at 60% or more.
+- **Cars ready today (rung 4).** The pickup gets a window that opens at 07:00 on the next business day, so drivers
+  see the gig as one for the next day, which they book at once. In the starter's week such cars, posted as ready
+  now, were on time 30% of the time; on the five rung 4 bench weeks, posted for the next morning, 588 of 602
+  (97.7%) were.
 
 ## Bench results
 
-Level 8. `spread-1`, rung 1, first version (opening fee 1.0): +€2,856.27, 93 orders, 100% on time, 281 requests. All
-93 gigs booked, 88 at the opening fee, half of them within a minute. Dealers took `same_day` on 74 of them.
+Level 8, seeds `spread-1` to `spread-5`, each rung on the same five weeks (rungs 1 and 2 at commit `90fec4f` with the
+opening fee of 1.0, rungs 3 and 4 at `1b7c28f`):
+
+| Rung                  | Margin, 5 weeks | Orders | On time | Ranked |
+| --------------------- | --------------: | -----: | ------: | -----: |
+| 1, easy rides         |      €10,305.84 |    389 |   99.7% | 5 of 5 |
+| 2, + notes            |      €19,368.44 |    706 |   99.2% | 5 of 5 |
+| 3, + special cars     |      €21,961.61 |    839 |   98.8% | 5 of 5 |
+| 4, + cars ready today |      €35,748.74 |  1,596 |   98.4% | 5 of 5 |
+
+| Seed       |    Rung 1 |    Rung 2 |    Rung 3 |    Rung 4 |
+| ---------- | --------: | --------: | --------: | --------: |
+| `spread-1` | €2,843.64 | €5,103.55 | €5,758.31 | €9,620.64 |
+| `spread-2` | €1,647.72 | €3,664.22 | €4,070.13 | €7,089.85 |
+| `spread-3` | €1,526.62 | €2,670.85 | €3,091.97 | €4,228.55 |
+| `spread-4` | €2,513.42 | €4,580.82 | €5,173.91 | €8,837.45 |
+| `spread-5` | €1,774.44 | €3,349.00 | €3,867.29 | €5,972.25 |
+
+A week takes about 300 requests at rungs 1 to 3, and 330 at rung 4. In the rung 4 week on `spread-1`, 304 of the 354
+gigs booked at their opening fee, and the fees paid were 1.00 times the typical fee (median), against prices of
+1.63 times it.
+
+The first version on `spread-1`, rung 1: +€2,856.27, 93 orders, 100% on time, 281 requests. All 93 gigs booked, 88 at
+the opening fee, half of them within a minute. Dealers took `same_day` on 74 of them.
 
 The same seed at rung 2 with the opening fee learned down to 0.72: +€3,235.82, 111 orders, 91.0% on time. Nine of the
 ten late cars were next-day cars that no driver booked at the cut opening fee; no raise up to 2.2 found one before
