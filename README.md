@@ -14,8 +14,8 @@ The dispatch system is Python 3.15, run with uv: `dispatch.py`, with tests in `t
 [Spread challenge](#spread-challenge) for its commands.
 
 The repository is also a plain TypeScript project on Node 22.18+ (no build step: Node runs `.ts` files directly), with
-pnpm, Biome, and `node --test`. TypeScript code lives in `src/`, which has no code yet; tests sit next to the code as
-`*.test.ts`.
+pnpm, Biome, and `node --test`. Our TypeScript dispatch system is `src/dispatch.ts`; see
+[Play a practice week in TypeScript](#play-a-practice-week-in-typescript). Tests sit next to the code as `*.test.ts`.
 
 ```sh
 pnpm install
@@ -76,6 +76,23 @@ public rankings, so agree on it in the team first.
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
 - `tests/` holds fast tests that need no network: `uv run pytest`.
 
+### Play a practice week in TypeScript
+
+The same kit exists for TypeScript, so half of the team can work there. `vendor/spread-typescript/` holds the
+organisers' TypeScript kit of 13 November, unchanged: the client (`spread.ts`), its types, the starter and
+`reveal-csv.ts`. Lint and format skip `vendor/`. `src/dispatch.ts` is our TypeScript system. It starts as a copy of the
+starter that imports the vendored client, and it gives the same baseline as `dispatch.py`.
+
+```sh
+pnpm dispatch --level 8 --seed spread-1   # a whole practice week with our TypeScript system
+pnpm starter --level 8 --seed spread-1    # the same week with the organisers' unchanged starter
+pnpm reveal-csv <world id>                # write an ended week and its reveal to CSV files
+pnpm dispatch --final                     # play our copy of a test final or of the final
+```
+
+The scripts read `.env` when it exists, and otherwise the variables already set. To take a new kit version, download
+`$SPREAD_URL/kit/spread-typescript.tar.gz` and replace the files in `vendor/spread-typescript/`.
+
 ### Scrape weeks for an offline model
 
 `scrape.py` plays practice weeks on many seeds at once and saves each week's raw data. `stats.py` turns saved weeks
@@ -93,14 +110,14 @@ file, `--no-db` to skip it). `db.py` loads weeks that were saved without it; wee
 Query it with any SQLite tool, for example `sqlite3 out/spread.sqlite "select kind, count(*) from events group by kind"`.
 Tables, keyed by `week_id` (a row of `weeks`):
 
-| Table | One row for each |
-| --- | --- |
-| `weeks` | week: seed, level, policy, explore ranges, score, events, requests, seconds |
-| `events` | event, with `data` the event's JSON (read fields with `json_extract`); `gig_viewed` keeps only its columns |
-| `requests`, `legs`, `options` | price request; car of a request, with the reveal's truth for won orders; delivery option, with our quote and whether the dealer took it |
-| `orders`, `gigs`, `views` | won order at the end of the week; gig we posted; view of our gigs with the fee the driver saw |
-| `drivers`, `ledger`, `forecasts` | driver at the start of the week; account line; snow forecast |
-| `places`, `roads` | the map |
+| Table                            | One row for each                                                                                                                        |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `weeks`                          | week: seed, level, policy, explore ranges, score, events, requests, seconds                                                             |
+| `events`                         | event, with `data` the event's JSON (read fields with `json_extract`); `gig_viewed` keeps only its columns                              |
+| `requests`, `legs`, `options`    | price request; car of a request, with the reveal's truth for won orders; delivery option, with our quote and whether the dealer took it |
+| `orders`, `gigs`, `views`        | won order at the end of the week; gig we posted; view of our gigs with the fee the driver saw                                           |
+| `drivers`, `ledger`, `forecasts` | driver at the start of the week; account line; snow forecast                                                                            |
+| `places`, `roads`                | the map                                                                                                                                 |
 
 A passive week takes about 1.7 MB in the database, and a played week about 20 MB, most of it gig views. The week
 folders hold the same data gzipped (about 0.1 MB and 2 MB), so the database can always be rebuilt from them.
