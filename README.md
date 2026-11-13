@@ -132,12 +132,15 @@ Tables, keyed by `week_id` (a row of `weeks`):
 
 | Table                            | One row for each                                                                                                                        |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `weeks`                          | week: seed, level, policy, explore ranges, score, events, requests, seconds                                                             |
+| `weeks`                          | week: seed, level, policy, explore ranges, score, events, requests, seconds; `settings` holds the other options and the git commit       |
 | `events`                         | event, with `data` the event's JSON (read fields with `json_extract`); `gig_viewed` keeps only its columns                              |
 | `requests`, `legs`, `options`    | price request; car of a request, with the reveal's truth for won orders; delivery option, with our quote and whether the dealer took it |
 | `orders`, `gigs`, `views`        | won order at the end of the week; gig we posted; view of our gigs with the fee the driver saw                                           |
 | `drivers`, `ledger`, `forecasts` | driver at the start of the week; account line; snow forecast                                                                            |
 | `places`, `roads`                | the map                                                                                                                                 |
+| `actions`                        | action the scrape sent (quote, post, reprice, offer, withdraw), with its minute, its world answer and its JSON in `data`                 |
+| `rosters`                        | driver at each midnight and at the end of the week: rating, completed gigs and drops, to see who worked when                           |
+| `positions`                      | sample of where one of our drivers was, with `--sample-every`                                                                           |
 
 A passive week takes about 1.7 MB in the database, and a played week about 20 MB, most of it gig views. The week
 folders hold the same data gzipped (about 0.1 MB and 2 MB), so the database can always be rebuilt from them.
@@ -155,17 +158,46 @@ Policies:
 - `starter` plays with the `Desk` of `dispatch.py`.
 - `explore` plays like `starter`, but quotes every option at a random multiple of its list price (`--quote-range`,
   default 0.7 to 1.8) and pays each order's gigs a random multiple of the starter's fees (`--fee-range`, default 0.6
-  to 1.6). The same seed draws the same multiples.
+  to 1.6). The same seed draws the same multiples. Its other options:
+  - `--quote-share 0.3` quotes only that share of the requests and declines the rest (10 times the list price), so
+    the week does not win more cars than drivers can move. Lateness would lower the dealers' prices and skew the data.
+  - `--fee-shape` is one shape for the whole week, because drivers learn our fees: `rising` (the starter's, the
+    default), `flat` (the opening fee only), or `slow` (a straight rise from the opening fee to `--fee-cap` times the
+    typical fee, default 2.5, ending 3 hours before the order's `lastPickupAt`). After a deadline warning every shape
+    goes steep, as the starter does.
+  - `--offers 2` sends each order's first gig as a direct offer to up to that many drivers (at most 3) who live within
+    30 road km of the pickup and fit the gig's audience, each at a random multiple of the typical fee
+    (`--offer-range`, default 0.4 to 1.6). The answers are `offer_answered` events. From level 3.
+- `--sample-every 120`, with `starter` or `explore`, reads the positions of our drivers every 120 minutes. It is off
+  by default: it reads the whole snapshot each time, about 1 MB late in the week.
+- `--tag <name>` names an experiment: its weeks go to `out/scrape/<policy>-<name>` and form their own group in
+  `summary.json`. Give each set of options its own tag, or the second run skips the seeds as saved before.
 
 Seeds are `<--seed-prefix>-<n>`, default `scrape-1` and up. Each week goes to `out/scrape/<policy>/L<level>/<seed>/`
 (`out/` is not committed): `events.jsonl.gz` (every event), `reveal.json.gz`, `snapshot.json.gz` (orders and gigs at
-the end), `drivers.json.gz` (the driver list at the start), `score.json` and `meta.json`. A saved week is skipped, so
+the end), `drivers.json.gz` (the driver list at the start), `score.json` and `meta.json` (every option and the git
+commit). It also saves what the server keeps no record of: `actions.jsonl.gz` (each action with its minute and answer:
+the reveal keeps only the last quote, and the snapshot only each gig's last fee schedule), `rosters.jsonl.gz` (the
+driver list at each midnight and at the end) and, with `--sample-every`, `positions.jsonl.gz`. A week that a killed
+scrape left behind is saved without these three files (`"recorded": false` in its meta). A saved week is skipped, so
 running the same command again resumes. Ctrl-C, and a kill such as `timeout` or a stopped session (SIGTERM, SIGHUP),
 deletes the worlds in play, so they free the team's practice slots. A week's folder holds `world.json` while its world
 is in play: after a harder kill, the next run deletes that world and plays the week again, or saves it if it ended. `--workers` weeks run at once (default 4), and the scraper always leaves
 `--keep-free` practice slots (default 2) for teammates. A week with a policy that acts takes about 2,000 requests: a
 few minutes at 175 ms a request through a Claude Code cloud proxy. The scraper's client goes through `HTTPS_PROXY`
 when one is set (see [Claude Code cloud environments](#claude-code-cloud-environments)).
+
+Which scrape answers which question of `SPREAD_AGENT_BRIEF.md`:
+
+| Question                                                       | Scrape                                                                                       |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Requests, dealers, roster and shortage by town; who works when | `--policy passive --levels 6,7,8` (rosters each midnight)                                    |
+| Win model by lane and day, price war, option choice            | `--policy explore --tag win --quote-share 0.3 --quote-range 0.8,2.0`                         |
+| Dealer ceiling when the competitor is down (level 6 outage)    | `--policy explore --tag ceiling --levels 6 --quote-share 0.3 --quote-range 1.0,2.5`          |
+| How low drivers go; booking hazard by fee and lead time        | `--policy explore --tag slow --fee-shape slow --fee-range 0.3,1.0` and `--fee-shape flat`    |
+| Per-driver answers at a known fee                              | `--policy explore --tag offers --offers 3`                                                   |
+| Do gigs that end near the driver's home fill cheaper           | any played week: `delivered` events and the driver's home, or `--sample-every`               |
+| Thresholds or probabilities; the exact price where a quote wins | not a scrape: it needs a fork of one world at one minute                                     |
 
 `summary.json` has one entry per level and policy (`L8/explore`) and a catalogue of every event kind:
 
