@@ -203,6 +203,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Play a week in TypeScript: `pnpm dispatch --level 8 --seed spread-1`
 - Write a week to CSV (TS): `pnpm reveal-csv <world id>`
 - Build the facts tables: `uv run python -m analysis.facts`
+- Export the fee model priors: `uv run python -m analysis.priors_fees`
 - Margin gap report (oracle): `uv run python -m analysis.oracle`
 - Get the team's scraped data: `mkdir -p out && gh release download --pattern 'spread-data-*.tar.gz' --output - | tar -xz -C out`
 - Build and serve the report: `uv run python -m analysis.report`
