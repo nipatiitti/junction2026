@@ -1,6 +1,6 @@
 ## Project Configuration
 
-- **Language**: Python 3.15 for the dispatch system (`dispatch.py`), run with uv; TypeScript for code in `src/`
+- **Language**: Python 3.15 for the dispatch system (`dispatch.py`), run with uv; TypeScript for code in `src/` (the dispatch system `src/dispatch.ts`, on the vendored kit in `vendor/spread-typescript/`)
 - **Package Manager**: pnpm
 - **Runtime**: Node 22.18+, running `.ts` files directly (no build step)
 - **Tooling**: Biome (lint and format), `tsc` (type check only)
@@ -17,6 +17,22 @@ car dealers and pays freelance drivers to move the cars, for one simulated week.
   Compare two versions of the system on the same seeds.
 - Ask for approval before you play a ranking run (`--board`) or a final (`--final`). Each
   ranking world can be played once, and its score stays on the public rankings.
+- Every online run is saved. When `dispatch.py` finishes a week on the server (a practice week,
+  the bench's weeks, a ranking run or a final), `record.py` saves it to
+  `data/scrape/runs/L<level>/<seed>/<world id>/` and to the database `out/spread.sqlite`.
+  Commit the new folders under `data/scrape/runs` in your PR, so the team keeps the data; each
+  world has its own folder, so they never conflict. Keep the saving on, and make any new script
+  that plays online save its weeks with `record.Recorder` too.
+- Run against the saved data, not online. Before you play a week to answer a question, build the
+  database from every committed week with `uv run db.py` and query `out/spread.sqlite`
+  (`README.md` lists the tables). Play online only to measure a changed system, or for data that
+  no saved week has.
+- **One online run at a time.** An online run is any command that plays or reads
+  worlds on the Spread server: `dispatch.py`, `pnpm dispatch`, `strategies.bench`,
+  the scrape and reveal tools. Start a run only when your previous one has
+  finished: no second run in the background or in another terminal. A bench is
+  one run, whatever its `--jobs`. Every system on our key shares one rate limit,
+  so parallel runs slow down the whole team.
 
 ---
 
@@ -33,6 +49,9 @@ Optimise for speed. Small issues, small PRs, no tests.
 - All work starts from a GitHub issue the user hands you, so every change is
   tracked and reviewable. If asked for a feature without one, create the issue
   first, then work from it.
+- When you start on an issue, rename it so its title starts with
+  `In progress: ` (e.g. `In progress: Add login form`), so everyone can see
+  it is taken. Skip this if the title already starts with it.
 - One issue = one feature, **including its documentation**. Both ship in the
   same PR.
 - If the issue is unclear, carry on rather than stopping to ask: waiting stalls
@@ -58,6 +77,17 @@ Optimise for speed. Small issues, small PRs, no tests.
   (`feat`, `fix`, `docs`, `chore`). If your environment assigns you a branch
   name, use that one instead.
 - Commits: small, imperative subject line, reference the issue (`Add login form (#12)`).
+- Pull and rebase from the default branch often: before you start, before each
+  push, and whenever it has moved. Others merge all the time, and an early
+  rebase keeps conflicts small:
+
+  ```bash
+  git pull --rebase origin <default-branch>
+  ```
+
+  Rebase only commits you have not pushed yet. Once a branch is pushed, merge
+  the default branch into it instead (`git pull --no-rebase origin
+  <default-branch>`), because a rebased branch needs a force-push.
 - Remove the worktree once the PR is merged or closed.
 
 ## 3. Stay in scope
@@ -96,9 +126,11 @@ running tests.
 
 ## 6. Pull request
 
-Open the PR as soon as the feature and its docs are done.
-It must be **ready for review** (not a draft) and ready for the user to approve
-without further questions.
+Open the PR as a **draft** right after your first push, so the user can follow
+the work while it is in progress. When the feature and its docs are done and
+the description below is final, **move the PR from draft to open** (ready for
+review). An open PR means it is ready for the user to approve without further
+questions; never leave finished work in draft.
 
 - Title: short, imperative, under 70 characters.
 - Description: **at most 500 characters of text**, written for a reader who has
@@ -139,14 +171,16 @@ continue, leaves the user with a half-built feature.
   guardrail — were put there on purpose. Leave them in place, say what you
   found, and look for another way to finish.
 
-These routine steps need no approval: create a branch or worktree, commit, push
-to your own branch, open a PR, create follow-up issues, reply on your own PR,
-resolve merge conflicts, fix CI, close the issue of your own merged or closed
-PR.
+These routine steps need no approval: mark the issue you start on as
+`In progress: `, create a branch or worktree, commit, push
+to your own branch, open a draft PR, move your own PR from draft to open, create
+follow-up issues, reply on your own PR, resolve merge conflicts, fix CI, close
+the issue of your own merged or closed PR.
 
 Ask for approval before these, because they are hard to undo or change what
 other people see: merging a PR, pushing to the default branch, force-pushing,
-deleting a branch, closing or editing any other issue you did not create.
+deleting a branch, closing or editing any other issue you did not create
+(beyond marking the one you start on as in progress).
 
 ## Commands
 
@@ -163,7 +197,10 @@ in and keep it current. Every row must be a single copy-pasteable command.
 | Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`              |
 | Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                       |
 | Compare two versions        | `uv run python -m strategies.bench dispatch.py origin/main` |
+| Build the saved-weeks DB    | `uv run db.py`                                              |
 | Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .`         |
+| Play a week in TypeScript   | `pnpm dispatch --level 8 --seed spread-1`                   |
+| Write a week to CSV (TS)    | `pnpm reveal-csv <world id>`                                |
 
 ## Definition of done
 
@@ -171,5 +208,5 @@ in and keep it current. Every row must be a single copy-pasteable command.
 - [ ] No tests written or run
 - [ ] Documentation updated
 - [ ] Follow-up work filed as new issues
-- [ ] PR open, ready for review, description ≤ 500 characters, `Closes #<issue>`
+- [ ] PR moved from draft to open (ready for review), description ≤ 500 characters, `Closes #<issue>`
 - [ ] No conflicts, CI green
