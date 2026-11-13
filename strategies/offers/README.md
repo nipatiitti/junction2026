@@ -9,7 +9,7 @@ extra time and tickets. A direct offer reaches them.
 
 ## How it is used
 
-`dispatch.py` shares the driver list and the map it loads for admission, and it:
+`dispatch.py` builds it from the driver list and the map, as every strategy (`strategies/README.md`), and it:
 
 - registers each gig the world accepts (`Offers.register`), with where it starts and ends, the last minute to
   collect its first car (the order's `lastPickupAt`), its drive, who may take it and its fee schedule;
