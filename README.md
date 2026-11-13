@@ -82,12 +82,14 @@ about 1,390.
 
 - `dispatch.py` is our system. It started as a copy of the organisers' starter, formatted with ruff.
 - `strategies/` holds the parts of the system, each with its notes, and each a subclass of one abstract base class,
-  `Strategy` ([`strategies/README.md`](strategies/README.md)). `strategies/admission/` decides
-  which price requests to take and which option to quote, and `strategies/pricing/` the price of each quote, learned
-  during the week. [`strategies/notes/`](strategies/notes/README.md) reads dealer notes into facts (ready time, real
-  hours, deadline, gearbox, plates, tyres) that set the gigs' windows, audience and plates. `strategies/offers/` sends
-  gigs straight to drivers near their pickup. [`strategies/bundling/`](strategies/bundling/README.md) puts several
-  orders' cars in one gig when that saves a driver's trips, and holds batch orders briefly to find them.
+  `Strategy` ([`strategies/README.md`](strategies/README.md)). `strategies/admission/` decides which price requests
+  to take and which option to quote, and `strategies/pricing/` the price of each quote, learned during the week.
+  [`strategies/notes/`](strategies/notes/README.md) reads dealer notes into facts (ready time, real hours, deadline,
+  gearbox, plates, tyres) that set the gigs' windows, audience and plates. `strategies/offers/` sends gigs straight
+  to drivers near their pickup. [`strategies/bundling/`](strategies/bundling/README.md) puts several orders' cars in
+  one gig when that saves a driver's trips, and holds batch orders briefly to find them. Two folders are whole
+  systems of their own: `strategies/baseline/`, the organisers' starter's decisions as strategies, our fixed
+  baseline, and `strategies/price_ladder/`, a clamped price ladder with a shadow price on driver capacity.
 - `vendor/` holds the organisers' Python kit of 13 November as a wheel. uv installs it as the package `spread`: the
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
 
@@ -366,7 +368,8 @@ uv run --env-file .env probe.py shape --level 8 --seed scrape-1 --days 0,1     #
 ### The baseline to beat
 
 The unchanged starter on the seed `spread-1`. It quotes the list price, wins most cars and cannot find drivers for
-them in time.
+them in time. Our copy of that starter is in [`strategies/baseline/`](strategies/baseline/README.md), so the bench can
+play it beside our system.
 
 | Level | Margin      | Orders won | On time | Ranked |
 | ----- | ----------- | ---------- | ------- | ------ |
