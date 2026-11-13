@@ -13,36 +13,54 @@ from spread.types import FeeStep
 
 HOUR, DAY = 60, 24 * 60
 
-# The opening fee, as a multiple of the typical fee: one, plus a premium for each thing that makes
-# the work dearer for a driver than the typical fee assumes.
-OPEN_SCARCE = 0.30  # at a pickup with no drivers within reach, against the world's median place
-OPEN_EVENING = 0.10  # the drive ends after 18:00, when the trip home is dear
-OPEN_SATURDAY = 0.15  # Saturday work
-OPEN_LONG = 0.05  # a drive of 3 hours or more: a long trip home from the delivery town
+# The opening fee, as a multiple of the typical fee: OPEN_BASE, plus a premium for each thing that makes
+# the work dearer for a driver than the typical fee assumes. With admission control, two thirds of the gigs
+# book at their opening fee, and the premiums bought no more of them: they are off (see README.md).
+# Opening under the typical fee costs less, and the first raise reaches the typical fee within the hour.
+OPEN_BASE = 0.9
+OPEN_SCARCE = 0.0  # at a pickup with no drivers within reach, against the world's median place
+OPEN_EVENING = 0.0  # the drive ends after 18:00, when the trip home is dear
+OPEN_SATURDAY = 0.0  # Saturday work
+OPEN_LONG = 0.0  # a drive of 3 hours or more: a long trip home from the delivery town
 LONG_DRIVE = 3 * HOUR
-# The top fee, as a multiple of the typical fee, before the ceiling cuts it.
-TOP = 2.0
-# What a late car costs, as a share of its price: the refund for a car late by more than 24 hours.
-# The ceiling of the top fee is the price plus this, so an on-time car never costs more than a late one.
-LATE_SHARE = 0.5
+# The least opening fee, as a multiple of the typical fee, whatever the premiums add up to.
+OPEN_FLOOR = 0.9
+# The top fee, as a multiple of the typical fee, before the ceiling cuts it: the top of the starter's steep fees.
+TOP = 2.5
+# What a late car costs, as a share of its price: the whole price, the refund for a car late by more than two
+# business days. The ceiling of the top fee is the price plus this, so an on-time car never costs more than a
+# late one.
+LATE_SHARE = 1.0
+# What a car never delivered costs, as a share of its price: no price, and a penalty of twice the price.
+# No fee on time goes above the price plus this: past it, leaving the car costs less than delivering it.
+PENALTY = 2.0
+# The typical fee of a trip from its road minutes, for a car the dealer sends to another place: the
+# request's typical fee is for the trip it asked for. Fitted on the saved level-8 weeks (12 seeds): a
+# single car's typical fee is about this, and a trade-in's about that of its first car's trip.
+TRIP_BASE = 1603  # cents
+TRIP_PER_MINUTE = 38.65  # cents a road minute, €23.19 an hour
 # A car that is late already: a day after its last pickup it steps up to this multiple of the typical
 # fee, as the starter's steep fees did, under a ceiling of twice its price: a car late by more than two
 # business days costs its whole price, and a car never delivered twice its price on top.
 LATE_TOP = 2.5
 # With less than this left before the top fee is due, the schedule opens closer to its top.
 URGENT_SPAN = 8 * HOUR
-# Raises after the opening fee, the last one at the top fee. Few and large, so drivers do not learn to wait.
+# Raises after the opening fee, the last one at the top fee. Few, so drivers do not learn to wait for the next.
 RAISES = 3
 # The raises before the top come early, this long after the post at the latest: drivers who know they
 # work the next day book a day ahead when the fee is right, before their day fills up. The fee then
 # holds until the top fee is due.
 EARLY_RAISES = (HOUR, 3 * HOUR)
+# How far each raise before the top goes, as a share of the way from the opening fee to the top fee: small,
+# about as far as the starter's hourly raises (1.06 and 1.38 times the typical fee), so few gigs book dear.
+RAISE_SHARES = (0.1, 0.3)
 # The travel margin before `lastPickupAt`: an hour to see the gig, plus the trip from the drivers'
-# homes by public transport, which is slower than the road minutes. Never less than the 3 hours of
-# the deadline warning, never more than 6 hours.
+# homes by public transport, which is slower than the road minutes. Never less than 6 hours, never more
+# than 8: most late cars had drivers who wanted them at the top fee but could no longer reach the pickup
+# in its window, so the top comes early in the pickup day, while their day still has room.
 SEE = HOUR
 TRANSIT = 1.5
-MARGIN_MIN, MARGIN_MAX = 3 * HOUR, 6 * HOUR
+MARGIN_MIN, MARGIN_MAX = 6 * HOUR, 8 * HOUR
 # Drivers rarely look at the app at night: a raise due then comes at 22:00 the evening before.
 NIGHT_FROM, NIGHT_TO, EVENING = 23 * HOUR, 7 * HOUR, 22 * HOUR
 # After a drop: the driver who gave the gig back books again only for more. With less than this left
@@ -56,7 +74,7 @@ MAX_STEPS = 48
 class Gig:
     """What a schedule is planned from, for the cars of one gig."""
 
-    typical: float  # the typical fee for the gig's cars, in cents
+    typical: float  # the typical fee for the gig's cars, for the trip they make now, in cents
     price: float  # the order's price for the gig's cars, in cents
     last_pickup_at: int  # the order's `lastPickupAt`
     starts_at: int  # the earliest pickup: the later of now and the car's ready time
@@ -70,22 +88,30 @@ def margin(gig: Gig) -> int:
     return round(min(MARGIN_MAX, max(MARGIN_MIN, SEE + TRANSIT * gig.travel_minutes)))
 
 
+def trip_fee(minutes: int) -> float:
+    """The typical fee of a trip of these road minutes, in cents."""
+    return TRIP_BASE + TRIP_PER_MINUTE * minutes
+
+
 def ceiling(gig: Gig, at: int | None = None) -> float:
-    """The highest fee of a step due `at`: the price, plus what being late would cost. From a day after
-    the last pickup, being later costs the whole price, so the ceiling is twice the price."""
+    """The highest fee of a step due `at`: what the car is worth before the top, plus what being late
+    would cost, but never more than leaving the car would cost. From a day after the last pickup, being
+    later costs the whole price, so the ceiling is twice the price, unless the fee is above it already."""
     if at is not None and at >= gig.last_pickup_at + DAY:
-        return gig.price * 2
-    return gig.price * (1 + LATE_SHARE)
+        return gig.price * PENALTY
+    return min(worth(gig) + gig.price * LATE_SHARE, gig.price * (1 + PENALTY))
 
 
 def worth(gig: Gig) -> float:
-    """The highest fee of a step before the top: the price, at which the order still breaks even."""
-    return gig.price
+    """The highest fee of a step before the top: the price, at which the order still breaks even. A car
+    whose trip costs more than its price, after the dealer sent it farther, may reach the trip's typical
+    fee instead: a late car costs that much too, and leaving it costs more."""
+    return min(max(gig.price, gig.typical), gig.price * (1 + PENALTY))
 
 
 def opening_multiple(gig: Gig) -> float:
     """The opening fee over the typical fee, by place and hour."""
-    multiple = 1 + OPEN_SCARCE * min(1.0, max(0.0, gig.scarcity))
+    multiple = OPEN_BASE + OPEN_SCARCE * min(1.0, max(0.0, gig.scarcity))
     ends = gig.starts_at + gig.drive_minutes
     if ends % DAY >= 18 * HOUR or ends // DAY > gig.starts_at // DAY:
         multiple += OPEN_EVENING
@@ -93,7 +119,7 @@ def opening_multiple(gig: Gig) -> float:
         multiple += OPEN_SATURDAY
     if gig.drive_minutes >= LONG_DRIVE:
         multiple += OPEN_LONG
-    return multiple
+    return max(OPEN_FLOOR, multiple)
 
 
 def plan(now: int, gig: Gig, level: int, floor: float = 0) -> list[FeeStep]:
@@ -119,7 +145,7 @@ def plan(now: int, gig: Gig, level: int, floor: float = 0) -> list[FeeStep]:
     steps = [(now, opening)]
     for k in range(1, RAISES + 1):
         at = now + span * k // RAISES if k == RAISES else min(now + span * k // RAISES, now + EARLY_RAISES[k - 1])
-        fee = opening + (top - opening) * k / RAISES
+        fee = opening + (top - opening) * (1 if k == RAISES else RAISE_SHARES[k - 1])
         steps.append((before_night(at, now), top if k == RAISES else min(fee, cap)))
     return valid(steps, level)
 
