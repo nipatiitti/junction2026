@@ -24,6 +24,8 @@ class Params:
     reach_minutes: float = 45.0  # a driver's weight falls by e for each this many road minutes from home
     area_minutes: int = 60  # held orders picked up within this drive of the pickup share its drivers
     capacity_per_driver: float = 0.10  # unbooked same-day orders an area holds for each driver weight near it
+    # Level 1: the fee ladder leaves gigs unbooked for hours on purpose (strategies/fees), so an area holds more.
+    capacity_per_driver_posting: float = 0.30
     min_capacity: float = 1.0  # even a place with few drivers can take one car at a time
     min_slack: int = 5 * HOUR  # an option needs this much time beyond the drive, or we do not offer it
     comfortable_slack: int = 9 * HOUR  # the earliest option with this much slack is the one we quote
@@ -267,7 +269,8 @@ class Admission:
         squeeze = self.tightening(self.on_time_share(held, now))
         paired = self.pairs(request, held)
 
-        capacity = max(p.min_capacity, p.capacity_per_driver * supply) * squeeze
+        per_driver = p.capacity_per_driver_posting if self.level == 1 else p.capacity_per_driver
+        capacity = max(p.min_capacity, per_driver * supply) * squeeze
         load = self.load(pickup, day, held)
         weight = 0.5 if paired else 1.0
         if load + weight > capacity:
