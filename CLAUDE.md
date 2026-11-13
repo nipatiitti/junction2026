@@ -12,6 +12,10 @@ How to carry out that workflow with Claude Code's tools:
   `node --test` or `pnpm test`), even where Claude Code's defaults would.
 
 - Issues and pull requests go through the GitHub tools.
+- Open the PR with `create_pull_request` and `draft: true`. When the feature
+  and its docs are done, move it to open with `update_pull_request` and
+  `draft: false`, then check with `pull_request_read` that it is no longer a
+  draft. This replaces Claude Code's default of opening PRs ready for review.
 - After opening a PR, subscribe to its activity, so conflicts, CI failures and
   review comments reach you as events while the PR is open.
 - Before you push to a branch that already has a PR, check that PR's state. A

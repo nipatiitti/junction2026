@@ -96,9 +96,11 @@ running tests.
 
 ## 6. Pull request
 
-Open the PR as soon as the feature and its docs are done.
-It must be **ready for review** (not a draft) and ready for the user to approve
-without further questions.
+Open the PR as a **draft** right after your first push, so the user can follow
+the work while it is in progress. When the feature and its docs are done and
+the description below is final, **move the PR from draft to open** (ready for
+review). An open PR means it is ready for the user to approve without further
+questions; never leave finished work in draft.
 
 - Title: short, imperative, under 70 characters.
 - Description: **at most 500 characters of text**, written for a reader who has
@@ -140,9 +142,9 @@ continue, leaves the user with a half-built feature.
   found, and look for another way to finish.
 
 These routine steps need no approval: create a branch or worktree, commit, push
-to your own branch, open a PR, create follow-up issues, reply on your own PR,
-resolve merge conflicts, fix CI, close the issue of your own merged or closed
-PR.
+to your own branch, open a draft PR, move your own PR from draft to open, create
+follow-up issues, reply on your own PR, resolve merge conflicts, fix CI, close
+the issue of your own merged or closed PR.
 
 Ask for approval before these, because they are hard to undo or change what
 other people see: merging a PR, pushing to the default branch, force-pushing,
@@ -171,5 +173,5 @@ in and keep it current. Every row must be a single copy-pasteable command.
 - [ ] No tests written or run
 - [ ] Documentation updated
 - [ ] Follow-up work filed as new issues
-- [ ] PR open, ready for review, description ≤ 500 characters, `Closes #<issue>`
+- [ ] PR moved from draft to open (ready for review), description ≤ 500 characters, `Closes #<issue>`
 - [ ] No conflicts, CI green
