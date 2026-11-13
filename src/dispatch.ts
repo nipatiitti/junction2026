@@ -1,10 +1,9 @@
 /** Our TypeScript dispatch system: plays one week with one strategy on the harness in src/harness/. Run it with
  * `pnpm dispatch --strategy starter --level 8 --seed spread-1`; README.md has the options. */
 import { parseArgs } from 'node:util'
-import { Client, SpreadError, Unreachable, type World } from '../vendor/spread-typescript/spread.ts'
+import { Client, SpreadError, type World } from '../vendor/spread-typescript/spread.ts'
 import { type Run, runOf, UsageError } from './harness/params.ts'
-import { finish, playFinalWeek, playPracticeWeek } from './harness/week.ts'
-import { Recorder } from './record.ts'
+import { playFinalWeek, playPracticeWeek, reachable } from './harness/week.ts'
 
 const USAGE =
   'Usage: pnpm dispatch [--strategy <name>] [--params <file>] [--set key=value] [--level 1-8] [--seed <text>] [--board] [--final]. Set SPREAD_URL and SPREAD_KEY first.'
@@ -30,32 +29,15 @@ async function nextFinal(client: Client): Promise<World> {
   }
 }
 
-/** Plays the final, and after a server restart, which drops every connection, rebuilds from the server and goes on. */
+/** Plays the final that is set or runs now. */
 async function playFinal(client: Client, run: Run): Promise<void> {
   process.once('SIGINT', () =>
     exit('Stopped. The final world keeps running without your system; start it again with --final.'),
   )
-  let world: World | undefined
-  let recorder: Recorder | undefined // saves the week to data/scrape/runs once it has ended
-  while (true) {
-    try {
-      if (!world) {
-        world = await nextFinal(client)
-        console.log(`Final world ${world.id}.`)
-      }
-      const id = world.id
-      const level = (await client.worlds()).find((summary) => summary.worldId === id)?.level ?? 8
-      recorder ??= await Recorder.start(world, level, undefined, 'final', run)
-      const desk = await playFinalWeek(world, run, level)
-      finish(await world.score(), desk)
-      await recorder.save()
-      return
-    } catch (error) {
-      if (!(error instanceof Unreachable)) throw error
-      console.error(`spread: ${error.message}. Trying again in 5 seconds.`)
-      await new Promise((done) => setTimeout(done, 5000))
-    }
-  }
+  const world = await reachable(() => nextFinal(client))
+  console.log(`Final world ${world.id}.`)
+  const worlds = await reachable(() => client.worlds())
+  await playFinalWeek(world, run, worlds.find((summary) => summary.worldId === world.id)?.level ?? 8)
 }
 
 /** Plays a practice week, or a ranking run with `board`. Ctrl-C or an error deletes a practice world. */

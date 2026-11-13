@@ -229,7 +229,7 @@ export class Desk implements Books {
       const result = results[i]
       if (!result) return
       if (!result.ok) {
-        const reason = `${action.type}: ${result.reason}`
+        const reason = `${action.type}: ${result.reason.replace(/\b[A-Za-z]?\d[\w:]*/g, '#')}` // without ids and times, so like reasons count together
         this.refused.set(reason, (this.refused.get(reason) ?? 0) + 1)
       } else if (action.type === 'post') this.carry(action, result.id)
       else if (action.type === 'withdraw') this.forget(action.gigId)
