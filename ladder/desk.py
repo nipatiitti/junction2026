@@ -58,7 +58,7 @@ REFUSALS = 3  # posts of one car the world may refuse before the desk stops post
 TOMORROW = True  # rung 4: post a car ready today as a gig for the next business morning
 
 
-LIVE = ("open", "booked", "working")
+LIVE = ("open", "booked", "working", "withdrawing")
 
 
 @dataclass
@@ -147,6 +147,10 @@ class Desk:
                     self.carry(action, result["id"])
                 else:
                     self.refused(action, result["reason"])
+            elif kind == "withdraw" and action["gigId"] in self.gigs:
+                gig = self.gigs[action["gigId"]]
+                if gig.status == "withdrawing":  # gone: its cars go again; refused: a driver had booked it
+                    gig.status = "gone" if result["ok"] else "booked"
 
     def refused(self, action: PostAction, reason: str) -> None:
         """A post the world refused, usually for a stop window. The car goes again at the next tick without windows
@@ -178,7 +182,9 @@ class Desk:
             if job is not None:
                 job.order = event["order"]  # an open gig follows its order's places and windows
                 job.warned = False  # a new last pickup minute: a new warning comes if it needs one
-                self.reprice.update(g for g in job.gigs.values() if self.gigs[g].status == "open")
+                for gig_id in set(job.gigs.values()):
+                    if self.gigs[gig_id].status == "open":
+                        self.changed(job, self.gigs[gig_id])
         elif kind == "order_cancelled":
             if self.jobs.pop(event["orderId"], None) is not None:
                 self.count["cancelled"] += 1
@@ -329,7 +335,8 @@ class Desk:
             job.gigs.pop(leg, None)
             if (order["id"], leg) not in self.posting and job.refusals.get(leg, 0) < REFUSALS:
                 waiting.append(leg)
-        if waiting == [0, 1] and self.trade_in_drive(order) <= TWELVE_HOURS:
+        together = self.level >= 3 and not job.refusals  # gigs with several cars start at level 3
+        if waiting == [0, 1] and together and self.trade_in_drive(order) <= TWELVE_HOURS:
             self.post_legs(job, [0, 1])
         else:
             for leg in waiting:
@@ -475,6 +482,21 @@ class Desk:
         gig.action = {**gig.action, "schedule": schedule}
         self.outbox.append({"type": "reprice", "gigId": gig_id, "schedule": schedule})
 
+    def changed(self, job: Job, gig: Gig) -> None:
+        """After a change of plan, an open gig keeps its stops: when a car now needs a charging stop it did not
+        (it goes farther), the gig is withdrawn and the car goes again at the next tick. Else it is repriced."""
+        stale = any(
+            stop["kind"] == "pickup"
+            and stop.get("withCharging", False) != needs_charging(self.market, job.order["legs"][stop["leg"]])
+            for stop in gig.action["stops"]
+        )
+        if not stale:
+            self.reprice.add(gig.id)
+            return
+        # The car goes again once the world confirms the withdrawal (read_results): a driver may book the gig first.
+        self.outbox.append({"type": "withdraw", "gigId": gig.id})
+        gig.status = "withdrawing"
+
     # The final: rebuild what we know from the world
 
     def rejoin(self, snapshot: DeskSnapshot, history: list[DeskEvent]) -> None:
@@ -527,6 +549,18 @@ class Desk:
         for order_id in warned & self.jobs.keys():
             job = self.jobs[order_id]
             job.warned = all(self.gigs[g].status == "open" for g in job.gigs.values())
+        for event in history:
+            if event["kind"] == "forecast":
+                self.handle(event)
+            elif event["kind"] == "visit_failed" and event["orderId"] in self.jobs:
+                # What the driver needed: a car without a live gig now goes again with it.
+                job, leg = self.jobs[event["orderId"]], event["leg"]
+                if event["reason"] == "licence":
+                    job.manual.add(leg)
+                elif event["reason"] == "no_plates":
+                    job.plates.add(leg)
+                elif leg not in job.gigs:
+                    job.pickup_from[leg] = max(self.now, event["at"] + RETRY_AFTER)
 
     def summary(self) -> str:
         counts = ", ".join(f"{name} {n:,}" for name, n in sorted(self.count.items()))
