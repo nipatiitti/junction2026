@@ -85,7 +85,8 @@ about 1,390.
   which price requests to take and which option to quote, and `strategies/pricing/` the price of each quote, learned
   during the week. [`strategies/notes/`](strategies/notes/README.md) reads dealer notes into facts (ready time, real
   hours, deadline, gearbox, plates, tyres) that set the gigs' windows, audience and plates. `strategies/offers/` sends
-  gigs straight to drivers near their pickup.
+  gigs straight to drivers near their pickup. [`strategies/bundling/`](strategies/bundling/README.md) puts several
+  orders' cars in one gig when that saves a driver's trips, and holds batch orders briefly to find them.
 - `vendor/` holds the organisers' Python kit of 13 November as a wheel. uv installs it as the package `spread`: the
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
 - `tests/` holds older tests, kept as they are but no longer run: we do not write or run tests.
