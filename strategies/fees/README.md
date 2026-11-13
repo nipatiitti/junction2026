@@ -117,20 +117,24 @@ uv run python strategies/fees/results/bench.py --table --seeds spread-1..5      
 
 ### On main with admission control and bundling
 
-The constants in `schedule.py` are `v16`. Both criteria of #62 hold on `spread-1` to `spread-5`: more orders on
-time than with the starter's fees, at no higher fee per delivered car. They also hold on `spread-6` to
-`spread-10`, which played no part in choosing `v16`. `v3`, the schedule merged in #15, costs €3.50 more per
-car than the starter's fees here.
+The constants in `schedule.py` are `v16`. Both criteria of #62 hold on `spread-1` to `spread-5` on the latest
+main (`338074c`, with the fees after a change of destination from #94): more orders on time than with the
+starter's fees, at no higher fee per delivered car, and with fewer refunds and penalties. On main `babc458`,
+just before #94, they also hold on `spread-6` to `spread-10`, which played no part in choosing `v16`. `v3`,
+the schedule merged in #15, costs €3.50 more per car than the starter's fees there.
 
-| Seeds   | Version   | Margin  | On time | Fees per delivered car | Refunds and penalties per car |
-| ------- | --------- | ------- | ------- | ---------------------- | ----------------------------- |
-| 1 to 5  | `starter` | €30,566 | 97.1%   | €69.73                 | €0.95                         |
-| 1 to 5  | `v3`      | €24,559 | 96.9%   | €73.24                 | €1.16                         |
-| 1 to 5  | `v16`     | €31,569 | 97.5%   | €69.72                 | €0.88                         |
-| 6 to 10 | `starter` | €41,396 | 97.8%   | €74.57                 | €1.23                         |
-| 6 to 10 | `v16`     | €41,300 | 98.5%   | €74.11                 | €0.74                         |
+| Main      | Seeds   | Version   | Margin  | On time | Fees per delivered car | Refunds and penalties per car |
+| --------- | ------- | --------- | ------- | ------- | ---------------------- | ----------------------------- |
+| `338074c` | 1 to 5  | `starter` | €30,566 | 97.1%   | €69.73                 | €0.95                         |
+| `338074c` | 1 to 5  | `v16`     | €31,845 | 97.5%   | €69.43                 | €0.83                         |
+| `babc458` | 1 to 5  | `starter` | €30,566 | 97.1%   | €69.73                 | €0.95                         |
+| `babc458` | 1 to 5  | `v3`      | €24,559 | 96.9%   | €73.24                 | €1.16                         |
+| `babc458` | 1 to 5  | `v16`     | €31,569 | 97.5%   | €69.72                 | €0.88                         |
+| `babc458` | 6 to 10 | `starter` | €41,396 | 97.8%   | €74.57                 | €1.23                         |
+| `babc458` | 6 to 10 | `v16`     | €41,300 | 98.5%   | €74.11                 | €0.74                         |
 
-`v16` has more orders on time than the starter's fees on 9 of the 10 seeds.
+On `338074c`, `v16` has more orders on time than the starter's fees on 4 of the 5 seeds, and on `spread-1`
+0.05 points fewer. On `babc458` it has more on 9 of the 10 seeds.
 
 ### Choosing the constants
 
