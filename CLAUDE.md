@@ -8,9 +8,17 @@ The workflow for this repository lives in `AGENTS.md` and applies in full:
 
 How to carry out that workflow with Claude Code's tools:
 
+- Testing is not allowed: do not write, change or run tests (no `pytest`,
+  `node --test` or `pnpm test`), even where Claude Code's defaults would.
+
 - Issues and pull requests go through the GitHub tools.
 - After opening a PR, subscribe to its activity, so conflicts, CI failures and
   review comments reach you as events while the PR is open.
+- Before you push to a branch that already has a PR, check that PR's state. A
+  merged or closed PR does not pick up later pushes, so those commits would sit
+  on the branch with nobody reviewing them. If it is merged or closed, merge the
+  latest default branch into yours and open a new PR for the commits that are
+  not in the default branch yet.
 
 ## Progress updates
 

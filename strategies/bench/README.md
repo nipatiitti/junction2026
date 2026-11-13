@@ -66,11 +66,3 @@ are taken, for example by a teammate, a week waits 15 seconds and tries again, f
 When a week stops on an error, the bench stops the other weeks and prints the last lines of the one that failed. On an
 error or Ctrl-C, each week that has not ended has its world deleted, so no slot is left held. Ended weeks stay in the
 team's list: you can still reveal them with `uv run spread-reveal-csv <world id>`.
-
-## Tests
-
-```sh
-uv run pytest strategies/bench
-```
-
-They build the table and the CSV from fake scores and parse seed lists. They do not play against the server.
