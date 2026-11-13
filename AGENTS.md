@@ -187,23 +187,27 @@ deleting a branch, closing or editing any other issue you did not create
 Stack-specific. The first PR that introduces or changes tooling must fill this
 in and keep it current. Every row must be a single copy-pasteable command.
 
-| Task                        | Command                                                     |
-| --------------------------- | ----------------------------------------------------------- |
-| Install dependencies        | `pnpm install`                                              |
-| Lint / format               | `pnpm format`                                               |
-| Lint only (no writes)       | `pnpm lint`                                                 |
-| Type check                  | `pnpm check`                                                |
-| Install Python dependencies | `uv sync`                                                   |
-| Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`              |
-| Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                       |
-| Measure the note reader     | `uv run python -m strategies.notes.check reveal-<world id>` |
-| Compare two versions        | `uv run python -m strategies.bench dispatch.py origin/main` |
-| Build the saved-weeks DB    | `uv run db.py`                                              |
-| Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .`         |
-| Play a week in TypeScript   | `pnpm dispatch --level 8 --seed spread-1`                   |
-| Write a week to CSV (TS)    | `pnpm reveal-csv <world id>`                                |
-| Play a week with the ladder | `uv run ladder/play.py --level 8 --seed spread-1`           |
-| Rehearse the final (ladder) | `uv run ladder/rehearse.py --seed spread-1`                 |
+| Task                        | Command                                                                                             |
+| --------------------------- | --------------------------------------------------------------------------------------------------- |
+| Install dependencies        | `pnpm install`                                                                                      |
+| Lint / format               | `pnpm format`                                                                                       |
+| Lint only (no writes)       | `pnpm lint`                                                                                         |
+| Type check                  | `pnpm check`                                                                                        |
+| Install Python dependencies | `uv sync`                                                                                           |
+| Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`                                                      |
+| Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                                                               |
+| Measure the note reader     | `uv run python -m strategies.notes.check reveal-<world id>`                                         |
+| Compare two versions        | `uv run python -m strategies.bench dispatch.py origin/main`                                         |
+| Build the saved-weeks DB    | `uv run db.py`                                                                                      |
+| Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .`                                                 |
+| Play a week in TypeScript   | `pnpm dispatch --level 8 --seed spread-1`                                                           |
+| Write a week to CSV (TS)    | `pnpm reveal-csv <world id>`                                                                        |
+| Build the facts tables      | `uv run python -m analysis.facts`                                                                   |
+| Margin gap report (oracle)  | `uv run python -m analysis.oracle`                                                                  |
+| Get the team's scraped data | `mkdir -p out && gh release download --pattern 'spread-data-*.tar.gz' --output - \| tar -xz -C out` |
+| Build the overview report   | `uv run python -m analysis.report`                                                                  |
+| Play a week with the ladder | `uv run ladder/play.py --level 8 --seed spread-1`                                                   |
+| Rehearse the final (ladder) | `uv run ladder/rehearse.py --seed spread-1`                                                         |
 
 ## Definition of done
 
