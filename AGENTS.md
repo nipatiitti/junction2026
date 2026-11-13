@@ -1,9 +1,22 @@
 ## Project Configuration
 
-- **Language**: TypeScript
+- **Language**: Python 3.15 for the dispatch system (`dispatch.py`), run with uv; TypeScript for code in `src/`
 - **Package Manager**: pnpm
 - **Runtime**: Node 22.18+, running `.ts` files directly (no build step)
 - **Tooling**: Biome (lint and format), `tsc` (type check only), `node --test`
+
+## The challenge
+
+We are building a dispatch system for Spread, Bahn's Junction 2026 challenge: it quotes
+car dealers and pays freelance drivers to move the cars, for one simulated week.
+
+- The system is `dispatch.py`, in Python, run with uv. Before you change it, read
+  `docs/spread/HANDBOOK.md`. `RULES.md` and `API.md` next to it are the full references.
+  `README.md` has the setup, the dates and the baseline to beat.
+- Practice weeks are free and repeatable: the same seed and level give the same week.
+  Compare two versions of the system on the same seeds.
+- Ask for approval before you play a ranking run (`--board`) or a final (`--final`). Each
+  ranking world can be played once, and its score stays on the public rankings.
 
 ---
 
@@ -143,15 +156,22 @@ deleting a branch, closing or editing an issue you did not create.
 Stack-specific. The first PR that introduces or changes tooling must fill this
 in and keep it current. Every row must be a single copy-pasteable command.
 
-| Task                    | Command                                                       |
-| ----------------------- | ------------------------------------------------------------- |
-| Install dependencies    | `pnpm install`                                                |
-| Run one test file / dir | `node --test src/path/to/file.test.ts`                        |
-| Run tests by name       | `node --test --test-name-pattern="<name>" "src/**/*.test.ts"` |
-| Run the full test suite | `pnpm test`                                                   |
-| Lint / format           | `pnpm format`                                                 |
-| Lint only (no writes)   | `pnpm lint`                                                   |
-| Type check              | `pnpm check`                                                  |
+| Task                        | Command                                                       |
+| --------------------------- | ------------------------------------------------------------- |
+| Install dependencies        | `pnpm install`                                                |
+| Run one test file / dir     | `node --test src/path/to/file.test.ts`                        |
+| Run tests by name           | `node --test --test-name-pattern="<name>" "src/**/*.test.ts"` |
+| Run the full test suite     | `pnpm test`                                                   |
+| Lint / format               | `pnpm format`                                                 |
+| Lint only (no writes)       | `pnpm lint`                                                   |
+| Type check                  | `pnpm check`                                                  |
+| Install Python dependencies | `uv sync`                                                     |
+| Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`                |
+| Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                         |
+| Run one Python test file    | `uv run pytest tests/test_dispatch.py`                        |
+| Run Python tests by name    | `uv run pytest -k "<name>"`                                   |
+| Run all Python tests        | `uv run pytest`                                               |
+| Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .`           |
 
 ## Definition of done
 
