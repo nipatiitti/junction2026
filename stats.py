@@ -1,8 +1,11 @@
 """Turns weeks saved by scrape.py into distributions for an offline model of the server. Needs no network.
 
-    uv run stats.py out/scrape/passive out/scrape/explore
+    uv run stats.py                                        # the team's committed weeks in data/scrape
+    uv run stats.py out/scrape/passive out/scrape/explore  # weeks from your own scrape
 
-Writes summary.json into the first folder (or --out) and prints the main numbers. Groups are "L<level>/<policy>".
+Without folders, reads data/scrape and writes out/summary.json. With folders, writes summary.json into the first
+folder. --out chooses another file. Prints the main numbers. Groups are "L<level>/<policy>", or
+"L<level>/<policy>-<tag>" for a scrape with --tag.
 README.md lists what the summary holds.
 """
 
@@ -13,10 +16,11 @@ import gzip
 import json
 import math
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Sequence
 from pathlib import Path
 from typing import Any, NamedTuple
 
+OFFLINE_DATA = Path(__file__).parent / "data" / "scrape"  # the team's committed scrape: no server needed
 HOUR, DAY = 60, 24 * 60
 MAX_ENUM = 30  # a text or bool field with more distinct values than this is not an enumeration
 RATIO_BIN = 0.05  # width of the bins of quote / list price
@@ -28,6 +32,10 @@ class Week(NamedTuple):
     reveal: dict
     snapshot: dict
     drivers: list[dict]
+    # Saved by scrape.py since #49; empty for older weeks and for weeks that a killed scrape left behind.
+    actions: Sequence[dict] = ()  # each action sent, with its minute and result
+    rosters: Sequence[dict] = ()  # the driver list at each midnight and at the end: {at, drivers}
+    positions: Sequence[dict] = ()  # samples of our drivers' positions: {at, positions}
 
 
 def read_json(path: Path) -> Any:
@@ -37,15 +45,24 @@ def read_json(path: Path) -> Any:
     return json.loads(path.read_text())
 
 
+def read_lines(path: Path) -> list[dict]:
+    """The rows of a .jsonl.gz file; none when the file is missing."""
+    if not path.exists():
+        return []
+    with gzip.open(path, "rt", encoding="utf-8") as f:
+        return [json.loads(line) for line in f]
+
+
 def load_week(folder: Path) -> Week:
-    with gzip.open(folder / "events.jsonl.gz", "rt", encoding="utf-8") as f:
-        events = [json.loads(line) for line in f]
     return Week(
         read_json(folder / "meta.json"),
-        events,
+        read_lines(folder / "events.jsonl.gz"),
         read_json(folder / "reveal.json.gz"),
         read_json(folder / "snapshot.json.gz"),
         read_json(folder / "drivers.json.gz"),
+        read_lines(folder / "actions.jsonl.gz"),
+        read_lines(folder / "rosters.jsonl.gz"),
+        read_lines(folder / "positions.jsonl.gz"),
     )
 
 
@@ -452,7 +469,8 @@ def summarise(weeks: Iterable[Week], world_map: dict | None) -> dict:
     names = {p["id"]: p["name"] for p in world_map["places"]} if world_map else {}
     catalogue, groups = Catalogue(), {}
     for week in weeks:
-        name = f"L{week.meta['level']}/{week.meta['policy']}"
+        tag = week.meta.get("tag")
+        name = f"L{week.meta['level']}/{week.meta['policy']}" + (f"-{tag}" if tag else "")
         group = groups.setdefault(name, Group(km, minutes, names))
         group.add(week)
         for event in week.events:
@@ -499,14 +517,22 @@ def report(summary: dict) -> str:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Summarises weeks saved by scrape.py.")
-    parser.add_argument("folders", nargs="+", type=Path, help="scrape output folders")
-    parser.add_argument("--out", type=Path, help="where to write summary.json (default: the first folder)")
+    parser.add_argument(
+        "folders", nargs="*", type=Path, help="scrape output folders (default: the committed data/scrape)"
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        help="where to write summary.json (default: the first folder, or out/summary.json for data/scrape)",
+    )
     args = parser.parse_args(argv)
-    folders = list(find_weeks(args.folders))
+    roots = args.folders or [OFFLINE_DATA]
+    folders = list(find_weeks(roots))
     if not folders:
         raise SystemExit("No saved weeks (folders with meta.json) found.")
-    summary = summarise((load_week(f) for f in folders), load_map(args.folders))
-    out = args.out or args.folders[0] / "summary.json"
+    summary = summarise((load_week(f) for f in folders), load_map(roots))
+    out = args.out or (args.folders[0] / "summary.json" if args.folders else Path("out/summary.json"))
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(summary, indent=1, default=str) + "\n")
     print(report(summary))
     print(f"{len(folders)} weeks summarised into {out}")
