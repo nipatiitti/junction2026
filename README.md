@@ -4,6 +4,10 @@ Our entry for **Spread** by Bahn at Junction 2026: a system that does a car tran
 simulated week in Finland. It quotes prices to dealers and posts gigs to freelance drivers through the Spread API.
 Everything about the challenge is linked from <https://spread.bahnexpress.com/llms.txt>.
 
+## Challenge docs
+
+Short versions of the Spread challenge documents (rules, handbook, API, judging) are in [`docs/`](docs/README.md).
+
 ## Stack
 
 The dispatch system is Python 3.15, run with uv: `dispatch.py`, with tests in `tests/`. See
