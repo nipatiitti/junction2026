@@ -2,15 +2,16 @@
 the driver will cost us. The maximum is lifted only where the rules let a dealer accept more from us than the
 competitor's price: dealer trust at level 8, and the outage region.
 
-It builds on the adaptive quoting of strategies/pricing (#13), unchanged there: the learned multiplier with its
-place and dealer offsets, the price war, the outage and dealer trust. No network: `price` takes a request and its
-driver cost and returns a price for the options we quote, and `observe` takes the `order_won`, `order_lost` and
-`ledger` events. README.md next to this file explains the model.
+A strategy (strategies/strategy.py) built on the adaptive quoting of strategies/pricing (#13), unchanged there: the
+learned multiplier with its place and dealer offsets, the price war, the outage and dealer trust. No network: `price`
+takes a request and its driver cost and returns a price for the options we quote, and `observe` takes the
+`order_won`, `order_lost` and `ledger` events. README.md next to this file explains the model.
 """
 
 from __future__ import annotations
 
 import math
+from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass
 
@@ -21,7 +22,7 @@ from strategies.pricing.model import Params as PricingParams
 
 
 @dataclass(frozen=True)
-class CeilingParams(PricingParams):
+class Params(PricingParams):
     """The variables of ceiling pricing, next to those of the adaptive quoting (`strategies/pricing`)."""
 
     # The maximum: we quote at most the list price x (1 + max_markup), lifted where the dealer accepts more from us
@@ -48,13 +49,14 @@ class CeilingQuote(Quote):
 class CeilingPricing(PricingModel):
     """The adaptive quoting, started at our maximum and kept under it, over a floor of the driver cost."""
 
-    params: CeilingParams
+    params: Params
 
     def __init__(
-        self, roster: list[DriverProfile], world_map: WorldMap, level: int = 8, params: CeilingParams | None = None
+        self, roster: list[DriverProfile], world_map: WorldMap, level: int = 8, params: Params | None = None
     ) -> None:
-        super().__init__(roster, world_map, level, params or CeilingParams())
+        super().__init__(roster, world_map, level, params or Params())
         self.log_m = math.log(self.params.ceiling)  # every price starts at the maximum
+        self.counts: Counter[str] = Counter()  # the week's quotes, for the summary
 
     # --- prices -------------------------------------------------------------------------------
 
@@ -113,6 +115,9 @@ class CeilingPricing(PricingModel):
             floored = floored and listed * learned * lift < least
             prices[option["kind"]] = max(1, int(min(most, max(listed * learned * lift, least)) + 0.5))
         if prices:
+            self.counts["quoted"] += 1
+            self.counts["at the maximum"] += capped
+            self.counts["at the floor"] += floored
             self.quotes[request["id"]] = CeilingQuote(
                 at=request["arrivedAt"],
                 keys=request_keys(request),
@@ -183,3 +188,14 @@ class CeilingPricing(PricingModel):
                 for key, moved in o.updates:
                     net[key] = net.get(key, 0.0) + moved
         self.apply(list(net.items()), -1.0)
+
+    def summary(self) -> str:
+        """How often the maximum and the driver cost floor set the week's quotes, and the world's multiplier at the
+        end of the week."""
+        if self.level <= 3 or not self.counts:
+            return ""
+        c = self.counts
+        return (
+            f"Ceiling: {c['quoted']} quotes, {c['at the maximum']} at the maximum, {c['at the floor']} at the driver "
+            f"cost floor; world x{math.exp(self.log_m):.2f}"
+        )
