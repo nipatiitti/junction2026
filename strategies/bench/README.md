@@ -44,13 +44,13 @@ starter do. The bench reads the world id from it, and reads the score from the s
 One line for each seed and version, then the totals of each version, then how the first version compares with each
 other one:
 
-| Column        | Meaning                                                                                         |
-| ------------- | ----------------------------------------------------------------------------------------------- |
-| Margin        | The gross margin at the end of the week: the score.                                             |
-| Orders        | The orders won.                                                                                 |
-| On time       | The share of the orders delivered on time. The total is over all orders of all weeks.           |
-| Not delivered | The share of the orders never delivered. The total is over all orders of all weeks.             |
-| Ranked        | Whether the week counts for the rankings: at least 90% on time. The total counts ranked weeks.  |
+| Column        | Meaning                                                                                        |
+| ------------- | ---------------------------------------------------------------------------------------------- |
+| Margin        | The gross margin at the end of the week: the score.                                            |
+| Orders        | The orders won.                                                                                |
+| On time       | The share of the orders delivered on time. The total is over all orders of all weeks.          |
+| Not delivered | The share of the orders never delivered. The total is over all orders of all weeks.            |
+| Ranked        | Whether the week counts for the rankings: at least 90% on time. The total counts ranked weeks. |
 
 The last line reads, for example, `dispatch.py against origin/main: margin +€12,345.67 in total, higher on 4 of 5
 seeds; ranked on 5 against 3.`
