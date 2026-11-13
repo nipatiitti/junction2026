@@ -8,6 +8,9 @@ The workflow for this repository lives in `AGENTS.md` and applies in full:
 
 How to carry out that workflow with Claude Code's tools:
 
+- Testing is not allowed: do not write, change or run tests (no `pytest`,
+  `node --test` or `pnpm test`), even where Claude Code's defaults would.
+
 - Issues and pull requests go through the GitHub tools.
 - After opening a PR, subscribe to its activity, so conflicts, CI failures and
   review comments reach you as events while the PR is open.
