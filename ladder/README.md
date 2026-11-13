@@ -191,6 +191,14 @@ only how the final runs and how a refused post is tried again):
 Rung 5 makes the same margin to 16 cents and is not ranked on `spread-5`. Rung 4, the default, is ranked on every
 week of this bench, at 97.9% on time or more.
 
+**A stricter price learner lost margin.** About half of our quotes are priced by the rung's floor, not by the
+multiplier, and a review pointed out that such a quote, when it loses, says only that the competitor was under our
+floor. A learner that skipped those losses (commit `bbc7e1a`, with other fixes) quoted higher, won at 1.50 times the
+list price rather than 1.48 on `spread-1`, but won 45% of its quotes rather than 50%: €33,534.93 and 1,392 orders on the
+five seeds, against €34,583.48 and 1,592. Dealers' acceptance falls slowly with our price, and their trust grows with
+each car delivered, so the extra cars pay more than the higher price. `FLOOR_LOSSES_TEACH` in `pricing.py` keeps the
+old learning.
+
 The first version on `spread-1`, rung 1: +€2,856.27, 93 orders, 100% on time, 281 requests. All 93 gigs booked, 88 at
 the opening fee, half of them within a minute. Dealers took `same_day` on 74 of them.
 
