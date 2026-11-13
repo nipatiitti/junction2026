@@ -6,10 +6,18 @@ The workflow for this repository lives in `AGENTS.md` and applies in full:
 
 ## Claude Code specifics
 
-- Start each issue in its own worktree or branch (section 2) before editing anything.
-- Use the GitHub tools for issues and pull requests: read the issue you were
-  given, file follow-ups as new issues, open the PR.
-- After opening the PR, subscribe to its activity and keep fixing conflicts,
-  CI failures and review comments until it is merged or closed (section 7).
-- Run only the focused tests from the Commands table. Do not run the full suite
-  locally unless the user asks.
+How to carry out that workflow with Claude Code's tools:
+
+- Issues and pull requests go through the GitHub tools.
+- After opening a PR, subscribe to its activity, so conflicts, CI failures and
+  review comments reach you as events while the PR is open.
+
+## Progress updates
+
+Before you start, say in a line what you're about to do; brief updates while
+you work help the user follow along. Close with a short recap that stands on
+its own (what you found, what you did, and what's next), so a reader who only
+sees the last message has the full picture.
+
+Source: Anthropic's prompting guide,
+https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-2
