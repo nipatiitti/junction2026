@@ -51,11 +51,11 @@ rating ≥ 4.8 with ≥ 50 completed gigs for a premium car.
 Level 8, against `main` without offers (admission control, #14, and the polling loop, #36). The run was stopped
 before every seed had played on both versions, so only spread-3 and spread-4 are paired.
 
-| Seed | Main margin | Offers margin | Main on time | Offers on time | Main fee per car | Offers fee per car |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| spread-3 | -€53.27 | -€21.42 | 97.0% | 96.7% | €47.79 | €47.66 |
-| spread-4 | -€285.29 | -€298.49 | 97.1% | 96.7% | €54.57 | €54.66 |
-| **Total** | **-€338.56** | **-€319.91** | | | **€51.20** | **€51.18** |
+| Seed      |  Main margin | Offers margin | Main on time | Offers on time | Main fee per car | Offers fee per car |
+| --------- | -----------: | ------------: | -----------: | -------------: | ---------------: | -----------------: |
+| spread-3  |      -€53.27 |       -€21.42 |        97.0% |          96.7% |           €47.79 |             €47.66 |
+| spread-4  |     -€285.29 |      -€298.49 |        97.1% |          96.7% |           €54.57 |             €54.66 |
+| **Total** | **-€338.56** |  **-€319.91** |              |                |       **€51.20** |         **€51.18** |
 
 spread-1 played only with offers: €456.36 margin, 96.4% on time.
 
