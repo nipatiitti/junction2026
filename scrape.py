@@ -99,7 +99,7 @@ class ExploreDesk(Desk):
       week, because drivers learn our fees: `rising` (the starter's), `flat` (the opening fee only) or `slow` (a
       linear rise from the opening fee to the cap times the typical fee, planned to end 3 hours before the order's
       lastPickupAt, when the deadline warning would come). After a deadline warning every shape goes steep.
-    - Direct offers: each order's first gig goes as a direct offer to up to `offers` drivers who live near the
+    - Direct offers: each order's first gig goes, in the minute it is posted, as a direct offer to up to `offers` drivers who live near the
       pickup and fit the audience, each at its own random multiple of the typical fee.
 
     The same seed and level draw the same multiples."""
@@ -209,6 +209,9 @@ def play_week(world: World, desk: Desk | None, recorder: Recorder, sample_every:
         if desk is None:
             world.advance(to=stop)
         else:
+            if isinstance(desk, ExploreDesk) and desk.args.offers and any(a["type"] == "post" for a in desk.outbox):
+                # Posts first, so their direct offers go in the same minute, before an app driver books the gig.
+                desk.send()
             actions, desk.outbox = desk.outbox, []
             step = world.advance(until=WAKE_ON, max=stop, actions=actions)
             desk.read_results(actions, step["results"])
