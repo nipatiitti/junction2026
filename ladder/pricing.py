@@ -4,7 +4,7 @@ the dealer's trust in us adds at level 8.
 The competitor's price is the list price times factors for the world, the lane, the day and the request (HANDBOOK.md,
 "Dealers compare prices"). We cannot see it, but each quote that wins or loses tells us on which side of it we were.
 The multiplier rises a step after a win and falls a step after a loss, so it settles where about half of our quotes
-win: just under the competitor. A loss at a price that the rung's floor set, not the multiplier, teaches nothing. Each dealer has its own offset on top, learned the same way, more slowly.
+win: just under the competitor. Each dealer has its own offset on top, learned the same way, more slowly.
 """
 
 from __future__ import annotations
@@ -24,6 +24,10 @@ LOWEST, HIGHEST = 0.9, 2.2  # the world multiplier stays within these
 # more to their drivers.
 FLOOR = {1: 1.25, 2: 1.25, 3: 1.4, 4: 1.35, 5: 1.6, 6: 1.4}
 TRUST_CAP = 25  # level 8: each dealer counts up to 25 orders delivered on time, each worth 1% more
+# Whether a quote lost at a price that the rung's floor set lowers the multiplier too. Strictly such a loss says only
+# that the competitor was under our floor, but learning from it wins more cars: on the bench, skipping it raised the
+# price we won at from 1.48 to 1.50 times the list price, cut our win rate from 50% to 45% and lost margin (README.md).
+FLOOR_LOSSES_TEACH = True
 
 
 class Pricing:
@@ -71,7 +75,7 @@ class Pricing:
         if quoted is None or self.level <= 3:  # a decline, or a level where every quote wins
             return
         dealer, by_multiplier = quoted
-        if not won and not by_multiplier:  # lost at the floor: the multiplier was not tried
+        if not won and not by_multiplier and not FLOOR_LOSSES_TEACH:  # lost at the floor: the multiplier was not tried
             return
         sign = 1 if won else -1
         self.world = min(math.log(HIGHEST), max(math.log(LOWEST), self.world + sign * STEP))

@@ -244,7 +244,11 @@ class Desk:
             gig = self.gigs.get(event["gigId"])
             if gig is not None and gig.status in ("booked", "open"):
                 gig.status = "open"  # the gig is in the app again with its schedule
-                self.reprice.add(gig.id)
+                job = self.jobs.get(gig.order_id)
+                # A change of plan while a driver held it can have left its stops stale (a charging stop): the
+                # same check as at the change, which withdraws and posts the car again, else reprices.
+                if job is not None:
+                    self.changed(job, gig)
                 self.count[kind.replace("_", " ")] += 1
         elif kind == "gig_started":
             if event["gigId"] in self.gigs:
@@ -522,8 +526,9 @@ class Desk:
         self.outbox.append({"type": "reprice", "gigId": gig_id, "schedule": schedule})
 
     def changed(self, job: Job, gig: Gig) -> None:
-        """After a change of plan, an open gig keeps its stops: when a car now needs a charging stop it did not
-        (it goes farther), the gig is withdrawn and the car goes again at the next tick. Else it is repriced."""
+        """After a change of plan, an open gig keeps its stops, also one that a driver held at the change and has
+        dropped since: when a car now needs a charging stop it did not (it goes farther), the gig is withdrawn and
+        the car goes again at the next tick. Else it is repriced."""
         stale = any(
             stop["kind"] == "pickup"
             and stop.get("withCharging", False) != needs_charging(self.market, job.order["legs"][stop["leg"]])
