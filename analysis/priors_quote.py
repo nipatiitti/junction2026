@@ -65,7 +65,7 @@ def flips(db: sqlite3.Connection) -> dict:
         )
     ]
     if not rows:
-        raise SystemExit("no level 8 quote probes: get the team's data (README.md) and run analysis.facts")
+        raise SystemExit("no level 8 quote probes: get the team's data (tools/README.md) and run analysis.facts")
     center = statistics.fmean(r["x"] for r in rows)
     level: dict[tuple, float] = {}
     ladder = dict.fromkeys(OPTIONS, 0.0)

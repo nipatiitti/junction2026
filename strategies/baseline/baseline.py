@@ -18,7 +18,7 @@ import sys
 import time
 from pathlib import Path
 
-# Run as a file, Python looks for modules next to it; record.py, spread_proxy.py and strategies/ are at the root.
+# Run as a file, Python looks for modules next to it; tools/ and strategies/ are at the root.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from spread.client import Client, SpreadError, Unreachable, World
@@ -379,8 +379,8 @@ def main() -> None:
     )
     parser.add_argument("--final", action="store_true", help="play your copy of the final from the live stream")
     args = parser.parse_args()
-    from record import Recorder  # the repository's saving of the week, in the root of the repository
-    from spread_proxy import ProxyClient  # the kit's client, through HTTPS_PROXY where there is one
+    from tools.record import Recorder  # the repository's saving of the week
+    from tools.spread_proxy import ProxyClient  # the kit's client, through HTTPS_PROXY where there is one
 
     try:
         client = ProxyClient()

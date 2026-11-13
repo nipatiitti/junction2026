@@ -54,3 +54,15 @@ Each strategy then has its own methods for the desk's questions, such as `Admiss
    ```
 
 3. Build it in `Desk.__init__` in `dispatch.py` and add it to `Desk.strategies`, so it sees every event.
+
+## The play loop of `dispatch.py`
+
+At the end of a practice week, `dispatch.py` prints two more lines. `Requests` counts the week's requests by route
+(`advance`, `actions`, `score`, …). `Stops` gives the reason for each `advance`: the kind of event that stopped the
+clock, `poll`, `midnight` or `end`. The request count sets how long a week takes: each request waits for the
+network's round trip, about 175 ms through a Claude Code cloud proxy. To keep the count low, the loop does not stop
+for every price request. The dealer decides at the request's `respondBy`, 15 minutes after the request, on our last
+quote. So while requests keep coming, the loop looks for new ones at least every 14 minutes (`poll`) and quotes them
+together with its answers to the other events. A quote sent anywhere before `respondBy` gets the same answer, so the
+week stays the same. On the level 8 starter week in `data/` (`smoke-1`), this cuts the stops of the clock from 1,725 to
+about 1,390.
