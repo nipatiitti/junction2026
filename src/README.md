@@ -74,5 +74,8 @@ through the proxy yet.
 The quote side of the brief's design (win probability, level learning, expected-profit pricing) is in
 `models/quote/`, with its priors in `params/quote.json`: see [its README](models/quote/README.md).
 
+The fee and capacity side (booking hazard, fee schedule solver, fee extras, `lambda` and `mu`) is in `models/fees/`,
+with its priors in `params/fees.json`: see [its README](models/fees/README.md).
+
 `dispatch.py`'s order handling (note reader, gig shape, admission's time rules, retries) is in `ops/` as pure
 functions: see [its README](ops/README.md).
