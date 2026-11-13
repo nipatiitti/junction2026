@@ -12,13 +12,14 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`offers/`](offers/README.md)       | `Offers`       | Direct offers to drivers near a gig's pickup                    |
 | [`bundling/`](bundling/README.md)   | `Bundler`      | Which orders' cars go together in one gig                       |
 
-Two folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played there
-is that system's, not `dispatch.py`'s. Neither changes the folders above.
+Three folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
-| Folder                                    | Classes                                | What it is                                                |
-| ----------------------------------------- | -------------------------------------- | --------------------------------------------------------- |
-| [`baseline/`](baseline/README.md)         | `BaselineAdmission`, `BaselineFees`, … | The organisers' starter as strategies: our fixed baseline |
-| [`price_ladder/`](price_ladder/README.md) | `LadderPricing`, `ShadowAdmission`     | A clamped price ladder with a shadow price on capacity    |
+| Folder                                      | Classes                                | What it is                                                |
+| ------------------------------------------- | -------------------------------------- | --------------------------------------------------------- |
+| [`baseline/`](baseline/README.md)           | `BaselineAdmission`, `BaselineFees`, … | The organisers' starter as strategies: our fixed baseline |
+| [`price_ladder/`](price_ladder/README.md)   | `LadderPricing`, `ShadowAdmission`     | A clamped price ladder with a shadow price on capacity    |
+| [`scarcity_cost/`](scarcity_cost/README.md) | `ScarcityAdmission`                    | Admission with the town's quotas per driver priced in     |
 
 [`bench/`](bench/README.md) is not a strategy either: it compares versions of `dispatch.py` on the same seeds.
 
