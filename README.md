@@ -81,7 +81,8 @@ week stays the same. On the level 8 starter week in `data/` (`smoke-1`), this cu
 about 1,390.
 
 - `dispatch.py` is our system. It started as a copy of the organisers' starter, formatted with ruff.
-- `strategies/` holds the parts of the system, each with its notes. `strategies/admission/` decides
+- `strategies/` holds the parts of the system, each with its notes, and each a subclass of one abstract base class,
+  `Strategy` ([`strategies/README.md`](strategies/README.md)). `strategies/admission/` decides
   which price requests to take and which option to quote, and `strategies/pricing/` the price of each quote, learned
   during the week. [`strategies/notes/`](strategies/notes/README.md) reads dealer notes into facts (ready time, real
   hours, deadline, gearbox, plates, tyres) that set the gigs' windows, audience and plates. `strategies/offers/` sends

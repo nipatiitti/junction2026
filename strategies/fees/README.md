@@ -12,7 +12,7 @@ cars (`strategies/bundling`).
 | ------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `schedule.py` | The schedule: pure functions of a gig's facts and the time, with every constant                                     |
 | `market.py`   | Where the drivers live, from the map and the driver list                                                            |
-| `__init__.py` | `FeePlanner`: turns an order and its request into a gig's facts, with the typical fee of the trip the cars make now |
+| `fees.py`     | `FeePlanner`: turns an order and its request into a gig's facts, with the typical fee of the trip the cars make now |
 | `results/`    | The bench that compares versions of the constants, and every week it played                                         |
 
 ## How a schedule is built
