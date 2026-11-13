@@ -1,16 +1,24 @@
 """The kit's client, sent through HTTPS_PROXY when one is set. In a Claude Code cloud session the proxy adds the team
 key, so SPREAD_KEY can be a placeholder there. Without HTTPS_PROXY, or for a host in NO_PROXY, the client connects
-straight to the server, as the kit's own does. The vendored kit stays unchanged."""
+straight to the server, as the kit's own does. The vendored kit stays unchanged.
+
+The proxy of a cloud session does not pass WebSocket upgrades, so through a proxy a world reads its live events by
+polling GET /events instead of the kit's WebSocket stream."""
 
 from __future__ import annotations
 
 import http.client
 import os
 import ssl
+import time
+from collections.abc import Iterator
 from typing import Any
 from urllib.parse import urlsplit
 
-from spread.client import Client, Unreachable
+from spread.client import Client, SpreadError, Unreachable, World
+from spread.types import DeskEvent
+
+POLL = 0.2  # seconds between two reads of the events, when the stream goes through a proxy
 
 
 def bypasses_proxy(host: str, no_proxy: str) -> bool:
@@ -33,6 +41,12 @@ class ProxyClient(Client):
         use = proxy and self._parts.scheme == "https" and not bypasses_proxy(host, no_proxy)
         self.proxy = urlsplit(proxy) if use else None
         self.requests = 0
+
+    def world(self, world_id: str) -> ProxyWorld:
+        return ProxyWorld(self, world_id)
+
+    def create(self, level: int = 8, seed: str | None = None, board: bool = False) -> ProxyWorld:
+        return self.world(super().create(level, seed, board).id)
 
     def call(self, method: str, path: str, body: Any = None, actions: int = 0) -> Any:
         self.requests += 1
@@ -67,3 +81,45 @@ class ProxyClient(Client):
         )
         connection.set_tunnel(self._parts.hostname, self._parts.port or 443)
         return connection
+
+
+class ProxyWorld(World):
+    """The kit's world, whose stream polls GET /events when the client goes through a proxy."""
+
+    client: ProxyClient
+
+    def fork(self) -> ProxyWorld:
+        return self.client.world(super().fork().id)
+
+    def stream(self, after: int | None = None, idle: float | None = None) -> Iterator[DeskEvent | None]:
+        """The kit's stream, with the same answers: every event above `after` and then the new ones, in order and
+        without repeats, and None after `idle` seconds without one. Without a proxy, it is the kit's WebSocket."""
+        if self.client.proxy is None:
+            yield from super().stream(after, idle)
+            return
+        if after is None:  # the kit's stream then starts with the events published from now on
+            history = self.events()
+            after = history[-1]["seq"] if history else -1
+        last, failures, quiet = after, 0, time.monotonic()
+        while True:
+            try:
+                events = self.events(after=last)
+                failures = 0
+            except Unreachable as error:  # also the 502 of a server that restarts
+                failures += 1
+                if failures == 60:
+                    raise Unreachable(0, f"The events of world {self.id} failed 60 times in a row: {error}") from error
+                events = []
+            except SpreadError as error:
+                if error.status == 404:  # the world was deleted
+                    return
+                raise
+            for event in events:
+                last = event["seq"]
+                yield event
+            if events:
+                quiet = time.monotonic()
+            elif idle is not None and time.monotonic() - quiet >= idle:
+                quiet = time.monotonic()
+                yield None
+            time.sleep(POLL if failures == 0 else 1)

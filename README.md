@@ -274,9 +274,10 @@ that works on this repository needs both variables in its settings:
 How the key reaches the server: `dispatch.py`, `scrape.py` and the bench create their client with `ProxyClient` from
 `spread_proxy.py`. When `HTTPS_PROXY` is set, as in a cloud session, it tunnels each request through that proxy and
 trusts the CA in `SSL_CERT_FILE`; the proxy swaps the placeholder for the real key. Without `HTTPS_PROXY`, or for a host
-in `NO_PROXY`, it connects straight to the server, as the kit's client does. The vendored kit is unchanged. The live
-event stream of `dispatch.py --final` still connects straight to the server, so play a final where `SPREAD_KEY` holds
-the real key.
+in `NO_PROXY`, it connects straight to the server, as the kit's client does. The vendored kit is unchanged. The proxy
+does not pass WebSocket upgrades, so through a proxy the live event stream of `dispatch.py --final` polls
+`GET /events` every 0.2 seconds instead (`ProxyWorld.stream`), with the same events in the same order; that is at most 5
+of the final's 50 reads a second. Without a proxy, it uses the kit's WebSocket stream as before.
 
 ## Working in parallel
 
