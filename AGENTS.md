@@ -195,6 +195,11 @@ on one line, so two PRs that each add a command do not conflict.
 - Play a Spread practice week: `uv run dispatch.py --level 8 --seed spread-1`
 - Play the baseline week: `uv run python strategies/baseline/baseline.py --level 8 --seed spread-1`
 - Play the price-ladder week: `uv run strategies/price_ladder/dispatch.py --level 8 --seed spread-1`
+- Play the scarcity-priced week: `uv run strategies/scarcity_cost/dispatch.py --level 8 --seed spread-1`
+- Play the more-chains week: `uv run strategies/bundling_more/dispatch.py --level 8 --seed spread-1`
+- Play the cheaper-bundles week: `uv run strategies/bundling_cheaper/dispatch.py --level 8 --seed spread-1`
+- Play the urgency-priced week: `uv run strategies/delivery_urgency/dispatch.py --level 8 --seed spread-1`
+- Play the ratchet week: `uv run strategies/ratchet/dispatch.py --level 8 --seed spread-1`
 - Play the ceiling-pricing week: `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1`
 - Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
 - Measure the note reader: `uv run python -m strategies.notes.check reveal-<world id>`
@@ -205,12 +210,11 @@ on one line, so two PRs that each add a command do not conflict.
 - Write a week to CSV (TS): `pnpm reveal-csv <world id>`
 - Compare TypeScript strategies: `pnpm bench starter --level 8 --seeds spread-1..spread-5`
 - Build the facts tables: `uv run python -m analysis.facts`
+- Export the fee model priors: `uv run python -m analysis.priors_fees`
 - Margin gap report (oracle): `uv run python -m analysis.oracle`
 - Get the team's scraped data: `mkdir -p out && gh release download --pattern 'spread-data-*.tar.gz' --output - | tar -xz -C out`
 - Build and serve the report: `uv run python -m analysis.report`
 - Build the report file only: `uv run python -m analysis.report --no-serve`
-- Play a week with the ladder: `uv run ladder/play.py --level 8 --seed spread-1`
-- Rehearse the final (ladder): `uv run ladder/rehearse.py --seed spread-1`
 - Replay the strategies offline and serve the charts: `uv run python -m analysis.replay`
 - Write the replay files only: `uv run python -m analysis.replay --no-serve`
 - Export the quote priors: `uv run python -m analysis.priors_quote`
