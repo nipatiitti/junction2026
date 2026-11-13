@@ -11,10 +11,14 @@ The goal is a strategy that is generic (no constants tied to one world), robust
   181 saved weeks, 1,730 quote probes and 289 fee probes. Rebuild it with
   `uv run db.py && uv run python -m analysis.facts`. `analysis/README.md` lists
   the tables. Level 8 unless a line says otherwise.
-- **Code.** The system is `dispatch.py` (Python, uv) with its parts in
-  `strategies/`. `strategies.bench` compares versions on seeds, `probe.py`
-  forks a world to find where a price or a fee flips, and `analysis.oracle`
-  reports the gap to hindsight.
+- **Code.** Build this design in TypeScript, in `src/`, on the kit in
+  `vendor/spread-typescript/`. `src/dispatch.ts` is still a copy of the
+  starter that saves its weeks; play it with `pnpm dispatch --level 8 --seed
+  spread-1` and check it with `pnpm check` and `pnpm lint`. Keep the solvers
+  free of packages. The Python system `dispatch.py`, with its parts in
+  `strategies/`, is the reference: its weeks are the `runs` rows below. The
+  data tools stay in Python: `probe.py` forks a world to find where a price or
+  a fee flips, and `analysis.oracle` reports the gap to hindsight.
 
 ## Where we are
 
@@ -153,9 +157,12 @@ for scarce seats.
 2. **Fee.** `c` is the expected fee plus the expected lateness cost, from one
    function that also returns the schedule. Open at the fee that maximises the
    expected saving against the top fee, using the hazard of finding 8, and keep
-   raises few: a viewed gig rarely books at a higher fee. Add the surcharges of
-   finding 10 and a discount when drivers live at the delivery place (finding
-   9). The fee probe's 0.76 is the floor to learn towards, not a value to
+   raises few: a viewed gig rarely books at a higher fee. Scale the fee by one
+   learned multiplier for each feature of the gig (private pickup, private
+   delivery, trade-in, premium, weekend delivery, drivers living near the
+   delivery place). Each starts at 1 and moves with the fees at which such
+   gigs book; findings 9 and 10 say which features to track, not what to
+   charge. The fee probe's 0.76 is the floor to learn towards, not a value to
    post: it is the cheapest driver of an idle market.
 3. **Capacity.** One multiplier for each pickup region and day, and one for
    experienced drivers, updated from what happens, as in dual mirror descent
@@ -172,19 +179,23 @@ for scarce seats.
 
 ## Model interfaces
 
-Each is one function with its values in `params.json`.
+Each is one function with its start values in `params.json`. Every value is a
+prior with an update rule, and none is keyed to a dealer id, a driver id or a
+place name: the system must work when all of them are set to neutral.
 
-| Function                         | Returns                       | Start value from the data                                                        |
-| -------------------------------- | ----------------------------- | -------------------------------------------------------------------------------- |
-| `win_prob(price, option, state)` | chance the dealer accepts     | flip quantiles of finding 3 × level (start 1.30) × trust × option ladder         |
-| `lane_offset(pickup, delivery)`  | the lane's part of the level  | delivery to the Helsinki region about −12%, elsewhere +4%; refit from the probes |
-| `accept_hazard(fee, lead, seen)` | bookings per open hour        | the table of finding 8; a fifth of it once the order has been viewed             |
-| `fee_extra(gig)`                 | multiplier on the typical fee | finding 10, and −10% when drivers live at the delivery place                     |
-| `dealer_prior(dealer_id)`        | share of the week's requests  | finding 1; build trust first with `D01` to `D05`                                 |
-| `supply(region)`                 | drivers who live within 30 km | `GET /drivers`; used only to start `lambda`                                      |
+| Function                         | Returns                       | Starts at                                                 | Learns from                                                    |
+| -------------------------------- | ----------------------------- | --------------------------------------------------------- | -------------------------------------------------------------- |
+| `win_prob(price, option, state)` | chance the dealer accepts     | flip quantiles of finding 3 × level 1.30 × trust × ladder | each win (flip above our price) and loss (below)               |
+| `lane_offset(drivers_near)`      | the lane's part of the level  | 0, falling with the drivers who live near the delivery    | wins and losses, pooled by the driver count, not by town       |
+| `accept_hazard(fee, lead, seen)` | bookings per open hour        | the table of finding 8; a fifth of it once viewed         | each hour a gig stays open or books                            |
+| `fee_extra(features)`            | multiplier on the typical fee | 1 for every feature                                       | booked fee over expected fee of gigs with the feature          |
+| `dealer_weight(dealer)`          | share of the week's requests  | equal for every dealer                                    | the dealer's share of the requests so far; clear within Monday |
+| `supply(region)`                 | drivers who live within 30 km | `GET /drivers`                                            | nothing: it only starts `lambda`, which learns                 |
 
-Fit the level from wins and losses with a Bayesian update: a win says the flip
-was above our price, a loss that it was below.
+`dealer_weight` says where trust pays most: one dealer sends about 30% of a
+week's requests, and it shows in the first hour. `lane_offset` uses the cause
+the handbook gives (few drivers near the delivery place make a lane dear), so
+it follows the shortage to wherever a new world puts it.
 
 ## Still open
 
@@ -202,7 +213,7 @@ Each idea sits behind a flag, so the bench can show it with and without on the
 same seeds: expected-profit pricing or the 50% learner; trust-aware pricing;
 option ladder; lane offsets; fee solver or the fixed ramp; fee extras; capacity
 multiplier; on-time multiplier; war handling (follow or decline); bundling;
-direct offers.
+direct offers; priors or a cold start (`--cold`).
 
 ## Robustness
 
@@ -215,11 +226,15 @@ The final is one live run, so these count as much as margin.
 - When a model or solver fails, take the safe action: decline, or post a
   conservative schedule. Never stop the loop.
 - A refused action comes back as `{ok: false, reason}` inside a 200.
-- Every start value above is a prior. Nothing may depend on a seed, a driver
-  id or a fixed competitor level.
+- Nothing may depend on a seed, a dealer id, a driver id, a place name or a
+  fixed competitor level. A `--cold` flag sets every prior to neutral; bench
+  it against the priors on the same seeds, and show the jury both.
 
 ## Next steps
 
+0. A seed comparison for `pnpm dispatch`: `strategies.bench` plays only Python
+   versions. Then bring `src/dispatch.ts` to the level of `dispatch.py` (notes,
+   handling rules, declining what it cannot serve).
 1. Expected-profit pricing with the flip distribution, trust and the ladder.
 2. One fee function that returns the schedule and its expected cost.
 3. The `lambda` and `mu` multipliers.
@@ -227,7 +242,8 @@ The final is one live run, so these count as much as margin.
    hard penalty under 93% on time, and report on `spread-6` to `spread-10`.
 5. `probe.py shape`, then bundling or round trips if it shows a saving.
 
-After each step, run the bench at level 8 and record margin and on-time share.
+After each step, play the same seeds at level 8 and record margin and on-time
+share.
 
 ## Not in scope
 
