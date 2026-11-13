@@ -44,8 +44,24 @@ export type Setback = VisitFailedEvent['reason'] | 'expired'
 /** The gigs that carry the order's cars `legs`: one, or one for each car of a trade-in over the 12-hour limit.
  * Each car has a pickup and a delivery, in order, so a trade-in's old car is collected right after the new car is
  * delivered. A stop has its own window only when the note or a setback makes it narrower, and none that has ended
- * by `now`, so the world never refuses the post. A delivered car, or a leg the order does not have, is left out. */
+ * by `now`, so the world never refuses the post. A delivered car, or a leg the order does not have, is left out;
+ * an order it cannot read gives no gig. */
 export function gigShape(
+  order: Order,
+  legs: readonly number[],
+  facts: NoteFacts,
+  retry: Retry,
+  now: number,
+  context: Context,
+): GigShape[] {
+  try {
+    return shapes(order, legs, facts, retry, now, context)
+  } catch {
+    return []
+  }
+}
+
+function shapes(
   order: Order,
   legs: readonly number[],
   facts: NoteFacts,
@@ -148,21 +164,29 @@ export function retryAfter(
 }
 
 function retryFrom(order: Order, request: PriceRequest | undefined, leg: number, now: number): number {
-  const promised = request?.options.find((option) => option.kind === order.option)?.deadline ?? order.deadline
-  const delay = Math.max(0, order.deadline - promised)
-  return Math.max(now + RETRY_WAIT, (order.legs[leg]?.pickup.window.from ?? now) + delay)
+  try {
+    const promised = request?.options.find((option) => option.kind === order.option)?.deadline ?? order.deadline
+    const delay = Math.max(0, order.deadline - promised)
+    const later = (order.legs[leg]?.pickup.window.from ?? now) + delay
+    return Number.isFinite(later) ? Math.max(now + RETRY_WAIT, later) : now + RETRY_WAIT
+  } catch {
+    return now + RETRY_WAIT
+  }
 }
 
 /** The minute to post an order's cars: now, or, for a car ready two or more days later, 08:00 on the business day
  * before, so the post reaches drivers when they plan that day (issue #106; not benched yet). Never later than a
- * day before the last pickup. */
+ * day before the last pickup, and now for an order it cannot read. */
 export function postAt(order: Order, now: number, facts: NoteFacts = NO_FACTS): number {
-  const leg = undelivered(order)[0]
-  if (leg === undefined) return now
-  const noted = leg === 0 ? (earliestPickup(facts) ?? 0) : 0
-  const ready = Math.max(order.legs[leg].pickup.window.from, noted)
-  if (dayOf(ready) - dayOf(now) < 2) return now
-  let day = dayOf(ready) - 1
-  while (isWeekend(day)) day--
-  return Math.max(now, Math.min(day * DAY + EARLY_POST, order.lastPickupAt - DAY))
+  try {
+    const leg = undelivered(order)[0] ?? 0
+    const ready = Math.max(order.legs[leg].pickup.window.from, leg === 0 ? (earliestPickup(facts) ?? 0) : 0)
+    if (!(dayOf(ready) - dayOf(now) >= 2)) return now
+    let day = dayOf(ready) - 1
+    while (isWeekend(day)) day--
+    const at = Math.min(day * DAY + EARLY_POST, order.lastPickupAt - DAY)
+    return Number.isFinite(at) ? Math.max(now, at) : now
+  } catch {
+    return now
+  }
 }

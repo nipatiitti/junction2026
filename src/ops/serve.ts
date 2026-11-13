@@ -26,22 +26,31 @@ export const CHARGING_MINUTES = 40
  * cannot arrive on time at all. */
 export type Service = { ok: boolean; slack: number; reason: string }
 
-/** Whether we can deliver `option` of `request` on time, with the slack that admission asks for. */
+/** Whether we can deliver `option` of `request` on time, with the slack that admission asks for. A request it
+ * cannot read is declined. */
 export function canServe(request: PriceRequest, option: DeliveryOption, now: number, context: Context): Service {
-  return judge(request, option, now, context, readNote(request.note, request.arrivedAt))
+  try {
+    return judge(request, option, now, context, readNote(request.note, request.arrivedAt))
+  } catch {
+    return { ok: false, slack: -Infinity, reason: 'cannot read the request' }
+  }
 }
 
 /** The option to quote, or null to decline: the earliest that leaves a comfortable slack, else the last one that
  * we can serve. Up to level 3 every quote wins the request's first option, whichever option it prices, so there
- * only the first option counts (issues #108 and #116). */
+ * only the first option counts (issues #108 and #116). A request it cannot read is declined. */
 export function pickOption(request: PriceRequest, now: number, context: Context): DeliveryOption | null {
-  const facts = readNote(request.note, request.arrivedAt)
-  const options = (context.level ?? 8) <= 3 ? request.options.slice(0, 1) : request.options
-  const served = options
-    .map((option) => ({ option, ...judge(request, option, now, context, facts) }))
-    .filter((verdict) => verdict.ok)
-  const comfortable = served.find((verdict) => verdict.slack >= COMFORTABLE_SLACK / tightening(context))
-  return (comfortable ?? served.at(-1))?.option ?? null
+  try {
+    const facts = readNote(request.note, request.arrivedAt)
+    const options = (context.level ?? 8) <= 3 ? request.options.slice(0, 1) : request.options
+    const served = options
+      .map((option) => ({ option, ...judge(request, option, now, context, facts) }))
+      .filter((verdict) => verdict.ok)
+    const comfortable = served.find((verdict) => verdict.slack >= COMFORTABLE_SLACK / tightening(context))
+    return (comfortable ?? served.at(-1))?.option ?? null
+  } catch {
+    return null
+  }
 }
 
 /** Admission widens its limits as it tightens: 1 at the on-time target, 0.25 at the delivery minimum. */

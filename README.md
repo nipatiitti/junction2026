@@ -136,7 +136,8 @@ The same kit exists for TypeScript, so half of the team can work there. `vendor/
 organisers' TypeScript kit of 13 November, unchanged: the client (`spread.ts`), its types, the starter and
 `reveal-csv.ts`. Lint and format skip `vendor/`. `src/dispatch.ts` is our TypeScript system. It is still a copy of the
 starter that imports the vendored client and saves its weeks, so it gives the starter's
-[baseline](#the-baseline-to-beat).
+[baseline](#the-baseline-to-beat). `src/ops/` holds `dispatch.py`'s order handling as pure TypeScript functions
+(note reader, gig shape, admission's time rules, retries): see [src/ops/README.md](src/ops/README.md).
 
 ```sh
 pnpm dispatch --level 8 --seed spread-1   # a whole practice week with our TypeScript system

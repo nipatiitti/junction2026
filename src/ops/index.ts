@@ -1,6 +1,6 @@
 /** What dispatch.py knows about serving an order, as pure functions of plain data: see README.md next to this file. */
 export { DAY, HOUR, type Hours } from './calendar.ts'
-export { type Features, features } from './features.ts'
+export { type Features, features, NO_FEATURES } from './features.ts'
 export {
   FIRST_TRY,
   type GigShape,
