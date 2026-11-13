@@ -92,9 +92,9 @@ about 1,390.
 
 ### Every online run is saved
 
-Each week that `dispatch.py` plays on the server is saved like a scraped week, so every online run adds to the data
-that we analyse offline. This covers practice weeks, the bench's weeks, ranking runs (`--board`) and finals (`--final`).
-When the week ends, `record.py` saves it:
+Each week that `dispatch.py` or the TypeScript system `src/dispatch.ts` plays on the server is saved like a scraped
+week, so every online run adds to the data that we analyse offline. This covers practice weeks, the bench's weeks,
+ranking runs (`--board`) and finals (`--final`). When a week of `dispatch.py` ends, `record.py` saves it:
 
 - its folder `data/scrape/runs/L<level>/<seed>/<world id>/`, in the format of `scrape.py` (below), with policy
   `dispatch`. `meta.json` also says `kind` (`practice`, `board` or `final`), `version` (the git commit, `-dirty` with
@@ -108,6 +108,9 @@ PR: each world has its own folder, so they never conflict. In a new checkout, `u
 from every committed week, these runs included. `SPREAD_RUNS_DIR` and `SPREAD_DB` change where the week goes, and
 `SPREAD_RECORD=0` saves nothing. The bench sets the first two, so a git version that it plays in a temporary worktree
 saves into this checkout.
+
+`pnpm dispatch` saves its weeks with `src/record.ts`, in the same folder format and with the same `SPREAD_RUNS_DIR`
+and `SPREAD_RECORD=0`. It writes only the folder: run `uv run db.py` to add it to `out/spread.sqlite`.
 
 ### Play a practice week in TypeScript
 
@@ -123,7 +126,9 @@ pnpm reveal-csv <world id>                # write an ended week and its reveal t
 pnpm dispatch --final                     # play our copy of a test final or of the final
 ```
 
-The scripts read `.env` when it exists, and otherwise the variables already set. To take a new kit version, download
+`pnpm dispatch` saves every week it finishes to `data/scrape/runs/`, like `dispatch.py`
+([Every online run is saved](#every-online-run-is-saved)); `uv run db.py` adds the saved weeks to the database. The
+scripts read `.env` when it exists, and otherwise the variables already set. To take a new kit version, download
 `$SPREAD_URL/kit/spread-typescript.tar.gz` and replace the files in `vendor/spread-typescript/`.
 
 ### Offline data and scraping more weeks

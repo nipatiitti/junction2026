@@ -17,6 +17,7 @@ import type {
   TimeWindow,
 } from '../vendor/spread-typescript/spread.ts'
 import { Client, SpreadError, Unreachable, type World } from '../vendor/spread-typescript/spread.ts'
+import { Recorder } from './record.ts'
 
 const HOUR = 60
 const DAY = 24 * HOUR
@@ -405,6 +406,7 @@ async function main(): Promise<void> {
   const client = new Client()
   let world: World | undefined
   let score: Score | undefined
+  let recorder: Recorder | undefined // saves the week to data/scrape/runs once it has ended
   if (args.final) {
     process.once('SIGINT', () =>
       exit('Stopped. The final world keeps running without your system; start it again with --final.'),
@@ -415,6 +417,11 @@ async function main(): Promise<void> {
         if (!world) {
           world = await nextFinal(client)
           console.log(`Final world ${world.id}.`)
+        }
+        if (!recorder) {
+          const id = world.id
+          const finalLevel = (await client.worlds()).find((summary) => summary.worldId === id)?.level ?? 8
+          recorder = await Recorder.start(world, finalLevel, undefined, 'final')
         }
         await playFinal(world)
         score = await world.score()
@@ -446,7 +453,11 @@ async function main(): Promise<void> {
       )
     process.once('SIGINT', () => void remove().then((deleted) => exit(`Stopped. ${afterStop(deleted)}`)))
     // A world left behind holds one of the team's eight practice slots.
-    await playPractice(run, level).catch(async (error: unknown) => {
+    const play = async () => {
+      recorder = await Recorder.start(run, level, args.seed, args.board ? 'board' : 'practice')
+      await playPractice(run, level)
+    }
+    await play().catch(async (error: unknown) => {
       console.error(`Stopped by the error below. ${afterStop(await remove())}`)
       throw error
     })
@@ -460,6 +471,7 @@ async function main(): Promise<void> {
         ? 'Not ranked: no order won.'
         : 'Not ranked: the delivery minimum is 90% of the orders on time.',
   )
+  await recorder?.save()
 }
 
 function exit(message: string): never {
