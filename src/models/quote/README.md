@@ -1,6 +1,6 @@
 # Quote models
 
-The quote side of `SPREAD_AGENT_BRIEF.md` (design 1, findings 2–6 and 13): what chance a price has, how the week
+The quote side of [`BRIEF.md`](../../BRIEF.md) (design 1, findings 2–6 and 13): what chance a price has, how the week
 teaches it, and which price to send. Pure functions over plain data, no network, no packages; a request takes about
 0.03 ms. A strategy feeds every event to `observe` and asks `bestQuote` at each `price_request`.
 

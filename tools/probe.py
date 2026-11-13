@@ -1,10 +1,10 @@
 """Answers by experiment what no scrape can. Forks one practice world at one minute, tries one varied action in each
 copy, and bisects to the value where the outcome flips. A copy has the same future draws as its parent, so a change in
-outcome comes from the action alone. README.md says how to run it.
+outcome comes from the action alone. tools/README.md says how to run it.
 
-    uv run --env-file .env probe.py quote --level 8 --seed scrape-1 --share 0.05 --days 0,1
-    uv run --env-file .env probe.py fee --level 8 --seed scrape-1 --requests R00042,R00100
-    uv run --env-file .env probe.py shape --level 8 --seed scrape-1 --days 0,1
+    uv run --env-file .env python -m tools.probe quote --level 8 --seed scrape-1 --share 0.05 --days 0,1
+    uv run --env-file .env python -m tools.probe fee --level 8 --seed scrape-1 --requests R00042,R00100
+    uv run --env-file .env python -m tools.probe shape --level 8 --seed scrape-1 --days 0,1
 
 `quote`: at a request's arrival, quotes one option at different prices in copies and advances to its respondBy. The
 flip price is the highest price that wins this request with this world's draws: the competitor and the dealer's
@@ -36,7 +36,7 @@ from typing import Any
 
 from spread.client import Client, SpreadError, Unreachable, World
 
-from spread_proxy import ProxyClient
+from tools.spread_proxy import ProxyClient
 
 HOUR, DAY = 60, 24 * 60
 PRACTICE_SLOTS = 8
