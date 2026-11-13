@@ -22,8 +22,8 @@ import time
 from ladder import main as ladder_main
 from ladder.desk import Desk
 from ladder.rides import TOP_RUNG
-from record import Recorder
-from spread_proxy import ProxyClient
+from tools.record import Recorder
+from tools.spread_proxy import ProxyClient
 
 DAY, HOUR = 24 * 60, 60
 TICK = 0.5  # real seconds between two moves of the clock
