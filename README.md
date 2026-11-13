@@ -131,6 +131,12 @@ pnpm dispatch --final                     # play our copy of a test final or of 
 scripts read `.env` when it exists, and otherwise the variables already set. To take a new kit version, download
 `$SPREAD_URL/kit/spread-typescript.tar.gz` and replace the files in `vendor/spread-typescript/`.
 
+The three scripts set `NODE_USE_ENV_PROXY=1`, so on Node 22.21+ `fetch` goes through `HTTPS_PROXY` when it is set, as in a
+Claude Code cloud session, where the proxy swaps the placeholder `SPREAD_KEY` for the real key; `NODE_EXTRA_CA_CERTS`
+must name the proxy's CA (cloud sessions set it). Without `HTTPS_PROXY` they connect straight to the server. `.npmrc`
+turns on pnpm's `shell-emulator`, so the variable works on Windows too. The `--final` WebSocket stream does not go
+through the proxy yet.
+
 ### Offline data and scraping more weeks
 
 The data for an offline model of the server is committed in `data/`, so by default the analysis needs no server and
