@@ -14,12 +14,12 @@ from collections import Counter
 from spread.types import DeskEvent, PriceRequest
 
 from ladder.market import Market
-from ladder.rides import REMOTE_RUNG, Ride, next_morning
+from ladder.rides import Ride, next_morning
 
 HOUR, DAY = 60, 24 * 60
 MIN_SLACK = 5 * HOUR  # an option needs this much time beyond the drive, from when the car can go to its deadline
 PRIVATE_SLACK = HOUR  # a private delivery is due in its booked hour: the time to spare is the hour itself
-# A long or remote ride (rung 6) needs a long search: from now to its deadline, beyond the drive, at least this. That
+# A long or remote ride (rung 5) needs a long search: from now to its deadline, beyond the drive, at least this. That
 # leaves 18 hours before its deadline warning: such rides found a driver only with a day to look (README.md).
 REMOTE_SEARCH = 21 * HOUR
 LONGEST = 8 * HOUR  # a longer drive is never taken: on time 18% of the time in the starter's week
@@ -87,7 +87,7 @@ class Admission:
         slack = deadline - max(ride.ready, now) - ride.drive
         if slack < (PRIVATE_SLACK if ride.private else MIN_SLACK):
             return False
-        if ride.rung >= REMOTE_RUNG and deadline - now - ride.drive < REMOTE_SEARCH:
+        if ride.remote and deadline - now - ride.drive < REMOTE_SEARCH:
             return False
         return not (ride.today and option["kind"] == "same_day")
 

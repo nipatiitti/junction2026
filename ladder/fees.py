@@ -18,7 +18,7 @@ HOUR, DAY = 60, 24 * 60
 # The opening fee of each rung at the start of the week. A next-day gig gets its driver from the first wave of
 # notifications or not at all: on rung 1 an opening of 1.0 booked 88 of 93 gigs at once, all on time, while openings
 # that the learner had cut to 0.72 left cars that no raise up to 2.2 found a driver for (README.md).
-OPENING = {1: 1.0, 2: 1.0, 3: 1.1, 4: 1.05, 5: 1.1, 6: 1.2}
+OPENING = {1: 1.0, 2: 1.0, 3: 1.1, 4: 1.05, 5: 1.2, 6: 1.1}
 LOWER, HIGHER = 0.005, 0.05  # the opening falls this much (in log) after a booking at it, rises this after a raise
 FLOOR_SHARE = 0.95  # the opening stays at least this share of its start
 PRICE_SHARE = 0.5  # and a gig opens at no less than this share of the price of its cars
