@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from spread.client import World
 from spread.types import FeeStep, Order, PriceRequest
 
 from .market import Market
@@ -16,11 +15,6 @@ class FeePlanner:
 
     def __init__(self, market: Market):
         self.market = market
-
-    @classmethod
-    def for_world(cls, world: World) -> FeePlanner:
-        """Reads the map and the driver list once: two requests."""
-        return cls(Market(world.client.map(), world.roster()))
 
     def schedule(self, order: Order, request: PriceRequest, cars: int, now: int, level: int) -> list[FeeStep]:
         return plan(now, self.gig(order, request, cars, now), level)
