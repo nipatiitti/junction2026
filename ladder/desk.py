@@ -7,6 +7,7 @@ step that missed something, or a desk that restarts in the final, catches up at 
 
 from __future__ import annotations
 
+import json
 import sys
 from collections import Counter
 from dataclasses import dataclass, field
@@ -72,6 +73,7 @@ class Gig:
     status: str = "open"  # open, booked, working, done, gone
     booked_fee: int = 0  # the fee its driver booked it at
     first: bool = True  # the first gig of its car, at a normal schedule: its booking teaches the opening fee
+    opened: int = 0  # the fee it opened at, before any reprice
 
     @property
     def schedule(self) -> list[FeeStep]:
@@ -159,6 +161,22 @@ class Desk:
                 if gig.status == "withdrawing":  # gone: its cars go again; refused: a driver had booked it
                     gig.status = "gone" if result["ok"] else "booked"
 
+    def save_opening(self) -> None:
+        """In the final, the learned opening fees go next to the journal, so a desk that restarts keeps them."""
+        if self.journal is None:
+            return
+        try:
+            self.journal.with_suffix(".opening.json").write_text(json.dumps(self.opening.state()))
+        except OSError:
+            pass  # a restart then starts the opening fees again from their priors
+
+    def load_opening(self) -> None:
+        try:
+            if self.journal is not None and self.journal.with_suffix(".opening.json").exists():
+                self.opening.load(json.loads(self.journal.with_suffix(".opening.json").read_text()))
+        except OSError, ValueError:
+            pass
+
     def note_quote(self, request_id: str) -> None:
         """Writes a real quote to the journal. A journal that cannot be written is given up, not a crash."""
         if self.journal is None:
@@ -219,8 +237,9 @@ class Desk:
                 if job is not None:
                     job.warned = False
                     if gig.first and kind == "gig_booked":
-                        self.opening.booked(job.ride.rung, gig.schedule[0]["feeCents"], gig.booked_fee)
+                        self.opening.booked(job.ride.rung, gig.opened, gig.booked_fee)
                         gig.first = False
+                        self.save_opening()
         elif kind in ("gig_dropped", "no_show"):
             gig = self.gigs.get(event["gigId"])
             if gig is not None and gig.status in ("booked", "open"):
@@ -238,6 +257,7 @@ class Desk:
                 job = self.jobs.get(gig.order_id)
                 if job is not None and gig.first:
                     self.opening.expired(job.ride.rung)
+                    self.save_opening()
         elif kind == "visit_failed":
             self.failed(event["orderId"], event["leg"], event["reason"])
         elif kind == "delivered":
@@ -319,7 +339,7 @@ class Desk:
         self.count[f"requests rung {ride.rung}"] += 1
         if kinds:
             prices = self.pricing.prices(request, kinds, ride.rung)
-            self.pricing.sent(request)
+            self.pricing.sent(request, kinds, ride.rung)
             self.admission.quoted(request, ride)
             self.meant.add(request["id"])
             self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
@@ -461,13 +481,13 @@ class Desk:
         """The fee plan from now for a gig of some of the order's cars: normal while the car can be on time, steep
         after its deadline warning, and the late plan once its last pickup minute has passed."""
         fee, last_pickup = self.fee_base(job, legs), job.order["lastPickupAt"]
+        price = job.order["priceCents"] * len(legs) / len(job.order["legs"])  # the price of the gig's cars
         if self.now >= last_pickup:
-            return fees.late(self.now, fee, self.level, floor)
+            return fees.late(self.now, fee, self.level, floor, price)
         if job.warned:
             return fees.warned(self.now, fee, self.level, floor)
         # A short ride's typical fee is a small share of its price and can be less than the trip there and home
         # costs a driver: such cars got deadline warnings ten times as often. They open at a share of the price.
-        price = job.order["priceCents"] * len(legs) / len(job.order["legs"])  # the price of the gig's cars
         opening = max(self.opening.multiple(job.ride.rung), fees.PRICE_SHARE * price / fee)
         return fees.normal(self.now, fee, last_pickup, self.level, opening, floor)
 
@@ -480,7 +500,7 @@ class Desk:
         first = (
             job is not None and not job.warned and not job.posted & set(legs) and self.now < job.order["lastPickupAt"]
         )
-        self.gigs[gig_id] = Gig(gig_id, order_id, legs, action, first=first)
+        self.gigs[gig_id] = Gig(gig_id, order_id, legs, action, first=first, opened=action["schedule"][0]["feeCents"])
         if job is not None:
             for leg in legs:
                 job.gigs[leg] = gig_id
@@ -526,6 +546,7 @@ class Desk:
             for e in history
             if e["kind"] == "ledger" and e["line"]["kind"] in ("late_refund", "undelivered_penalty")
         }
+        self.load_opening()
         try:
             quoted = set(self.journal.read_text().split()) if self.journal and self.journal.exists() else set()
         except OSError:
@@ -537,8 +558,9 @@ class Desk:
             elif event["kind"] in ("order_won", "order_lost"):
                 request_id = event["order"]["id"] if event["kind"] == "order_won" else event["requestId"]
                 request = self.requests.get(request_id)
-                if request is not None and request_id in quoted:
-                    self.pricing.sent(request)  # learn again from the outcomes of our real quotes only
+                if request is not None and request_id in quoted:  # learn again from our real quotes only
+                    rung = classify(request, self.market, self.facts_of(request)).rung
+                    self.pricing.sent(request, [o["kind"] for o in request["options"]], rung)
                 self.pricing.observe(event)
             elif event["kind"] == "deadline_close":
                 self.admission.observe(event, event["at"])
@@ -564,6 +586,7 @@ class Desk:
                     "schedule": gig["schedule"],
                 }
                 self.carry(action, gig["id"])
+                self.gigs[gig["id"]].first = False  # its first schedule is unknown: it teaches nothing
                 self.gigs[gig["id"]].status = gig["status"]
                 self.gigs[gig["id"]].booked_fee = gig["feeCents"] if gig["status"] != "open" else 0
         # An order is warned when its last deadline warning came after its last change of plan and booking.

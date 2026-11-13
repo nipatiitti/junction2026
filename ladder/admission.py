@@ -85,7 +85,7 @@ class Admission:
         evening to find a driver."""
         deadline = self.deadline(option["deadline"], ride)
         slack = deadline - max(ride.ready, now) - ride.drive
-        if slack < (PRIVATE_SLACK if ride.private else MIN_SLACK):
+        if slack < (PRIVATE_SLACK if ride.private_delivery else MIN_SLACK):
             return False
         if ride.remote and deadline - now - ride.drive < REMOTE_SEARCH:
             return False

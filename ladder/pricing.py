@@ -4,7 +4,7 @@ the dealer's trust in us adds at level 8.
 The competitor's price is the list price times factors for the world, the lane, the day and the request (HANDBOOK.md,
 "Dealers compare prices"). We cannot see it, but each quote that wins or loses tells us on which side of it we were.
 The multiplier rises a step after a win and falls a step after a loss, so it settles where about half of our quotes
-win: just under the competitor. Each dealer has its own offset on top, learned the same way, more slowly.
+win: just under the competitor. A loss at a price that the rung's floor set, not the multiplier, teaches nothing. Each dealer has its own offset on top, learned the same way, more slowly.
 """
 
 from __future__ import annotations
@@ -34,7 +34,8 @@ class Pricing:
         self.world = math.log(START.get(level, 1.0))
         self.dealer: Counter[str] = Counter()  # dealer id -> log offset
         self.trust: Counter[str] = Counter()  # dealer id -> orders delivered on time, as the dealer counts them
-        self.quoted: dict[str, str] = {}  # request id -> dealer id, for the quotes that wait for an answer
+        # request id -> (dealer id, whether the multiplier set a price), for the quotes that wait for an answer
+        self.quoted: dict[str, tuple[str, bool]] = {}
 
     def multiplier(self, dealer: str) -> float:
         trust = 1 + min(self.trust[dealer], TRUST_CAP) / 100 if self.level >= 8 else 1.0
@@ -45,13 +46,19 @@ class Pricing:
         options = {option["kind"]: option for option in request["options"]}
         if self.level <= 3:
             return {kind: options[kind]["listPriceCents"] for kind in kinds}
-        m = self.multiplier(request["dealerId"])
-        floor = int(FLOOR.get(rung, 1.25) * request["referenceFeeCents"] + 0.5)  # the fee is for all its cars
+        m, floor = self.multiplier(request["dealerId"]), self.floor(request, rung)
         return {kind: max(int(options[kind]["listPriceCents"] * m + 0.5), floor) for kind in kinds}
 
-    def sent(self, request: PriceRequest) -> None:
-        """A real quote went out: its answer teaches the multiplier."""
-        self.quoted[request["id"]] = request["dealerId"]
+    @staticmethod
+    def floor(request: PriceRequest, rung: int) -> int:
+        return int(FLOOR.get(rung, 1.25) * request["referenceFeeCents"] + 0.5)  # the typical fee is for all its cars
+
+    def sent(self, request: PriceRequest, kinds: list[str], rung: int) -> None:
+        """A real quote went out: its answer teaches the multiplier. When the rung's floor set the price of every
+        option we quoted, a loss says only that the competitor was under our floor, nothing about the multiplier."""
+        m, floor = self.multiplier(request["dealerId"]), self.floor(request, rung)
+        by_multiplier = any(o["listPriceCents"] * m >= floor for o in request["options"] if o["kind"] in kinds)
+        self.quoted[request["id"]] = (request["dealerId"], by_multiplier)
 
     def observe(self, event: DeskEvent) -> None:
         if event["kind"] == "order_won":
@@ -60,8 +67,11 @@ class Pricing:
             self.learn(event["requestId"], won=False)
 
     def learn(self, request_id: str, won: bool) -> None:
-        dealer = self.quoted.pop(request_id, None)
-        if dealer is None or self.level <= 3:  # a decline, or a level where every quote wins
+        quoted = self.quoted.pop(request_id, None)
+        if quoted is None or self.level <= 3:  # a decline, or a level where every quote wins
+            return
+        dealer, by_multiplier = quoted
+        if not won and not by_multiplier:  # lost at the floor: the multiplier was not tried
             return
         sign = 1 if won else -1
         self.world = min(math.log(HIGHEST), max(math.log(LOWEST), self.world + sign * STEP))
