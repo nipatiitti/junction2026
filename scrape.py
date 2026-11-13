@@ -18,7 +18,6 @@ import argparse
 import gzip
 import json
 import random
-import re
 import shutil
 import signal
 import subprocess
@@ -38,6 +37,7 @@ from spread.starter import WAKE_ON, Desk, pickups
 from spread.types import Order, PriceRequest
 
 from db import add_week, connect, load_folders
+from record import all_events, safe_name, write_json
 from spread_proxy import ProxyClient, bypasses_proxy  # noqa: F401  (tests import bypasses_proxy from here)
 from stats import load_week
 
@@ -231,24 +231,6 @@ def play_week(world: World, desk: Any, recorder: Recorder, sample_every: int, wa
     recorder.rosters.append({"at": recorder.now, "drivers": world.roster()})
 
 
-def all_events(world: World) -> list[dict]:
-    """Every event of the world, oldest first, in pages in case the server caps an answer."""
-    events: list[dict] = []
-    while True:
-        page = world.events(after=events[-1]["seq"] if events else -1)
-        if not page:
-            return events
-        events += page
-
-
-def write_json(path: Path, data: Any) -> None:
-    if path.suffix == ".gz":
-        with gzip.open(path, "wt", encoding="utf-8") as f:
-            json.dump(data, f, separators=(",", ":"))
-    else:
-        path.write_text(json.dumps(data, indent=2) + "\n")
-
-
 def write_lines(path: Path, rows: list[dict]) -> None:
     with gzip.open(path, "wt", encoding="utf-8") as f:
         for row in rows:
@@ -303,10 +285,6 @@ class Slots:
                         if error.status != 409:
                             raise
             STOP.wait(5)
-
-
-def safe_name(seed: str) -> str:
-    return re.sub(r"[^A-Za-z0-9._-]", "_", seed)
 
 
 def left_behind(client: Client, target: Path) -> tuple[World, list] | None:
