@@ -208,6 +208,8 @@ on one line, so two PRs that each add a command do not conflict.
 - Build the report file only: `uv run python -m analysis.report --no-serve`
 - Play a week with the ladder: `uv run ladder/play.py --level 8 --seed spread-1`
 - Rehearse the final (ladder): `uv run ladder/rehearse.py --seed spread-1`
+- Replay the strategies offline and serve the charts: `uv run python -m analysis.replay`
+- Write the replay files only: `uv run python -m analysis.replay --no-serve`
 
 ## Definition of done
 
