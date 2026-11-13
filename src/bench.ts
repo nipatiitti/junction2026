@@ -139,24 +139,33 @@ async function main(): Promise<void> {
   })
   console.log(`Playing ${labels.length * seeds.length} practice weeks at level ${level}, one after another.`)
   const results: Result[] = []
-  for (const seed of seeds)
-    for (const [label, run] of runs) {
-      const world = await client.create(level, { seed })
-      playing = world
-      console.log(`Practice world ${world.id}, level ${level}: ${label} on ${seed}.`)
-      const score = await playPracticeWeek(world, run, level, seed, 'practice').catch(async (error: unknown) => {
-        console.error(`Stopped by the error below. ${await remove(world)}`)
-        throw error
-      })
-      playing = undefined
-      results.push({ label, seed, worldId: world.id, score })
-    }
+  try {
+    for (const seed of seeds)
+      for (const [label, run] of runs) {
+        const world = await client.create(level, { seed })
+        playing = world
+        console.log(`Practice world ${world.id}, level ${level}: ${label} on ${seed}.`)
+        const score = await playPracticeWeek(world, run, level, seed, 'practice').catch(async (error: unknown) => {
+          console.error(`Stopped by the error below. ${await remove(world)}`)
+          throw error
+        })
+        playing = undefined
+        results.push({ label, seed, worldId: world.id, score })
+      }
+  } finally {
+    // A week that throws keeps the table of the weeks before it; the error comes after.
+    if (results.length > 0) writeResults(results, labels, level, args.csv)
+  }
+}
 
-  console.log(`\n${table(results, labels, level)}`)
+/** Prints the table of the weeks played and writes their CSV. */
+function writeResults(results: Result[], labels: string[], level: number, csvFile: string | undefined): void {
+  const played = labels.filter((label) => results.some((result) => result.label === label))
+  console.log(`\n${table(results, played, level)}`)
   const stamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-')
-  const file = args.csv ?? path.join('out', `bench-ts-${stamp}.csv`)
+  const file = csvFile ?? path.join('out', `bench-ts-${stamp}.csv`)
   mkdirSync(path.dirname(file), { recursive: true })
-  writeFileSync(file, csv(results, labels, level))
+  writeFileSync(file, csv(results, played, level))
   console.log(`\nWrote ${file}.`)
 }
 
