@@ -35,6 +35,7 @@ from spread.types import (
 from record import Recorder
 from spread_proxy import ProxyClient
 from strategies.admission import Admission, Held
+from strategies.fees import FeePlanner, Market
 from strategies.notes import NO_FACTS, NoteFacts, Snow, delivery_window, pickup_window, read_note
 from strategies.offers import GigInfo, Offers
 from strategies.pricing import PricingModel, places_from_map
@@ -81,7 +82,7 @@ class Desk:
         self.leg_gigs: dict[str, dict[int, str]] = {}  # order id -> leg -> the gig that carries the leg
         self.booked: set[str] = set()  # the gigs that a driver holds now
         self.posts: dict[str, PostAction] = {}  # gig id -> the post that made it
-        self.urgent: set[str] = set()  # the orders whose deadline warning has come
+        self.booked_fees: dict[str, int] = {}  # gig id -> the fee that its driver booked it at
         self.facts: dict[str, NoteFacts] = {}  # request id -> what its note says
         self.snow: dict[str, list[Snow]] = {}  # place id -> the snowfalls forecast there
         # The driver list and the map, loaded once: admission decides which requests to take
@@ -90,11 +91,11 @@ class Desk:
         self.admission = Admission(roster, world_map, level)
         self.offers = Offers(roster, world_map, level)
         self.pricing = PricingModel(level, places_from_map(world_map))  # the price of a quote (strategies/pricing)
+        self.fees = FeePlanner(Market(world_map, roster))  # plans each gig's fee schedule (strategies/fees)
 
     def rejoin(self, snapshot: DeskSnapshot, history: list[DeskEvent]) -> None:
         """Rebuilds what it knows from the world, so a starter that stopped keeps its orders. Then answers
-        what it missed: open requests, orders without a gig, failed visits without a new gig, and the
-        deadline warnings, so the orders that had one keep their steep fees."""
+        what it missed: open requests, orders without a gig, and failed visits without a new gig."""
         posted: dict[str, list[Gig]] = {}  # order id -> its gigs, oldest first
         self.booked = {gig["id"] for gig in snapshot["gigs"] if gig["status"] in ("booked", "working", "done")}
         for gig in snapshot["gigs"]:
@@ -111,7 +112,6 @@ class Desk:
             self.pricing.observe(event)
             if event["kind"] == "forecast":
                 self.forecast(event)
-        self.urgent = {e["orderId"] for e in history if e["kind"] == "deadline_close"}
         self.orders = {
             o["id"]: o for o in snapshot["orders"] if o["id"] in self.requests and o["status"] != "cancelled"
         }
@@ -158,10 +158,12 @@ class Desk:
             self.raise_fees(event["orderId"])
         elif event["kind"] == "gig_booked" or event["kind"] == "offer_answered" and event["answer"] == "accepted":
             self.booked.add(event["gigId"])
-        elif event["kind"] in (
-            "gig_dropped",
-            "no_show",
-        ):  # after a no-show the gig is open again; a late driver still comes
+            if "feeCents" in event:  # an accepted offer does not say its fee
+                self.booked_fees[event["gigId"]] = event["feeCents"]
+        elif event["kind"] == "gig_dropped":
+            self.booked.discard(event["gigId"])
+            self.dropped(event["gigId"])
+        elif event["kind"] == "no_show":  # the gig is open again; a late driver still comes
             self.booked.discard(event["gigId"])
         elif event["kind"] == "delivered":
             self.delivered(event["orderId"], event["leg"], event["at"])
@@ -249,11 +251,10 @@ class Desk:
         return {**stop, "window": window} if window else stop
 
     def raise_fees(self, order_id: str) -> None:
-        """From the order's deadline warning on, its gigs that no driver holds go at the steep fees."""
+        """At the order's deadline warning, its gigs that no driver holds go at the fees planned from now."""
         order = self.orders.get(order_id)
         if order is None:
             return
-        self.urgent.add(order_id)
         self.send_post_of(order_id)
         for gig_id in self.gigs_of(order_id):
             if gig_id not in self.booked:
@@ -263,9 +264,19 @@ class Desk:
                 self.offers.rescue(gig_id)
 
     def fees_for(self, order: Order, cars: int) -> list[FeeStep]:
-        """The fees for some of the order's cars from now: rising, or steep once its deadline warning has come."""
-        fee = self.requests[order["id"]]["referenceFeeCents"] * cars / len(order["legs"])
-        return steep(self.now, fee, self.level) if order["id"] in self.urgent else rising(self.now, fee, self.level)
+        """The fees for some of the order's cars from now, planned back from its last pickup."""
+        return self.fees.schedule(order, self.requests[order["id"]], cars, self.now, self.level)
+
+    def dropped(self, gig_id: str) -> None:
+        """After a drop, steps the fee up from the dropped one when the schedule has little time left."""
+        action, fee = self.posts.get(gig_id), self.booked_fees.pop(gig_id, None)
+        order = self.orders.get(action["stops"][0]["orderId"]) if action else None
+        if action is None or fee is None or order is None or gig_id not in self.gigs_of(order["id"]):
+            return
+        schedule = self.fees.after_drop(order, self.requests[order["id"]], pickups(action), self.now, self.level, fee)
+        if schedule:
+            self.outbox.append({"type": "reprice", "gigId": gig_id, "schedule": schedule})
+            self.offers.reschedule(gig_id, schedule)
 
     def retry(self, order_id: str, leg: int, reason: str) -> None:
         if order_id in self.orders:
@@ -380,21 +391,6 @@ def without_windows(stops: list[StopRef], before: float) -> list[StopRef]:
     return [
         {k: v for k, v in stop.items() if k != "window"} if "window" in stop and stop["window"]["to"] < before else stop
         for stop in stops
-    ]
-
-
-def rising(now: int, fee: float, level: int) -> list[FeeStep]:
-    """The fee at once, then 10% of it more every hour: six steps, up to 1.5 times. Level 1 takes one fee only."""
-    # int(x + 0.5) rounds halves up, as JavaScript's Math.round does, so both starters post the same fees.
-    return [
-        {"at": now + k * HOUR, "feeCents": max(1, int(fee * (1 + k / 10) + 0.5))} for k in range(1 if level == 1 else 6)
-    ]
-
-
-def steep(now: int, fee: float, level: int) -> list[FeeStep]:
-    """1.5 times the fee at once, then a quarter of it more every half hour, up to 2.5 times. Level 1 takes one fee only."""
-    return [
-        {"at": now + k * 30, "feeCents": max(1, int(fee * (1.5 + k / 4) + 0.5))} for k in range(1 if level == 1 else 5)
     ]
 
 
