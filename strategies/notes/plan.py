@@ -8,6 +8,9 @@ from spread.types import OpeningHours, TimeWindow
 from strategies.notes.reader import DAY, NoteFacts
 
 Snow = tuple[int, int]  # from, to: snow falls at a place in these minutes
+# Real drives vary around the road minutes, and a site is closed from its closing minute on: a window inside real
+# hours ends this long before closing, and a day with less than this left after the start is skipped.
+MARGIN = 60
 
 
 def _open_on(day: int, hours: OpeningHours, facts_hours: tuple[int | None, int | None]) -> tuple[int, int] | None:
@@ -46,8 +49,8 @@ def pickup_window(
 
     - The car is ready, or released after payment, at `facts.earliest_pickup`.
     - When the note gives the site's real hours, the window is one day inside them: the first day from the
-      start on when the site is open. The driver plans by the stated hours, so a longer window could bring
-      them after the real closing time.
+      start on when the site is open for long enough, ending `MARGIN` before closing. The driver plans by the
+      stated hours, so a longer window could bring them after the real closing time.
     - A car on summer tyres cannot be collected while snow falls at either end: the window starts after it.
     """
     earliest = max(facts.earliest_pickup or 0, not_before)
@@ -62,8 +65,8 @@ def pickup_window(
             open_hours = _open_on(day, hours, real_hours)
             if open_hours is None:
                 continue
-            begins, ends = max(start, day * DAY + open_hours[0]), day * DAY + open_hours[1]
-            if begins < ends:
+            begins, ends = max(start, day * DAY + open_hours[0]), day * DAY + open_hours[1] - MARGIN
+            if ends - begins >= MARGIN:
                 return {"from": begins, "to": ends}
         return None
     if start <= stated["from"]:
@@ -72,13 +75,13 @@ def pickup_window(
 
 
 def delivery_window(base: TimeWindow, hours: OpeningHours | None, facts: NoteFacts) -> TimeWindow:
-    """The delivery window by the note: it ends at a tighter deadline, and at the real closing time on its
-    last day, so the driver does not arrive after closing and wait. It never ends before it starts."""
+    """The delivery window by the note: it ends at a tighter deadline, and `MARGIN` before the real closing time
+    on its last day, so the driver does not arrive after closing and wait. It never ends before it starts."""
     end = base["to"]
     if facts.deadline is not None:
         end = min(end, facts.deadline)
     if hours and facts.delivery_hours:
         open_hours = _open_on(end // DAY, hours, (facts.delivery_hours.opens, facts.delivery_hours.closes))
         if open_hours is not None:
-            end = min(end, end // DAY * DAY + open_hours[1])
+            end = min(end, end // DAY * DAY + open_hours[1] - MARGIN)
     return {"from": base["from"], "to": end} if end >= base["from"] else base
