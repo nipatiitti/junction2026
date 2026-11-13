@@ -2,13 +2,23 @@
  * `c` of moving a car, from the fee function that also gives the gig's schedule (bid-price control):
  * - a quote prices each option we can serve at the price that maximises (p − c) × W(p), or declines;
  * - a gig takes its stops and audience from the order handling, and its schedule from the same fee function;
- * - every event teaches the win model, the booking hazard, the fee extras, lambda and mu.
+ * - every event, and every action the desk sent, teaches the win model, the booking hazard, the fee extras, lambda
+ *   and mu. All state is a function of `observe` and `sent`, so a rebuild from the event log and the journal of sent
+ *   actions holds the same quotes, pending answers and fee state.
  * README.md next to this file has the data flow and the params. */
-import type { Action, DeskEvent, FeeStep, Order, PriceRequest } from '../../../vendor/spread-typescript/spread.ts'
+import type {
+  Action,
+  ActionResult,
+  DeskEvent,
+  FeeStep,
+  Order,
+  PriceRequest,
+} from '../../../vendor/spread-typescript/spread.ts'
 import { type FeeEvent, type FeeParams, type FeeState, learn, newFeeState, planFees } from '../../models/fees/index.ts'
 import {
   bestQuote,
   createQuoteState,
+  dealerWeight,
   driversNear,
   type Option,
   observe as observeQuotes,
@@ -30,15 +40,15 @@ import { higher, orderFeeGig, requestFeeGig, tightening, urgentRamp } from './fe
 import { legsOf, WeekLog } from './log.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
 
+/** A quote at this many times the list price or more is a decline. */
+const DECLINED = 5
+
 class BidPrice extends Strategy<BidPriceParams> {
   readonly quoteParams: QuoteParams
   readonly feeParams: FeeParams
   readonly quotes: QuoteState
   readonly fees: FeeState
   readonly log = new WeekLog()
-  /** The answer to each request, decided when it arrives, so a strategy rebuilt from the event log holds the same
-   * quotes and learns the same losses. Null declines. */
-  readonly answers = new Map<string, Prices | null>()
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
 
   constructor(setup: Setup, params: BidPriceParams) {
@@ -54,26 +64,21 @@ class BidPrice extends Strategy<BidPriceParams> {
     observeQuotes(this.quotes, event, this.quoteParams)
     learn(this.fees, event, this.feeParams)
     this.count(event)
-    if (event.kind === 'price_request') this.answers.set(event.request.id, this.decide(event.request, event.at))
   }
 
-  /** Our own gigs, as the world accepted them, for the fee learner. */
-  accepted(action: Action, id: string, at: number): void {
-    const event = this.feeEventOf(action, id, at)
+  /** What the desk sent for us, as sent, and the world's answer: the quotes the quote learner waits on, and our gigs
+   * for the fee learner. */
+  sent(action: Action, result: ActionResult, books: Books): void {
+    if (!result.ok) return
+    if (action.type === 'quote') return this.quoted(action.requestId, action.prices)
+    const event = this.feeEventOf(action, result.id, books.now)
     if (event) learn(this.fees, event, this.feeParams)
   }
 
-  quote(request: PriceRequest): Prices | null {
-    return this.answers.get(request.id) ?? null
-  }
-
   /** Design 1: each option we can serve at the price that maximises (p − c) × W(p); a decline when none pays. */
-  decide(request: PriceRequest, now: number): Prices | null {
-    const decision = bestQuote(request, this.costs(request, now), this.quotes, this.quoteParams, now)
-    if (decision.decline) return null
-    recordQuote(this.quotes, request, decision.prices, this.quoteParams)
-    this.tally.quoted++
-    return decision.prices
+  quote(request: PriceRequest, books: Books): Prices | null {
+    const decision = bestQuote(request, this.costs(request, books.now), this.quotes, this.quoteParams, books.now)
+    return decision.decline ? null : decision.prices
   }
 
   /** Designs 2 to 4: the cost `c` of each option we can serve on time, the expected fee and lateness times lambda.
@@ -81,10 +86,11 @@ class BidPrice extends Strategy<BidPriceParams> {
   costs(request: PriceRequest, now: number): Partial<Record<Option, number>> {
     const context = this.context()
     const options = this.setup.level <= 3 ? request.options.slice(0, 1) : request.options
+    const late = this.lateWeight(request.dealerId)
     return Object.fromEntries(
       options
         .filter((option) => canServe(request, option, now, context).ok)
-        .map((option) => [option.kind, this.plan(requestFeeGig(request, option, this.setup), now).costCents]),
+        .map((option) => [option.kind, this.plan(requestFeeGig(request, option, late, this.setup), now).costCents]),
     )
   }
 
@@ -105,11 +111,8 @@ class BidPrice extends Strategy<BidPriceParams> {
 
   /** The fee function's schedule for the cars of `stops`; from the order's deadline warning on, at least the ramp. */
   schedule(order: Order, stops: GigPlan['stops'], experienced: boolean, books: Books): FeeStep[] {
-    const request = this.log.requests.get(order.id)
-    if (!request) throw new Error(`no request for order ${order.id}`) // the harness posts the starter's gig
-    const legs = legsOf(stops, order.id)
-    const seen = this.log.seen(order.id, legs)
-    const gig = orderFeeGig(order, request, legs, experienced, books.now, seen, this.setup)
+    const gig = this.orderGig(order, legsOf(stops, order.id), experienced, books.now)
+    if (!gig) throw new Error(`no request for order ${order.id}`) // the harness posts the starter's gig
     const { schedule } = this.plan(gig, books.now)
     if (!books.urgent.has(order.id)) return schedule
     return higher(schedule, urgentRamp(books.now, gig.typicalCents, this.params), this.setup.level)
@@ -137,17 +140,43 @@ class BidPrice extends Strategy<BidPriceParams> {
     return { map, level, forecasts: this.log.forecasts, tightening: tightening(this.fees, this.feeParams) }
   }
 
-  /** The fee learner's event for an action of ours, with the same `FeeGig` that planned it. */
+  /** A late order halves the dealer's trust, so lateness weighs more for a dealer who sends more of the requests:
+   * 1 + `lateTrust` × its share, over the same for an average dealer. */
+  private lateWeight(dealer: string): number {
+    const k = this.params.lateTrust
+    return (1 + k * dealerWeight(this.quotes, dealer, this.quoteParams)) / (1 + k / this.quoteParams.dealers)
+  }
+
+  /** The fee models' view of some cars of an order posted at `at`, from the log alone, so a post and its replay
+   * give the same gig. Null without the order's request. */
+  private orderGig(order: Order, legs: number[], experienced: boolean, at: number) {
+    const request = this.log.requests.get(order.id)
+    if (!request) return null
+    const seen = this.log.seen(order.id, legs)
+    return orderFeeGig(order, request, legs, experienced, at, seen, this.lateWeight(order.dealerId), this.setup)
+  }
+
+  /** A quote sent: the quote learner waits for its answer. A decline teaches nothing, and is not counted. */
+  private quoted(requestId: string, prices: Prices): void {
+    const request = this.log.requests.get(requestId)
+    if (!request) return
+    recordQuote(this.quotes, request, prices, this.quoteParams)
+    const real = request.options.some((o) => (prices[o.kind] ?? Infinity) < DECLINED * o.listPriceCents)
+    if (real) this.tally.quoted++
+  }
+
+  /** The fee learner's event for a gig action of ours, with the `FeeGig` that planned it. */
   private feeEventOf(action: Action, gigId: string, at: number): FeeEvent | null {
-    if (action.type === 'reprice') return { kind: 'gig_repriced', at, gigId, schedule: action.schedule }
-    if (action.type === 'withdraw') return { kind: 'gig_withdrawn', at, gigId }
+    if (action.type === 'reprice') return { kind: 'gig_repriced', at, gigId: action.gigId, schedule: action.schedule }
+    if (action.type === 'withdraw') return { kind: 'gig_withdrawn', at, gigId: action.gigId }
     if (action.type !== 'post') return null
-    const gig = this.log.post(gigId, action)
-    const order = gig && this.log.orders.get(gig.orderId)
-    const request = gig && this.log.requests.get(gig.orderId)
-    if (!gig || !order || !request) return null
-    const feeGig = orderFeeGig(order, request, gig.legs, action.audience.experienced, at, gig.seen, this.setup)
-    return { kind: 'gig_posted', at, gigId, orderIds: [gig.orderId], gig: feeGig, schedule: action.schedule }
+    const order = this.log.orders.get(action.stops[0]?.orderId ?? '')
+    if (!order) return null
+    const legs = legsOf(action.stops, order.id)
+    const gig = this.orderGig(order, legs, action.audience.experienced, at)
+    this.log.post(gigId, order.id, legs)
+    if (!gig) return null
+    return { kind: 'gig_posted', at, gigId, orderIds: [order.id], gig, schedule: action.schedule }
   }
 
   private count(event: DeskEvent): void {

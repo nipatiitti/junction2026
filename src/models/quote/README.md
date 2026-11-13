@@ -36,13 +36,15 @@ The scatter is `flipResidual`: quantiles of flip over its world-day level, ladde
 that it was below. `learn` (`belief.ts`) is an extended Kalman filter with a logistic observation: each part moves
 by its variance times the surprise (1 for a win, 0 for a loss, minus the chance the quote had), and the variances
 shrink. So a win moves every part up and a loss down, the parts we know least move most, and the step is bounded.
-Each mean stays within four prior deviations of its prior and each variance above a fifth of its prior's. A loss of
-a quote with several options teaches at the option likeliest to have won; a win at the option taken.
+Each mean stays within four prior deviations of its prior and each variance above a fifth of its prior's. An answer to
+a quote with several options teaches at the option likeliest to have won: a loss says even that one lost, and a
+win says no more than that it would have won, since the dealer may take a pricier, faster rung. A win with one
+option teaches at the price taken.
 
 **Events.** `price_request` counts the dealer's requests; `order_won` and `order_lost` answer the quotes that
 `recordQuote` remembered (a quote whose `respondBy` has passed without a win counts as lost); `ledger` counts trust
 as `RULES.md` says (a revenue line with no late refund by the next minute is +1, up to 25; a late refund or an
-undelivered penalty halves the count); every event's `at` starts a new day. The state is plain data, so
+undelivered penalty halves the count; each order counts once); every event's `at` starts a new day. The state is plain data, so
 `JSON.stringify(state)` saves it, and `observe` over the event log rebuilds it. Losses need the prices we sent:
 replay `bestQuote` and `recordQuote` at each `price_request` (they are deterministic) or restore the saved JSON.
 

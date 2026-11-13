@@ -11,14 +11,15 @@ import type { BidPriceParams } from './params.ts'
 const UNRANKED_LATE = 0.1
 
 /** A request's option, as a gig posted when it arrives: its typical fee, the option's list price for the price, and
- * the last pickup that still makes the deadline. */
-export function requestFeeGig(request: PriceRequest, option: DeliveryOption, setup: Setup): FeeGig {
+ * the last pickup that still makes the deadline. `lateWeight` scales the cost of a late car (the dealer's trust). */
+export function requestFeeGig(request: PriceRequest, option: DeliveryOption, lateWeight: number, setup: Setup): FeeGig {
   return {
     typicalCents: request.referenceFeeCents,
     priceCents: option.listPriceCents,
     lastPickupAt: option.deadline - driveMinutes(setup.map, request.legs),
     ...where(request.legs, option.deadline, request.arrivedAt, setup),
     seen: false,
+    lateWeight,
   }
 }
 
@@ -30,6 +31,7 @@ export function orderFeeGig(
   experienced: boolean,
   at: number,
   seen: boolean,
+  lateWeight: number,
   setup: Setup,
 ): FeeGig {
   const share = legs.length / Math.max(1, order.legs.length)
@@ -41,6 +43,7 @@ export function orderFeeGig(
     ...where(cars, order.deadline, at, setup),
     experienced,
     seen,
+    lateWeight,
   }
 }
 

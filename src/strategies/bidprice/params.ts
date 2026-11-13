@@ -29,6 +29,9 @@ export type BidPriceParams = {
   minValueCents: number
   /** Scales the value of the trust a win adds; 0 turns it off. */
   trustValue: number
+  /** A late order halves the dealer's trust: its lateness cost is scaled by 1 + lateTrust × the dealer's share of the
+   * requests, over the same for an average dealer. 0 turns it off. */
+  lateTrust: number
   /** The learning rates of `lambda` and `mu`, and the late share that `mu` aims at. */
   etaLambda: number
   etaMu: number
@@ -54,6 +57,7 @@ export const DEFAULTS: BidPriceParams = {
   cold: false,
   minValueCents: 200,
   trustValue: 1,
+  lateTrust: 5,
   etaLambda: 0.1,
   etaMu: 0.02,
   lateTarget: 0.05,

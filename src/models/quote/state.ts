@@ -187,8 +187,9 @@ function tick(state: QuoteState, now: number, params: QuoteParams): void {
   }
 }
 
-/** Learns from the answer to a quote: a win at the price of the option taken, or a loss at the option that was
- * likeliest to win, since the dealer turned down even that one. */
+/** Learns from the answer to a quote at the option that was likeliest to win: a loss says the dealer turned down
+ * even that one, and a win with several options quoted says no more than that one would have won (the option taken
+ * may be a pricier rung, taken for its speed). A win with one option is learned at the price taken. */
 function answer(state: QuoteState, id: string, params: QuoteParams, won?: [Option, number]): void {
   const quote = state.pending[id]
   if (!quote) return
@@ -197,17 +198,18 @@ function answer(state: QuoteState, id: string, params: QuoteParams, won?: [Optio
   const sameDay = quote.day === state.day
   const termsOf = (option: Option) => termsFor(option, quote.lane, quote.trust, sameDay, params)
   let seen: { option: Option; x: number; chance: number } | undefined // x: the log of price / list
-  if (won) {
+  let offered = 0
+  for (const option of OPTIONS) {
+    const [price, list] = quote.quotes[option] ?? [0, 0]
+    if (price <= 0 || price >= DECLINED * list) continue
+    offered += 1
+    const x = Math.log(price / list)
+    const chance = survival(shape, x - level(state.belief, termsOf(option)).mean)
+    if (!seen || chance > seen.chance) seen = { option, x, chance }
+  }
+  if (won && offered <= 1) {
     const list = quote.quotes[won[0]]?.[1]
-    if (list) seen = { option: won[0], x: Math.log(won[1] / list), chance: 0 }
-  } else {
-    for (const option of OPTIONS) {
-      const [price, list] = quote.quotes[option] ?? [0, 0]
-      if (price <= 0 || price >= DECLINED * list) continue
-      const x = Math.log(price / list)
-      const chance = survival(shape, x - level(state.belief, termsOf(option)).mean)
-      if (!seen || chance > seen.chance) seen = { option, x, chance }
-    }
+    seen = list ? { option: won[0], x: Math.log(won[1] / list), chance: 0 } : undefined
   }
   if (!seen) return
   learn(state.belief, termsOf(seen.option), seen.x, won !== undefined, shape)
@@ -224,8 +226,9 @@ function answer(state: QuoteState, id: string, params: QuoteParams, won?: [Optio
 function account(state: QuoteState, line: LedgerLine, params: QuoteParams): void {
   const order = line.orderId
   if (!order) return
-  if (line.kind === 'revenue') state.unsettled[order] = line.at
-  else if ((line.kind === 'late_refund' || line.kind === 'undelivered_penalty') && !state.settled[order]) {
+  if (line.kind === 'revenue') {
+    if (!state.settled[order]) state.unsettled[order] = line.at
+  } else if ((line.kind === 'late_refund' || line.kind === 'undelivered_penalty') && !state.settled[order]) {
     delete state.unsettled[order]
     state.settled[order] = true
     const dealer = state.dealerOf[order]
@@ -237,6 +240,7 @@ function settle(state: QuoteState, now: number, params: QuoteParams): void {
   for (const [order, at] of Object.entries(state.unsettled)) {
     if (at >= now) continue
     delete state.unsettled[order]
+    if (state.settled[order]) continue
     state.settled[order] = true
     const dealer = state.dealerOf[order]
     if (dealer) state.trust[dealer] = Math.min(params.trustCap, (state.trust[dealer] ?? 0) + 1)
