@@ -28,6 +28,7 @@ from typing import NamedTuple
 from spread.client import SpreadError
 from spread.types import Score
 
+from record import DATABASE, RUNS
 from spread_proxy import ProxyClient
 
 SLOTS = 8  # a team holds at most 8 practice worlds that have not ended
@@ -377,7 +378,9 @@ class Bench:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
-                env={**os.environ, "PYTHONUNBUFFERED": "1"},
+                # Every version saves its week into this checkout's data/scrape/runs and database (record.py), also
+                # one checked out into a temporary worktree.
+                env={**os.environ, "PYTHONUNBUFFERED": "1", "SPREAD_RUNS_DIR": str(RUNS), "SPREAD_DB": str(DATABASE)},
             )
             self.running.add(child)
         world_id, output = None, deque(maxlen=20)
