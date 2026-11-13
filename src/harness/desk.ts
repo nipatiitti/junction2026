@@ -15,7 +15,7 @@ import {
   type World,
 } from '../../vendor/spread-typescript/spread.ts'
 import { starterGig } from '../strategies/starter/gig.ts'
-import type { Books, GigNeed, Strategy } from '../strategy.ts'
+import type { Books, GigNeed, GigPlan, Strategy } from '../strategy.ts'
 import { HOUR } from '../time.ts'
 import type { Guard } from './guard.ts'
 import { Journal, type JournalLine } from './journal.ts'
@@ -174,14 +174,11 @@ export class Desk implements Books {
   plan(need: GigNeed): PostAction[] {
     const answer = this.guard.run('gig', () => [this.strategy.gig(need, this)].flat())
     if (answer?.length === 0) this.guard.fault('gig empty')
-    const plans = this.guard.admit(
-      'gig',
-      (answer ?? []).map((gig): PostAction => ({ ...gig, type: 'post' })),
-    )
+    const plans = this.guard.admit('gig', (answer ?? []).map(postOf))
     const left = need.legs.filter((leg) => !plans.some((plan) => carries(plan, need.order.id, leg)))
     if (left.length === 0) return plans
     const safe = this.guard.run('gig', () => starterGig({ ...need, legs: left }, this, this.strategy.setup.level))
-    return [...plans, ...this.guard.admit('gig', safe ? [{ ...safe, type: 'post' as const }] : [])]
+    return [...plans, ...this.guard.admit('gig', safe ? [postOf(safe)] : [])]
   }
 
   delivered(orderId: string, leg: number, at: number): void {
@@ -408,6 +405,14 @@ const legsOf = (action: PostAction, orderId: string): number[] =>
 /** Whether a gig or a post picks up the order's leg. */
 const carries = (gig: Pick<PostAction, 'stops'>, orderId: string, leg: number): boolean =>
   gig.stops.some((stop) => stop.orderId === orderId && stop.leg === leg && stop.kind === 'pickup')
+
+/** The post of a plan, with its fields only. */
+const postOf = (plan: GigPlan): PostAction => ({
+  type: 'post',
+  stops: plan?.stops,
+  audience: plan?.audience,
+  schedule: plan?.schedule,
+})
 
 /** The cars that a post carries. */
 const cars = (action: PostAction): number => action.stops.filter((stop) => stop.kind === 'pickup').length
