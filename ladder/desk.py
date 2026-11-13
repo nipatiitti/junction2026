@@ -102,9 +102,11 @@ class Job:
 class Desk:
     def __init__(self, world: World, level: int, now: int, rung: int, journal: Path | None = None):
         self.world, self.level, self.now, self.rung = world, level, now, rung
-        # In the final, the requests we decline go to this file, so a desk that restarts learns its prices again
-        # from the outcomes of our real quotes only: a decline always loses.
+        # In the final, each real quote that the world accepts goes to this file, so a desk that restarts learns its
+        # price again from the outcomes of those quotes only: a decline, or a request that came while no desk ran,
+        # always loses.
         self.journal = journal
+        self.meant: set[str] = set()  # requests we quote for real (not declines), until the world answers the quote
         self.market = Market(world.client.map(), world.roster())
         self.pricing = Pricing(level)
         self.admission = Admission(self.market, level, rung)
@@ -147,10 +149,25 @@ class Desk:
                     self.carry(action, result["id"])
                 else:
                     self.refused(action, result["reason"])
+            elif kind == "quote" and action["requestId"] in self.meant:
+                self.meant.discard(action["requestId"])
+                if result["ok"]:
+                    self.note_quote(action["requestId"])
             elif kind == "withdraw" and action["gigId"] in self.gigs:
                 gig = self.gigs[action["gigId"]]
                 if gig.status == "withdrawing":  # gone: its cars go again; refused: a driver had booked it
                     gig.status = "gone" if result["ok"] else "booked"
+
+    def note_quote(self, request_id: str) -> None:
+        """Writes a real quote to the journal. A journal that cannot be written is given up, not a crash."""
+        if self.journal is None:
+            return
+        try:
+            with self.journal.open("a") as journal:
+                journal.write(request_id + "\n")
+        except OSError as error:
+            print(f"Cannot write {self.journal}: {error}. Going on without it.", file=sys.stderr, flush=True)
+            self.journal = None
 
     def refused(self, action: PostAction, reason: str) -> None:
         """A post the world refused, usually for a stop window. The car goes again at the next tick without windows
@@ -309,9 +326,8 @@ class Desk:
             self.outbox.append(
                 {"type": "quote", "requestId": request["id"], "prices": {first["kind"]: 10 * first["listPriceCents"]}}
             )
-        if not kinds and self.journal is not None:
-            with self.journal.open("a") as journal:
-                journal.write(request["id"] + "\n")
+        if kinds:
+            self.meant.add(request["id"])
 
     def load(self) -> list[Ride]:
         """Our rides that still wait for a driver, for admission to weigh a new request against."""
@@ -507,7 +523,10 @@ class Desk:
             for e in history
             if e["kind"] == "ledger" and e["line"]["kind"] in ("late_refund", "undelivered_penalty")
         }
-        declined = set(self.journal.read_text().split()) if self.journal and self.journal.exists() else set()
+        try:
+            quoted = set(self.journal.read_text().split()) if self.journal and self.journal.exists() else set()
+        except OSError:
+            quoted = set()
         for event in history:
             if event["kind"] == "price_request":
                 self.requests[event["request"]["id"]] = event["request"]
@@ -515,9 +534,8 @@ class Desk:
             elif event["kind"] in ("order_won", "order_lost"):
                 request_id = event["order"]["id"] if event["kind"] == "order_won" else event["requestId"]
                 request = self.requests.get(request_id)
-                ride = request and classify(request, self.market, self.facts_of(request))
-                if ride and ride.rung <= self.rung and request_id not in declined:
-                    self.pricing.sent(request)  # learn again from the outcomes of our real quotes
+                if request is not None and request_id in quoted:
+                    self.pricing.sent(request)  # learn again from the outcomes of our real quotes only
                 self.pricing.observe(event)
             elif event["kind"] == "deadline_close":
                 self.admission.observe(event, event["at"])
@@ -545,8 +563,17 @@ class Desk:
                 self.carry(action, gig["id"])
                 self.gigs[gig["id"]].status = gig["status"]
                 self.gigs[gig["id"]].booked_fee = gig["feeCents"] if gig["status"] != "open" else 0
-        warned = {e["orderId"] for e in history if e["kind"] == "deadline_close"}
-        for order_id in warned & self.jobs.keys():
+        # An order is warned when its last deadline warning came after its last change of plan and booking.
+        gig_order = {gig["id"]: gig["stops"][0]["orderId"] for gig in snapshot["gigs"]}
+        warned: dict[str, bool] = {}
+        for event in history:
+            if event["kind"] == "deadline_close":
+                warned[event["orderId"]] = True
+            elif event["kind"] == "order_changed":
+                warned[event["order"]["id"]] = False
+            elif event["kind"] == "gig_booked" and event["gigId"] in gig_order:
+                warned[gig_order[event["gigId"]]] = False
+        for order_id in {o for o, w in warned.items() if w} & self.jobs.keys():
             job = self.jobs[order_id]
             job.warned = all(self.gigs[g].status == "open" for g in job.gigs.values())
         for event in history:
