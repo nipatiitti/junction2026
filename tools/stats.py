@@ -1,12 +1,12 @@
 """Turns weeks saved by scrape.py into distributions for an offline model of the server. Needs no network.
 
-    uv run stats.py                                        # the team's committed weeks in data/scrape
-    uv run stats.py out/scrape/passive out/scrape/explore  # weeks from your own scrape
+    uv run python -m tools.stats                                        # the team's committed weeks in data/scrape
+    uv run python -m tools.stats out/scrape/passive out/scrape/explore  # weeks from your own scrape
 
 Without folders, reads data/scrape and writes out/summary.json. With folders, writes summary.json into the first
 folder. --out chooses another file. Prints the main numbers. Groups are "L<level>/<policy>", or
 "L<level>/<policy>-<tag>" for a scrape with --tag.
-README.md lists what the summary holds.
+tools/README.md lists what the summary holds.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from collections.abc import Iterable, Iterator, Sequence
 from pathlib import Path
 from typing import Any, NamedTuple
 
-OFFLINE_DATA = Path(__file__).parent / "data" / "scrape"  # the team's committed scrape: no server needed
+OFFLINE_DATA = Path(__file__).parents[1] / "data" / "scrape"  # the team's committed scrape: no server needed
 HOUR, DAY = 60, 24 * 60
 MAX_ENUM = 30  # a text or bool field with more distinct values than this is not an enumeration
 RATIO_BIN = 0.05  # width of the bins of quote / list price

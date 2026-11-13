@@ -12,7 +12,7 @@ from strategies.strategy import NoParams, Strategy
 
 class FeePlanner(Strategy[NoParams]):
     """Turns an order and its request into the facts of a gig, and plans its fee schedule. Its thresholds are the
-    constants of schedule.py, which `results/bench.py` changes one at a time, so its `params` are empty."""
+    constants of schedule.py, so its `params` are empty."""
 
     def __init__(
         self, roster: list[DriverProfile], world_map: WorldMap, level: int = 8, params: NoParams | None = None

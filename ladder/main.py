@@ -20,8 +20,8 @@ from spread.types import Score
 
 from ladder.desk import Desk
 from ladder.rides import RUNGS, TOP_RUNG
-from record import Recorder
-from spread_proxy import ProxyClient
+from tools.record import Recorder
+from tools.spread_proxy import ProxyClient
 
 DAY = 24 * 60
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
