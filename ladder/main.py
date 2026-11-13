@@ -2,7 +2,7 @@
 
 A practice world stands still until we advance it. Each step sends the desk's actions with the advance, which moves
 the clock to the next event the desk must answer, or to the next minute the desk wants to look. In the final the
-clock runs by itself: the desk answers each event of the live stream as it comes.
+clock runs by itself: the desk follows the world's event log and answers each page of new events as it comes.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ import sys
 import time
 import traceback
 from collections import Counter
+from pathlib import Path
 
 from spread.client import Client, SpreadError, Unreachable, World
 from spread.types import Score
@@ -26,6 +27,9 @@ DAY = 24 * 60
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 POLICY = "ladder"  # the policy of the saved weeks, so the database tells them from dispatch.py's
 SLOT_WAIT, SLOT_TRIES = 15, 120  # seconds between tries for a free practice slot, and how many tries: 30 minutes
+POLL_EVERY = 0.2  # seconds between two reads of the final's events while none come: 5 of its 50 reads a second
+CLOCK_EVERY = 1.0  # seconds without an event before the desk reads the final's clock
+JOURNALS = Path(__file__).resolve().parent.parent / "out"  # where the final's desk notes the requests it declined
 
 
 def play_practice(world: World, level: int, rung: int) -> Counter[str]:
@@ -57,29 +61,47 @@ def play_practice(world: World, level: int, rung: int) -> Counter[str]:
 
 
 def play_final(world: World, rung: int) -> None:
-    """Rebuilds the books from the world, then answers events as they come. After a second without an event,
-    it reads the clock, so the desk's own timers still run."""
-    history = world.events()
+    """Rebuilds the books from the world, then follows its event log: it reads the new events about five times a
+    second, answers each page of them in one decision pass, and reads the clock when a second passes without one.
+    A burst of requests is quoted in one batch of actions rather than one request each."""
+    history = all_events(world, -1)
     snapshot = world.snapshot()
     if snapshot["now"] >= snapshot["endsAt"]:
         return
     level = next((w["level"] for w in world.client.worlds() if w["worldId"] == world.id), 8)
-    desk = Desk(world, level, snapshot["now"], rung)
+    JOURNALS.mkdir(parents=True, exist_ok=True)
+    desk = Desk(world, level, snapshot["now"], rung, journal=JOURNALS / f"ladder-{world.id}.declined")
     desk.rejoin(snapshot, history)
     desk.tick()
     desk.send()
-    for event in world.stream(after=history[-1]["seq"] if history else -1, idle=1.0):
+    last, quiet = (history[-1]["seq"] if history else -1), time.monotonic()
+    while desk.now < snapshot["endsAt"]:
         day = desk.now // DAY
-        desk.now = world.client.final()["now"] if event is None else max(desk.now, event["at"])
-        if event is not None:
+        events = world.events(after=last)  # one page: without a pause after it, the next page comes at once
+        for event in events:
             desk.handle(event)
+        if events:
+            last, quiet = events[-1]["seq"], time.monotonic()
+            desk.now = max(desk.now, events[-1]["at"])
+        elif time.monotonic() - quiet >= CLOCK_EVERY:
+            desk.now, quiet = max(desk.now, world.client.final()["now"]), time.monotonic()
         desk.tick()
         desk.send()
         if desk.now // DAY > day:
             report(WEEKDAYS[day % 7], world.score())
-        if desk.now >= snapshot["endsAt"]:
-            print(desk.summary(), flush=True)
-            return
+        if not events:
+            time.sleep(POLL_EVERY)
+    print(desk.summary(), flush=True)
+
+
+def all_events(world: World, after: int) -> list:
+    """Every event after `after`, oldest first, in pages in case the server caps an answer."""
+    events: list = []
+    while True:
+        page = world.events(after=events[-1]["seq"] if events else after)
+        if not page:
+            return events
+        events += page
 
 
 def report(label: str, score: Score) -> None:
