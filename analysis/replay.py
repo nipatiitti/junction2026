@@ -63,9 +63,11 @@ class OfflineWorld:
         raise RuntimeError("the offline replay sends no actions")
 
 
-def find_weeks(roots: list[str]) -> list[Path]:
-    """Every saved week that was played (not passive) and has its reveal, once per world."""
+def find_weeks(roots: list[str]) -> tuple[list[Path], int]:
+    """Every saved week that was played (not passive) and has its reveal, once per world, and the number of played
+    worlds skipped because no saved copy has a reveal (a ranking run's week has none)."""
     found: dict[str, Path] = {}
+    no_reveal: set[str] = set()
     for root in roots:
         for meta_path in sorted(Path(root).rglob("meta.json")):
             folder = meta_path.parent
@@ -74,8 +76,19 @@ def find_weeks(roots: list[str]) -> list[Path]:
             meta = json.loads(meta_path.read_text())
             if meta.get("policy") == "passive" or not (meta.get("score") or {}).get("wonOrders"):
                 continue
-            found.setdefault(meta.get("worldId") or str(folder), folder)
-    return list(found.values())
+            world = meta.get("worldId") or str(folder)
+            if world in found:
+                continue
+            if not has_reveal(folder):
+                no_reveal.add(world)
+                continue
+            found[world] = folder
+    return list(found.values()), len(no_reveal - found.keys())
+
+
+def has_reveal(folder: Path) -> bool:
+    """Whether the week's reveal has the requests. A ranking run is not revealed: its `reveal.json.gz` is `{}`."""
+    return "requests" in read_gz(folder / "reveal.json.gz")
 
 
 def find_map(folder: Path) -> Path | None:
@@ -1096,13 +1109,15 @@ SECTIONS = [
 ]
 
 
-def page(results: list[dict], seconds: float) -> str:
+def page(results: list[dict], seconds: float, no_reveal: int = 0) -> str:
     built = (
         f"Built {time.strftime('%Y-%m-%d %H:%M')} from {len(results)} saved weeks in {seconds:.0f} s, with the "
         "strategies of this checkout. Each week's recorded events go to each strategy in order, as dispatch.py "
         "feeds them; its decisions are scored against what the week shows happened, and count as unknown where the "
         "week cannot tell. Hover a dot for its week; the method of each chart is under “Method”."
     )
+    if no_reveal:
+        built += f" {skipped(no_reveal)}."
     nav = "".join(f'<a href="#{sid}">{i}. {r.E(n)}</a>' for i, (sid, n) in enumerate(SECTIONS, 1))
     body = (
         r.section("scoreboard", "Scoreboard", scoreboard(results))
@@ -1144,6 +1159,12 @@ def write_csv(results: list[dict], path: str) -> None:
                     )
 
 
+def skipped(no_reveal: int) -> str:
+    """The note on the played weeks left out because they have no reveal, such as ranking runs."""
+    weeks = "week" if no_reveal == 1 else "weeks"
+    return f"Skipped {no_reveal} played {weeks} without a reveal (ranking runs are not revealed)"
+
+
 def print_summary(results: list[dict]) -> None:
     head = f"{'Experiment':<20} {'Weeks':>5} {'Notes':>6} {'Kept':>6} {'OnTime':>7} {'Win':>6} {'Fees':>6} {'Bundle':>7} {'Offers':>7}"
     print(head)
@@ -1176,7 +1197,9 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--no-serve", action="store_true", help="only write the files")
     ap.add_argument("--port", type=int, default=8001, help="port to serve on; a free one is used if it is taken")
     args = ap.parse_args(argv)
-    folders = find_weeks(args.folders or [root for root in ROOTS if os.path.isdir(root)])
+    folders, no_reveal = find_weeks(args.folders or [root for root in ROOTS if os.path.isdir(root)])
+    if no_reveal:
+        print(f"{skipped(no_reveal)}.", flush=True)
     if not folders:
         sys.exit("No saved weeks with a reveal found. Get the team's data first (README.md).")
     print(f"Replaying {len(folders)} weeks with {args.jobs} jobs.", flush=True)
@@ -1193,7 +1216,7 @@ def main(argv: list[str] | None = None) -> None:
             print(f"  {done:>3}/{len(folders)} {w['experiment']} L{w['level']} {w['seed']}{note}", flush=True)
     seconds = time.perf_counter() - start
     write_csv(results, args.csv)
-    text = page(results, seconds)
+    text = page(results, seconds, no_reveal)
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     Path(args.out).write_text(text, encoding="utf-8")
     print()
