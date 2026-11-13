@@ -20,7 +20,7 @@ SCHEMA = """
 create table if not exists weeks (
   id integer primary key, world_id text unique not null, seed text, level int, policy text,
   quote_range text, fee_range text, margin_cents int, revenue_cents int, won_orders int, on_time_share real,
-  undelivered_share real, events int, requests int, seconds real, folder text
+  undelivered_share real, events int, requests int, seconds real, folder text, settings text
 );
 create table if not exists places (id text primary key, name text, lat real, lon real);
 create table if not exists roads (from_id text, to_id text, km real, minutes int, primary key (from_id, to_id));
@@ -71,6 +71,19 @@ create table if not exists ledger (
 create table if not exists forecasts (
   week_id int, seq int, from_min int, to_min int, places text, text text, primary key (week_id, seq)
 );
+-- Each action that the scrape sent, with the minute it was applied and the world's answer (actions.jsonl.gz).
+-- A quote, post, reprice or offer keeps its whole body in data; reprices give each gig's fee schedule over time.
+create table if not exists actions (
+  week_id int, seq int, at int, type text, request_id text, gig_id text, driver_id text, fee_cents int,
+  ok int, result_id text, reason text, data text, primary key (week_id, seq)
+);
+-- The driver list at each midnight and at the end (rosters.jsonl.gz): changes in completed_gigs and drops show who
+-- worked when. The drivers table holds the list at the start.
+create table if not exists rosters (
+  week_id int, at int, driver_id text, rating real, completed_gigs int, drops int, primary key (week_id, at, driver_id)
+);
+-- Where our drivers were, sampled during the week with scrape.py --sample-every (positions.jsonl.gz).
+create table if not exists positions (week_id int, at int, driver_id text, place_id text, gig_id text);
 create index if not exists events_kind on events (kind, week_id);
 create index if not exists legs_lane on legs (pickup_place, delivery_place);
 create index if not exists views_gig on views (week_id, gig_id);
@@ -81,6 +94,8 @@ def connect(path: Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(path, timeout=120)  # several scrapes can write to one database: wait for its lock
     db.executescript(SCHEMA)
+    if "settings" not in {row[1] for row in db.execute("pragma table_info(weeks)")}:  # a database from before #49
+        db.execute("alter table weeks add column settings text")
     return db
 
 
@@ -112,8 +127,8 @@ def add_week(db: sqlite3.Connection, week: Week, folder: str = "") -> bool:
     with db:
         week_id = db.execute(
             "insert into weeks (world_id, seed, level, policy, quote_range, fee_range, margin_cents, revenue_cents,"
-            " won_orders, on_time_share, undelivered_share, events, requests, seconds, folder)"
-            " values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            " won_orders, on_time_share, undelivered_share, events, requests, seconds, folder, settings)"
+            " values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 meta["worldId"],
                 meta["seed"],
@@ -130,13 +145,52 @@ def add_week(db: sqlite3.Connection, week: Week, folder: str = "") -> bool:
                 meta.get("requests"),
                 meta.get("seconds"),
                 folder,
+                dump(meta.get("settings")),
             ),
         ).lastrowid
         roads = {(r[0], r[1]): (r[2], r[3]) for r in db.execute("select from_id, to_id, km, minutes from roads")}
         add_events(db, week_id, week.events)
         add_requests(db, week_id, week, roads)
         add_outcomes(db, week_id, week)
+        add_records(db, week_id, week)
     return True
+
+
+def add_records(db: sqlite3.Connection, week_id: int, week: Week) -> None:
+    """What the scrape recorded beside the server's own records: actions, driver lists and positions."""
+    rows = []
+    for row in week.actions:
+        a, r = row["action"], row["result"]
+        fee = a.get("feeCents") or (a["schedule"][0]["feeCents"] if a.get("schedule") else None)
+        rows.append(
+            (
+                week_id,
+                row["seq"],
+                row["at"],
+                a["type"],
+                a.get("requestId"),
+                a.get("gigId") or (r.get("id") if a["type"] == "post" else None),
+                a.get("driverId"),
+                fee,
+                int(r["ok"]),
+                r.get("id"),
+                r.get("reason"),
+                dump(a),
+            )
+        )
+    db.executemany("insert into actions values (?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+    db.executemany(
+        "insert or ignore into rosters values (?,?,?,?,?,?)",
+        (
+            (week_id, r["at"], d["id"], d["rating"], d["completedGigs"], d["drops"])
+            for r in week.rosters
+            for d in r["drivers"]
+        ),
+    )
+    db.executemany(
+        "insert into positions values (?,?,?,?,?)",
+        ((week_id, s["at"], p["driverId"], p["placeId"], p["gigId"]) for s in week.positions for p in s["positions"]),
+    )
 
 
 def add_events(db: sqlite3.Connection, week_id: int, events: list[dict]) -> None:

@@ -4,7 +4,8 @@
     uv run stats.py out/scrape/passive out/scrape/explore  # weeks from your own scrape
 
 Without folders, reads data/scrape and writes out/summary.json. With folders, writes summary.json into the first
-folder. --out chooses another file. Prints the main numbers. Groups are "L<level>/<policy>".
+folder. --out chooses another file. Prints the main numbers. Groups are "L<level>/<policy>", or
+"L<level>/<policy>-<tag>" for a scrape with --tag.
 README.md lists what the summary holds.
 """
 
@@ -15,7 +16,7 @@ import gzip
 import json
 import math
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Sequence
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -31,6 +32,10 @@ class Week(NamedTuple):
     reveal: dict
     snapshot: dict
     drivers: list[dict]
+    # Saved by scrape.py since #49; empty for older weeks and for weeks that a killed scrape left behind.
+    actions: Sequence[dict] = ()  # each action sent, with its minute and result
+    rosters: Sequence[dict] = ()  # the driver list at each midnight and at the end: {at, drivers}
+    positions: Sequence[dict] = ()  # samples of our drivers' positions: {at, positions}
 
 
 def read_json(path: Path) -> Any:
@@ -40,15 +45,24 @@ def read_json(path: Path) -> Any:
     return json.loads(path.read_text())
 
 
+def read_lines(path: Path) -> list[dict]:
+    """The rows of a .jsonl.gz file; none when the file is missing."""
+    if not path.exists():
+        return []
+    with gzip.open(path, "rt", encoding="utf-8") as f:
+        return [json.loads(line) for line in f]
+
+
 def load_week(folder: Path) -> Week:
-    with gzip.open(folder / "events.jsonl.gz", "rt", encoding="utf-8") as f:
-        events = [json.loads(line) for line in f]
     return Week(
         read_json(folder / "meta.json"),
-        events,
+        read_lines(folder / "events.jsonl.gz"),
         read_json(folder / "reveal.json.gz"),
         read_json(folder / "snapshot.json.gz"),
         read_json(folder / "drivers.json.gz"),
+        read_lines(folder / "actions.jsonl.gz"),
+        read_lines(folder / "rosters.jsonl.gz"),
+        read_lines(folder / "positions.jsonl.gz"),
     )
 
 
@@ -455,7 +469,8 @@ def summarise(weeks: Iterable[Week], world_map: dict | None) -> dict:
     names = {p["id"]: p["name"] for p in world_map["places"]} if world_map else {}
     catalogue, groups = Catalogue(), {}
     for week in weeks:
-        name = f"L{week.meta['level']}/{week.meta['policy']}"
+        tag = week.meta.get("tag")
+        name = f"L{week.meta['level']}/{week.meta['policy']}" + (f"-{tag}" if tag else "")
         group = groups.setdefault(name, Group(km, minutes, names))
         group.add(week)
         for event in week.events:
