@@ -33,9 +33,9 @@ class Params:
     # The price war: this many losses in the last `war_window` outcomes of a day, on at least
     # `war_places` pickup places, is the price war. During it, quote `war_cut` times the usual
     # price, or decline when `war_cut` is None.
-    war_window: int = 10
-    war_losses: int = 9
-    war_places: int = 4
+    war_window: int = 20
+    war_losses: int = 18
+    war_places: int = 6
     war_cut: float | None = 0.8
     # The outage: at least `outage_wins` wins of the last `outage_window` outcomes of a region on
     # one day, at a higher win share than the rest of the day, is the outage. Prices there rise by
