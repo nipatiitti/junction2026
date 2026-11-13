@@ -195,6 +195,7 @@ in and keep it current. Every row must be a single copy-pasteable command.
 | Type check                  | `pnpm check`                                                |
 | Install Python dependencies | `uv sync`                                                   |
 | Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`              |
+| Play the ratchet system     | `uv run strategies/ratchet/dispatch.py --seed spread-1`     |
 | Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                       |
 | Measure the note reader     | `uv run python -m strategies.notes.check reveal-<world id>` |
 | Compare two versions        | `uv run python -m strategies.bench dispatch.py origin/main` |
