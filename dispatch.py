@@ -32,6 +32,7 @@ from spread.types import (
     TimeWindow,
 )
 
+from record import Recorder
 from spread_proxy import ProxyClient
 from strategies.admission import Admission, Held
 
@@ -521,6 +522,7 @@ def main() -> None:
         client = ProxyClient()
         requests = count_requests(client)
         score, stop_reasons = None, None
+        recorder: Recorder | None = None  # saves the week to data/scrape/runs and the database once it has ended
         if args.final:
             world = None
             # A server restart drops every connection. The desk then rebuilds its books from the server, as after its own restart.
@@ -529,6 +531,8 @@ def main() -> None:
                     if world is None:
                         world = next_final(client)
                         print(f"Final world {world.id}.", flush=True)
+                        level = next((w["level"] for w in client.worlds() if w["worldId"] == world.id), 8)
+                        recorder = Recorder(world, level, None, "final")
                     play_final(world)
                     score = world.score()
                     break
@@ -546,6 +550,7 @@ def main() -> None:
             )
             print(f"{name}, level {args.level}. {stops}", flush=True)
             try:
+                recorder = Recorder(world, args.level, args.seed, "board" if args.board else "practice")
                 stop_reasons = play_practice(world, args.level)
             except BaseException as error:  # a world left behind holds one of the team's eight practice slots
                 try:
@@ -575,6 +580,8 @@ def main() -> None:
             if score["wonOrders"] == 0
             else "Not ranked: the delivery minimum is 90% of the orders on time."
         )
+        if recorder is not None:
+            recorder.save()
     except SpreadError as error:
         sys.exit(f"spread: {error}")
     except KeyboardInterrupt:

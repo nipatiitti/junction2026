@@ -87,6 +87,25 @@ about 1,390.
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
 - `tests/` holds older tests, kept as they are but no longer run: we do not write or run tests.
 
+### Every online run is saved
+
+Each week that `dispatch.py` plays on the server is saved like a scraped week, so every online run adds to the data
+that we analyse offline. This covers practice weeks, the bench's weeks, ranking runs (`--board`) and finals (`--final`).
+When the week ends, `record.py` saves it:
+
+- its folder `data/scrape/runs/L<level>/<seed>/<world id>/`, in the format of `scrape.py` (below), with policy
+  `dispatch`. `meta.json` also says `kind` (`practice`, `board` or `final`), `version` (the git commit, `-dirty` with
+  changes) and `revealed` (ranking runs have no reveal, so their requests come from the events). The seed is `random`
+  without `--seed`, and `board` or `final` for those runs. A played week takes about 0.4 MB.
+- its rows in the SQLite database `out/spread.sqlite` (see the tables below).
+
+The run prints `Saved the week to ...` at the end. A week stopped with Ctrl-C or an error is not saved, and a failure
+while saving prints a warning and leaves the score as it is. Commit the new folders under `data/scrape/runs` with your
+PR: each world has its own folder, so they never conflict. In a new checkout, `uv run db.py` builds `out/spread.sqlite`
+from every committed week, these runs included. `SPREAD_RUNS_DIR` and `SPREAD_DB` change where the week goes, and
+`SPREAD_RECORD=0` saves nothing. The bench sets the first two, so a git version that it plays in a temporary worktree
+saves into this checkout.
+
 ### Play a practice week in TypeScript
 
 The same kit exists for TypeScript, so half of the team can work there. `vendor/spread-typescript/` holds the
@@ -115,8 +134,9 @@ uv run stats.py   # reads data/scrape, writes out/summary.json, prints the main 
 uv run db.py      # loads data/scrape into out/spread.sqlite
 ```
 
-`data/spread.sqlite` is the same weeks already loaded, ready to query. Only to add weeks, play them on the server with
-`scrape.py`, which saves each week's raw data under `out/scrape`, and then pass those folders to the two scripts:
+`data/spread.sqlite` is the scraped weeks already loaded, ready to query. It does not grow with the saved online runs
+(a played week takes about 4 MB there, and GitHub refuses files over 100 MB), so for those run `uv run db.py` and
+query `out/spread.sqlite`. Only to add scraped weeks, play them on the server with `scrape.py`, which saves each week's raw data under `out/scrape`, and then pass those folders to the two scripts:
 
 ```sh
 uv run --env-file .env scrape.py --policy passive --levels 4,5,6,7,8 --seeds 20   # requests only: 10 requests a week
@@ -142,7 +162,8 @@ Tables, keyed by `week_id` (a row of `weeks`):
 A passive week takes about 1.7 MB in the database, and a played week about 20 MB, most of it gig views. The week
 folders hold the same data gzipped (about 0.1 MB and 2 MB), so the database can always be rebuilt from them.
 
-`data/` holds the team's committed scrape: the week folders in `data/scrape/<policy>/L<level>/<seed>/`, and
+`data/` holds the team's committed scrape: the week folders in `data/scrape/<policy>/L<level>/<seed>/`, the saved
+online runs in `data/scrape/runs/` ([Every online run is saved](#every-online-run-is-saved)), and
 `data/spread.sqlite` built from them (`select level, policy, seed from weeks` lists the weeks). Open the database
 directly, or rebuild it and the summary from the folders without the server with `uv run db.py` and `uv run stats.py`.
 The default outputs go to `out/`, so the committed files stay as they are.

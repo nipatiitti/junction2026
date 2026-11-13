@@ -17,6 +17,16 @@ car dealers and pays freelance drivers to move the cars, for one simulated week.
   Compare two versions of the system on the same seeds.
 - Ask for approval before you play a ranking run (`--board`) or a final (`--final`). Each
   ranking world can be played once, and its score stays on the public rankings.
+- Every online run is saved. When `dispatch.py` finishes a week on the server (a practice week,
+  the bench's weeks, a ranking run or a final), `record.py` saves it to
+  `data/scrape/runs/L<level>/<seed>/<world id>/` and to the database `out/spread.sqlite`.
+  Commit the new folders under `data/scrape/runs` in your PR, so the team keeps the data; each
+  world has its own folder, so they never conflict. Keep the saving on, and make any new script
+  that plays online save its weeks with `record.Recorder` too.
+- Run against the saved data, not online. Before you play a week to answer a question, build the
+  database from every committed week with `uv run db.py` and query `out/spread.sqlite`
+  (`README.md` lists the tables). Play online only to measure a changed system, or for data that
+  no saved week has.
 
 ---
 
@@ -170,6 +180,7 @@ in and keep it current. Every row must be a single copy-pasteable command.
 | Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`              |
 | Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                       |
 | Compare two versions        | `uv run python -m strategies.bench dispatch.py origin/main` |
+| Build the saved-weeks DB    | `uv run db.py`                                              |
 | Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .`         |
 | Play a week in TypeScript   | `pnpm dispatch --level 8 --seed spread-1`                   |
 | Write a week to CSV (TS)    | `pnpm reveal-csv <world id>`                                |
