@@ -1,0 +1,23 @@
+[project]
+name = "junction2026-dispatch"
+version = "0.1.0"
+description = "Our dispatch system for Spread, Bahn's Junction 2026 challenge"
+requires-python = ">=3.15"
+dependencies = ["spread"]
+
+[dependency-groups]
+dev = ["pytest", "ruff"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+# The organisers' kit: the client, its types and the unchanged starter. See README.md.
+spread = { path = "vendor/spread-0.1.0-py3-none-any.whl" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120

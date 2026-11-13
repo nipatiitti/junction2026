@@ -28,11 +28,5 @@
   },
   "assist": {
     "actions": { "source": { "organizeImports": "on" } }
-  },
-  "overrides": [
-    {
-      "includes": ["spread/**"],
-      "linter": { "rules": { "style": { "noNonNullAssertion": "off" } } }
-    }
-  ]
+  }
 }
