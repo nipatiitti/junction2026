@@ -19,6 +19,7 @@ that it has. Every copy is deleted after its step; Ctrl-C deletes the parent too
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import random
 import signal
@@ -122,7 +123,7 @@ def bisect(test, low: int, high: int, resolution: int) -> dict:
 def monotone(trials: dict[int, bool]) -> bool:
     """True when the outcomes, in order of value, change at most once: a threshold, not a coin."""
     outcomes = [trials[v] for v in sorted(trials)]
-    return sum(a != b for a, b in zip(outcomes, outcomes[1:])) <= 1
+    return sum(a != b for a, b in itertools.pairwise(outcomes)) <= 1
 
 
 def probe_quote(probe: Probe, parent: World, request: dict, args: argparse.Namespace, others: list[dict]) -> list[dict]:
