@@ -130,6 +130,11 @@ than handing it back, so the user's only job is to approve:
 - Review comments: address them and push, or reply briefly why not.
 - Keep watching until the PR is merged or closed. Ask for approval before
   merging: when the change lands is the user's decision.
+- When the PR is merged, check that its issue is closed. `Closes #<issue>` in
+  the description closes it on merge; if it is still open, close it as
+  completed, so that nobody picks up work that is already done. If the PR was
+  closed without merging, close its issue as not planned, unless a new PR
+  replaces it.
 
 ## 8. Keep going, and know when to ask
 
@@ -145,11 +150,12 @@ continue, leaves the user with a half-built feature.
 
 These routine steps need no approval: create a branch or worktree, commit, push
 to your own branch, open a PR, create follow-up issues, reply on your own PR,
-resolve merge conflicts, fix CI.
+resolve merge conflicts, fix CI, close the issue of your own merged or closed
+PR.
 
 Ask for approval before these, because they are hard to undo or change what
 other people see: merging a PR, pushing to the default branch, force-pushing,
-deleting a branch, closing or editing an issue you did not create.
+deleting a branch, closing or editing any other issue you did not create.
 
 ## Commands
 
