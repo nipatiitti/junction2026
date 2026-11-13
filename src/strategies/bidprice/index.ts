@@ -102,6 +102,7 @@ class BidPrice extends Strategy<BidPriceParams> {
       need.why === 'urgent' && previous
         ? [previous]
         : gigShape(order, legs, this.log.factsOf(order.id), this.log.retryOf(order.id, legs), books.now, this.context())
+    if (shapes.length === 0) throw new Error('cannot read the order') // the harness posts the starter's gig
     return shapes.map(({ stops, audience }) => ({
       stops,
       audience,
