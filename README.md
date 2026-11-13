@@ -204,6 +204,7 @@ Tables, keyed by `week_id` (a row of `weeks`):
 | `positions`                      | sample of where one of our drivers was, with `--sample-every`                                                                                                                                                                               |
 | `probes`                         | delivery option that `probe.py quote` bisected: level, seed, request, list price, the flip (`flip_cents`, `flip_ratio`, `bracket_low_cents` = highest price known to win), `ends`, `monotone`, `error`, and every trial as JSON in `trials` |
 | `fee_probes`, `probe_files`      | order that `probe.py fee` bisected, with the same flip columns for the flat fee and who booked at the flip; probe file that was loaded, with its size and mtime                                                                             |
+| `shape_probes`                   | pair of requests that `probe.py shape` probed: kind, order ids, lanes, each car's single flip and the combined flip, `saving_ratio`, `same_driver`, who booked and their home, and the trials                                               |
 
 Derived analysis tables (win model, booking hazard, order economics, supply) are built by
 `uv run python -m analysis.facts`; see `analysis/README.md`.
