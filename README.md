@@ -32,6 +32,7 @@ Several of us build dispatch systems in parallel; the team picks one for the fin
 | `dispatch.py`, built from [`strategies/`](strategies/README.md)    | `uv run dispatch.py --level 8 --seed spread-1`                            |
 | [Price ladder](strategies/price_ladder/README.md)                  | `uv run strategies/price_ladder/dispatch.py --level 8 --seed spread-1`    |
 | [Ratchet](strategies/ratchet/README.md)                            | `uv run strategies/ratchet/dispatch.py --level 8 --seed spread-1`         |
+| [Ceiling pricing](strategies/ceiling/README.md)                    | `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1`         |
 | [Baseline](strategies/baseline/README.md), the organisers' starter | `uv run python strategies/baseline/baseline.py --level 8 --seed spread-1` |
 | [TypeScript](src/README.md): a harness that plays one strategy     | `pnpm dispatch --strategy starter --level 8 --seed spread-1`              |
 
