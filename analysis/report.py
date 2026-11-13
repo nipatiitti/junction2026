@@ -21,6 +21,7 @@ import sqlite3
 import statistics
 import sys
 import zlib
+from pathlib import Path
 
 E = html.escape
 MINUS = "−"
@@ -557,7 +558,7 @@ def load_oracle(db_path: str, probe_dir: str, oracle_path: str) -> tuple[dict | 
             from analysis import oracle
 
             if hasattr(oracle, "build"):
-                data = oracle.build(db_path, probe_dir)
+                data = oracle.build(Path(db_path), Path(probe_dir) if os.path.isdir(probe_dir) else None)
         except Exception as exc:  # noqa: BLE001  (the report never fails because #66 is absent or broken)
             if not isinstance(exc, ImportError):
                 note = f"analysis.oracle failed: {exc}."
@@ -1454,18 +1455,10 @@ def section_economics(d: dict) -> str:
                 f"{lab} {eur(v)}" for lab, v in gains
             )
             body += f"<h4>What a perfect dispatcher keeps (mean week, upper bounds)</h4>{waterfall_chart(steps, aria)}"
-            items = "".join(
-                f"<li><b>{E(k)}</b>: {E(str(v))}</li>"
-                for k, v in assumptions.items()
-                if k in ("selection", "delivery", "fee")
-                or (k == "quote_probe" and wp)
-                or (k == "quote_brackets" and wb)
-            )
             body += muted(
-                "Upper bounds, each under its assumptions; they add up without overlap. See analysis/README.md."
+                "Upper bounds, each under its assumptions (listed above the cards); they add up without overlap. "
+                "See analysis/README.md."
             )
-            if items:
-                body += f'<ul class="small">{items}</ul>'
             sp = e.get("split") or {}
             cb = e.get("combining") or {}
             weeks = e.get("weeks") or 1
@@ -1529,6 +1522,16 @@ def section_economics(d: dict) -> str:
                 "Lost quotes/wk (ceiling €)",
                 "Lost below similar wins/wk (€)",
             ],
+        )
+    items = "".join(
+        f"<li><b>{E(k)}</b>: {E(str(v))}</li>"
+        for k, v in assumptions.items()
+        if k in ("selection", "delivery", "fee", "quote_probe", "quote_brackets")
+    )
+    if items:
+        note += (
+            '<p class="muted">The assumptions of the upper bounds (from the oracle JSON):</p>'
+            f'<ul class="small">{items}</ul>'
         )
     return section("economics", "6. Order economics: the oracle's gap waterfall", lead, note + grid(cards) + tbl)
 
