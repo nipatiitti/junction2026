@@ -10,6 +10,7 @@ import argparse
 import sys
 import time
 from collections import Counter
+from itertools import pairwise
 from typing import Any, NamedTuple
 
 from spread.client import Client, SpreadError, Unreachable, World
@@ -36,6 +37,7 @@ from spread_proxy import ProxyClient
 from strategies.admission import Admission, Held
 from strategies.fees import FeePlanner, Market
 from strategies.notes import NO_FACTS, NoteFacts, Snow, delivery_window, pickup_window, read_note
+from strategies.offers import GigInfo, Offers
 from strategies.pricing import PricingModel, places_from_map
 
 HOUR, DAY = 60, 24 * 60
@@ -83,9 +85,11 @@ class Desk:
         self.booked_fees: dict[str, int] = {}  # gig id -> the fee that its driver booked it at
         self.facts: dict[str, NoteFacts] = {}  # request id -> what its note says
         self.snow: dict[str, list[Snow]] = {}  # place id -> the snowfalls forecast there
-        # Decides which requests to take, from the driver list and the map, loaded once (strategies/admission).
-        world_map, roster = world.client.map(), world.roster()
+        # The driver list and the map, loaded once: admission decides which requests to take
+        # (strategies/admission), and offers send gigs to drivers near their pickup (strategies/offers).
+        roster, world_map = world.roster(), world.client.map()
         self.admission = Admission(roster, world_map, level)
+        self.offers = Offers(roster, world_map, level)
         self.pricing = PricingModel(level, places_from_map(world_map))  # the price of a quote (strategies/pricing)
         self.fees = FeePlanner(Market(world_map, roster))  # plans each gig's fee schedule (strategies/fees)
 
@@ -124,13 +128,18 @@ class Desk:
                 ]
                 if not any(stop["leg"] == event["leg"] for gig in later for stop in gig["stops"]):
                     self.retry(order["id"], event["leg"], event["reason"])
+        for gig_id, action in list(self.posts.items()):  # now that the orders are known
+            self.carry(action, gig_id)
         for event in history:
             self.admission.observe(event)
+            self.offers.observe(event)
+        self.offers.open -= self.booked
         for request in snapshot["openRequests"]:
             self.quote(request)
 
     def handle(self, event: DeskEvent) -> None:
         self.admission.observe(event)
+        self.offers.observe(event)
         self.pricing.observe(event)
         if event["kind"] == "price_request":
             self.quote(event["request"])
@@ -147,9 +156,10 @@ class Desk:
             self.repost(event["gigId"])
         elif event["kind"] == "deadline_close":  # it comes again when a driver drops the car after the first warning
             self.raise_fees(event["orderId"])
-        elif event["kind"] == "gig_booked":
+        elif event["kind"] == "gig_booked" or event["kind"] == "offer_answered" and event["answer"] == "accepted":
             self.booked.add(event["gigId"])
-            self.booked_fees[event["gigId"]] = event["feeCents"]
+            if "feeCents" in event:  # an accepted offer does not say its fee
+                self.booked_fees[event["gigId"]] = event["feeCents"]
         elif event["kind"] == "gig_dropped":
             self.booked.discard(event["gigId"])
             self.dropped(event["gigId"])
@@ -248,9 +258,10 @@ class Desk:
         self.send_post_of(order_id)
         for gig_id in self.gigs_of(order_id):
             if gig_id not in self.booked:
-                self.outbox.append(
-                    {"type": "reprice", "gigId": gig_id, "schedule": self.fees_for(order, pickups(self.posts[gig_id]))}
-                )
+                schedule = self.fees_for(order, pickups(self.posts[gig_id]))
+                self.outbox.append({"type": "reprice", "gigId": gig_id, "schedule": schedule})
+                self.offers.reschedule(gig_id, schedule)
+                self.offers.rescue(gig_id)
 
     def fees_for(self, order: Order, cars: int) -> list[FeeStep]:
         """The fees for some of the order's cars from now, planned back from its last pickup."""
@@ -265,6 +276,7 @@ class Desk:
         schedule = self.fees.after_drop(order, self.requests[order["id"]], pickups(action), self.now, self.level, fee)
         if schedule:
             self.outbox.append({"type": "reprice", "gigId": gig_id, "schedule": schedule})
+            self.offers.reschedule(gig_id, schedule)
 
     def retry(self, order_id: str, leg: int, reason: str) -> None:
         if order_id in self.orders:
@@ -304,6 +316,9 @@ class Desk:
         for stop in action["stops"]:
             self.leg_gigs.setdefault(stop["orderId"], {})[stop["leg"]] = gig_id
         self.posts[gig_id] = action
+        order = self.orders.get(action["stops"][0]["orderId"])
+        if order is not None:
+            self.offers.register(gig_id, gig_info(order, action, self.admission.minutes), action["schedule"])
 
     def withdraw(self, order_id: str) -> bool:
         """Takes an order's gigs out of the drivers' app. False, and nothing withdrawn, when a driver holds one of them."""
@@ -313,6 +328,8 @@ class Desk:
             return False
         self.leg_gigs.pop(order_id, None)
         self.outbox += [{"type": "withdraw", "gigId": gig_id} for gig_id in gigs]
+        for gig_id in gigs:
+            self.offers.forget(gig_id)
         return True
 
     def send_post_of(self, order_id: str) -> None:
@@ -327,10 +344,27 @@ class Desk:
             self.read_results(actions, self.world.act(actions))
 
     def read_results(self, actions: list[Action], results: list[ActionResult]) -> None:
-        """Remembers the gig of each post that the world accepted."""
+        """Remembers the gig of each post that the world accepted, and counts the offers it refused."""
         for action, result in zip(actions, results):
             if action["type"] == "post" and result["ok"] is True:
                 self.carry(action, result["id"])
+            elif action["type"] == "offer" and result["ok"] is False:
+                self.offers.refused(result["reason"])
+
+
+def gig_info(order: Order, action: PostAction, minutes: dict[tuple[str, str], int]) -> GigInfo:
+    """What offers need to know of a gig: where it starts and ends, by when, the drive, and who may take it."""
+    stops = action["stops"]
+    places = [order["legs"][s["leg"]]["pickup" if s["kind"] == "pickup" else "delivery"]["placeId"] for s in stops]
+    drive = sum(minutes.get((a, b), 0) for a, b in pairwise(places))
+    return GigInfo(
+        pickup=places[0],
+        pickup_until=order["lastPickupAt"],
+        end=places[-1],
+        drive=drive,
+        manual=action["audience"]["manualLicence"],
+        experienced=action["audience"]["experienced"],
+    )
 
 
 def retry_from(order: Order, request: PriceRequest, leg: int, now: int) -> int:
@@ -413,15 +447,17 @@ def play_practice(world: World, level: int) -> Counter[str]:
         # One request a step: the advance applies the outbox, then moves the clock.
         actions, desk.outbox = desk.outbox, []
         step = world.advance(until=until, max=min(ends_at, midnight, poll_at), actions=actions)
+        desk.now = step["now"]  # what the results add to the outbox goes out at this minute
         desk.read_results(actions, step["results"])
-        desk.now = step["now"]
         woke = next((e["kind"] for e in step["events"] if e["kind"] in until and e["at"] == desk.now), None)
         stops[woke or ("end" if desk.now >= ends_at else "midnight" if desk.now == midnight else "poll")] += 1
         busy = any(event["kind"] == "price_request" for event in step["events"])
         for event in step["events"]:
             desk.handle(event)
+        desk.outbox += desk.offers.due(desk.now)  # once all the step's events are read
         if desk.now // DAY > day:
             report(WEEKDAYS[day % 7], world.score())
+    print(desk.offers.summary(), flush=True)
     return stops
 
 
@@ -441,6 +477,7 @@ def play_final(world: World) -> None:
         desk.now = world.client.final()["now"] if event is None else max(desk.now, event["at"])
         if event is not None:
             desk.handle(event)
+        desk.outbox += desk.offers.due(desk.now)
         desk.send()
         if desk.now // DAY > day:
             report(WEEKDAYS[day % 7], world.score())
