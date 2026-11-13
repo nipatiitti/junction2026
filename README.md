@@ -10,21 +10,22 @@ Short versions of the Spread challenge documents (rules, handbook, API, judging)
 
 ## Stack
 
-The dispatch system is Python 3.15, run with uv: `dispatch.py`, with tests in `tests/`. See
-[Spread challenge](#spread-challenge) for its commands.
+The dispatch system is Python 3.15, run with uv: `dispatch.py`. See [Spread challenge](#spread-challenge) for its
+commands.
 
 The repository is also a plain TypeScript project on Node 22.18+ (no build step: Node runs `.ts` files directly), with
-pnpm, Biome, and `node --test`. Our TypeScript dispatch system is `src/dispatch.ts`; see
-[Play a practice week in TypeScript](#play-a-practice-week-in-typescript). Tests sit next to the code as `*.test.ts`.
+pnpm and Biome. Our TypeScript dispatch system is `src/dispatch.ts`; see
+[Play a practice week in TypeScript](#play-a-practice-week-in-typescript).
 
 ```sh
 pnpm install
 pnpm check   # type check
 pnpm lint    # lint and format check, no writes
 pnpm format  # format, organise imports and apply safe lint fixes
-pnpm test    # all tests
-node --test src/path/to/file.test.ts   # one test file
 ```
+
+We do not write or run tests (see [`AGENTS.md`](AGENTS.md)): check changes by reading them, with lint, format and type
+check, and by comparing versions on practice weeks.
 
 In VS Code, install the recommended Biome extension to format on save.
 
@@ -80,11 +81,11 @@ week stays the same. On the level 8 starter week in `data/` (`smoke-1`), this cu
 about 1,390.
 
 - `dispatch.py` is our system. It starts as a copy of the organisers' starter, formatted with ruff.
-- `strategies/` holds the parts of the system, each with its tests and notes. `strategies/admission/` decides
+- `strategies/` holds the parts of the system, each with its notes. `strategies/admission/` decides
   which price requests to take and which option to quote.
 - `vendor/` holds the organisers' Python kit of 13 November as a wheel. uv installs it as the package `spread`: the
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
-- `tests/` holds fast tests that need no network: `uv run pytest`.
+- `tests/` holds older tests, kept as they are but no longer run: we do not write or run tests.
 
 ### Play a practice week in TypeScript
 
