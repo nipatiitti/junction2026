@@ -542,3 +542,45 @@ the first answers of a world that won nothing (no trust, no competitor reaction)
 sample; booking rates use only weeks with an action log, and their fee bands are not an experiment (a gig still
 open at a high fee is a hard one); supply is an average over worlds, which level 8 reshuffles; the oracle's bars
 are upper bounds, each under its stated assumptions, not forecasts.
+
+# Offline replay
+
+Runs every strategy of `strategies/` on the saved weeks, with no server and no key, and charts the results (#119):
+
+```sh
+uv run python -m analysis.replay              # writes out/replay.html and out/replay.csv, serves the page on http://localhost:8001/
+uv run python -m analysis.replay --no-serve   # only writes the files
+uv run python -m analysis.replay out/scrape/explore-win --jobs 2 --port 8123 --out out/replay.html --csv out/replay.csv
+```
+
+Without folders it reads every week under `out/scrape` (the team's release, see the main README) and `data/scrape`
+(the committed weeks and our saved runs). It replays each played week that has a reveal, once per world: passive
+weeks have no orders and are skipped. It needs no database. The weeks run in parallel (`--jobs`, default the number
+of CPUs); the 106 played weeks of the release and the repository take about 100 s. It plays nothing online.
+
+There is no offline model of the world, so it replays the weeks: each week's recorded events go to each strategy in
+order, as `dispatch.py` feeds them, and each decision is scored against what the week shows really happened. Where
+the week cannot tell how a different decision would have ended, it counts as unknown, never as a guess. The
+strategies are those of the checkout, so a branch can be compared with `main` by running it on both.
+
+| Strategy  | What runs                                                                                                                                                                               | What it is scored on                                                                                                                                                                                            |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| notes     | `read_note` on every won car's note                                                                                                                                                     | each fact against the reveal's truth, with the scoring of `strategies/notes/check.py`, next to the starter's reader; the chart shows the facts a note changes                                                   |
+| admission | `Desk.quote` of `dispatch.py` on every request: admission, the price it weighs, and the decline of a note whose deadline has passed. The desk holds only the orders it would have taken | the week's won orders split by whether the replay takes them: on-time share (as the score counts it, from the ledger's late refunds and penalties) and margin per order, from what happened to them in the week |
+| pricing   | the prices of the same `Desk.quote`                                                                                                                                                     | each quote against the week's own for that request: at or under a price that won, it wins; at or over a price that lost, it loses; else unknown. Pricing learns only the answers that are known                 |
+| fees      | `FeePlanner.schedule` for each gig of one order, from the minute the week posted it                                                                                                     | the fee its first driver booked at: where the plan reaches that fee by the minute they booked, it finds that driver too, and pays its first step at or over it; where it stays below, unknown                   |
+| bundling  | the week's won orders through the `Bundler` pool, with `Desk.unit` of `dispatch.py`                                                                                                     | the share of orders in a chain, the driver-hours the chains save and the typical fees they save; against the share the week itself posted in gigs with several orders                                           |
+| offers    | `Offers` with each gig the week posted, asked for offers at each post, delivery, drop and deadline warning and at least hourly                                                          | the week's bookings: the share whose driver got the replay's offer for that gig before booking it, and the share of offers that went to the driver who took the gig                                             |
+
+The page has a scoreboard (one row per experiment, one headline number per strategy), then two charts per strategy:
+one dot per week for the replay (filled) and, where there is one, the week's own number (ring), with the replay's
+mean as a tick. The title of each chart is its takeaway, computed from the data; "Method" under it says what it
+counts. `out/replay.csv` has one row per week, strategy and number (`experiment, level, seed, world, policy,
+strategy, metric, value`). A strategy that fails on a week shows its error in a last section and leaves the others
+to run.
+
+Limits: the week's other decisions stay as they were. The orders admission declines still took drivers in the week,
+so the kept orders' on-time share and margin are what they were with that competition. Pricing is scored at the
+week's prices, so a replayed quote dearer than the week's winning one is unknown, and starter weeks (list price,
+every option) can judge few quotes. Fees and offers get no answers from drivers, so a plan below what a driver took,
+or an offer to a driver who did not book, is unknown.
