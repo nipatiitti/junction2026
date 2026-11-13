@@ -12,6 +12,8 @@ How to carry out that workflow with Claude Code's tools:
   `node --test` or `pnpm test`), even where Claude Code's defaults would.
 
 - Issues and pull requests go through the GitHub tools.
+- Mark the issue as started with `issue_write`, `method: "update"` and the new
+  `title` (`In progress: <original title>`), before you create the branch.
 - Open the PR with `create_pull_request` and `draft: true`. When the feature
   and its docs are done, move it to open with `update_pull_request` and
   `draft: false`, then check with `pull_request_read` that it is no longer a
