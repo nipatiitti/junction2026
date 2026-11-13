@@ -29,7 +29,8 @@ POLICY = "ladder"  # the policy of the saved weeks, so the database tells them f
 SLOT_WAIT, SLOT_TRIES = 15, 120  # seconds between tries for a free practice slot, and how many tries: 30 minutes
 POLL_EVERY = 0.2  # seconds between two reads of the final's events while none come: 5 of its 50 reads a second
 CLOCK_EVERY = 1.0  # seconds without an event before the desk reads the final's clock
-JOURNALS = Path(__file__).resolve().parent.parent / "out"  # where the final's desk notes the requests it declined
+READ_TRIES = 60  # failed reads of the events in a row before the desk rebuilds from the world
+JOURNALS = Path(__file__).resolve().parent.parent / "out"  # where the final's desk notes its real quotes
 
 
 def play_practice(world: World, level: int, rung: int) -> Counter[str]:
@@ -69,15 +70,26 @@ def play_final(world: World, rung: int) -> None:
     if snapshot["now"] >= snapshot["endsAt"]:
         return
     level = next((w["level"] for w in world.client.worlds() if w["worldId"] == world.id), 8)
-    JOURNALS.mkdir(parents=True, exist_ok=True)
-    desk = Desk(world, level, snapshot["now"], rung, journal=JOURNALS / f"ladder-{world.id}.declined")
+    try:
+        JOURNALS.mkdir(parents=True, exist_ok=True)
+        journal: Path | None = JOURNALS / f"ladder-{world.id}.quoted"
+    except OSError:  # no journal: a restart then learns the price from the start of the level
+        journal = None
+    desk = Desk(world, level, snapshot["now"], rung, journal=journal)
     desk.rejoin(snapshot, history)
     desk.tick()
     desk.send()
-    last, quiet = (history[-1]["seq"] if history else -1), time.monotonic()
+    last, quiet, failures = (history[-1]["seq"] if history else -1), time.monotonic(), 0
     while desk.now < snapshot["endsAt"]:
         day = desk.now // DAY
-        events = world.events(after=last)  # one page: without a pause after it, the next page comes at once
+        try:
+            events = world.events(after=last)  # one page: without a pause after it, the next page comes at once
+            failures = 0
+        except Unreachable:  # a lost answer, or a server that restarts: read again soon, keep the books
+            failures += 1
+            if failures >= READ_TRIES:
+                raise
+            events = []
         for event in events:
             desk.handle(event)
         if events:
@@ -180,6 +192,7 @@ def main() -> None:
                     if world is None:
                         world = next_final(client)
                         print(f"Final world {world.id}, rung {args.rung}.", flush=True)
+                    if recorder is None:
                         level = next((w["level"] for w in client.worlds() if w["worldId"] == world.id), 8)
                         recorder = Recorder(world, level, None, "final", policy=POLICY)
                     play_final(world, args.rung)

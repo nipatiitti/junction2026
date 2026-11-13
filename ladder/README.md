@@ -44,8 +44,11 @@ practice world: a second client moves the world's clock as the final's clock run
 fast, takes about 12 minutes), and `--restart-at <minute>` stops the desk at that world minute and starts a new one,
 which must rebuild its books from the world, as after a crash in the final. In the final, `--final` rebuilds the
 desk after any error and reads the events on from the last one the world has, so an event that broke a desk is not
-read again. The desk notes each request it declines in `out/ladder-<world id>.declined`: a desk that restarts learns
-its price again from the outcomes of our real quotes only, since a decline always loses.
+read again, and a failed read of the events is tried again at once rather than rebuilding. The desk notes each real
+quote that the world accepts in `out/ladder-<world id>.quoted`: a desk that restarts learns its price again from
+the outcomes of those quotes only, since a decline, or a request that came while no desk ran, always loses. It
+also replays the dealers' trust, the on-time estimate, snow forecasts and what failed visits taught. The learned
+opening fees start again from their priors.
 
 ```sh
 uv run ladder/rehearse.py --seed spread-1 --restart-at 3600   # a restart on Wednesday at 12:00
