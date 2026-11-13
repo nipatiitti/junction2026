@@ -2,6 +2,9 @@
 
 import random
 
+import pytest
+
+import scrape
 from dispatch import Desk
 from scrape import ExploreDesk, ProxyClient, bypasses_proxy
 
@@ -64,3 +67,26 @@ def test_client_tunnels_through_https_proxy_unless_no_proxy_names_the_host(monke
     monkeypatch.delenv("HTTPS_PROXY")
     monkeypatch.delenv("https_proxy", raising=False)
     assert ProxyClient(url="https://spread.example", key="k").proxy is None
+
+
+class EndlessWorld:
+    """A world whose week never ends; it counts the advances it gets."""
+
+    def __init__(self):
+        self.advances = 0
+
+    def snapshot(self):
+        return {"endsAt": 10**9}
+
+    def advance(self, **_):
+        self.advances += 1
+        return {"now": self.advances, "events": [], "results": []}
+
+
+def test_a_stopped_scrape_stops_the_week_in_play_at_its_next_request(monkeypatch):
+    world = EndlessWorld()
+    desk = Desk(world, 8, 0)
+    monkeypatch.setattr(scrape.STOP, "is_set", lambda: world.advances >= 3)
+    with pytest.raises(scrape.Stopped):
+        scrape.play_desk(world, desk)
+    assert world.advances == 3
