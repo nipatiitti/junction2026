@@ -35,7 +35,8 @@ grows, one order at a time, by the order (ready or still waiting) that saves the
   (`buffer`), and no wait of more than 2 hours for the next car (`max_wait`);
 - the order has the same audience as the chain's first order (experienced driver, manual licence), so a bundle never
   shrinks the drivers who could take a car;
-- the saving is at least 30 driver-minutes (`min_saving`).
+- the saving is at least 10 driver-minutes (`min_saving`). Drivers live about 25 minutes from most places at level 8,
+  so a return leg saves about 12 minutes by this count, and 15 would rule out nearly every bundle.
 
 The cost of a car alone is its drive, plus half a minute for each minute of the trip out (from where the nearest ten
 drivers live, `strategies/fees` `Market.travel_minutes`) and of the trip home from its delivery place: time on public

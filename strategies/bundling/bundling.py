@@ -30,7 +30,7 @@ class Params:
     max_cars: int = 3  # cars in one gig
     max_drive: int = 8 * HOUR  # planned road minutes of a bundle: well under the 12-hour rule, as drivers cap their day
     transit: float = 0.5  # a minute on public transport costs a driver this share of a minute at the wheel
-    min_saving: float = 30.0  # a car joins a chain only when it saves at least this many driver-minutes
+    min_saving: float = 10.0  # a car joins a chain only when it saves at least this many driver-minutes
     max_wait: int = 2 * HOUR  # longest wait in a chain for the next car's window to open
     lead: int = 2 * HOUR  # a driver needs this long to see the gig and reach the first pickup
     slow: float = 1.15  # real drives take longer than the road minutes: the timing check stretches them
