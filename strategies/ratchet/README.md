@@ -135,4 +135,33 @@ of 10%, the defaults win about 57% of the quotes at 98% of the best profit per r
 
 ## Bench
 
-To come.
+Level 8, seeds `spread-1` to `spread-5`, the defaults above against the root `dispatch.py` of 13 November (main at
+`6b4f7ce`). Every week is saved in `data/scrape/runs/L8/`.
+
+| Seed      | Ratchet margin | Orders | On time |    Root margin | Orders | On time |
+| --------- | -------------: | -----: | ------: | -------------: | -----: | ------: |
+| spread-1  |      €4,454.88 |    425 |   88.5% |      €7,738.40 |    379 |   97.9% |
+| spread-2  |      €4,226.69 |    351 |   94.6% |      €4,577.46 |    360 |   98.1% |
+| spread-3  |       −€514.51 |    255 |   92.5% |      €2,760.04 |    300 |   99.0% |
+| spread-4  |      €1,199.75 |    312 |   90.7% |      €6,707.48 |    360 |   95.6% |
+| spread-5  |      €2,210.29 |    353 |   91.5% |      €4,745.99 |    326 |   96.3% |
+| **Total** | **€11,577.10** |  1,696 |   91.4% | **€26,529.37** |  1,725 |   97.3% |
+
+With these defaults the ratchet system makes less than the root system on every seed, and `spread-1` is not ranked
+(under 90% on time). What the weeks show:
+
+- **Flat fees overpay the easy gigs and underpay the hard ones.** Our opening fee is 1.06 to 1.36 times the typical
+  fee (median 1.12), and 97% of our gigs book at it. The root system opens at the typical fee, books 66% of its gigs
+  there, and raises the rest to 1.2 to 1.7 times before `lastPickupAt`. Driver fees per delivered car are €78 to €103
+  against €64 to €84.
+- **Waiting until the car is late makes more cars late.** 6.9% of our gigs were booked only after `lastPickupAt`
+  (root 1.5%), 6% to 12% of our orders got a deadline warning (root 2% to 4%), and late refunds were €613 to €1,766 a
+  week (root €32 to €572). Late orders also halve the dealers' trust.
+- **The maximum is low for the dearer worlds.** The root system won at 1.51 times the list price on `spread-1` and
+  1.42 on `spread-4`; capped at 1.39, we won at 1.41 and 1.37.
+- **A change of destination keeps the fee of the old trip.** On `spread-4`, order `R00081` (Turku to Raisio, 8 road
+  minutes) was sent to Vaasa. Its fee stayed priced from the request's typical fee of €12.03 and reached only twice the
+  price (€59.08), so no driver took it and it was never delivered. The root system has the same gap (#94).
+
+Next: plan fees from the trip after a change of destination, then bench the variables that the weeks point at: a
+higher `max_markup` (0.55), raises from the deadline warning (`LATE_FROM` −180) and a cheaper opening fee.
