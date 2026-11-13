@@ -752,7 +752,7 @@ def main() -> None:
                         world = next_final(client)
                         print(f"Final world {world.id}.", flush=True)
                         level = next((w["level"] for w in client.worlds() if w["worldId"] == world.id), 8)
-                        recorder = Recorder(world, level, None, "final")
+                        recorder = Recorder(world, level, None, "final", policy=record.POLICY)
                     play_final(world)
                     score = world.score()
                     break
@@ -770,7 +770,9 @@ def main() -> None:
             )
             print(f"{name}, level {args.level}. {stops}", flush=True)
             try:
-                recorder = Recorder(world, args.level, args.seed, "board" if args.board else "practice")
+                recorder = Recorder(
+                    world, args.level, args.seed, "board" if args.board else "practice", policy=record.POLICY
+                )
                 stop_reasons = play_practice(world, args.level)
             except BaseException as error:  # a world left behind holds one of the team's eight practice slots
                 try:
