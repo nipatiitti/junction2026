@@ -152,7 +152,6 @@ class Desk:
             self.booked.discard(event["gigId"])
         elif event["kind"] == "delivered":
             self.delivered(event["orderId"], event["leg"], event["at"])
-            self.outbox += self.offers.chain_offers(self.now)  # a driver is free near some pickups
 
     def delivered(self, order_id: str, leg: int, at: int) -> None:
         self.leg_gigs.get(order_id, {}).pop(leg, None)
@@ -215,7 +214,7 @@ class Desk:
                 schedule = self.fees_for(order, pickups(self.posts[gig_id]))
                 self.outbox.append({"type": "reprice", "gigId": gig_id, "schedule": schedule})
                 self.offers.reschedule(gig_id, schedule)
-                self.outbox += self.offers.offers(gig_id, self.now, rescue=True)
+                self.offers.rescue(gig_id)
 
     def fees_for(self, order: Order, cars: int) -> list[FeeStep]:
         """The fees for some of the order's cars from now: rising, or steep once its deadline warning has come."""
@@ -287,11 +286,10 @@ class Desk:
             self.read_results(actions, self.world.act(actions))
 
     def read_results(self, actions: list[Action], results: list[ActionResult]) -> None:
-        """Remembers the gig of each post that the world accepted, and offers it to drivers finishing nearby."""
+        """Remembers the gig of each post that the world accepted, and counts the offers it refused."""
         for action, result in zip(actions, results):
             if action["type"] == "post" and result["ok"] is True:
                 self.carry(action, result["id"])
-                self.outbox += self.offers.offers(result["id"], self.now)
             elif action["type"] == "offer" and result["ok"] is False:
                 self.offers.refused(result["reason"])
 
@@ -457,6 +455,7 @@ def play_practice(world: World, level: int) -> Counter[str]:
         busy = any(event["kind"] == "price_request" for event in step["events"])
         for event in step["events"]:
             desk.handle(event)
+        desk.outbox += desk.offers.due(desk.now)  # once all the step's events are read
         if desk.now // DAY > day:
             report(WEEKDAYS[day % 7], world.score())
     print(desk.offers.summary(), flush=True)
@@ -479,6 +478,7 @@ def play_final(world: World) -> None:
         desk.now = world.client.final()["now"] if event is None else max(desk.now, event["at"])
         if event is not None:
             desk.handle(event)
+        desk.outbox += desk.offers.due(desk.now)
         desk.send()
         if desk.now // DAY > day:
             report(WEEKDAYS[day % 7], world.score())
