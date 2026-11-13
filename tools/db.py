@@ -1,12 +1,12 @@
 """Loads weeks saved by scrape.py into one SQLite database, for queries with SQL. Needs no network.
 
-    uv run db.py                                 # the team's committed weeks in data/scrape into out/spread.sqlite
-    uv run db.py out/scrape                      # every saved week under out/scrape into out/spread.sqlite
-    uv run db.py out/scrape out/probe            # the saved weeks and the probe rows (quote, fee, shape)
+    uv run python -m tools.db                                 # the team's committed weeks in data/scrape into out/spread.sqlite
+    uv run python -m tools.db out/scrape                      # every saved week under out/scrape into out/spread.sqlite
+    uv run python -m tools.db out/scrape out/probe            # the saved weeks and the probe rows (quote, fee, shape)
     sqlite3 out/spread.sqlite "select kind, count(*) from events group by kind"
 
 A week already in the database is skipped. A probe file is loaded again when its size or mtime has changed.
-README.md lists the tables.
+tools/README.md lists the tables.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import re
 import sqlite3
 from pathlib import Path
 
-from stats import OFFLINE_DATA, Week, find_weeks, load_map, load_week
+from tools.stats import OFFLINE_DATA, Week, find_weeks, load_map, load_week
 
 SCHEMA = """
 create table if not exists weeks (

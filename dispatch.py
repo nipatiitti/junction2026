@@ -31,8 +31,6 @@ from spread.types import (
     TimeWindow,
 )
 
-from record import Recorder
-from spread_proxy import ProxyClient
 from strategies.admission import Admission, Held
 from strategies.bundling import Bundler, Unit
 from strategies.bundling import audience as bundle_audience
@@ -44,6 +42,8 @@ from strategies.notes import NO_FACTS, NoteFacts, NoteReader, Snow, delivery_win
 from strategies.offers import GigInfo, Offers
 from strategies.pricing import PricingModel
 from strategies.strategy import Strategy
+from tools.record import Recorder
+from tools.spread_proxy import ProxyClient
 
 HOUR, DAY = 60, 24 * 60
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]

@@ -5,7 +5,7 @@
 
 README.md in this folder has the design and the options. The bench runs this file from its own folder
 (`python ladder/play.py --level 8 --seed spread-1`), so it puts the repository root on the import path first:
-record.py, spread_proxy.py and the package `ladder` live there.
+the packages `tools` and `ladder` live there.
 """
 
 import sys
