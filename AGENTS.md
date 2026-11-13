@@ -113,7 +113,6 @@ running tests.
 - Do not write, add or change tests, and do not ask for them in new issues.
 - Do not run tests: no `pytest`, `node --test`, `pnpm test` or any other test
   runner.
-- Leave existing tests and the `tests/` folder as they are.
 - Check your work by reading it, and with lint, format and type check from the
   Commands list.
 
