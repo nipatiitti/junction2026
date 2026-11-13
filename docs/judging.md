@@ -5,26 +5,26 @@ Helsinki. If Junction's own schedule differs, Junction's is right.
 
 ## Schedule (Junction 2026, 13–15 November)
 
-| When | What |
-| --- | --- |
-| Fri 18:00 | Opening ceremony |
-| Fri 19:30 | Hacking starts; first ranking round opens |
-| Fri 23:59 | Preliminary submission (Junction platform) |
-| Sat 00:00, 09:00, 12:00, 15:00, 18:00, 21:00 | Ranking rounds open |
-| Sat 12:00 | Submissions open |
-| Sat 14:00, 20:00 | Test finals (~19 min each); registration paused from 13:45 / 19:45 |
-| Sun 00:00, 03:00, 06:00 | Last ranking rounds |
-| Sun 07:30 | Final is set; **registration closes** |
-| Sun 08:00 | **Final** (~34 min, ends ~08:35) |
-| Sun 10:00 | Final submissions close |
-| Sun 10:30–14:00 | Jury meets the top 10 |
-| Sun 14:00 | Closing ceremony; winners named at 15:10 |
+| When                                         | What                                                               |
+| -------------------------------------------- | ------------------------------------------------------------------ |
+| Fri 18:00                                    | Opening ceremony                                                   |
+| Fri 19:30                                    | Hacking starts; first ranking round opens                          |
+| Fri 23:59                                    | Preliminary submission (Junction platform)                         |
+| Sat 00:00, 09:00, 12:00, 15:00, 18:00, 21:00 | Ranking rounds open                                                |
+| Sat 12:00                                    | Submissions open                                                   |
+| Sat 14:00, 20:00                             | Test finals (~19 min each); registration paused from 13:45 / 19:45 |
+| Sun 00:00, 03:00, 06:00                      | Last ranking rounds                                                |
+| Sun 07:30                                    | Final is set; **registration closes**                              |
+| Sun 08:00                                    | **Final** (~34 min, ends ~08:35)                                   |
+| Sun 10:00                                    | Final submissions close                                            |
+| Sun 10:30–14:00                              | Jury meets the top 10                                              |
+| Sun 14:00                                    | Closing ceremony; winners named at 15:10                           |
 
 ## Ranking rounds
 
 - Same 5 secret weeks per level for every team. Ranked in a round = all 5
   played, each ≥ 90% on time; margin = sum of the 5.
-- House teams: *House starter* (the kit starter) and *House best* (organisers'
+- House teams: _House starter_ (the kit starter) and _House best_ (organisers'
   best system) play every round.
 - Rounds **do not count** for the final; they show where you stand.
 
