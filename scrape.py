@@ -31,7 +31,9 @@ from urllib.parse import urlsplit
 from spread.client import Client, SpreadError, Unreachable, World
 from spread.types import Order, PriceRequest
 
+from db import add_week, connect, load_folders
 from dispatch import WAKE_ON, Desk
+from stats import load_week
 
 POLICIES = ("passive", "starter", "explore")
 PRACTICE_SLOTS = 8  # a team holds at most 8 practice worlds that have not ended
@@ -277,6 +279,10 @@ def main(argv: list[str] | None = None) -> None:
         "--quote-range", type=parse_range, default=(0.7, 1.8), help="explore: quote / list price, low,high"
     )
     parser.add_argument("--fee-range", type=parse_range, default=(0.6, 1.6), help="explore: fee / starter fee")
+    parser.add_argument(
+        "--db", type=Path, default=Path("out/spread.sqlite"), help="SQLite database to add each week to (db.py)"
+    )
+    parser.add_argument("--no-db", action="store_true", help="save the week folders only")
     args = parser.parse_args(argv)
     if args.workers > PRACTICE_SLOTS - args.keep_free:
         parser.error(f"--workers can be at most {PRACTICE_SLOTS} - --keep-free")
@@ -289,6 +295,9 @@ def main(argv: list[str] | None = None) -> None:
             write_json(out / "map.json", first.map())
     except SpreadError as error:
         sys.exit(f"spread: {error}")
+    database = None if args.no_db else connect(args.db)
+    if database is not None:
+        load_folders(database, [out])  # the map, and weeks saved before without the database
     slots, local = Slots(args.keep_free), threading.local()
 
     def job(level: int, seed: str) -> Callable[[], dict | None]:
@@ -317,6 +326,8 @@ def main(argv: list[str] | None = None) -> None:
                 if meta is None:
                     print(f"L{level} {seed}: saved before, skipped", flush=True)
                     continue
+                if database is not None:
+                    add_week(database, load_week(out / f"L{level}" / safe_name(seed)), str(out))
                 score = meta["score"]
                 print(
                     f"L{level} {seed}: {meta['events']:>6} events, {meta['requests']:>5} requests, "
