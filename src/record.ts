@@ -1,6 +1,6 @@
 /** Saves every week that src/dispatch.ts plays on the server as a scraped week, like record.py does for dispatch.py:
- * the week's folder under data/scrape/runs/L<level>/<seed>/<world id>/, in scrape.py's format. `uv run db.py` then
- * adds it to the database out/spread.sqlite. README.md says what is saved.
+ * the week's folder under data/scrape/runs/L<level>/<seed>/<world id>/, in scrape.py's format. `uv run python -m tools.db` then
+ * adds it to the database out/spread.sqlite. tools/README.md says what is saved.
  *
  * SPREAD_RUNS_DIR changes where the weeks go, and SPREAD_RECORD=0 saves nothing. */
 import { execFileSync } from 'node:child_process'
@@ -149,7 +149,7 @@ export class Recorder {
       console.error(`Could not save the week to ${shown(target)}: ${(error as Error).message ?? error}`)
       return
     }
-    console.log(`Saved the week to ${shown(target)}. uv run db.py adds it to out/spread.sqlite.`)
+    console.log(`Saved the week to ${shown(target)}. uv run python -m tools.db adds it to out/spread.sqlite.`)
   }
 
   /** The map, once for every run, as scrape.py saves it next to its weeks. Runs that save at the same time each
