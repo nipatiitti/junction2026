@@ -6,7 +6,7 @@ requires-python = ">=3.15"
 dependencies = ["spread"]
 
 [dependency-groups]
-dev = ["pytest", "ruff"]
+dev = ["ruff"]
 
 [tool.uv]
 package = false
@@ -14,10 +14,6 @@ package = false
 [tool.uv.sources]
 # The organisers' kit: the client, its types and the unchanged starter. See README.md.
 spread = { path = "vendor/spread-0.1.0-py3-none-any.whl" }
-
-[tool.pytest.ini_options]
-testpaths = ["tests", "strategies"]
-pythonpath = ["."]
 
 [tool.ruff]
 line-length = 120

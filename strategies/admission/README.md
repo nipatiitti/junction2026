@@ -22,8 +22,6 @@ feeds every event to `Admission.observe`, and asks `Admission.assess(request, he
 A declined request gets a quote at ten times the list price, which loses at no cost. Up to level 3 every quote
 wins, so there a declined request gets no quote.
 
-The scoring needs no network, so it is tested offline on a hand-made map and roster.
-
 ## The score
 
 For a request whose first car waits at place `P` on day `D`:
