@@ -59,8 +59,8 @@ uv run ladder/rehearse.py --seed spread-1 --restart-at 3600   # a restart on Wed
 |    2 | Notes                 | The note reader (`strategies/notes`) sets the pickup and delivery windows, the licence and the plates               |
 |    3 | Special cars          | Premium cars (experienced drivers only), electric cars that need a charging stop, private addresses                 |
 |    4 | Rides ready today     | A later option only; the gig is posted for the next business morning                                                |
-|    5 | Trade-ins             | Both cars in one gig when the drive fits the 12-hour rule, else one gig each                                        |
-|    6 | Long and remote rides | A drive over 4 hours (up to 8), or few drivers near the pickup or the delivery; quoted only with a day to search    |
+|    5 | Long and remote rides | A drive over 4 hours (up to 8), or few drivers near the pickup or the delivery; quoted only with a day to search    |
+|    6 | Trade-ins             | Both cars in one gig when the drive fits the 12-hour rule (from level 3), else one gig each                         |
 
 A ride's rung is the hardest thing it asks for (`rides.py`). `--rung n` takes every ride of rungs 1 to n.
 
@@ -148,6 +148,23 @@ opening fee of 1.0, rungs 3 and 4 at `1b7c28f`):
 A week takes about 300 requests at rungs 1 to 3, and 330 at rung 4. In the rung 4 week on `spread-1`, 304 of the 354
 gigs booked at their opening fee, and the fees paid were 1.00 times the typical fee (median), against prices of
 1.63 times it.
+
+**Above rung 4 the ladder stops paying.** At commit `0c39f83`, with long and remote rides and trade-ins on top (the
+rung 6 of the time, before trade-ins moved to the top):
+
+| Seed       |             Rung 4 | + long, remote, trade-ins |
+| ---------- | -----------------: | ------------------------: |
+| `spread-1` |  €9,325.82 (99.1%) |        €11,167.34 (97.9%) |
+| `spread-2` |  €6,748.72 (98.4%) |         €8,439.37 (95.2%) |
+| `spread-3` |  €4,358.11 (99.3%) |         €2,988.37 (94.4%) |
+| `spread-4` |  €8,231.57 (98.7%) |         €9,269.95 (93.1%) |
+| `spread-5` |  €5,467.06 (97.3%) |         €3,802.33 (90.7%) |
+| Total      | €34,131.28 (98.6%) |        €35,667.36 (94.4%) |
+
+The harder rides add 4.5% to the margin and take the on-time share down to 90.7% on one week, a step from the
+delivery minimum. On `spread-1` and `spread-2`, long rides quoted with a day to search were late 2 times in 63, but
+trade-ins 7 times in 20; and on `spread-3` the late cars that were neither long rides nor trade-ins (remote rides
+among them) rose from 2 to 14. So trade-ins moved to the top rung, and the default stays at rung 4.
 
 The first version on `spread-1`, rung 1: +€2,856.27, 93 orders, 100% on time, 281 requests. All 93 gigs booked, 88 at
 the opening fee, half of them within a minute. Dealers took `same_day` on 74 of them.
