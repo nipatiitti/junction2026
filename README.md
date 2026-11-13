@@ -93,9 +93,9 @@ about 1,390.
 
 ### Every online run is saved
 
-Each week that `dispatch.py` plays on the server is saved like a scraped week, so every online run adds to the data
-that we analyse offline. This covers practice weeks, the bench's weeks, ranking runs (`--board`) and finals (`--final`).
-When the week ends, `record.py` saves it:
+Each week that `dispatch.py` or the TypeScript system `src/dispatch.ts` plays on the server is saved like a scraped
+week, so every online run adds to the data that we analyse offline. This covers practice weeks, the bench's weeks,
+ranking runs (`--board`) and finals (`--final`). When a week of `dispatch.py` ends, `record.py` saves it:
 
 - its folder `data/scrape/runs/L<level>/<seed>/<world id>/`, in the format of `scrape.py` (below), with policy
   `dispatch`. `meta.json` also says `kind` (`practice`, `board` or `final`), `version` (the git commit, `-dirty` with
@@ -109,6 +109,9 @@ PR: each world has its own folder, so they never conflict. In a new checkout, `u
 from every committed week, these runs included. `SPREAD_RUNS_DIR` and `SPREAD_DB` change where the week goes, and
 `SPREAD_RECORD=0` saves nothing. The bench sets the first two, so a git version that it plays in a temporary worktree
 saves into this checkout.
+
+`pnpm dispatch` saves its weeks with `src/record.ts`, in the same folder format and with the same `SPREAD_RUNS_DIR`
+and `SPREAD_RECORD=0`. It writes only the folder: run `uv run db.py` to add it to `out/spread.sqlite`.
 
 ### Play a practice week in TypeScript
 
@@ -124,8 +127,16 @@ pnpm reveal-csv <world id>                # write an ended week and its reveal t
 pnpm dispatch --final                     # play our copy of a test final or of the final
 ```
 
-The scripts read `.env` when it exists, and otherwise the variables already set. To take a new kit version, download
+`pnpm dispatch` saves every week it finishes to `data/scrape/runs/`, like `dispatch.py`
+([Every online run is saved](#every-online-run-is-saved)); `uv run db.py` adds the saved weeks to the database. The
+scripts read `.env` when it exists, and otherwise the variables already set. To take a new kit version, download
 `$SPREAD_URL/kit/spread-typescript.tar.gz` and replace the files in `vendor/spread-typescript/`.
+
+The three scripts set `NODE_USE_ENV_PROXY=1`, so on Node 22.21+ `fetch` goes through `HTTPS_PROXY` when it is set, as in a
+Claude Code cloud session, where the proxy swaps the placeholder `SPREAD_KEY` for the real key; `NODE_EXTRA_CA_CERTS`
+must name the proxy's CA (cloud sessions set it). Without `HTTPS_PROXY` they connect straight to the server. `.npmrc`
+turns on pnpm's `shell-emulator`, so the variable works on Windows too. The `--final` WebSocket stream does not go
+through the proxy yet.
 
 ### Offline data and scraping more weeks
 
@@ -180,8 +191,9 @@ GitHub refuses files over 100 MB, so once the database outgrows that, commit onl
 Policies:
 
 - `passive` sends nothing and advances to the end at once. The week shows its price requests, forecasts and drivers.
-- `starter` plays with the `Desk` of `dispatch.py`.
-- `explore` plays like `starter`, but quotes every option at a random multiple of its list price (`--quote-range`,
+- `starter` plays with the kit's own starter (`spread.starter`), which never changes: a fixed baseline, the handbook's.
+- `dispatch` plays with the `Desk` of our current `dispatch.py`.
+- `explore` plays like `starter` (the kit's, so explore weeks stay comparable while our strategy changes), but quotes every option at a random multiple of its list price (`--quote-range`,
   default 0.7 to 1.8) and pays each order's gigs a random multiple of the starter's fees (`--fee-range`, default 0.6
   to 1.6). The same seed draws the same multiples. Its other options:
   - `--quote-share 0.3` quotes only that share of the requests and declines the rest (10 times the list price), so
@@ -247,6 +259,38 @@ Which scrape answers which question of `SPREAD_AGENT_BRIEF.md`:
   fee), summed over the request's legs. Quantiles for all requests and split by `note` language (or `none`), `car`
   (`premium`, else `electric`, else `standard`), number of `legs`, and `privateAddress` (any stop at one).
 - `driverHomeShare` and `ledger`: where drivers live, and money per week by account line.
+
+### Probe a world: where does a quote or a fee flip?
+
+`probe.py` answers what a scrape cannot: it forks one practice world at one minute, tries one price or fee in each
+copy, and bisects to the value where the outcome flips. A copy has the same future draws as its parent, so the flip
+comes from the action alone.
+
+```sh
+uv run --env-file .env probe.py quote --level 8 --seed scrape-1 --share 0.05 --days 0,1   # ~20 requests
+uv run --env-file .env probe.py fee --level 8 --seed scrape-1 --limit 20       # 20 orders
+```
+
+- `quote`: at a request's arrival, quotes one option at a time in copies and advances to `respondBy`. `flipRatio` is
+  the highest price over the list price that wins this request with this world's draws: the competitor and the
+  dealer's value as one number, to `--resolution` (default 1% of the list price), inside `--range` (default 0.6,2.5).
+- `fee`: quotes the request at `--win-ratio` (default 0.5) of the list price to win it, then posts its cars at one
+  flat fee per copy and advances `--window` minutes (default 180). `flipRatio` is the lowest flat fee over the typical
+  fee that a driver books within the window (never past the order's `lastPickupAt`), with who booked it, how soon,
+  the gig's views and whether it expired.
+- Each row also has every trial and `monotone`: whether the outcomes change once as the value rises. Two extra trials
+  a little either side of the bracket (`--checks`) test it. Monotone rows say the world answers with a threshold, not a coin.
+- The parent posts no gigs and declines every other request at no cost, so each probe sees drivers who have learned
+  nothing and dealers with no history: the world's first answer, not a week's. Two drifts remain. The competitor
+  raises its prices each morning for dealers whose requests it wins, and the parent wins none, so late-week quote
+  flips read high: `--days 0,1` probes only Monday and Tuesday. In fee mode the won orders are never delivered, which
+  lowers what those dealers accept later. Rows carry `day` and `hour`, so price-war and outage days can be told apart.
+- A quote row's `ends` says when it did not flip inside `--range`: `true` (won at both ends), `false` (lost at both)
+  or `inverted`. A fee row's `ends` is `never` (no driver even at the top fee, see `expiredAtTop`) or `always`. A
+  refused action or a lost win quote gives a row with `error` instead.
+- Rows go to `out/probe/<mode>-L<level>-<seed>.jsonl`. Running the same command again skips the rows saved. A probe
+  holds the parent and one copy at a time (two practice slots) and leaves `--keep-free` slots (default 2) for
+  teammates. Each bisection step is a fork, an advance and a delete: about 8 to 12 steps a probe.
 
 ### The baseline to beat
 
