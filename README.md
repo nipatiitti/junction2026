@@ -253,6 +253,31 @@ Which scrape answers which question of `SPREAD_AGENT_BRIEF.md`:
   (`premium`, else `electric`, else `standard`), number of `legs`, and `privateAddress` (any stop at one).
 - `driverHomeShare` and `ledger`: where drivers live, and money per week by account line.
 
+### Probe a world: where does a quote or a fee flip?
+
+`probe.py` answers what a scrape cannot: it forks one practice world at one minute, tries one price or fee in each
+copy, and bisects to the value where the outcome flips. A copy has the same future draws as its parent, so the flip
+comes from the action alone.
+
+```sh
+uv run --env-file .env probe.py quote --level 8 --seed scrape-1 --share 0.05   # ~50 requests of the week
+uv run --env-file .env probe.py fee --level 8 --seed scrape-1 --limit 20       # 20 orders
+```
+
+- `quote`: at a request's arrival, quotes one option at a time in copies and advances to `respondBy`. `flipRatio` is
+  the highest price over the list price that wins this request with this world's draws: the competitor and the
+  dealer's value as one number, to `--resolution` (default 1% of the list price), inside `--range` (default 0.6,2.5).
+- `fee`: quotes the request at `--win-ratio` (default 0.5) of the list price to win it, then posts its cars at one
+  flat fee per copy and advances `--window` minutes (default 180). `flipRatio` is the lowest flat fee over the typical
+  fee that a driver books within the window, with who booked it and how soon.
+- Each row also has every trial and `monotone`: whether the outcomes change once as the value rises. Two random extra
+  trials per probe (`--checks`) test it. Monotone rows say the world answers with a threshold, not a coin.
+- The parent posts no gigs and declines every other request at no cost, so each probe sees drivers who have learned
+  nothing and dealers with no history: the world's first answer, not a week's.
+- Rows go to `out/probe/<mode>-L<level>-<seed>.jsonl`. Running the same command again skips the rows saved. A probe
+  holds the parent and one copy at a time (two practice slots) and leaves `--keep-free` slots (default 2) for
+  teammates. Each bisection step is a fork, an advance and a delete: about 8 to 12 steps a probe.
+
 ### The baseline to beat
 
 The unchanged starter on the seed `spread-1`. It quotes the list price, wins most cars and cannot find drivers for
