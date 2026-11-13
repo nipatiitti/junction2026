@@ -177,8 +177,9 @@ function fiWordHour(word: string): number | null {
 
 /** A Finnish hour word in a time form: "viideltä" (at five), "kolmesta" (from three), "neljään" (by four), and the
  * genitive before "jälkeen" or "mennessä": "kahdentoista jälkeen". */
+const FI_TIME_WORD = String.raw`(?:yh|ka|ko|ne|vi|ku|se|ky)\w*?(?:lta|ltä|sta|stä|toista|toisat)\b`
 const FI_HOUR_WORD = rx(
-  String.raw`\b(?:puoli\s+)?((?:yh|ka|ko|ne|vi|ku|se|ky)\w*?(?:lta|ltä|sta|stä|toista|toisat))\b` +
+  String.raw`\b(?:puoli\s+)?(${FI_TIME_WORD})` +
     String.raw`|\b(?:puoli\s+)?((?:yh|ka|ko|ne|vi|ku|se|ky)\w*?(?:en|än|ään|aan|n))(?=\s+(?:mennessä|asti|saakka|jälkeen))`,
   'g',
 )
@@ -218,9 +219,10 @@ function dayMatches(text: string): Expr[] {
       for (const m of all(rx(String.raw`\b(?:på\s+)?${stem}\w*`), text))
         found.push({ start: m.index, end: m.index + m[0].length, weekday: number })
     })
-  // A short form before a time ("pe klo 15", "ke 12 mennessä", "fri 13:30") or alone at the end of a correction.
+  // A short form before a time ("pe klo 15", "ke 12 mennessä", "fri 13:30", "ma viideltä") or alone at the end of a
+  // correction. The hour in words is new against reader.py: it read "ma viideltä" as today.
   const short = rx(
-    String.raw`\b(${[...SHORT_DAYS.keys()].join('|')})\b\.?(?=\s*(?:klo|kl|kello|at)?\s*\d|\s*[.!,]?\s*$)`,
+    String.raw`\b(${[...SHORT_DAYS.keys()].join('|')})\b\.?(?=\s*(?:klo|kl|kello|at)?\s*\d|\s+(?:puoli\s+)?${FI_TIME_WORD}|\s*[.!,]?\s*$)`,
   )
   for (const m of all(short, text))
     found.push({ start: m.index, end: m.index + m[0].length, weekday: SHORT_DAYS.get(m[1] ?? '') })
