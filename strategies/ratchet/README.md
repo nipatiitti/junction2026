@@ -10,18 +10,21 @@ A dispatch system with one pricing strategy for both sides of an order (issue #7
   comes there. The fee does not rise while the car can still be on time, so drivers do not learn to wait for raises.
 - **Every car moves.** Once a car is late, its fee rises every daytime hour until a driver takes it.
 
-It builds on the root `dispatch.py`: it replaces the quote, the fee schedule (also of bundles) and the answers to a
-deadline warning and a drop. Everything else (the loop, posting, bundling, notes, retries, direct offers, the final)
-is the root system's, so improvements there reach this system too. The root `dispatch.py` and `strategies/` stay as
-they are.
+Its three strategies are subclasses of `Strategy` ([`strategies/strategy.py`](../strategy.py)), each of the root
+strategy it builds on, with the same constructor `(roster, world_map, level=8, params=None)` and a frozen `Params`.
+`dispatch.py` builds them in place of the root desk's admission, pricing and fees and puts them in `Desk.strategies`,
+so the desk feeds them every event like the others. It also replaces the desk's quote, the fee of a bundle, and its
+answers to a deadline warning and a drop. Everything else (the loop, posting, bundling, notes, retries, direct
+offers, the final) is the root system's, so improvements there reach this system too. The root `dispatch.py` and the
+other folders of `strategies/` stay as they are.
 
-| File           | What it holds                                                                               |
-| -------------- | ------------------------------------------------------------------------------------------- |
-| `dispatch.py`  | The system: the root desk with the parts below, played by the root loop                     |
-| `pricing.py`   | `RatchetPricing`: the price ratchet per dealer, with dealer trust from `strategies/pricing` |
-| `admission.py` | `TrustAdmission`: the admission control of `strategies/admission`, with the floor and trust |
-| `fees.py`      | `RiskFees`: the flat fee, its late raises, and every fee constant                           |
-| `risk.py`      | `Risk`: the probability that a gig finds no driver in time, place by place                  |
+| File           | Class            | Builds on              | What it decides                                              |
+| -------------- | ---------------- | ---------------------- | ------------------------------------------------------------ |
+| `pricing.py`   | `RatchetPricing` | `PricingModel`         | The price ratchet per dealer, with the parent's dealer trust |
+| `admission.py` | `TrustAdmission` | `Admission`            | Capacity, time and option as the parent; the floor and trust |
+| `fees.py`      | `RiskFees`       | `FeePlanner`           | The flat fee, its late raises, and the risk of no driver     |
+| `risk.py`      | `Risk`           | (a helper of the fees) | The probability that a gig finds no driver, place by place   |
+| `dispatch.py`  | `Desk`           | the root `Desk`        | The system: the root desk with the three strategies above    |
 
 ## Run it
 
@@ -33,8 +36,8 @@ uv run strategies/ratchet/dispatch.py --level 8 --seed spread-1                 
 uv run python -m strategies.bench strategies/ratchet/dispatch.py dispatch.py --jobs 3   # against the root system
 ```
 
-Its weeks are saved like the root system's (`record.py`), with the policy `ratchet` instead of `dispatch`, so they
-form their own group in `out/spread.sqlite`.
+Its weeks are saved like the root system's (`tools/record.py`), with the policy `ratchet` instead of `dispatch`, so
+they form their own group in `out/spread.sqlite`.
 
 ## Quotes: a ratchet per dealer
 

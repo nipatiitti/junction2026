@@ -1,22 +1,25 @@
 """Quote prices: a ratchet per dealer under a maximum markup.
 
 A dealer's price starts at the maximum, falls only after we lose a quote to that dealer, and climbs back towards
-the maximum after each win. Dealer trust is counted as in `strategies/pricing`. No network: README.md next to this
-file explains the model.
+the maximum after each win. It builds on the adaptive quoting of strategies/pricing, unchanged there: the same dealer
+trust, but a different rule for the multiplier, and no price war or outage logic. No network: `price` takes a
+request and returns a price for each option we quote, and `observe` takes the `order_won`, `order_lost` and `ledger`
+events. README.md next to this file explains the model.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from strategies.pricing import Params, PricingModel
+from spread.types import DriverProfile, WorldMap
 
-DAY = 24 * 60
+from strategies.pricing.model import DAY, PricingModel
+from strategies.pricing.model import Params as PricingParams
 
 
-@dataclass
-class RatchetParams(Params):
-    """The ratchet's variables. Of the fields of `strategies/pricing`, only `floor` and `trust` are used."""
+@dataclass(frozen=True)
+class Params(PricingParams):
+    """The ratchet's knobs. Of the fields of `strategies/pricing`, only `floor` and `trust` are used."""
 
     # The highest multiplier on the list price is 1 + max_markup, before dealer trust: a dealer's price starts
     # there, and every win moves it back towards it.
@@ -42,11 +45,13 @@ class RatchetPricing(PricingModel):
     """One world's quote prices: a multiplier on the list price for each dealer, which falls only after a lost
     quote and climbs back towards the maximum after each win, with dealer trust on top at level 8."""
 
-    p: RatchetParams
+    params: Params
 
-    def __init__(self, level: int, params: RatchetParams | None = None):
-        super().__init__(level, params=params or RatchetParams())
-        self.top = 1 + self.p.max_markup  # the highest multiplier, before trust
+    def __init__(
+        self, roster: list[DriverProfile], world_map: WorldMap, level: int = 8, params: Params | None = None
+    ) -> None:
+        super().__init__(roster, world_map, level, params or Params())
+        self.top = 1 + self.params.max_markup  # the highest multiplier, before trust
         # The multiplier of a dealer that we have not quoted yet: it learns from every dealer's outcomes alike.
         self.world = self.top
         self.dealer: dict[str, float] = {}  # dealer id -> its multiplier on the list price, before trust
@@ -59,7 +64,7 @@ class RatchetPricing(PricingModel):
             return 1.0
         self.new_day(now)
         m = self.dealer.get(request["dealerId"], self.world)
-        if self.level >= 8 and self.p.trust:
+        if self.level >= 8 and self.params.trust:
             m *= 1 + self.trust_of(request["dealerId"], now) / 100
         return m
 
@@ -87,15 +92,15 @@ class RatchetPricing(PricingModel):
 
     def ratchet(self, m: float, won: bool) -> float:
         if won:
-            return m + self.p.recover * (self.top - m)
-        return max(min(self.p.floor, self.top), m * (1 - self.p.cut))
+            return m + self.params.recover * (self.top - m)
+        return max(min(self.params.floor, self.top), m * (1 - self.params.cut))
 
     def new_day(self, now: int) -> None:
         """On each new day, every multiplier moves `daily_recover` of the way back to the maximum."""
         day = now // DAY
         if day <= self.day:
             return
-        keep = (1 - self.p.daily_recover) ** (day - self.day)
+        keep = (1 - self.params.daily_recover) ** (day - self.day)
         self.world = self.top - (self.top - self.world) * keep
         self.dealer = {dealer: self.top - (self.top - m) * keep for dealer, m in self.dealer.items()}
         self.day = day
@@ -104,3 +109,13 @@ class RatchetPricing(PricingModel):
         """The orders that the dealer counts as on time now, up to 25: each adds 1% to the prices it accepts."""
         self.settle(now)
         return self.trust.get(dealer, 0)
+
+    def summary(self) -> str:
+        """The dealers' multipliers at the end of the week."""
+        if self.level <= 3 or not self.dealer:
+            return ""
+        values = sorted(self.dealer.values())
+        return (
+            f"Ratchet: {len(values)} dealers, multipliers {values[0]:.2f} to {values[-1]:.2f}, "
+            f"median {values[len(values) // 2]:.2f}, world {self.world:.2f}"
+        )
