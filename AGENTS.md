@@ -17,6 +17,12 @@ car dealers and pays freelance drivers to move the cars, for one simulated week.
   Compare two versions of the system on the same seeds.
 - Ask for approval before you play a ranking run (`--board`) or a final (`--final`). Each
   ranking world can be played once, and its score stays on the public rankings.
+- **One online run at a time.** An online run is any command that plays or reads
+  worlds on the Spread server: `dispatch.py`, `pnpm dispatch`, `strategies.bench`,
+  the scrape and reveal tools. Start a run only when your previous one has
+  finished: no second run in the background or in another terminal. A bench is
+  one run, whatever its `--jobs`. Every system on our key shares one rate limit,
+  so parallel runs slow down the whole team.
 
 ---
 
@@ -61,6 +67,17 @@ Optimise for speed. Small issues, small PRs, no tests.
   (`feat`, `fix`, `docs`, `chore`). If your environment assigns you a branch
   name, use that one instead.
 - Commits: small, imperative subject line, reference the issue (`Add login form (#12)`).
+- Pull and rebase from the default branch often: before you start, before each
+  push, and whenever it has moved. Others merge all the time, and an early
+  rebase keeps conflicts small:
+
+  ```bash
+  git pull --rebase origin <default-branch>
+  ```
+
+  Rebase only commits you have not pushed yet. Once a branch is pushed, merge
+  the default branch into it instead (`git pull --no-rebase origin
+  <default-branch>`), because a rebased branch needs a force-push.
 - Remove the worktree once the PR is merged or closed.
 
 ## 3. Stay in scope
