@@ -38,6 +38,7 @@ NEVER = (30 * DAY, 30 * DAY)  # EARLY_RAISES that never come before the even tim
 NO_PREMIUMS = {"OPEN_SCARCE": 0.0, "OPEN_EVENING": 0.0, "OPEN_SATURDAY": 0.0, "OPEN_LONG": 0.0}
 
 V8 = {**NO_PREMIUMS, "MARGIN_MIN": 5 * HOUR, "LATE_SHARE": 0.75, "RAISE_SHARES": (0.1, 0.3)}
+V9 = {**V8, "OPEN_BASE": 0.9, "OPEN_FLOOR": 0.9}
 
 # Each version: the constants of strategies/fees/schedule.py that it changes, or None for the starter's fees.
 VERSIONS: dict[str, dict | None] = {
@@ -54,11 +55,17 @@ VERSIONS: dict[str, dict | None] = {
     # v7 with the top fee due 5 hours or more before the last pickup.
     "v8": V8,
     # v8 opening at 0.9 times the typical fee: about the typical fee after an hour, 1.23 times after three.
-    "v9": {**V8, "OPEN_BASE": 0.9, "OPEN_FLOOR": 0.9},
+    "v9": V9,
     # v8 with the premium where few drivers live near the pickup.
     "v10": {**V8, "OPEN_SCARCE": 0.3},
     # v9 with the premium where few drivers live near the pickup.
     "v11": {**V8, "OPEN_BASE": 0.9, "OPEN_FLOOR": 0.9, "OPEN_SCARCE": 0.3},
+    # v9 spending what it saves on a top fee due 6 to 8 hours before the last pickup.
+    "v12": {**V9, "MARGIN_MIN": 6 * HOUR, "MARGIN_MAX": 8 * HOUR},
+    # v9 spending what it saves on the starter's top of 2.5 times the typical fee, under twice the price.
+    "v13": {**V9, "TOP": 2.5, "LATE_SHARE": 1.0},
+    # v8 opening at 0.95 times the typical fee.
+    "v14": {**V8, "OPEN_BASE": 0.95, "OPEN_FLOOR": 0.95},
 }
 
 
@@ -165,7 +172,7 @@ def play(version: str, level: int, seed: str) -> dict:
     )
     return {
         "version": version,
-        "main": git("rev-parse", "--short", "origin/main"),
+        "main": git("merge-base", "HEAD", "origin/main")[:7],  # the latest main in this checkout
         "seed": seed,
         "world": world.id,
         "margin": score["marginCents"] / 100,
