@@ -12,7 +12,15 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`offers/`](offers/README.md)       | `Offers`       | Direct offers to drivers near a gig's pickup                    |
 | [`bundling/`](bundling/README.md)   | `Bundler`      | Which orders' cars go together in one gig                       |
 
-[`bench/`](bench/README.md) is not a strategy: it compares versions of `dispatch.py` on the same seeds.
+Two folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played there
+is that system's, not `dispatch.py`'s. Neither changes the folders above.
+
+| Folder                                    | Classes                                | What it is                                                |
+| ----------------------------------------- | -------------------------------------- | --------------------------------------------------------- |
+| [`baseline/`](baseline/README.md)         | `BaselineAdmission`, `BaselineFees`, … | The organisers' starter as strategies: our fixed baseline |
+| [`price_ladder/`](price_ladder/README.md) | `LadderPricing`, `ShadowAdmission`     | A clamped price ladder with a shadow price on capacity    |
+
+[`bench/`](bench/README.md) is not a strategy either: it compares versions of `dispatch.py` on the same seeds.
 
 ## The base class
 
@@ -42,8 +50,7 @@ Each strategy then has its own methods for the desk's questions, such as `Admiss
        def __init__(self, roster, world_map, level: int = 8, params: Params | None = None) -> None:
            super().__init__(roster, world_map, level, params or Params())
 
-       def observe(self, event: DeskEvent) -> None:
-           ...
+       def observe(self, event: DeskEvent) -> None: ...
    ```
 
 3. Build it in `Desk.__init__` in `dispatch.py` and add it to `Desk.strategies`, so it sees every event.
