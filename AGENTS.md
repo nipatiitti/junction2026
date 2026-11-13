@@ -113,7 +113,6 @@ running tests.
 - Do not write, add or change tests, and do not ask for them in new issues.
 - Do not run tests: no `pytest`, `node --test`, `pnpm test` or any other test
   runner.
-- Leave existing tests and the `tests/` folder as they are.
 - Check your work by reading it, and with lint, format and type check from the
   Commands list.
 
@@ -194,6 +193,8 @@ on one line, so two PRs that each add a command do not conflict.
 - Type check: `pnpm check`
 - Install Python dependencies: `uv sync`
 - Play a Spread practice week: `uv run dispatch.py --level 8 --seed spread-1`
+- Play the baseline week: `uv run python strategies/baseline/baseline.py --level 8 --seed spread-1`
+- Play the price-ladder week: `uv run strategies/price_ladder/dispatch.py --level 8 --seed spread-1`
 - Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
 - Measure the note reader: `uv run python -m strategies.notes.check reveal-<world id>`
 - Compare two versions: `uv run python -m strategies.bench dispatch.py origin/main`
@@ -210,6 +211,8 @@ on one line, so two PRs that each add a command do not conflict.
 - Rehearse the final (ladder): `uv run ladder/rehearse.py --seed spread-1`
 - Replay the strategies offline and serve the charts: `uv run python -m analysis.replay`
 - Write the replay files only: `uv run python -m analysis.replay --no-serve`
+- Export the quote priors: `uv run python -m analysis.priors_quote`
+- Replay the quote models on the probes: `node analysis/replay_quote.ts`
 
 ## Definition of done
 

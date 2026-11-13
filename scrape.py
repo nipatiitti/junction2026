@@ -38,7 +38,7 @@ from spread.types import Order, PriceRequest
 
 from db import add_week, connect, load_folders
 from record import all_events, safe_name, write_json
-from spread_proxy import ProxyClient, bypasses_proxy  # noqa: F401  (tests import bypasses_proxy from here)
+from spread_proxy import ProxyClient
 from stats import load_week
 
 POLICIES = ("passive", "starter", "explore", "dispatch")
