@@ -35,24 +35,38 @@ if os.environ.get("HTTPS_PROXY"):
     os.environ.setdefault("SPREAD_KEY", "placeholder-replaced-by-proxy")
 NEVER = (30 * DAY, 30 * DAY)  # EARLY_RAISES that never come before the even times: the raises of v1 and v2
 
+# The constants of schedule.py as merged in #15. Each version changes some of them.
+PR15 = {
+    "OPEN_BASE": 1.0,
+    "OPEN_SCARCE": 0.3,
+    "OPEN_EVENING": 0.1,
+    "OPEN_SATURDAY": 0.15,
+    "OPEN_LONG": 0.05,
+    "OPEN_FLOOR": 1.0,
+    "TOP": 2.0,
+    "LATE_SHARE": 0.5,
+    "RAISE_SHARES": (1 / 3, 2 / 3),
+    "MARGIN_MIN": 3 * HOUR,
+    "MARGIN_MAX": 6 * HOUR,
+}
 NO_PREMIUMS = {"OPEN_SCARCE": 0.0, "OPEN_EVENING": 0.0, "OPEN_SATURDAY": 0.0, "OPEN_LONG": 0.0}
-
-V8 = {**NO_PREMIUMS, "MARGIN_MIN": 5 * HOUR, "LATE_SHARE": 0.75, "RAISE_SHARES": (0.1, 0.3)}
+V4 = {**PR15, "OPEN_FLOOR": 1.1, "MARGIN_MIN": 4 * HOUR, "LATE_SHARE": 0.75}
+V8 = {**PR15, **NO_PREMIUMS, "MARGIN_MIN": 5 * HOUR, "LATE_SHARE": 0.75, "RAISE_SHARES": (0.1, 0.3)}
 V9 = {**V8, "OPEN_BASE": 0.9, "OPEN_FLOOR": 0.9}
 V13 = {**V9, "TOP": 2.5, "LATE_SHARE": 1.0}
 
-# Each version: the constants of strategies/fees/schedule.py that it changes, or None for the starter's fees.
+# Each version: the constants of strategies/fees/schedule.py that it sets, or None for the starter's fees.
 VERSIONS: dict[str, dict | None] = {
     "starter": None,
-    "v1": {"EARLY_RAISES": NEVER},
-    "v2": {"EARLY_RAISES": NEVER, "OPEN_FLOOR": 1.1, "MARGIN_MIN": 4 * HOUR, "LATE_SHARE": 0.75},
-    "v3": {},  # schedule.py as merged in #15
-    "v4": {"OPEN_FLOOR": 1.1, "MARGIN_MIN": 4 * HOUR, "LATE_SHARE": 0.75},
-    "v5": {"OPEN_FLOOR": 1.1, "MARGIN_MIN": 4 * HOUR, "TOP": 2.5, "LATE_SHARE": 1.0},
+    "v1": {**PR15, "EARLY_RAISES": NEVER},
+    "v2": {**V4, "EARLY_RAISES": NEVER},
+    "v3": PR15,  # schedule.py as merged in #15
+    "v4": V4,
+    "v5": {**V4, "TOP": 2.5, "LATE_SHARE": 1.0},
     # Opening at the typical fee, without the premiums: the top fee of v4.
-    "v6": {**NO_PREMIUMS, "MARGIN_MIN": 4 * HOUR, "LATE_SHARE": 0.75},
+    "v6": {**V4, **NO_PREMIUMS, "OPEN_FLOOR": 1.0},
     # v6 with small early raises, about as far as the starter's: 1.1 and 1.3 times the typical fee.
-    "v7": {**NO_PREMIUMS, "MARGIN_MIN": 4 * HOUR, "LATE_SHARE": 0.75, "RAISE_SHARES": (0.1, 0.3)},
+    "v7": {**V4, **NO_PREMIUMS, "OPEN_FLOOR": 1.0, "RAISE_SHARES": (0.1, 0.3)},
     # v7 with the top fee due 5 hours or more before the last pickup.
     "v8": V8,
     # v8 opening at 0.9 times the typical fee: about the typical fee after an hour, 1.23 times after three.
@@ -60,7 +74,7 @@ VERSIONS: dict[str, dict | None] = {
     # v8 with the premium where few drivers live near the pickup.
     "v10": {**V8, "OPEN_SCARCE": 0.3},
     # v9 with the premium where few drivers live near the pickup.
-    "v11": {**V8, "OPEN_BASE": 0.9, "OPEN_FLOOR": 0.9, "OPEN_SCARCE": 0.3},
+    "v11": {**V9, "OPEN_SCARCE": 0.3},
     # v9 spending what it saves on a top fee due 6 to 8 hours before the last pickup.
     "v12": {**V9, "MARGIN_MIN": 6 * HOUR, "MARGIN_MAX": 8 * HOUR},
     # v9 spending what it saves on the starter's top of 2.5 times the typical fee, under twice the price.
@@ -69,7 +83,7 @@ VERSIONS: dict[str, dict | None] = {
     "v14": {**V8, "OPEN_BASE": 0.95, "OPEN_FLOOR": 0.95},
     # v13 opening at 0.85 times the typical fee.
     "v15": {**V13, "OPEN_BASE": 0.85, "OPEN_FLOOR": 0.85},
-    # v13 with the top fee of v12, due 6 to 8 hours before the last pickup.
+    # v13 with the top fee of v12, due 6 to 8 hours before the last pickup: schedule.py since #62.
     "v16": {**V13, "MARGIN_MIN": 6 * HOUR, "MARGIN_MAX": 8 * HOUR},
 }
 
