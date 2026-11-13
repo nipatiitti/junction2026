@@ -41,15 +41,11 @@ strategy extends `Strategy` from `strategy.ts`: it is built from the driver list
 params (defaults in its `StrategyKind`), and answers these calls, each with a read-only view of the books and the clock:
 
 - `quote(request, books)`: a price for each option offered, or null to decline.
-- `gig(need, books)`: the stops, audience and fee schedule for some legs of an order, or several gigs that carry them
-  between them (a leg that no accepted gig carries goes again as a gig of its own). `need.why` says why (a won
+- `gig(need, books)`: the stops, audience and fee schedule for some legs of an order. `need.why` says why (a won
   order, a change, a split trade-in, a retry after `need.failed`, a repost or an urgent reprice of `need.previous`).
 - `observe(event, books)`: every event of the week, before the desk acts on it. After a restart the harness builds a
   new strategy and feeds it the whole event log, so keep the state rebuildable from the events.
 - `tick(books)` every `every` minutes, optional: any actions (reprice, withdraw, direct offer, combined gig).
-- `accepted(action, id, at, books)`, optional: each action the world accepted, with the id it gave (a post's gig id)
-  and the minute. After a restart the harness tells it every gig of the snapshot again, as a post at the minute it
-  was posted, between the past events.
 - `summary()`: one line printed at the end of the week.
 
 **Compare strategies** with `pnpm bench`. It plays each strategy on each seed at one level, one week after another,
