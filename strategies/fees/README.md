@@ -80,6 +80,20 @@ price €30.15) sent to Vaasa now tops at €90.45, three times its price, again
 typical fee is €105. A car whose new trip needs more than three times its price can still stay
 undelivered, on purpose: 8 of the 40 cars sent farther.
 
+On the bench (`uv run python -m strategies.bench dispatch.py origin/main`, level 8, `spread-1` to
+`spread-5`), the orders whose destination changed:
+
+| Sent    | Version       | Orders | On time | Late | Never delivered | Their net |
+| ------- | ------------- | ------ | ------- | ---- | --------------- | --------- |
+| Farther | `origin/main` | 23     | 15      | 6    | 2               | −€221     |
+| Farther | this change   | 22     | 19      | 3    | 0               | −€131     |
+| Nearer  | `origin/main` | 17     | 17      | 0    | 0               | €656      |
+| Nearer  | this change   | 18     | 18      | 0    | 0               | €978      |
+
+The three late cars were booked before the change: the world sends the booked driver to the new place,
+and no fee of ours can move them. Over the whole weeks, the margin rose by €909 (higher on 3 of 5 seeds),
+the on-time share from 96.9% to 97.1%, and no order was left undelivered, against 2.
+
 ## Inputs
 
 | Input                               | From                                                                                          |
