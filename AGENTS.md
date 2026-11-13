@@ -170,6 +170,7 @@ in and keep it current. Every row must be a single copy-pasteable command.
 | Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                         |
 | Run one Python test file    | `uv run pytest tests/test_dispatch.py`                        |
 | Run Python tests by name    | `uv run pytest -k "<name>"`                                   |
+| Run one strategy's tests    | `uv run pytest strategies/pricing`                            |
 | Run all Python tests        | `uv run pytest`                                               |
 | Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .`           |
 
