@@ -10,8 +10,12 @@ import math
 import re
 from collections import defaultdict
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, NamedTuple
+
+from spread.types import DeskEvent, DriverProfile, WorldMap
+
+from strategies.strategy import Strategy
 
 HOUR, DAY = 60, 24 * 60
 SATURDAY = 5
@@ -68,17 +72,13 @@ class _Tracked:
     pickup: str
 
 
-@dataclass
-class Admission:
+class Admission(Strategy[Params]):
     """Scores price requests. Feed it every event with `observe`, then ask `assess` before each quote."""
 
-    roster: list[dict]
-    world_map: dict
-    level: int = 8
-    params: Params = field(default_factory=Params)
-
-    def __post_init__(self) -> None:
-        self.minutes: dict[tuple[str, str], int] = {(r["from"], r["to"]): r["minutes"] for r in self.world_map["roads"]}
+    def __init__(
+        self, roster: list[DriverProfile], world_map: WorldMap, level: int = 8, params: Params | None = None
+    ) -> None:
+        super().__init__(roster, world_map, level, params or Params())
         self.home = {d["id"]: d["homePlaceId"] for d in self.roster}
         self.homes: dict[str, dict[str, int]] = {a: defaultdict(int) for a in ("all", "experienced", "manual")}
         for d in self.roster:
@@ -122,7 +122,7 @@ class Admission:
 
     # --- our running on-time share -------------------------------------------------------------------------
 
-    def observe(self, event: dict) -> None:
+    def observe(self, event: DeskEvent) -> None:
         """Learns from one event of the week: wins, changes, deliveries, deadline warnings and drops."""
         kind, at = event["kind"], event["at"]
         if kind == "order_won":
