@@ -11,6 +11,7 @@ import sys
 from collections import Counter
 from dataclasses import dataclass, field
 from itertools import pairwise
+from pathlib import Path
 
 from spread.client import World
 from spread.types import (
@@ -96,8 +97,11 @@ class Job:
 
 
 class Desk:
-    def __init__(self, world: World, level: int, now: int, rung: int):
+    def __init__(self, world: World, level: int, now: int, rung: int, journal: Path | None = None):
         self.world, self.level, self.now, self.rung = world, level, now, rung
+        # In the final, the requests we decline go to this file, so a desk that restarts learns its prices again
+        # from the outcomes of our real quotes only: a decline always loses.
+        self.journal = journal
         self.market = Market(world.client.map(), world.roster())
         self.pricing = Pricing(level)
         self.admission = Admission(self.market, level, rung)
@@ -291,6 +295,9 @@ class Desk:
             self.outbox.append(
                 {"type": "quote", "requestId": request["id"], "prices": {first["kind"]: 10 * first["listPriceCents"]}}
             )
+        if not kinds and self.journal is not None:
+            with self.journal.open("a") as journal:
+                journal.write(request["id"] + "\n")
 
     def load(self) -> list[Ride]:
         """Our rides that still wait for a driver, for admission to weigh a new request against."""
@@ -464,6 +471,7 @@ class Desk:
             for e in history
             if e["kind"] == "ledger" and e["line"]["kind"] in ("late_refund", "undelivered_penalty")
         }
+        declined = set(self.journal.read_text().split()) if self.journal and self.journal.exists() else set()
         for event in history:
             if event["kind"] == "price_request":
                 self.requests[event["request"]["id"]] = event["request"]
@@ -471,13 +479,18 @@ class Desk:
             elif event["kind"] in ("order_won", "order_lost"):
                 request_id = event["order"]["id"] if event["kind"] == "order_won" else event["requestId"]
                 request = self.requests.get(request_id)
-                if request is not None and classify(request, self.market, self.facts_of(request)).rung <= self.rung:
-                    self.pricing.sent(request)  # learn again from the outcomes of the quotes we meant
+                ride = request and classify(request, self.market, self.facts_of(request))
+                if ride and ride.rung <= self.rung and request_id not in declined:
+                    self.pricing.sent(request)  # learn again from the outcomes of our real quotes
                 self.pricing.observe(event)
+            elif event["kind"] == "deadline_close":
+                self.admission.observe(event, event["at"])
             elif event["kind"] == "ledger" and event["line"]["kind"] == "revenue" and event["line"]["orderId"]:
                 request = self.requests.get(event["line"]["orderId"])
                 if request is not None:
-                    self.pricing.delivered(request["dealerId"], event["line"]["orderId"] not in refunded)
+                    on_time = event["line"]["orderId"] not in refunded
+                    self.pricing.delivered(request["dealerId"], on_time)
+                    self.admission.delivered(classify(request, self.market, self.facts_of(request)), on_time)
         for request in snapshot["openRequests"]:
             self.requests[request["id"]] = request
             self.answered.discard(request["id"])
