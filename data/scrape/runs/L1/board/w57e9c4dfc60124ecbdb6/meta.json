@@ -1,0 +1,24 @@
+{
+  "seed": "board",
+  "level": 1,
+  "policy": "dispatch",
+  "kind": "board",
+  "worldId": "w57e9c4dfc60124ecbdb6",
+  "version": "ad96438efa1c5b74199b8556890a89e0bf07b18f",
+  "revealed": false,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 173007,
+  "score": {
+    "marginCents": 1092147,
+    "revenueCents": 5711200,
+    "marginShare": 0.19122898865387308,
+    "wonOrders": 786,
+    "onTimeShare": 0.989821882951654,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 201.0,
+  "requests": 1043
+}

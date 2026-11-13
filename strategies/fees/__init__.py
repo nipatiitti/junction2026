@@ -5,9 +5,9 @@ from __future__ import annotations
 from spread.types import FeeStep, Leg, Order, PriceRequest
 
 from .market import Market
-from .schedule import Gig, after_drop, plan, trip_fee
+from .schedule import Gig, after_drop, ladder, plan, trip_fee
 
-__all__ = ["FeePlanner", "Gig", "Market", "after_drop", "plan"]
+__all__ = ["FeePlanner", "Gig", "Market", "after_drop", "ladder", "plan"]
 
 
 class FeePlanner:
@@ -23,6 +23,10 @@ class FeePlanner:
         self, order: Order, request: PriceRequest, cars: int, now: int, level: int, dropped_fee: int
     ) -> list[FeeStep] | None:
         return after_drop(now, self.gig(order, request, cars, now), level, dropped_fee)
+
+    def ladder(self, order: Order, request: PriceRequest, cars: int, now: int) -> list[FeeStep]:
+        """Level 1: the fees of a gig posted now, while no driver books it (see `ladder`)."""
+        return ladder(now, self.gig(order, request, cars, now))
 
     def typical(self, order: Order, request: PriceRequest) -> float:
         """The typical fee of all the order's cars, for the trips they make now. The request's typical fee

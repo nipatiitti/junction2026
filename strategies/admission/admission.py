@@ -24,6 +24,8 @@ class Params:
     reach_minutes: float = 45.0  # a driver's weight falls by e for each this many road minutes from home
     area_minutes: int = 60  # held orders picked up within this drive of the pickup share its drivers
     capacity_per_driver: float = 0.10  # unbooked same-day orders an area holds for each driver weight near it
+    # Level 1: the fee ladder leaves gigs unbooked for hours on purpose (strategies/fees), so an area holds more.
+    capacity_per_driver_posting: float = 0.30
     min_capacity: float = 1.0  # even a place with few drivers can take one car at a time
     min_slack: int = 5 * HOUR  # an option needs this much time beyond the drive, or we do not offer it
     comfortable_slack: int = 9 * HOUR  # the earliest option with this much slack is the one we quote
@@ -32,6 +34,7 @@ class Params:
     tightest: float = 0.25  # the share of capacity left when the running on-time share is at the floor
     cost_base: float = 1.15  # expected fee over the typical fee in a shortage (levels 7 and 8)
     cost_base_normal: float = 1.0  # the same up to level 6, where most gigs book at the typical fee
+    cost_base_posting: float = 0.8  # level 1: gigs open at half the typical fee and rise until a driver books
     price_factor: float = 1.0  # the price we quote over the list price; the pricing logic (#13) raises it
     min_margin: float = 0.0  # decline when the expected cost leaves less than this share of the price
 
@@ -230,7 +233,8 @@ class Admission:
         p = self.params
         leg = request["legs"][0]
         pickup, delivery = leg["pickup"]["placeId"], request["legs"][-1]["delivery"]["placeId"]
-        cost = request["referenceFeeCents"] * (p.cost_base if self.level >= 7 else p.cost_base_normal)
+        base = p.cost_base if self.level >= 7 else p.cost_base_posting if self.level == 1 else p.cost_base_normal
+        cost = request["referenceFeeCents"] * base
         cost *= 1 + 1.2 * math.exp(-self.supply(pickup) / 15)  # few drivers near the car: a long trip to it
         cost *= 1 + 0.5 * math.exp(-self.supply(delivery) / 15)  # few drivers at the end: an expensive trip home
         ready = leg["pickup"]["window"]["from"]
@@ -265,7 +269,8 @@ class Admission:
         squeeze = self.tightening(self.on_time_share(held, now))
         paired = self.pairs(request, held)
 
-        capacity = max(p.min_capacity, p.capacity_per_driver * supply) * squeeze
+        per_driver = p.capacity_per_driver_posting if self.level == 1 else p.capacity_per_driver
+        capacity = max(p.min_capacity, per_driver * supply) * squeeze
         load = self.load(pickup, day, held)
         weight = 0.5 if paired else 1.0
         if load + weight > capacity:
@@ -274,6 +279,8 @@ class Admission:
         cost = self.expected_cost(request, held)
         min_slack = p.min_slack / max(squeeze, 0.5)
         usable = [o for o in request["options"] if self.option_slack(request, o, now) >= min_slack]
+        if self.level == 1:  # every quote wins the request's first option, whichever option it prices
+            usable = [o for o in usable[:1] if o is request["options"][0]]
         if not usable:
             return Verdict(False, [], cost, -1.0, "no option leaves time for the drive")
         comfortable = [o for o in usable if self.option_slack(request, o, now) >= p.comfortable_slack / squeeze]
