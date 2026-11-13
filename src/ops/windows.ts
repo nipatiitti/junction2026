@@ -58,7 +58,8 @@ export function pickupWindow(
     }
     return null
   }
-  return start <= stated.from ? null : { from: start, to: Math.max(stated.to, start) }
+  // A window moved past the stated one (a retry after it ended) stays open a day, so a driver can still book it.
+  return start <= stated.from ? null : { from: start, to: Math.max(stated.to, start + DAY) }
 }
 
 /** The delivery window by the note: it ends at a tighter deadline, and `MARGIN` before the real closing time on its

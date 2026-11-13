@@ -51,7 +51,8 @@ paidIfBookedCents }`. A gig is open from now to its last pickup, in hour slices;
 of its fee, and a booking holds unless dropped (the learned drop share, prior 13.7%). A car without a driver at
 the last pickup pays the late fee (1.79 × the expected fee, what late orders paid) and refunds of 0.433 × its
 price (the mean of `RULES.md`'s steps over the late orders of `dispatch.py`'s weeks, an undelivered car counted at
-three prices) times `mu`. The search is a dynamic programme over (slice, fee, raises left): the least expected
+three prices) times `mu` and the gig's optional `lateWeight` (1 by default: a strategy sets it for what lateness
+costs besides refunds, such as a dealer's trust). The search is a dynamic programme over (slice, fee, raises left): the least expected
 cost over schedules that open at one fee of the grid 0.75–2.5 × the expected fee, raise at most twice, and are at
 least 1.5 × by 6 hours before the last pickup (22:00 the evening before when that falls at night). No fee goes
 above three times the price. The grid starts at the fee probe's median, 0.76: the cheapest driver of an idle

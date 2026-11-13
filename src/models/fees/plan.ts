@@ -22,6 +22,7 @@ export type FeeGig = {
   features: Features
   experienced: boolean // the audience is experienced drivers only
   seen: boolean // drivers have seen the order before: a repost, a retry, after a drop or a deadline warning
+  lateWeight?: number // scales the refunds of a late car, for what lateness costs besides them (a dealer's trust); 1 by default
 }
 
 export type FeeCost = {
@@ -173,12 +174,13 @@ function hazard(ratio: number, slice: Slice, state: FeeState, params: FeeParams)
   return fresh + (1 - slice.fresh) * acceptHazard(ratio, slice.lead, true, state, params)
 }
 
-/** A car without a driver at its last pickup: the fee that moves it late, and its refunds times mu. */
+/** A car without a driver at its last pickup: the fee that moves it late, and its refunds times mu and the gig's
+ * late weight. */
 function lateCost(gig: FeeGig, basis: number, state: FeeState, params: FeeParams) {
   const { feeRatio, costShare } = params.priors.late
   return {
     fee: Math.min(params.plan.priceCap * gig.priceCents, feeRatio * basis),
-    refund: muOf(state, params) * costShare * gig.priceCents,
+    refund: muOf(state, params) * costShare * gig.priceCents * (gig.lateWeight ?? 1),
   }
 }
 

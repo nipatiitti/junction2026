@@ -12,7 +12,7 @@ import type {
   VisitFailedEvent,
 } from '../../vendor/spread-typescript/types.ts'
 import { DAY, dayOf, HOUR, isWeekend } from './calendar.ts'
-import { type Context, driveMinutes } from './map.ts'
+import { type Context, driveMinutes, minutes } from './map.ts'
 import { earliestPickup, NO_FACTS, type NoteFacts } from './note.ts'
 import { deliveryWindow, pickupWindow, snowAt } from './windows.ts'
 
@@ -93,11 +93,15 @@ function stopsFor(order: Order, leg: number, noted: NoteFacts, retry: Retry, now
   const snow = noted.summerTyres ? snowAt(context.forecasts ?? [], [pickup.placeId, delivery.placeId]) : []
   let pickupAt = pickupWindow(pickup.window, pickup.hours, noted, now, retry.pickupFrom, snow)
   // A private seller's slot never extends: a window outside it would be refused, so the slot itself applies.
-  if (pickup.privateAddress && pickupAt && pickupAt.from > pickup.window.to) pickupAt = null
+  if (pickup.privateAddress && pickupAt)
+    pickupAt = pickupAt.from > pickup.window.to ? null : { ...pickupAt, to: Math.min(pickupAt.to, pickup.window.to) }
   const base: TimeWindow = { from: delivery.window.from, to: Math.max(delivery.window.from, order.deadline) }
   const noteDelivery = deliveryWindow(base, delivery.hours, noted)
-  // The car is late whatever: deliver it when the driver can.
-  const deliverBy = pickupAt && pickupAt.from > noteDelivery.to ? base : noteDelivery
+  // When a driver who collects the car as early as the window allows cannot meet the note, the car is late whatever:
+  // deliver it when the driver can.
+  const arrival =
+    Math.max(now, pickupAt?.from ?? pickup.window.from) + minutes(context.map, pickup.placeId, delivery.placeId)
+  const deliverBy = arrival > noteDelivery.to ? base : noteDelivery
   const first: StopRef = {
     orderId: order.id,
     leg,

@@ -60,15 +60,10 @@ export class WeekLog {
     }
   }
 
-  /** Remembers a post that the world accepted, and returns the gig with whether drivers had seen its cars before. */
-  post(gigId: string, action: PostAction): (OurGig & { seen: boolean }) | null {
-    const orderId = action.stops[0]?.orderId
-    if (orderId === undefined) return null
-    const legs = legsOf(action.stops, orderId)
-    const seen = this.seen(orderId, legs)
+  /** Remembers a gig of ours that the world accepted: its cars have been posted from now on. */
+  post(gigId: string, orderId: string, legs: number[]): void {
     for (const leg of legs) this.posted.add(key(orderId, leg))
     this.gigs.set(gigId, { orderId, legs })
-    return { orderId, legs, seen }
   }
 
   /** Whether any of the cars has been posted before. */

@@ -1,7 +1,7 @@
 /** Feeds saved level 8 weeks through the bidprice strategy, offline: every event through `observe`, every request
  * through `quote`, and a gig for each order that the saved week won, after each deadline warning, failed visit and
- * expired gig. The saved week's own gigs are told to the strategy as accepted posts, as the harness does after a
- * restart, so the fee learner follows them. Not a test: it prints what the strategy would do, to read the numbers.
+ * expired gig. The saved week's own quotes and gigs go to the strategy's `sent`, as the desk's journal does on a
+ * rebuild, so the quote learner waits for the answers the week gave and the fee learner follows its gigs. Not a test: it prints what the strategy would do, to read the numbers.
  *
  *     node analysis/replay_bidprice.ts [weeks per seed, default 1] [key=value ...]
  *
@@ -9,12 +9,13 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { gunzipSync } from 'node:zlib'
-import { type QuoteParams, type QuoteState, recordQuote } from '../src/models/quote/index.ts'
 import { requestFeeGig } from '../src/strategies/bidprice/fees.ts'
 import { bidprice } from '../src/strategies/bidprice/index.ts'
 import type { BidPriceParams } from '../src/strategies/bidprice/params.ts'
 import type { Books, GigNeed, GigPlan, Prices } from '../src/strategy.ts'
 import type {
+  Action,
+  ActionResult,
   DeskEvent,
   DeskSnapshot,
   DriverProfile,
@@ -44,12 +45,11 @@ const gz = (path: string) => gunzipSync(readFileSync(path)).toString('utf8')
 type Probe = {
   costs(request: PriceRequest, now: number): Partial<Record<string, number>>
   observe(event: DeskEvent, books: Books): void
-  accepted(action: PostAction, id: string, at: number, books: Books): void
+  sent(action: Action, result: ActionResult, books: Books): void
   quote(request: PriceRequest, books: Books): Prices | null
   gig(need: GigNeed, books: Books): GigPlan | GigPlan[]
   summary(): string
-  quotes: QuoteState
-  quoteParams: QuoteParams
+  quotes: unknown
   fees: unknown
 }
 
@@ -115,13 +115,19 @@ function play(dir: string): void {
   const snapshot = JSON.parse(gz(join(dir, 'snapshot.json.gz'))) as DeskSnapshot
   const reveal = JSON.parse(gz(join(dir, 'reveal.json.gz'))) as Reveal
   const sent = new Map(reveal.requests.map((r) => [r.request.id, r]))
-  // The week's answers are to the saved week's quotes, not ours: the quote learner waits for those instead.
+  // The week's answers are to the saved week's quotes, not ours: they go through `sent`, as the journal would.
   const observe = (s: Probe, event: DeskEvent) => {
     s.observe(event, books)
     if (event.kind !== 'price_request') return
-    const quote = sent.get(event.request.id)?.quote
-    if (quote) recordQuote(s.quotes, event.request, quote, s.quoteParams)
-    else delete s.quotes.pending[event.request.id]
+    const prices = sent.get(event.request.id)?.quote
+    if (prices)
+      s.sent({ type: 'quote', requestId: event.request.id, prices }, { ok: true, id: event.request.id }, books)
+  }
+  const sendPost = (s: Probe, post: PostAction, gig: Gig) => {
+    const now = books.now
+    books.now = gig.postedAt
+    s.sent(post, { ok: true, id: gig.id }, books)
+    books.now = now
   }
   const setup = { roster, map, level: 8 }
   const params = { ...bidprice.defaults, ...overrides }
@@ -153,7 +159,7 @@ function play(dir: string): void {
     told.add(gig.id)
     const post: PostAction = { type: 'post', stops: gig.stops, audience: gig.audience, schedule: gig.schedule }
     posts.set(gig.id, post)
-    for (const s of [strategy, restarted]) timed('accepted', () => s.accepted(post, gig.id, gig.postedAt, books))
+    for (const s of [strategy, restarted]) timed('sent', () => sendPost(s, post, gig))
   }
 
   const gigOf = (need: GigNeed, what: string) => {
@@ -237,7 +243,7 @@ function play(dir: string): void {
       const option = request?.options.find((o) => o.kind === order.option)
       if (request && option)
         stat('won: estimated last pickup − real, hours').add(
-          (requestFeeGig(request, option, setup).lastPickupAt - order.lastPickupAt) / 60,
+          (requestFeeGig(request, option, 1, setup).lastPickupAt - order.lastPickupAt) / 60,
         )
       gigOf({ why: 'won', order, legs: order.legs.map((_, leg) => leg) }, 'won')
     } else if (event.kind === 'order_changed') {
@@ -277,7 +283,7 @@ function play(dir: string): void {
         for (const gig of untold)
           if (told.has(gig.id) && !toldNow.has(gig.id) && (gig.postedAt < e.at || named2.includes(gig.id))) {
             toldNow.add(gig.id)
-            fresh.accepted(posts.get(gig.id)!, gig.id, gig.postedAt, books)
+            sendPost(fresh, posts.get(gig.id)!, gig)
           }
         observe(fresh, e)
       }
