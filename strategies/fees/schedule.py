@@ -50,6 +50,13 @@ NIGHT_FROM, NIGHT_TO, EVENING = 23 * HOUR, 7 * HOUR, 22 * HOUR
 DROP_SPAN = 6 * HOUR
 DROP_STEP = 0.15
 MAX_STEPS = 48
+# Level 1: a schedule has one step, and drivers neither learn our fees nor drop. At the typical fee most
+# gigs book within minutes, so a gig opens far below it, and while no driver books it the desk raises it
+# with `reprice` (dispatch.py) in small steps, up to the fee that `plan` would open at.
+LADDER_OPEN = 0.5  # the opening fee over the typical fee
+LADDER_STEP = 30  # minutes between raises, on a clock grid, so all gigs raise at the same minutes
+LADDER_RAISES = 12  # raises from the opening fee to the plan's opening fee
+LADDER_MIN_SPAN = 3 * HOUR  # with less time than this before the top fee is due, no ladder: the plan's fee at once
 
 
 @dataclass(frozen=True)
@@ -98,6 +105,8 @@ def opening_multiple(gig: Gig) -> float:
 
 def plan(now: int, gig: Gig, level: int, floor: float = 0) -> list[FeeStep]:
     """The fee schedule from `now`. `floor` is the least opening fee, after a drop."""
+    if level == 1:
+        return ladder(now, gig, floor)[:1]
     # The floor after a drop may lift the top, but never above the ceiling.
     top = max(1.0, min(max(gig.typical * TOP, floor), ceiling(gig)))
     top_at = before_night(gig.last_pickup_at - margin(gig), now)
@@ -122,6 +131,28 @@ def plan(now: int, gig: Gig, level: int, floor: float = 0) -> list[FeeStep]:
         fee = opening + (top - opening) * k / RAISES
         steps.append((before_night(at, now), top if k == RAISES else min(fee, cap)))
     return valid(steps, level)
+
+
+def ladder(now: int, gig: Gig, floor: float = 0) -> list[FeeStep]:
+    """Level 1: the fees that a gig posted now goes through while no driver books it. The first step is
+    the fee to post it at; the desk sets each later one with `reprice` when it is due. The raises wait
+    while drivers sleep and end an hour before the top fee is due, at the fee that `plan` opens at. From
+    there the deadline warning raises the gig, as without the ladder."""
+    regular = plan(now, gig, 2, floor)[0]["feeCents"]
+    top_at = before_night(gig.last_pickup_at - margin(gig), now)
+    low = max(gig.typical * LADDER_OPEN, floor)
+    times: list[int] = []
+    at = now
+    while low < regular and top_at - now >= LADDER_MIN_SPAN and len(times) < LADDER_RAISES:
+        at = (at // LADDER_STEP + 1) * LADDER_STEP
+        if at >= top_at - HOUR:
+            break
+        if NIGHT_TO <= at % DAY < NIGHT_FROM:
+            times.append(at)
+    if not times:
+        return valid([(now, regular)], 2)
+    raises = [(at, low + (regular - low) * (k + 1) / len(times)) for k, at in enumerate(times)]
+    return valid([(now, low), *raises], 2)
 
 
 def after_drop(now: int, gig: Gig, level: int, dropped_fee: int) -> list[FeeStep] | None:
