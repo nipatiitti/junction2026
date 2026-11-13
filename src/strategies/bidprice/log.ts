@@ -1,6 +1,6 @@
 /** What the week's events told the strategy, kept from the events alone so that a restart rebuilds it from the event
  * log: each request and its note's facts, the orders won, how to post each car again, our gigs, and the snow. */
-import type { DeskEvent, Order, PostAction, PriceRequest, StopRef } from '../../../vendor/spread-typescript/spread.ts'
+import type { DeskEvent, FeeStep, Order, PriceRequest, StopRef } from '../../../vendor/spread-typescript/spread.ts'
 import {
   FIRST_TRY,
   NO_FACTS,
@@ -12,8 +12,9 @@ import {
   type Snowfall,
 } from '../../ops/index.ts'
 
-/** A gig of ours: the order and the cars it carries. */
-export type OurGig = { orderId: string; legs: number[] }
+/** A gig of ours: the order and the cars it carries, its schedule as last set, and whether a driver dropped it (or did
+ * not show) since then. */
+export type OurGig = { orderId: string; legs: number[]; schedule: FeeStep[]; dropped: boolean }
 
 export class WeekLog {
   readonly requests = new Map<string, PriceRequest>()
@@ -54,6 +55,13 @@ export class WeekLog {
         for (const leg of gig?.legs ?? []) this.setBack(gig?.orderId ?? '', leg, 'expired', event.at)
         break
       }
+      case 'gig_dropped':
+      case 'no_show':
+      case 'gig_booked': {
+        const gig = this.gigs.get(event.gigId)
+        if (gig) gig.dropped = event.kind !== 'gig_booked'
+        break
+      }
       case 'forecast':
         this.forecasts.push(event)
         break
@@ -61,9 +69,15 @@ export class WeekLog {
   }
 
   /** Remembers a gig of ours that the world accepted: its cars have been posted from now on. */
-  post(gigId: string, orderId: string, legs: number[]): void {
+  post(gigId: string, orderId: string, legs: number[], schedule: FeeStep[]): void {
     for (const leg of legs) this.posted.add(key(orderId, leg))
-    this.gigs.set(gigId, { orderId, legs })
+    this.gigs.set(gigId, { orderId, legs, schedule, dropped: false })
+  }
+
+  /** A new schedule for a gig of ours: what a drop asked for is answered. */
+  reprice(gigId: string, schedule: FeeStep[]): void {
+    const gig = this.gigs.get(gigId)
+    if (gig) Object.assign(gig, { schedule, dropped: false })
   }
 
   /** Whether any of the cars has been posted before. */

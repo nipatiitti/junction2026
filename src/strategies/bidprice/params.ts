@@ -15,7 +15,7 @@ export type BidPriceParams = {
   lane: boolean
   /** On a price war day: `follow` the level down, or `decline` until 18:00. */
   war: string
-  /** Plan fees with the solver; false: the fixed ramp of the starter. */
+  /** Plan fees with the fee model's solver; false: the ramp that dispatch.py is on time with (`openFee`, `topFee`). */
   feeSolver: boolean
   /** Scale fees by the learned multiplier of each gig feature. */
   feeExtras: boolean
@@ -36,12 +36,28 @@ export type BidPriceParams = {
   etaLambda: number
   etaMu: number
   lateTarget: number
-  /** The solver's caution: the lowest opening fee over the expected fee, the fee due `topLeadHours` before the last
-   * pickup, and the fee over typical that the deadline warning's ramp ends at two hours after the warning. */
+  /** Admission: offer an option only with this many hours to spare (more as `tightening` falls); with none that
+   * comfortable, only the slowest option we can serve. */
+  comfortHours: number
+  /** The ramp: open at `openFee` × typical, raise early, and reach `topFee` × typical `topLeadHours` before the last
+   * pickup. */
+  openFee: number
+  topFee: number
+  topLeadHours: number
+  /** The solver's caution: its lowest fee over the expected fee, and its fee due `topLeadHours` before the pickup. */
   feeFloor: number
   topRatio: number
-  topLeadHours: number
+  /** After the deadline warning: `topRatio` × typical at once, rising to `urgentTop` × typical in two hours. */
   urgentTop: number
+  /** The tick reprices a gig of ours that no driver holds: one dropped since its schedule was set, at once, to the
+   * ramp from now and at least `dropStep` × typical above the dropped fee; one whose schedule ended `staleHours` ago,
+   * climbing `climbStep` × typical an hour up to `climbTop` × typical. At most `repriceMax` a tick, the nearest last
+   * pickup first. */
+  staleHours: number
+  dropStep: number
+  climbStep: number
+  climbTop: number
+  repriceMax: number
 }
 
 export const DEFAULTS: BidPriceParams = {
@@ -50,7 +66,7 @@ export const DEFAULTS: BidPriceParams = {
   ladder: true,
   lane: true,
   war: 'follow',
-  feeSolver: true,
+  feeSolver: false,
   feeExtras: true,
   capacity: true,
   onTime: true,
@@ -61,14 +77,22 @@ export const DEFAULTS: BidPriceParams = {
   etaLambda: 0.1,
   etaMu: 0.02,
   lateTarget: 0.05,
+  comfortHours: 9,
+  openFee: 0.9,
+  topFee: 2.5,
+  topLeadHours: 8,
   // The fee model is optimistic about flat low fees (it expects 95-99% booked where 77-89% were), a gig that drivers
   // have viewed rarely books after a raise, and a late order costs about €60. The solver opens at its floor on
   // nearly every gig, so the floor is the opening fee: start at dispatch.py's 1.0 (97% on time), and reach the top
   // earlier than the model's 6 hours.
   feeFloor: 1,
   topRatio: 1.5,
-  topLeadHours: 8,
   urgentTop: 2.5,
+  staleHours: 2,
+  dropStep: 0.15,
+  climbStep: 0.1,
+  climbTop: 3,
+  repriceMax: 10,
 }
 
 /** The quote models' params from the strategy's. */
