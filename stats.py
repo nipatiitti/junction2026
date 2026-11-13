@@ -24,6 +24,7 @@ OFFLINE_DATA = Path(__file__).parent / "data" / "scrape"  # the team's committed
 HOUR, DAY = 60, 24 * 60
 MAX_ENUM = 30  # a text or bool field with more distinct values than this is not an enumeration
 RATIO_BIN = 0.05  # width of the bins of quote / list price
+FEE_BIN = 0.2  # width of the bins of opening fee / typical fee
 
 
 class Week(NamedTuple):
@@ -213,6 +214,12 @@ class Group:
         self.points: dict[str, list[tuple[float, float]]] = defaultdict(list)
         self.arrivals = [0] * (7 * 24)
         self.ratio_bins: dict[str, Counter] = defaultdict(Counter)
+        # Opening fee / typical fee bin -> gigs, gigs booked, bookings, drops and minutes to the first booking
+        self.fee_bins: dict[str, dict] = defaultdict(
+            lambda: {"gigs": 0, "booked": 0, "bookings": 0, "drops": 0, "minutes": []}
+        )
+        self.posted_hours, self.booked_by_posted_hour = Counter(), Counter()
+        self.priced: list[dict] = []  # each request's km and drive minutes per leg, prices and features
 
     def add(self, week: Week) -> None:
         self.weeks += 1
@@ -255,6 +262,7 @@ class Group:
                 self.minutes.get((leg["pickup"]["placeId"], leg["delivery"]["placeId"]), 0) for leg in r["legs"]
             )
             legs = len(r["legs"])
+            self.priced.append(self.price_row(r))
             self.points[f"referenceFee~driveMinutes.legs{legs}"].append((drive, r["referenceFeeCents"]))
             for option in r["options"]:
                 self.points[f"listPrice~km.{option['kind']}.legs{legs}"].append((km, option["listPriceCents"]))
@@ -284,6 +292,31 @@ class Group:
         self.lists["requests.dealersPerWeek"].append(len(dealers))
         self.lists["requests.perDealer"].extend(dealers.values())
         self.lists["requests.batchSize"].extend(batches.values())
+
+    def price_row(self, r: dict) -> dict:
+        """What priceOverFit needs of a request: km and drive minutes of each leg, its prices, and its features."""
+        lanes = [(leg["pickup"]["placeId"], leg["delivery"]["placeId"]) for leg in r["legs"]]
+        cars = [leg["car"] for leg in r["legs"]]
+        car = (
+            "premium"
+            if any(c["premium"] for c in cars)
+            else "electric"
+            if any(c["electric"] for c in cars)
+            else "standard"
+        )
+        private = any(leg[end]["privateAddress"] for leg in r["legs"] for end in ("pickup", "delivery"))
+        return {
+            "km": [self.km.get(lane, 0) for lane in lanes],
+            "minutes": [self.minutes.get(lane, 0) for lane in lanes],
+            "listPrices": {o["kind"]: o["listPriceCents"] for o in r["options"]},
+            "typicalFee": r["referenceFeeCents"],
+            "features": {
+                "note": r["note"]["language"] if r["note"] else "none",
+                "car": car,
+                "legs": len(r["legs"]),
+                "privateAddress": private,
+            },
+        }
 
     def add_quotes(self, revealed: list[dict]) -> None:
         """How dealers answer prices: for each quoted option, quote / list price, and whether the dealer took it."""
@@ -365,6 +398,9 @@ class Group:
         views: Counter = Counter()
         viewers: dict[str, set] = defaultdict(set)
         booked: dict[str, dict] = {}
+        last_booked: dict[str, int] = {}
+        bookings: Counter = Counter()
+        drops: Counter = Counter()
         kinds: Counter = Counter()
         for e in week.events:
             if "gigId" not in e or e["gigId"] not in gigs:
@@ -374,14 +410,19 @@ class Group:
                 first_view.setdefault(e["gigId"], e["at"])
                 views[e["gigId"]] += 1
                 viewers[e["gigId"]].add(e["driverId"])
-            elif e["kind"] == "gig_booked" and e["gigId"] not in booked:
-                booked[e["gigId"]] = e
+            elif e["kind"] == "gig_booked":
+                booked.setdefault(e["gigId"], e)
+                last_booked[e["gigId"]] = e["at"]
+                bookings[e["gigId"]] += 1
+            elif e["kind"] == "gig_dropped":
+                drops[e["gigId"]] += 1
+                if e["gigId"] in last_booked:
+                    self.lists["gigs.minutesFromBookingToDrop"].append(e["at"] - last_booked[e["gigId"]])
             elif e["kind"] == "offer_answered":
                 self.counts["gigs.offerAnswer"][e["answer"]] += 1
         self.counts["gigs.status"].update(g["status"] for g in gigs.values())
-        bookings = kinds["gig_booked"] or 1
         for kind in ("gig_dropped", "no_show", "driver_late", "gig_started"):
-            self.lists[f"gigs.{kind}PerBooking"].append(kinds[kind] / bookings)
+            self.lists[f"gigs.{kind}PerBooking"].append(kinds[kind] / (kinds["gig_booked"] or 1))
         self.lists["gigs.expiredPerGig"].append(kinds["gig_expired"] / len(gigs))
         self.lists["gigs.bookedShare"].append(len(booked) / len(gigs))
         for gig_id, gig in gigs.items():
@@ -394,9 +435,20 @@ class Group:
             request = requests.get(gig["stops"][0]["orderId"])
             reference = request["referenceFeeCents"] * cars / len(request["legs"]) if request else None
             opening = gig["schedule"][0]["feeCents"]
+            booking = booked.get(gig_id)
+            hour = (gig["postedAt"] % DAY) // HOUR
+            self.posted_hours[hour] += 1
+            self.booked_by_posted_hour[hour] += booking is not None
             if reference:
                 self.lists["gigs.openingFeeOverReference"].append(opening / reference)
-            booking = booked.get(gig_id)
+                # The tolerance keeps a fee rounded to the cent, such as exactly the typical fee, in its own bin
+                fee_bin = self.fee_bins[f"{math.floor(opening / reference / FEE_BIN + 1e-3) * FEE_BIN:.1f}"]
+                fee_bin["gigs"] += 1
+                fee_bin["booked"] += booking is not None
+                fee_bin["bookings"] += bookings[gig_id]
+                fee_bin["drops"] += drops[gig_id]
+                if booking is not None:
+                    fee_bin["minutes"].append(booking["at"] - gig["postedAt"])
             if booking is None:
                 continue
             self.lists["gigs.minutesToBooking"].append(booking["at"] - gig["postedAt"])
@@ -424,6 +476,46 @@ class Group:
             sum(1 for d in drivers if d["rating"] >= 4.8 and d["completedGigs"] >= 50) / len(drivers)
         )
 
+    def fee_response(self) -> dict:
+        """For bins of opening fee / typical fee: gigs, the share booked, minutes to booking and drops per booking."""
+        return {
+            b: {
+                "n": v["gigs"],
+                "bookedShare": round(v["booked"] / v["gigs"], 4),
+                "minutesToBooking": quantiles(v["minutes"]),
+                "dropsPerBooking": round(v["drops"] / v["bookings"], 4) if v["bookings"] else None,
+            }
+            for b, v in sorted(self.fee_bins.items(), key=lambda kv: float(kv[0]))
+        }
+
+    def price_over_fit(self) -> dict:
+        """Each request's list prices and typical fee over what the one-car line predicts for its legs (km for list
+        prices, drive minutes for the typical fee, summed over the legs), split by feature."""
+        prices = {
+            f"listPrice.{kind}": ("km", lambda r, kind=kind: r["listPrices"].get(kind))
+            for kind in sorted({kind for r in self.priced for kind in r["listPrices"]})
+        }
+        prices["typicalFee"] = ("minutes", lambda r: r["typicalFee"])
+        out = {}
+        for name, (x, price) in prices.items():
+            one_car = [(r[x][0], price(r)) for r in self.priced if len(r[x]) == 1 and r[x][0] and price(r)]
+            fit = fit_line(one_car)
+            if "slope" not in fit:
+                continue
+            ratios: list[float] = []
+            split: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+            for r in self.priced:
+                predicted = sum(fit["intercept"] + fit["slope"] * v for v in r[x])
+                if not price(r) or not all(r[x]) or predicted <= 0:
+                    continue
+                ratios.append(price(r) / predicted)
+                for feature, value in r["features"].items():
+                    split[feature][str(value)].append(ratios[-1])
+            out[name] = {"all": quantiles(ratios)} | {
+                feature: {v: quantiles(xs) for v, xs in sorted(values.items())} for feature, values in split.items()
+            }
+        return out
+
     def summary(self) -> dict:
         lists = {k: quantiles(v) for k, v in sorted(self.lists.items()) if not k.startswith("drivers.homeShare.")}
         home = {
@@ -432,6 +524,10 @@ class Group:
             if k.startswith("drivers.homeShare.")
         }
         counts = {k: shares(v) for k, v in sorted(self.counts.items()) if not k.startswith(("ledger.", "legs.lane"))}
+        counts["gigs.bookedShareByPostHour"] = {
+            str(h): {"count": n, "share": round(self.booked_by_posted_hour[h] / n, 4)}
+            for h, n in sorted(self.posted_hours.items())
+        }
         counts["legs.lane.top30"] = shares(
             Counter(dict(self.counts["legs.lane"].most_common(30))), sum(self.counts["legs.lane"].values())
         )
@@ -456,6 +552,8 @@ class Group:
             "counts": counts,
             "fits": {k: fit_line(v) for k, v in sorted(self.points.items())},
             "quoteResponse": response,
+            "feeResponse": self.fee_response(),
+            "priceOverFit": self.price_over_fit(),
             "driverHomeShare": dict(sorted(home.items(), key=lambda kv: -kv[1])),
             "ledger": ledger,
         }
@@ -511,6 +609,9 @@ def report(summary: dict) -> str:
             if key.startswith("request"):
                 curve = ", ".join(f"{b}:{v['rate']:.0%}" for b, v in bins.items() if v["n"] >= 5)
                 lines.append(f"  win rate by lowest quote / list price: {curve}")
+        curve = ", ".join(f"{b}:{v['bookedShare']:.0%}" for b, v in g["feeResponse"].items() if v["n"] >= 5)
+        if curve:
+            lines.append(f"  booked share by opening fee / typical fee: {curve}")
     lines.append("== event kinds: " + ", ".join(f"{k} {v['count']}" for k, v in summary["eventCatalogue"].items()))
     return "\n".join(lines)
 
