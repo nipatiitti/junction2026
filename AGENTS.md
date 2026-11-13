@@ -209,8 +209,6 @@ on one line, so two PRs that each add a command do not conflict.
 - Get the team's scraped data: `mkdir -p out && gh release download --pattern 'spread-data-*.tar.gz' --output - | tar -xz -C out`
 - Build and serve the report: `uv run python -m analysis.report`
 - Build the report file only: `uv run python -m analysis.report --no-serve`
-- Play a week with the ladder: `uv run ladder/play.py --level 8 --seed spread-1`
-- Rehearse the final (ladder): `uv run ladder/rehearse.py --seed spread-1`
 - Replay the strategies offline and serve the charts: `uv run python -m analysis.replay`
 - Write the replay files only: `uv run python -m analysis.replay --no-serve`
 - Export the quote priors: `uv run python -m analysis.priors_quote`
