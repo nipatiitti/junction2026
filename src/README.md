@@ -26,25 +26,49 @@ practice week (`advance`) or a final (the event stream) runs:
 - `desk.ts` keeps the books (requests, orders, gigs, booked gigs, deadline warnings) and rebuilds them from the
   snapshot and the event log after a restart, so no quote or gig goes twice. It does the order mechanics: it posts a
   won order, posts again after a failed visit, withdraws and posts again after a change, reposts after `gig_expired`,
-  reprices after the deadline warning, and splits a trade-in that is refused as one gig.
-- `guard.ts` runs every strategy call within a time budget (1.5 s for a quote). On an error or a late answer the desk
-  declines the request (10 times the list price, or no quote up to level 3) or posts the starter's gig, counts it, and
-  goes on. A refused action is counted, never thrown. The end of a week prints both counts.
+  reprices after the deadline warning, and posts each car alone when a gig of several is refused. A refused post of one
+  car with windows of its own goes once more without them. A sweep (on the strategy's tick, on each idle second of a
+  final and after a rebuild) posts every undelivered car of a live order that no gig carries and no post waits for,
+  as after a cancel in a combined gig; a car goes again at most once an hour.
+- `guard.ts` runs every strategy call within a time budget (1.5 s for a quote), and checks every action before it goes
+  out: whole, finite numbers, prices and fees of at least 1 cent, a schedule of 1 to 48 steps in time order that never
+  falls, stops and audience present, prices only for the options offered. On an error, a late or an invalid answer the
+  desk declines the request (10 times the list price, or no quote up to level 3), posts the starter's gig or drops the
+  tick action, counts it, and goes on. A refused action is counted, never thrown; a batch that the server refuses as
+  a whole goes again in halves, so only the bad action is refused. The end of a week prints both counts.
+- `journal.ts` keeps our half of the week: every action sent, with the world's answer, the minute and the last event
+  seen, in `out/journal/<world id>.jsonl` (`SPREAD_JOURNAL_DIR` changes the folder). On a rebuild the new strategy gets
+  the event log and the journal merged in order, so it ends in the state of the one that played. Without the file, as
+  on another machine, it gets the events only.
 - `loops.ts` holds the practice and the live loop, `week.ts` plays one week and saves it. There is one way into a
-  week, for the first start, our own restart and a server that went away alike: rebuild the books and a new strategy
-  from the snapshot and the event log, then run the loop. An unreachable server is retried every second for as long
-  as it takes. The client sends at most 50
-  actions a request and waits for the tokens that the `RateLimit-*` headers name.
+  week, for the first start, our own restart, a server that went away and a broken stream alike: rebuild the books
+  and a new strategy from the snapshot, the event log and the journal, then run the loop. An unreachable server is
+  retried every second for as long as it takes; both loops skip an event they have handled. The client sends at most
+  50 actions a request and waits for the tokens that the `RateLimit-*` headers name.
+
+**What the harness guarantees in the final** (`--final`): it never exits on an error. Any error is printed and the
+week is rebuilt a second later. The live loop keeps one request in flight while the outbox collects: quotes go
+first, with at most 10 other actions in a request, so a burst of 31 requests is quoted in about two round trips and
+a tick of 150 reprices never holds a quote back. A stream that closes before the end of the week, or that holds back
+an event the server had a second earlier (a half-open socket), causes a rebuild. A strategy that does not build stops
+`--final` and `--board` before the start; a practice week declines everything and says so at the end.
 
 **Write a strategy** in its own folder, `strategies/<name>/`, and add one line to `strategies/index.ts`. A
 strategy extends `Strategy` from `strategy.ts`: it is built from the driver list, the map, the level and its
 params (defaults in its `StrategyKind`), and answers these calls, each with a read-only view of the books and the clock:
 
 - `quote(request, books)`: a price for each option offered, or null to decline.
-- `gig(need, books)`: the stops, audience and fee schedule for some legs of an order. `need.why` says why (a won
-  order, a change, a split trade-in, a retry after `need.failed`, a repost or an urgent reprice of `need.previous`).
-- `observe(event, books)`: every event of the week, before the desk acts on it. After a restart the harness builds a
-  new strategy and feeds it the whole event log, so keep the state rebuildable from the events.
+- `gig(need, books)`: the stops, audience and fee schedule for some legs of an order, or several such gigs that share
+  them. `need.why` says why (a won order, a change, a split trade-in, a retry after `need.failed`, a repost or an
+  urgent reprice of `need.previous`, or `lost`: a car that no gig carries). The desk posts every plan, and posts any
+  leg of `need.legs` that no plan carries with the starter's gig; an empty answer counts as a fault.
+- `observe(event, books)`: every event of the week, before the desk acts on it.
+- `sent(action, result, books)`, optional: every action the desk sent for the strategy (quote, post, reprice,
+  withdraw, offer), as it went out (also the safe one that replaced an invalid answer), with the world's answer: `ok`
+  with the gig id, or the refusal. It tells which plans became gigs and which quotes went out.
+- After a restart the harness builds a new strategy and feeds it the event log through `observe` and the journal
+  through `sent`, merged in order, with `books.now` at each line's minute and `books.posts` holding every gig of the
+  snapshot, finished ones too. Keep the state rebuildable from these two calls.
 - `tick(books)` every `every` minutes, optional: any actions (reprice, withdraw, direct offer, combined gig).
 - `summary()`: one line printed at the end of the week.
 
@@ -53,7 +77,8 @@ saves every week, and prints a table of margin, revenue, orders won, on-time sha
 seed, with each strategy's mean; it writes the same as a CSV to `out/bench-ts-<date>-<time>.csv` (`--csv` names
 another file). A strategy can carry params: `<name>:key=value,key=value`, or a JSON file in place of a pair.
 `--key-env <NAME>` takes the Spread key from another variable, so two benches can run on two keys. Ctrl-C deletes
-the world in play. It never plays a ranking run or a final.
+the world in play. A week that throws still prints the table of the weeks before it, then the error. It never plays a
+ranking run or a final.
 
 ```sh
 pnpm bench starter starter:markup=1.3 --level 8 --seeds spread-1..spread-5
