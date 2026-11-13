@@ -84,7 +84,40 @@ ranking run or a final.
 pnpm bench starter starter:markup=1.3 --level 8 --seeds spread-1..spread-5
 ```
 
-`pnpm dispatch` and `pnpm bench` save every week they finish to `data/scrape/runs/`, with policy `ts-<strategy>` and
+**Tune a strategy's params** with `pnpm tune`, a search by successive halving on practice weeks. A space file names
+each param to search with a list of values or a range; the other params keep their defaults:
+
+```json
+{ "trustValue": [0, 0.5, 1, 2], "minValueCents": { "min": 100, "max": 1500, "log": true, "int": true } }
+```
+
+A range is drawn evenly, or on a log scale with `"log": true` (its min above 0); a drawn number keeps three
+significant digits, or is whole with `"int": true`. The candidates are drawn with a fixed seed, so the same space gives
+the same candidates, and candidate `#0` is always the defaults.
+
+```sh
+pnpm tune bidprice --space space.json --holdout spread-6..spread-10 --dry   # the candidates and the rounds, no world
+pnpm tune bidprice --space space.json --holdout spread-6..spread-10 --keys SPREAD_KEY,SPREAD_KEY_2
+pnpm tune --resume out/tune-<date>-<time>.json --keys SPREAD_KEY,SPREAD_KEY_2   # go on with a stopped search
+```
+
+Every candidate (`--candidates`, 24) plays the first seed of `--seeds` (`spread-1..spread-5`); each round the best
+share (`--keep`, 0.34) plays the next seed, until `--finalists` (3) are left, who play every seed that is left. With
+24 candidates on 5 seeds that is 24 + 9 + 4 + 3 × 2 = 43 weeks. A candidate's score is its mean margin on the seeds
+it played, minus €100M for each week under `--min-on-time` (0.93) or not ranked, so such a candidate never wins; the candidates of a
+round have all played the same seeds. Each key of `--keys` (names of variables, `SPREAD_KEY` by default) plays one
+world at a time, so two keys play two weeks side by side. The weeks are played and saved as in `pnpm bench`. A week
+that throws puts its candidate out (`out` in the table); a refused key, full practice slots or the rate limit stops the
+search. Ctrl-C deletes the worlds in play.
+
+The state goes to `out/tune-<date>-<time>.json` after every week, and `--resume <file>` goes on from it without
+replaying a week, with the settings of the file. After each round a table lists the candidates still in it, best first:
+`Seeds` played, mean `Margin`, mean `On time`, `Under` (weeks under the minimum or not ranked) and the params that differ from the
+defaults. At the end the best params go to `out/tune-<date>-<time>-best.json`, a `--params` file for `pnpm dispatch`,
+with its mean margin and on-time share on the tuning seeds; with `--holdout`, the best and the defaults then play the
+holdout seeds, and a last table shows both. Judge the params by the holdout, not by the tuning seeds they were picked on.
+
+`pnpm dispatch`, `pnpm bench` and `pnpm tune` save every week they finish to `data/scrape/runs/`, with policy `ts-<strategy>` and
 the strategy's params in `meta.json`, like `dispatch.py`
 ([`tools/README.md`](../tools/README.md)); `uv run python -m tools.db` adds the saved weeks to the database. The
 scripts read `.env` when it exists, and otherwise the variables already set. To take a new kit version, download
