@@ -1,0 +1,478 @@
+"""Answers by experiment what no scrape can. Forks one practice world at one minute, tries one varied action in each
+copy, and bisects to the value where the outcome flips. A copy has the same future draws as its parent, so a change in
+outcome comes from the action alone. README.md says how to run it.
+
+    uv run --env-file .env probe.py quote --level 8 --seed scrape-1 --share 0.05 --days 0,1
+    uv run --env-file .env probe.py fee --level 8 --seed scrape-1 --requests R00042,R00100
+
+`quote`: at a request's arrival, quotes one option at different prices in copies and advances to its respondBy. The
+flip price is the highest price that wins this request with this world's draws: the competitor and the dealer's
+value, as one number. `fee`: wins the request cheaply, then posts its cars at different flat fees in copies and
+advances `--window` minutes (never past the order's lastPickupAt). The flip fee is the lowest flat fee that a driver
+books within the window.
+
+The parent plays no gigs and declines every request that it does not probe (10 times the list price, which costs
+nothing). Rows go to out/probe/<mode>-L<level>-<seed>.jsonl, one per probed option or order. A probe run again skips
+the rows that it has, and picks the same requests. Every copy is deleted after its step; on any stop the probe deletes
+every world that it made, and prints the ids of any that it could not.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import itertools
+import json
+import random
+import signal
+import sys
+import time
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+from spread.client import Client, SpreadError, Unreachable, World
+
+from spread_proxy import ProxyClient
+
+HOUR, DAY = 60, 24 * 60
+PRACTICE_SLOTS = 8
+DECLINE = 10  # a quote at this multiple of the list price loses at no cost
+LAST_REQUEST = 4 * DAY + 18 * HOUR + 15  # Friday 18:15: no request comes later
+CHARGE_KM = 200  # an electric car under 30% needs a charging stop on a route over this
+
+
+class TrialError(Exception):
+    """A trial whose action the world refused, or that gave no outcome: neither a yes nor a no."""
+
+
+def retrying(call: Callable[[], Any]) -> Any:
+    """Calls again while the server restarts (502 to 504 come as Unreachable or a 5xx): it answers within a minute."""
+    for attempt in range(12):
+        try:
+            return call()
+        except Unreachable:
+            pass
+        except SpreadError as error:
+            if error.status < 500:
+                raise
+        time.sleep(5 * (attempt + 1))
+    return call()
+
+
+class Probe:
+    """One probe world: the parent, its copies, and the slots that they take."""
+
+    def __init__(self, client: Client, keep_free: int):
+        self.client, self.keep_free = client, keep_free
+        self.copies = 0  # copies made, for the report
+        self.parent: World | None = None
+        self.live: list[World] = []  # worlds to delete when the probe stops
+
+    def wait_slot(self) -> None:
+        """Waits until a world can be made without taking the slots left for teammates."""
+        said = False
+        while sum(1 for w in retrying(self.client.worlds) if not w["ended"]) >= PRACTICE_SLOTS - self.keep_free:
+            if not said:
+                print(f"Waiting for a free practice slot ({self.keep_free} kept for teammates)...", flush=True)
+                said = True
+            time.sleep(5)
+
+    def create(self, level: int, seed: str) -> World:
+        self.wait_slot()
+        self.parent = retrying(lambda: self.client.create(level=level, seed=seed))
+        self.live.append(self.parent)
+        return self.parent
+
+    def fork(self, parent: World) -> World:
+        while True:
+            self.wait_slot()
+            try:
+                copy = retrying(parent.fork)
+            except SpreadError as error:
+                if error.status != 409:  # 409: a teammate took the slot first
+                    raise
+                time.sleep(5)
+                continue
+            self.copies += 1
+            self.live.append(copy)
+            return copy
+
+    def drop(self, world: World) -> bool:
+        """Deletes a world; False when it could not."""
+        try:
+            retrying(world.delete)
+        except SpreadError as error:
+            if error.status != 404:
+                return False
+        if world in self.live:
+            self.live.remove(world)
+        return True
+
+    def close(self) -> None:
+        """Deletes every world of the probe: the copies it knows, every open copy of the parent that the server lists
+        (a fork that a stop cut short is made but not known), then the parent."""
+        if self.parent is not None:
+            try:
+                for w in retrying(self.client.worlds):
+                    if w["parent"] == self.parent.id and not w["ended"]:
+                        self.live.append(self.client.world(w["worldId"]))
+            except SpreadError:
+                pass
+        left = [w.id for w in sorted(self.live, key=lambda w: w is self.parent) if not self.drop(w)]
+        if left:
+            print(f"Could not delete these worlds; delete them to free their slots: {', '.join(left)}", flush=True)
+
+
+def decline(request: dict) -> dict:
+    first = request["options"][0]
+    return {"type": "quote", "requestId": request["id"], "prices": {first["kind"]: DECLINE * first["listPriceCents"]}}
+
+
+def outcome(events: list[dict], request_id: str) -> tuple[str | None, dict | None]:
+    """won or lost for the request, with the order when won; None while the dealer has not decided."""
+    for event in events:
+        if event["kind"] == "order_won" and event["order"]["id"] == request_id:
+            return "won", event["order"]
+        if event["kind"] == "order_lost" and event["requestId"] == request_id:
+            return "lost", None
+    return None, None
+
+
+def check(results: list[dict]) -> None:
+    for result in results:
+        if not result["ok"]:
+            raise TrialError(result["reason"])
+
+
+def bisect(test: Callable[[int], bool], low: int, high: int, resolution: int) -> dict:
+    """The flip of a test that should be True at low values and False at high ones. Tries both ends first: a test
+    that is the same at both says so, and one that is False at low and True at high is `inverted` and not bisected.
+    Returns the bracket [last True, first False] and every trial."""
+    trials: dict[int, bool] = {}
+
+    def run(value: int) -> bool:
+        trials[value] = test(value)
+        return trials[value]
+
+    at_low, at_high = run(low), run(high)
+    if at_low == at_high:
+        return {"flip": None, "bracket": None, "ends": "true" if at_low else "false", "trials": trials}
+    if not at_low:
+        return {"flip": None, "bracket": None, "ends": "inverted", "trials": trials}
+    lo, hi = low, high
+    while hi - lo > resolution:
+        mid = (lo + hi) // 2
+        if run(mid):
+            lo = mid
+        else:
+            hi = mid
+    return {"flip": (lo + hi) / 2, "bracket": [lo, hi], "ends": None, "trials": trials}
+
+
+def check_near(found: dict, test: Callable[[int], bool], rng: random.Random, spread: int, checks: int) -> None:
+    """Extra trials a little either side of the bracket, where a coin would show: a threshold answers them all alike."""
+    if not found["bracket"]:
+        return
+    lo, hi = found["bracket"]
+    for _ in range(checks):
+        value = rng.randint(max(1, lo - spread), hi + spread)
+        if value not in found["trials"]:
+            found["trials"][value] = test(value)
+
+
+def monotone(trials: dict[int, bool]) -> bool:
+    """True when the outcomes, in order of value, change at most once, from True to False: a threshold, not a coin."""
+    outcomes = [trials[v] for v in sorted(trials)]
+    return sum(a != b for a, b in itertools.pairwise(outcomes)) <= 1 and (
+        not outcomes or outcomes[0] or not any(outcomes)
+    )
+
+
+def when(minute: int) -> dict:
+    return {"day": minute // DAY, "hour": minute % DAY // HOUR}
+
+
+def probe_quote(probe: Probe, parent: World, request: dict, args: argparse.Namespace, others: list[dict]) -> list[dict]:
+    """Bisects each option of the request on its own: in each copy, only that option is quoted, so the flip is
+    against the competitor's price for that option."""
+    rows = []
+    for option in request["options"]:
+        list_price = option["listPriceCents"]
+
+        def wins(price: int, option=option) -> bool:
+            copy = probe.fork(parent)
+            try:
+                actions = [decline(r) for r in others]
+                actions.append({"type": "quote", "requestId": request["id"], "prices": {option["kind"]: price}})
+                step = retrying(lambda: copy.advance(to=request["respondBy"] + 1, actions=actions))
+                check(step["results"])
+                result, _ = outcome(step["events"], request["id"])
+                if result is None:
+                    raise TrialError("no order_won or order_lost by respondBy")
+                return result == "won"
+            finally:
+                probe.drop(copy)
+
+        row = {
+            "requestId": request["id"],
+            "option": option["kind"],
+            "options": [o["kind"] for o in request["options"]],
+            "dealerId": request["dealerId"],
+            "arrivedAt": request["arrivedAt"],
+            **when(request["arrivedAt"]),
+            "lane": [request["legs"][0]["pickup"]["placeId"], request["legs"][0]["delivery"]["placeId"]],
+            "legs": len(request["legs"]),
+            "listPriceCents": list_price,
+            "referenceFeeCents": request["referenceFeeCents"],
+        }
+        try:
+            found = bisect(
+                wins,
+                round(list_price * args.low),
+                round(list_price * args.high),
+                max(1, round(list_price * args.resolution)),
+            )
+            rng = random.Random(f"{request['id']}:{option['kind']}")
+            check_near(found, wins, rng, max(1, round(list_price * 0.03)), args.checks)
+        except TrialError as error:
+            rows.append({**row, "error": str(error)})
+            continue
+        rows.append(
+            {
+                **row,
+                "flipCents": found["flip"],
+                "flipRatio": None if found["flip"] is None else found["flip"] / list_price,
+                "bracketCents": found["bracket"],
+                "ends": found[
+                    "ends"
+                ],  # "true": won at both ends, "false": lost at both, "inverted": lost low, won high
+                "monotone": monotone(found["trials"]),
+                "trials": sorted(found["trials"].items()),
+            }
+        )
+    return rows
+
+
+def stops(order: dict, km: dict[tuple[str, str], float]) -> list[dict]:
+    """A pickup and a delivery for each car, without windows of their own: the world plans them in the order's.
+    An electric car under 30% gets a charging stop on a route over 200 km (RULES, handling rule 3)."""
+    out = []
+    for i, leg in enumerate(order["legs"]):
+        car, route = leg["car"], (leg["pickup"]["placeId"], leg["delivery"]["placeId"])
+        low = car["electric"] and car["chargePercent"] is not None and car["chargePercent"] < 30
+        charge = low and km.get(route, 0) > CHARGE_KM
+        out.append({"orderId": order["id"], "leg": i, "kind": "pickup", "withPlates": False, "withCharging": charge})
+        out.append({"orderId": order["id"], "leg": i, "kind": "delivery"})
+    return out
+
+
+def probe_fee(
+    probe: Probe, parent: World, now: int, order: dict, request: dict, args: argparse.Namespace, km: dict
+) -> dict:
+    """Bisects the flat fee at which a driver books the order's gig within the window."""
+    reference = request["referenceFeeCents"]
+    post = {
+        "type": "post",
+        "stops": stops(order, km),
+        "audience": {"experienced": any(leg["car"]["premium"] for leg in order["legs"]), "manualLicence": False},
+    }
+    window = max(1, min(args.window, order["lastPickupAt"] - now))
+    seen: dict[int, dict] = {}  # fee -> booking, expiry and views of that trial
+
+    def unbooked(fee: int) -> bool:
+        copy = probe.fork(parent)
+        try:
+            action = {**post, "schedule": [{"at": now, "feeCents": fee}]}
+            step = retrying(
+                lambda: copy.advance(until=["gig_booked", "gig_expired"], max=now + window, actions=[action])
+            )
+            check(step["results"])
+            gig = step["results"][-1]["id"]
+            mine = [e for e in step["events"] if e.get("gigId") == gig]
+            booking = next((e for e in mine if e["kind"] == "gig_booked"), None)
+            seen[fee] = {
+                "views": sum(e["kind"] == "gig_viewed" for e in mine),
+                "expired": any(e["kind"] == "gig_expired" for e in mine),
+                "driverId": booking["driverId"] if booking else None,
+                "minutes": booking["at"] - now if booking else None,
+            }
+            return booking is None  # True while too low: the bisection wants True at the low end
+        finally:
+            probe.drop(copy)
+
+    row = {
+        "orderId": order["id"],
+        "option": order["option"],
+        "dealerId": order["dealerId"],
+        "wonAt": now,
+        **when(now),
+        "lastPickupAt": order["lastPickupAt"],
+        "deadline": order["deadline"],
+        "lane": [order["legs"][0]["pickup"]["placeId"], order["legs"][0]["delivery"]["placeId"]],
+        "legs": len(order["legs"]),
+        "premium": post["audience"]["experienced"],
+        "referenceFeeCents": reference,
+        "windowMinutes": window,
+    }
+    try:
+        found = bisect(
+            unbooked,
+            round(reference * args.low),
+            round(reference * args.high),
+            max(1, round(reference * args.resolution)),
+        )
+        check_near(found, unbooked, random.Random(f"{order['id']}:fee"), max(1, round(reference * 0.05)), args.checks)
+    except TrialError as error:
+        return {**row, "error": str(error)}
+    flip = found["flip"]
+    at_flip = seen.get(found["bracket"][1]) if found["bracket"] else None
+    # "true": unbooked at both ends (no driver within the window even at the top fee), "false": booked at both ends
+    ends = {"true": "never", "false": "always"}.get(found["ends"], found["ends"])
+    return {
+        **row,
+        "flipCents": flip,
+        "flipRatio": None if flip is None else flip / reference,
+        "bracketCents": found["bracket"],
+        "ends": ends,
+        "atFlip": at_flip,  # the lowest booked trial: who booked, how soon, views, and whether the gig expired
+        "expiredAtTop": seen.get(round(reference * args.high), {}).get("expired"),
+        "monotone": monotone(found["trials"]),
+        "trials": sorted((fee, not unbooked_) for fee, unbooked_ in found["trials"].items()),
+    }
+
+
+def chosen(seed: str, level: int, mode: str, request_id: str, share: float) -> bool:
+    """The same requests on every run of the same probe: a hash, not a random stream that a resume would shift."""
+    digest = hashlib.sha256(f"{seed}:{level}:{mode}:{request_id}".encode()).digest()
+    return int.from_bytes(digest[:8], "big") / 2**64 < share
+
+
+def run(args: argparse.Namespace) -> None:
+    out = Path(args.out) / f"{args.mode}-L{args.level}-{args.seed}.jsonl"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    key = "requestId" if args.mode == "quote" else "orderId"
+    done = {json.loads(line)[key] for line in out.open()} if out.exists() else set()
+    wanted = set(args.requests.split(",")) if args.requests else None
+    client = ProxyClient()
+    km = {(r["from"], r["to"]): r["km"] for r in client.map()["roads"]}
+    probe = Probe(client, args.keep_free)
+    started, requests_before = time.monotonic(), client.requests
+    probed = 0
+
+    def target(request: dict) -> bool:
+        if request["id"] in done or request["arrivedAt"] // DAY not in args.days:
+            return False
+        if wanted is not None:
+            return request["id"] in wanted
+        return chosen(args.seed, args.level, args.mode, request["id"], args.share)
+
+    def write(row: dict, label: str) -> None:
+        with out.open("a") as f:
+            f.write(json.dumps(row) + "\n")
+        flip = row.get("error") or row.get("flipRatio") or row.get("ends")
+        print(f"{label} flip {flip}{'' if row.get('monotone', True) else '  NOT MONOTONE'}", flush=True)
+
+    try:
+        parent = probe.create(args.level, args.seed)
+        stop_at = min(retrying(parent.snapshot)["endsAt"], LAST_REQUEST + 30)
+        winning: dict[str, dict] = {}  # fee mode: request id -> request, quoted cheaply to win
+        wake = ["price_request"] if args.mode == "quote" else ["price_request", "order_won", "order_lost"]
+        now = 0
+        while now < stop_at and (args.limit is None or probed < args.limit):
+            if wanted is not None and wanted <= done and not winning:
+                break  # every wanted request is probed
+            step = retrying(lambda: parent.advance(until=wake, max=stop_at))
+            now = step["now"]
+            arrived = [e["request"] for e in step["events"] if e["kind"] == "price_request"]
+            targets = [r for r in arrived if target(r)]
+            actions = []
+            if args.mode == "quote":
+                for request in targets:
+                    others = [r for r in arrived if r["id"] != request["id"]]
+                    for row in probe_quote(probe, parent, request, args, others):
+                        write(row, f"{row['requestId']} {row['option']:<13}")
+                    done.add(request["id"])
+                    probed += 1
+                actions = [decline(r) for r in arrived]
+            else:
+                for request in arrived:
+                    if request in targets:
+                        winning[request["id"]] = request
+                        first = request["options"][0]
+                        price = round(first["listPriceCents"] * args.win_ratio)
+                        actions.append({"type": "quote", "requestId": request["id"], "prices": {first["kind"]: price}})
+                    else:
+                        actions.append(decline(request))
+                for event in step["events"]:
+                    if event["kind"] == "order_lost" and event["requestId"] in winning:
+                        request = winning.pop(event["requestId"])
+                        write({"orderId": request["id"], **when(now), "error": "lost at the win price"}, request["id"])
+                        done.add(request["id"])
+                    elif event["kind"] == "order_won" and event["order"]["id"] in winning:
+                        order = event["order"]
+                        row = probe_fee(probe, parent, now, order, winning.pop(order["id"]), args, km)
+                        write(row, row["orderId"])
+                        done.add(order["id"])
+                        probed += 1
+            if actions:
+                results = retrying(lambda actions=actions: parent.act(actions))
+                for action, result in zip(actions, results):
+                    if not result["ok"]:
+                        print(f"parent: {action['requestId']} refused: {result['reason']}", flush=True)
+    finally:
+        probe.close()
+    print(
+        f"{probed} probed, {probe.copies} copies, {client.requests - requests_before} requests, "
+        f"{time.monotonic() - started:.0f}s, into {out}",
+        flush=True,
+    )
+
+
+def stop_on_signal(signum: int, frame: Any) -> None:
+    raise KeyboardInterrupt
+
+
+def ratio_pair(text: str) -> tuple[float, float]:
+    low, high = (float(x) for x in text.split(","))
+    if not 0 < low < high:
+        raise argparse.ArgumentTypeError("give low,high with 0 < low < high")
+    return low, high
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="Bisects quotes or fees on copies of one practice world.")
+    parser.add_argument("mode", choices=("quote", "fee"))
+    parser.add_argument("--level", type=int, choices=range(4, 9), default=8, help="4 to 8: a level with a competitor")
+    parser.add_argument("--seed", required=True)
+    parser.add_argument("--requests", help="comma-separated request ids to probe (default: a hashed --share)")
+    parser.add_argument("--share", type=float, default=0.05, help="share of the week's requests to probe")
+    parser.add_argument(
+        "--days", default="0,1,2,3,4", help="weekdays to probe, 0 = Monday (default all; 0,1 avoids late drift)"
+    )
+    parser.add_argument("--limit", type=int, help="stop after this many probed requests or orders")
+    parser.add_argument(
+        "--range", type=ratio_pair, help="low,high: quote / list price (default 0.6,2.5) or fee / typical fee (0.2,3)"
+    )
+    parser.add_argument("--resolution", type=float, default=0.01, help="bracket width / list price or typical fee")
+    parser.add_argument("--checks", type=int, default=2, help="extra trials near the bracket, to test for a threshold")
+    parser.add_argument("--window", type=int, default=180, help="fee: minutes a copy waits for a booking")
+    parser.add_argument("--win-ratio", type=float, default=0.5, help="fee: the price / list price to win the order")
+    parser.add_argument("--keep-free", type=int, default=2, help="practice slots left for teammates (default 2)")
+    parser.add_argument("--out", default="out/probe", help="output folder (default out/probe)")
+    args = parser.parse_args(argv)
+    args.low, args.high = args.range or ((0.6, 2.5) if args.mode == "quote" else (0.2, 3.0))
+    args.days = {int(d) for d in args.days.split(",")}
+    for name in ("SIGTERM", "SIGHUP"):
+        if hasattr(signal, name):
+            signal.signal(getattr(signal, name), stop_on_signal)
+    try:
+        run(args)
+    except SpreadError as error:
+        sys.exit(f"spread: {error}")
+    except KeyboardInterrupt:
+        sys.exit("Stopped. The probe's worlds are deleted; the rows saved so far stay.")
+
+
+if __name__ == "__main__":
+    main()
