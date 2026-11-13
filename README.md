@@ -179,8 +179,9 @@ GitHub refuses files over 100 MB, so once the database outgrows that, commit onl
 Policies:
 
 - `passive` sends nothing and advances to the end at once. The week shows its price requests, forecasts and drivers.
-- `starter` plays with the `Desk` of `dispatch.py`.
-- `explore` plays like `starter`, but quotes every option at a random multiple of its list price (`--quote-range`,
+- `starter` plays with the kit's own starter (`spread.starter`), which never changes: a fixed baseline, the handbook's.
+- `dispatch` plays with the `Desk` of our current `dispatch.py`.
+- `explore` plays like `starter` (the kit's, so explore weeks stay comparable while our strategy changes), but quotes every option at a random multiple of its list price (`--quote-range`,
   default 0.7 to 1.8) and pays each order's gigs a random multiple of the starter's fees (`--fee-range`, default 0.6
   to 1.6). The same seed draws the same multiples. Its other options:
   - `--quote-share 0.3` quotes only that share of the requests and declines the rest (10 times the list price), so
