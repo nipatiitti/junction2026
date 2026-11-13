@@ -84,7 +84,6 @@ For each option `o` of a request, choose the price `p` that maximises
           + expected lateness and failure cost
           + expected fines
           + shadow price of the capacity this order uses
-
 Maximise by evaluating a grid of candidate prices, not by a closed form, so
 that any shape of `W` works. Keep this special case as a unit test: if the
 competitor's price is uniform between `a*L` and `b*L` (L = list price) and the
@@ -164,15 +163,15 @@ this behind its own flag.
 Keep each of these behind one function with a placeholder implementation, and
 load fitted values from a single parameters file (`params.json`).
 
-| Function | Returns | Placeholder until fitted |
-| --- | --- | --- |
-| `win_prob(price, request, dealer_state, world_state)` | chance the dealer accepts | uniform competitor on 1.26–1.54 × list at level 8 |
-| `accept_hazard(fee, lead_time, town, audience)` | chance per step a driver accepts | logistic in `fee / referenceFee`, centred at 1.0 |
-| `supply(region, day)` | expected available driver hours | driver counts from `GET /drivers` × a fixed hours figure |
-| `dealer_ceiling(dealer_state)` | highest price a dealer accepts | list × (1 + 0.01 × trust count), unverified |
-| `price_war(world_state)` | whether the competitor is undercutting today | off; later, a loss-streak detector |
-| `driver_prior(driver_id)` | a known driver's reservation fee and home area | none; only usable if driver identities persist across worlds |
-| `dealer_prior(dealer_id)` | a known dealer's expected request volume | none; only usable if dealer identities persist across worlds |
+| Function                                              | Returns                                        | Placeholder until fitted                                     |
+| ----------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------ |
+| `win_prob(price, request, dealer_state, world_state)` | chance the dealer accepts                      | uniform competitor on 1.26–1.54 × list at level 8            |
+| `accept_hazard(fee, lead_time, town, audience)`       | chance per step a driver accepts               | logistic in `fee / referenceFee`, centred at 1.0             |
+| `supply(region, day)`                                 | expected available driver hours                | driver counts from `GET /drivers` × a fixed hours figure     |
+| `dealer_ceiling(dealer_state)`                        | highest price a dealer accepts                 | list × (1 + 0.01 × trust count), unverified                  |
+| `price_war(world_state)`                              | whether the competitor is undercutting today   | off; later, a loss-streak detector                           |
+| `driver_prior(driver_id)`                             | a known driver's reservation fee and home area | none; only usable if driver identities persist across worlds |
+| `dealer_prior(dealer_id)`                             | a known dealer's expected request volume       | none; only usable if dealer identities persist across worlds |
 
 Notes on the win model. Our only signal about the competitor is one-sided: a
 win says its price was above ours, a loss says it was below. Fit the model
@@ -350,21 +349,25 @@ These were found in a quick search and read only as summaries. Open a paper
 before relying on any detail of it.
 
 Closest precedent (Trading Agent Competition, supply chain game):
+
 - Analysis of the 2004 competition: https://www.cs.utep.edu/kiekintveld/papers/2006/kwv-tac04-analysis.htm
 - TacTex bidding (win probability against price): https://www.cs.utexas.edu/~dpardoe/papers/SIGecom04.pdf
 - TacTex chapter: https://www.cs.utexas.edu/~TacTex/dpardoe/papers/TacTexChapter.pdf
 - Andrews et al., study of game logs (procurement decided 2006): https://jmvidal.cse.sc.edu/lib/andrews09a.html
 
 Driver pay and acceptance (section 2):
+
 - Çınar et al., closed-form optimal pay for linear and logistic acceptance: https://arxiv.org/html/2305.01317v5
 - Schur and Winheller, pay over time as a dynamic program: https://www.pl.msm.uni-due.de/en/research/publications/optimizing-last-mile-delivery-a-dynamic-compensation-strategy-for-occasional-drivers-6902/
 - Pricing, bundling and driver behaviour (combining tasks with pay): https://arxiv.org/pdf/2507.03634
 
 Shadow prices and long-run constraints (sections 3 and 4):
+
 - Balseiro, Lu and Mirrokni, dual mirror descent for online allocation: https://arxiv.org/pdf/2002.10421v1
 - Online allocation with long-term constraints: https://arxiv.org/pdf/2507.09473v1
 
 Accepting loads with moving, time-limited resources, and hindsight bounds:
+
 - Dual-price policies for truckload bid acceptance: https://arxiv.org/pdf/2607.16891
 - Bid acceptance benchmark with hindsight ceilings: https://arxiv.org/pdf/2607.07343
 - Reinforcement learning for bidding in truckload markets: https://arxiv.org/pdf/1802.08976
@@ -372,9 +375,11 @@ Accepting loads with moving, time-limited resources, and hindsight bounds:
 - Uber Freight on its carrier pricing: https://www.uberfreight.com/en-US/blog/reimagining-uber-freights-carrier-pricing-algorithm-to-drive-better-outcomes
 
 Learning the win model from wins and losses (section 1):
+
 - Pricing against competitor quotes with one-sided feedback: https://web3.arxiv.org/pdf/2410.14839
 - Learning logistic demand curves in business-to-business pricing: https://informs-sim.org/wsc13papers/includes/files/003.pdf
 - Dynamic pricing with censored feedback: https://cs.gmu.edu/%7esanmay/papers/ijcai18-dynamic-pricing.pdf
 
 Real-world driveaway (round-trip idea):
+
 - DRAIVER return-ride case study: https://www.uber.com/us/en/blog/draiver-teams-with-uber-and-uses-api-to-save-30/
