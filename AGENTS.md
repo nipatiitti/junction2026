@@ -168,6 +168,7 @@ in and keep it current. Every row must be a single copy-pasteable command.
 | Install Python dependencies | `uv sync`                                                     |
 | Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`                |
 | Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                         |
+| Measure the note reader     | `uv run python -m strategies.notes.check reveal-<world id>`   |
 | Run one Python test file    | `uv run pytest tests/test_dispatch.py`                        |
 | Run Python tests by name    | `uv run pytest -k "<name>"`                                   |
 | Run all Python tests        | `uv run pytest`                                               |
