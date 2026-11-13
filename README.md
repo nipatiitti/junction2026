@@ -70,6 +70,47 @@ public rankings, so agree on it in the team first.
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
 - `tests/` holds fast tests that need no network: `uv run pytest`.
 
+### Scrape weeks for an offline model
+
+`scrape.py` plays practice weeks on many seeds at once and saves each week's raw data. `stats.py` turns saved weeks
+into distributions, offline. Together they give the data for an offline model of the server.
+
+```sh
+uv run --env-file .env scrape.py --policy passive --levels 4,5,6,7,8 --seeds 20   # requests only: 10 requests a week
+uv run --env-file .env scrape.py --policy explore --levels 8 --seeds 10            # random prices: dealer and driver answers
+uv run stats.py out/scrape/passive out/scrape/explore                               # writes summary.json, prints the main numbers
+```
+
+Policies:
+
+- `passive` sends nothing and advances to the end at once. The week shows its price requests, forecasts and drivers.
+- `starter` plays with the `Desk` of `dispatch.py`.
+- `explore` plays like `starter`, but quotes every option at a random multiple of its list price (`--quote-range`,
+  default 0.7 to 1.8) and pays each order's gigs a random multiple of the starter's fees (`--fee-range`, default 0.6
+  to 1.6). The same seed draws the same multiples.
+
+Seeds are `<--seed-prefix>-<n>`, default `scrape-1` and up. Each week goes to `out/scrape/<policy>/L<level>/<seed>/`
+(`out/` is not committed): `events.jsonl.gz` (every event), `reveal.json.gz`, `snapshot.json.gz` (orders and gigs at
+the end), `drivers.json.gz` (the driver list at the start), `score.json` and `meta.json`. A saved week is skipped, so
+running the same command again resumes. `--workers` weeks run at once (default 4), and the scraper always leaves
+`--keep-free` practice slots (default 2) for teammates. A week with a policy that acts takes about 2,000 requests: a
+few minutes at 175 ms a request through a Claude Code cloud proxy. The scraper's client goes through `HTTPS_PROXY`
+when one is set, so there the proxy adds the team key and `SPREAD_KEY` can be a placeholder.
+
+`summary.json` has one entry per level and policy (`L8/explore`) and a catalogue of every event kind:
+
+- `eventCatalogue`: for each kind, its count, its fields with their types and number ranges, the values of each
+  enumeration (for example `visit_failed.reason`), and one example.
+- `arrivalsPerHourOfWeek`: requests per hour from Monday 00:00, per week.
+- `numbers`: quantiles of counts per week, request timing and distance, fees over list prices, gig views, minutes to
+  booking, booked fee over the typical fee, drops, no-shows and late drivers per booking, lateness, and driver ratings.
+- `counts`: shares of legs, option sets, note languages, private addresses, car types, failed-visit reasons, order
+  status, and the truth of won cars from the reveal.
+- `fits`: straight lines for list price against km, typical fee against drive minutes, and booked fee against the
+  typical fee.
+- `quoteResponse`: for bins of quote / list price, how often the dealer took the option and won the request.
+- `driverHomeShare` and `ledger`: where drivers live, and money per week by account line.
+
 ### The baseline to beat
 
 The unchanged starter on the seed `spread-1`. It quotes the list price, wins most cars and cannot find drivers for
