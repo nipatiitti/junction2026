@@ -123,11 +123,11 @@ export class Desk implements Books {
     }
   }
 
-  /** The strategy's gig, or the starter's when the strategy fails. */
-  plan(need: GigNeed): PostAction {
-    const gig =
+  /** The strategy's gigs, or the starter's when the strategy fails. */
+  plan(need: GigNeed): PostAction[] {
+    const gigs =
       this.guard.run('gig', () => this.strategy.gig(need, this)) ?? starterGig(need, this, this.strategy.setup.level)
-    return whole({ type: 'post', ...gig })
+    return [gigs].flat().map((gig) => whole({ type: 'post', ...gig }))
   }
 
   delivered(orderId: string, leg: number, at: number): void {
@@ -156,7 +156,7 @@ export class Desk implements Books {
     for (const { orderId, leg } of previous.stops) this.legGigs.get(orderId)?.delete(leg)
     const order = this.orders.get(previous.stops[0]!.orderId)
     if (!order) return
-    this.outbox.push(this.plan({ why: 'repost', order, legs: legsOf(previous, order.id), previous }))
+    this.outbox.push(...this.plan({ why: 'repost', order, legs: legsOf(previous, order.id), previous }))
   }
 
   /** From the order's deadline warning on, its gigs that no driver holds take the urgent fees. */
@@ -168,7 +168,7 @@ export class Desk implements Books {
     for (const gigId of this.gigsOf(orderId)) {
       if (this.booked.has(gigId)) continue
       const previous = this.posts.get(gigId)!
-      const { schedule } = this.plan({ why: 'urgent', order, legs: legsOf(previous, orderId), previous })
+      const { schedule } = this.plan({ why: 'urgent', order, legs: legsOf(previous, orderId), previous })[0]!
       this.outbox.push({ type: 'reprice', gigId, schedule })
     }
   }
@@ -182,7 +182,7 @@ export class Desk implements Books {
 
   /** Posts one gig for the legs. A trade-in over the 12-hour limit for a gig with two cars goes as one gig per car. */
   async post(why: GigNeed['why'], order: Order, legs: number[], failed?: GigNeed['failed']): Promise<void> {
-    this.outbox.push(this.plan({ why, order, legs, failed }))
+    this.outbox.push(...this.plan({ why, order, legs, failed }))
     if (legs.length === 1) return
     await this.send()
     if (this.gigsOf(order.id).length === 0) for (const leg of legs) await this.post('split', order, [leg], failed)
