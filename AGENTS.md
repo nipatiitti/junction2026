@@ -211,6 +211,8 @@ on one line, so two PRs that each add a command do not conflict.
 - Rehearse the final (ladder): `uv run ladder/rehearse.py --seed spread-1`
 - Replay the strategies offline and serve the charts: `uv run python -m analysis.replay`
 - Write the replay files only: `uv run python -m analysis.replay --no-serve`
+- Export the quote priors: `uv run python -m analysis.priors_quote`
+- Replay the quote models on the probes: `node analysis/replay_quote.ts`
 
 ## Definition of done
 
