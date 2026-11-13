@@ -81,7 +81,8 @@ about 1,390.
 
 - `dispatch.py` is our system. It starts as a copy of the organisers' starter, formatted with ruff.
 - `strategies/` holds the parts of the system, each with its tests and notes. `strategies/admission/` decides
-  which price requests to take and which option to quote.
+  which price requests to take and which option to quote. `strategies/offers/` sends gigs straight to drivers near
+  their pickup.
 - `vendor/` holds the organisers' Python kit of 13 November as a wheel. uv installs it as the package `spread`: the
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
 - `tests/` holds fast tests that need no network: `uv run pytest`.

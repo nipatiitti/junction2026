@@ -17,7 +17,7 @@ extra time and tickets. A direct offer reaches them.
 - sends the offers it returns with the next step. A refused offer is counted, and the week ends with a line
   `Offers: N sent, A accepted, D declined, E expired, R refused`.
 
-The logic needs no network, so it is tested offline on a hand-made map and roster. Offers start at level 3,
+The logic needs no network: it reads only what it is given. Offers start at level 3,
 where the game adds them.
 
 ## Where our drivers are
