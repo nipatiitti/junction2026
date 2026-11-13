@@ -72,7 +72,7 @@ public rankings, so agree on it in the team first.
 - `dispatch.py` is our system. It starts as a copy of the organisers' starter, formatted with ruff.
 - `vendor/` holds the organisers' Python kit of 13 November as a wheel. uv installs it as the package `spread`: the
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
-- `tests/` and `strategies/` hold fast tests that need no network: `uv run pytest`.
+- `tests/` holds fast tests that need no network: `uv run pytest`.
 
 ### The baseline to beat
 
@@ -85,9 +85,9 @@ them in time.
 | 7     | -€50,442.49 | 817        | 52.3%   | no     |
 | 8     | -€72,612.51 | 949        | 45.5%   | no     |
 
-We measured these with the organisers' TypeScript starter, before we chose Python. They match the handbook to the
-cent, and the handbook says that both starters play alike. The Python starter has not been run against the server
-yet.
+They match the handbook to the cent. `dispatch.py`, still unchanged from the starter, gives the same level 8 result.
+We measured levels 6 and 7 with the organisers' TypeScript starter, before we chose Python; the handbook says that
+both starters play alike.
 
 ### Claude Code cloud environments
 
