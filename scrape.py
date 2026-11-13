@@ -5,7 +5,8 @@ of the server. `stats.py` turns the saved weeks into distributions. README.md sa
 
 Each week goes to <out>/L<level>/<seed>/: events.jsonl.gz (every event), reveal.json.gz, snapshot.json.gz (the
 orders and gigs at the end), drivers.json.gz, score.json and meta.json. A week that has meta.json is skipped, so a
-stopped scrape goes on where it was.
+stopped scrape goes on where it was. Ctrl-C, SIGTERM and SIGHUP delete the worlds in play; a week folder with only
+world.json names a world that a killed scrape left behind, and the next run saves it or deletes it.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ import os
 import random
 import re
 import shutil
+import signal
 import ssl
 import sys
 import threading
@@ -37,7 +39,8 @@ from stats import load_week
 
 POLICIES = ("passive", "starter", "explore")
 PRACTICE_SLOTS = 8  # a team holds at most 8 practice worlds that have not ended
-STOP = threading.Event()  # set on Ctrl-C: every week in play stops at its next request and deletes its world
+STOP = threading.Event()  # set on Ctrl-C or a kill: every week in play stops at its next request and deletes its world
+WORLD = "world.json"  # in a week's folder from the world's creation until the week is saved: the world it plays
 
 
 class Stopped(Exception):
@@ -218,6 +221,26 @@ def safe_name(seed: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "_", seed)
 
 
+def left_behind(client: Client, target: Path) -> tuple[World, list] | None:
+    """The world that a killed scrape left in this week's folder: the world and its starting driver list when it
+    ended, so it only needs saving. A world that had not ended is deleted, to free its slot and play the week again."""
+    marker = target / WORLD
+    if not marker.exists():
+        return None
+    noted = json.loads(marker.read_text())
+    world = client.world(noted["worldId"])
+    summary = next((w for w in client.worlds() if w["worldId"] == world.id), None)
+    if summary is not None and summary["ended"]:
+        return world, noted["drivers"]
+    if summary is not None:
+        try:
+            world.delete()
+        except SpreadError:
+            pass
+    marker.unlink()
+    return None
+
+
 def scrape_week(
     client: ProxyClient, slots: Slots, out: Path, level: int, seed: str, policy: str, args: argparse.Namespace
 ) -> dict | None:
@@ -226,19 +249,20 @@ def scrape_week(
     if (target / "meta.json").exists():
         return None
     started, requests_before = time.monotonic(), client.requests
-    world = slots.create(client, level, seed)
+    found = left_behind(client, target)
+    world = found[0] if found else slots.create(client, level, seed)
+    ended = found is not None
     try:
-        drivers = world.roster()
-        if policy == "passive":
-            play_passive(world)
+        if found:
+            drivers = found[1]
         else:
-            now = world.snapshot()["now"]
-            desk = (
-                Desk(world, level, now)
-                if policy == "starter"
-                else ExploreDesk(world, level, now, random.Random(f"{seed}:{level}"), args.quote_range, args.fee_range)
-            )
-            play_desk(world, desk)
+            # Noted before the week is played, so a run that is killed can be cleaned up by the next one.
+            target.mkdir(parents=True, exist_ok=True)
+            write_json(target / WORLD, {"worldId": world.id, "drivers": []})
+            drivers = world.roster()
+            write_json(target / WORLD, {"worldId": world.id, "drivers": drivers})
+            play(world, level, seed, policy, args)
+            ended = True
         meta = {
             "seed": seed,
             "level": level,
@@ -249,15 +273,45 @@ def scrape_week(
         }
         meta = save_week(target, world, drivers, meta)
     except BaseException:
-        try:  # a world left behind holds one of the team's practice slots
-            world.delete()
-        except SpreadError:
-            pass
+        # A world that has not ended holds one of the team's practice slots. An ended one holds none: it stays, with
+        # its world.json, and the next run saves it.
+        if not ended:
+            try:
+                world.delete()
+            except SpreadError:
+                pass
+            (target / WORLD).unlink(missing_ok=True)
         raise
     meta["seconds"] = round(time.monotonic() - started, 1)
     meta["requests"] = client.requests - requests_before
     write_json(target / "meta.json", meta)
     return meta
+
+
+def play(world: World, level: int, seed: str, policy: str, args: argparse.Namespace) -> None:
+    if policy == "passive":
+        play_passive(world)
+        return
+    now = world.snapshot()["now"]
+    desk = (
+        Desk(world, level, now)
+        if policy == "starter"
+        else ExploreDesk(world, level, now, random.Random(f"{seed}:{level}"), args.quote_range, args.fee_range)
+    )
+    play_desk(world, desk)
+
+
+stopping = False
+
+
+def stop_on_signal(signum: int, frame: Any) -> None:
+    """Stops the scrape on the first signal. Later ones are ignored, so they cannot cut the deletions short: timeout
+    and uv can each send one."""
+    global stopping
+    if stopping:
+        return
+    stopping = True
+    raise KeyboardInterrupt
 
 
 def parse_range(text: str) -> tuple[float, float]:
@@ -317,6 +371,11 @@ def main(argv: list[str] | None = None) -> None:
 
         return run
 
+    # A kill (timeout, a closed terminal, a stopped session) stops the scrape as Ctrl-C does, so the weeks in play
+    # delete their worlds and free the team's slots.
+    for name in ("SIGINT", "SIGTERM", "SIGHUP"):
+        if hasattr(signal, name):
+            signal.signal(getattr(signal, name), stop_on_signal)
     seeds = [f"{args.seed_prefix}-{n}" for n in range(args.seed_start, args.seed_start + args.seeds)]
     weeks = [(level, seed) for level in args.levels for seed in seeds]
     print(f"{len(weeks)} weeks, policy {args.policy}, {args.workers} at once, into {out}", flush=True)
