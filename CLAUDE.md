@@ -20,7 +20,7 @@ How to carry out that workflow with Claude Code's tools:
   `git pull --no-rebase origin main` instead, so no force-push is needed.
 
 - Issues and pull requests go through the GitHub tools.
-- Query the saved weeks before you play online: run `uv run db.py`, then read
+- Query the saved weeks before you play online: run `uv run python -m tools.db`, then read
   `out/spread.sqlite` with Python's `sqlite3` module (`uv run python -c ...`); the `sqlite3`
   command is not installed in cloud sessions. After you play online, `git add data/scrape/runs`
   and commit the saved weeks with your PR.

@@ -9,6 +9,10 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
+from spread.types import DeskEvent, DriverProfile, WorldMap
+
+from strategies.strategy import Strategy
+
 HOUR, DAY = 60, 24 * 60
 WORK_FROM, WORK_TO = 8 * HOUR, 18 * HOUR  # the price war and the outage last from 08:00 to 18:00
 REGION_KM = 80  # an outage region is a town and the places within 80 km of it
@@ -19,7 +23,7 @@ TRUST_CAP = 25  # a dealer counts at most 25 orders on time, each worth 1% at le
 START = {4: 1.0, 5: 1.0, 6: 1.0, 7: 1.25, 8: 1.35}
 
 
-@dataclass
+@dataclass(frozen=True)
 class Params:
     """The knobs of the model. The defaults are the ones that did best on the bench (README.md)."""
 
@@ -63,11 +67,13 @@ class Outcome:
     updates: list[tuple[str, float]] = field(default_factory=list)  # what the outcome added to the estimate
 
 
-class PricingModel:
+class PricingModel(Strategy[Params]):
     """One world's estimate of the price that wins, with the price war, the outage and dealer trust."""
 
-    def __init__(self, level: int, places: dict[str, tuple[float, float]] | None = None, params: Params | None = None):
-        self.level, self.p = level, params or Params()
+    def __init__(
+        self, roster: list[DriverProfile], world_map: WorldMap, level: int = 8, params: Params | None = None
+    ) -> None:
+        super().__init__(roster, world_map, level, params or Params())
         self.log_m = math.log(START.get(level, 1.0))  # the world's multiplier on the list price, in logs
         self.offset: dict[str, float] = {}  # "pickup:<place>", "delivery:<place>", "dealer:<id>" -> log offset
         self.quotes: dict[str, Quote] = {}  # request id -> the quote waiting for its outcome
@@ -77,7 +83,7 @@ class PricingModel:
         self.war_over = False  # the multiplier is back at the war day's opening level
         self.outage: tuple[int, frozenset[str]] | None = None  # (day, the pickup places of the region)
         self.outage_log = 0.0  # the outage boost, in logs, learned from the boosted quotes
-        self.near = neighbours(places or {})
+        self.near = neighbours(places_from_map(world_map))
         self.seen = 0  # the outcomes of usual quotes so far
         # Dealer trust, counted from the ledger.
         self.trust: dict[str, int] = {}
@@ -94,10 +100,10 @@ class PricingModel:
         self.end_war(now)
         keys = request_keys(request)
         log_m = self.log_m + sum(self.offset.get(k, 0.0) for k in keys)
-        m = min(self.p.ceiling, max(self.p.floor, math.exp(log_m)))
+        m = min(self.params.ceiling, max(self.params.floor, math.exp(log_m)))
         if self.in_outage(request, now):
             m *= math.exp(self.outage_log)
-        if self.level >= 8 and self.p.trust:
+        if self.level >= 8 and self.params.trust:
             self.settle(now)
             m *= 1 + self.trust.get(request["dealerId"], 0) / 100
         return m
@@ -108,7 +114,7 @@ class PricingModel:
             first = request["options"][0]
             return {first["kind"]: first["listPriceCents"]}
         m = self.multiplier(request, now)
-        factor = self.p.decline_factor if self.in_war(now) and self.p.war_decline else m
+        factor = self.params.decline_factor if self.in_war(now) and self.params.war_decline else m
         self.quotes[request["id"]] = Quote(
             at=request["arrivedAt"],
             keys=request_keys(request),
@@ -132,7 +138,7 @@ class PricingModel:
 
     # --- learning -----------------------------------------------------------------------------
 
-    def observe(self, event: dict) -> None:
+    def observe(self, event: DeskEvent) -> None:
         """Feeds the model an event: `order_won`, `order_lost` and `ledger` matter, the rest is ignored."""
         kind = event["kind"]
         if kind == "order_won":
@@ -149,17 +155,17 @@ class PricingModel:
         quote = self.quotes.pop(request_id, None)
         if quote is None:
             return
-        day, error = quote.at // DAY, (1.0 if won else 0.0) - self.p.target_win
+        day, error = quote.at // DAY, (1.0 if won else 0.0) - self.params.target_win
         if quote.outage:
-            self.outage_log = min(math.log(1.5), max(0.0, self.outage_log + 2 * self.p.key_step * error))
+            self.outage_log = min(math.log(1.5), max(0.0, self.outage_log + 2 * self.params.key_step * error))
             return
         if day == self.war_day and in_hours(quote.at):
-            if not self.p.war_decline and not self.war_over:  # follow the war, but leave the lanes alone
-                self.apply([("", self.p.step * error)])
+            if not self.params.war_decline and not self.war_over:  # follow the war, but leave the lanes alone
+                self.apply([("", self.params.step * error)])
             return
         if in_hours(quote.at):
             self.day_open.setdefault(day, self.log_m)
-        updates = [("", self.p.step * error)] + [(k, self.p.key_step * error) for k in quote.keys]
+        updates = [("", self.params.step * error)] + [(k, self.params.key_step * error) for k in quote.keys]
         self.apply(updates)
         self.seen += 1
         if not in_hours(quote.at):
@@ -175,37 +181,37 @@ class PricingModel:
     def apply(self, updates: list[tuple[str, float]], sign: float = 1.0) -> None:
         for key, delta in updates:
             if key == "":
-                lo, hi = math.log(self.p.floor), math.log(self.p.ceiling)
+                lo, hi = math.log(self.params.floor), math.log(self.params.ceiling)
                 self.log_m = min(hi, max(lo, self.log_m + sign * delta))
             else:
-                lim = self.p.key_limit
+                lim = self.params.key_limit
                 self.offset[key] = min(lim, max(-lim, self.offset.get(key, 0.0) + sign * delta))
 
     def detect_war(self, day: int, outcomes: list[Outcome]) -> None:
         """The world's multiplier falling far below the day's opening, on many lanes, is the price war.
         Monday has no usual level to fall from, so a war on Monday is only followed, not flagged."""
-        if self.log_m > self.day_open[day] - self.p.war_drop:
+        if self.log_m > self.day_open[day] - self.params.war_drop:
             return
-        if len({o.pickup for o in outcomes if not o.won}) >= self.p.war_places:
+        if len({o.pickup for o in outcomes if not o.won}) >= self.params.war_places:
             self.war_day = day
 
     def detect_outage(self, day: int, outcomes: list[Outcome]) -> None:
         """A run of wins in one region is the outage there: dealers there pay about 30% more. What the
         region's wins taught the world and its lanes today is undone, and it gets its own boost."""
-        if self.seen < self.p.outage_after or not self.near:
+        if self.seen < self.params.outage_after or not self.near:
             return
         best: tuple[int, float, frozenset[str]] | None = None
         for region in self.near.values():
             if outcomes[-1].pickup not in region:
                 continue  # only the regions of the latest outcome can have changed
             inside = [o for o in outcomes if o.pickup in region]
-            recent = inside[-self.p.outage_window :]
+            recent = inside[-self.params.outage_window :]
             wins, share = sum(o.won for o in recent), sum(o.won for o in inside) / len(inside)
-            if len(recent) == self.p.outage_window and wins >= self.p.outage_wins:
+            if len(recent) == self.params.outage_window and wins >= self.params.outage_wins:
                 best = max(best or (wins, share, region), (wins, share, region), key=lambda b: b[:2])
         if best is None:
             return
-        self.outage, self.outage_log = (day, best[2]), math.log(self.p.outage_boost)
+        self.outage, self.outage_log = (day, best[2]), math.log(self.params.outage_boost)
         for o in outcomes:
             if o.pickup in best[2]:
                 self.apply(o.updates, -1.0)
@@ -266,5 +272,5 @@ def neighbours(places: dict[str, tuple[float, float]]) -> dict[str, frozenset[st
 
 
 def places_from_map(world_map: dict) -> dict[str, tuple[float, float]]:
-    """The (lat, lon) of each place in the world map, as `PricingModel` takes them."""
+    """The (lat, lon) of each place in the world map, from which `PricingModel` builds the outage regions."""
     return {p["id"]: (p["lat"], p["lon"]) for p in world_map["places"]}
