@@ -202,6 +202,7 @@ in and keep it current. Every row must be a single copy-pasteable command.
 | Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .`         |
 | Play a week in TypeScript   | `pnpm dispatch --level 8 --seed spread-1`                   |
 | Write a week to CSV (TS)    | `pnpm reveal-csv <world id>`                                |
+| Build the facts tables      | `uv run python -m analysis.facts`                           |
 
 ## Definition of done
 
