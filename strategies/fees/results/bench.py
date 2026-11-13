@@ -106,7 +106,7 @@ def seeds_of(text: str) -> list[str]:
 
 
 def starter_fees(dispatch) -> None:
-    """Puts the starter's fees back in dispatch.Desk: the typical fee plus 10% an hour up to 1.5 times, and from the
+    """Puts the starter's fees back in dispatch.py: the typical fee plus 10% an hour up to 1.5 times, and from the
     deadline warning 1.5 times plus a quarter every half hour up to 2.5 times. No repricing after a drop."""
     Desk, raise_fees = dispatch.Desk, dispatch.Desk.raise_fees
 
@@ -132,6 +132,8 @@ def starter_fees(dispatch) -> None:
         return (steep if urgent else rising)(self.now, fee, self.level)
 
     Desk.raise_fees, Desk.fees_for, Desk.dropped = urgent_raise, fees_for, lambda self, gig_id: None
+    # A bundle of several orders' cars (strategies/bundling) goes at the rising fees of its typical fee.
+    dispatch.fees_plan = lambda now, gig, level: rising(now, gig.typical, level)
 
 
 def play(version: str, level: int, seed: str) -> dict:
@@ -141,12 +143,8 @@ def play(version: str, level: int, seed: str) -> dict:
 
     import dispatch
     from record import Recorder
-    from strategies.admission import admission
     from strategies.fees import schedule
 
-    # dispatch.py on main sets price_factor on the frozen admission Params and crashes at the first quote (#72). Until
-    # the fix (#81) is on main, let the assignment through: the same week as #81's copy of Params.
-    admission.Params.__setattr__ = object.__setattr__
     changes = VERSIONS[version]
     if changes is None:
         starter_fees(dispatch)
