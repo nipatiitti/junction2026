@@ -3,7 +3,8 @@
 ## What it is
 
 Derived tables in the scrape database, so that a question about the world is one SQL query. They are built from
-the raw tables of `db.py` (see the main README) and live in the same file:
+the raw tables of `db.py` (see the main README) and live in the same file, beside the `probes` and
+`fee_probes` tables of `db.py` that hold the probe rows:
 
 ```sh
 uv run python -m analysis.facts                          # build the weeks that have no facts yet (out/spread.sqlite)
@@ -242,6 +243,21 @@ from week_facts where won > 0 group by 1, 2;
 select late_bucket, count(*) orders, sum(late_refund_cents + undelivered_penalty_cents) / 100 cost,
        round(avg(margin_cents) / 100.0, 2) mean_margin
 from order_facts group by 1;
+```
+
+Several weeks share a probe's seed and level, so each flip joins every played week of that world; the list price is
+in the join because the oracle treats a different list price as a different request.
+
+```sql
+-- 11. Did our quote sit under the probe's flip, and did it win? Level 8, single-option quotes.
+select q.outcome, count(*) as quotes, sum(q.quote_cents <= p.bracket_low_cents) as under_flip,
+       round(avg(q.ratio), 2) as our_ratio, round(avg(p.flip_ratio), 2) as flip_ratio
+from probes p
+join weeks w on w.seed = p.seed and w.level = p.level
+join quote_facts q on q.week_id = w.id and q.request_id = p.request_id and q.option = p.option
+                  and q.list_price_cents = p.list_price_cents
+where p.level = 8 and p.flip_ratio is not null and p.monotone = 1 and q.quoted = 1 and q.options_quoted = 1
+group by 1;
 ```
 
 ## For the hindsight oracle (#66)
