@@ -72,7 +72,7 @@ def test_a_world_starts_near_the_middle_of_its_level():
 
 
 def test_the_multiplier_rises_after_a_run_of_wins():
-    model = PricingModel(7, params=Params(war_window=99))
+    model = PricingModel(7)
     before = model.multiplier(request("X"), TUESDAY_10)
     play(model, [True] * 8)
     assert model.multiplier(request("X"), TUESDAY_10) > before
@@ -104,54 +104,76 @@ def test_a_dealer_we_lose_to_gets_a_lower_price_than_the_others():
     assert cheap < dear
 
 
-def test_a_burst_of_losses_on_many_lanes_is_the_price_war_and_it_ends_the_next_day():
+def test_a_burst_of_losses_on_many_lanes_is_the_price_war_and_it_ends_the_same_evening():
     model = PricingModel(8)
-    play(model, [True, False] * 5, at=10 * HOUR, prefix="warm")  # Monday
-    usual = model.multiplier(request("X"), TUESDAY_10 + 2 * HOUR)
-    play(model, [False] * 17, at=TUESDAY_10 + HOUR, prefix="early")
-    assert model.war_day is None  # a shorter run of losses can be bad luck
+    play(model, [True, False] * 5, at=10 * HOUR, prefix="warm")  # Monday sets the usual level
+    usual = model.log_m
+    play(model, [False] * 9, at=TUESDAY_10, prefix="early")
+    assert model.war_day is None  # a shorter run of losses can be bad luck or a cheaper day
     play(model, [False] * 3, at=TUESDAY_10 + HOUR)
     assert model.war_day == 1
-    # What the losing run taught is undone, and the war price is the usual price cut by 20%.
-    assert abs(model.multiplier(request("X"), TUESDAY_10 + 2 * HOUR) - usual) < 1e-9
-    war = model.price(request("W"), TUESDAY_10 + 2 * HOUR)["next_day"]
-    assert war == round(10_000 * usual * 0.8)
-    # The next morning the usual price is back.
+    during = model.multiplier(request("X"), TUESDAY_10 + 2 * HOUR)
+    play(model, [False] * 4, at=TUESDAY_10 + 2 * HOUR, prefix="war")  # the war price keeps following the losses
+    assert model.multiplier(request("X"), TUESDAY_10 + 3 * HOUR) < during
+    # At 18:00 the competitor's prices are back, and the world's multiplier is back at the day's level.
+    after = model.multiplier(request("X"), DAY + 18 * HOUR)
+    assert model.log_m == usual
+    assert after > during
     assert not model.in_war(2 * DAY + 9 * HOUR)
-    assert model.price(request("N"), 2 * DAY + 9 * HOUR)["next_day"] == round(10_000 * usual)
 
 
 def test_losses_on_one_lane_only_are_not_a_price_war():
     model = PricingModel(8)
+    play(model, [True, False] * 5, at=10 * HOUR, prefix="warm")
     play(model, [False] * 25, lanes=[("tampere", "oulu")])
     assert model.war_day is None
 
 
+def test_a_war_on_monday_is_followed_but_not_flagged():
+    model = PricingModel(8)
+    play(model, [False] * 25, at=10 * HOUR)
+    assert model.war_day is None
+    assert model.log_m < PricingModel(8).log_m
+
+
 def test_the_war_can_be_declined_instead():
-    model = PricingModel(8, params=Params(war_cut=None))
-    play(model, [False] * 20)
+    model = PricingModel(8, params=Params(war_decline=True))
+    play(model, [True, False] * 5, at=10 * HOUR, prefix="warm")
+    play(model, [False] * 12)
+    assert model.war_day == 1
     assert model.price(request("W", list_price=10_000), TUESDAY_10 + HOUR)["next_day"] == 100_000
 
 
 def test_levels_below_8_have_no_price_war():
     model = PricingModel(7)
+    play(model, [True, False] * 5, at=10 * HOUR, prefix="warm")
     play(model, [False] * 25)
     assert model.war_day is None
 
 
-def test_a_run_of_wins_in_one_region_is_the_outage_and_raises_prices_there_that_day():
+def test_a_region_that_wins_far_more_than_the_rest_is_the_outage_and_gets_dearer_that_day():
     model = PricingModel(7, PLACES)
-    # Elsewhere we win half; around Helsinki we win every quote.
-    play(model, [True, False] * 4, prefix="out")
-    helsinki = [("helsinki", "espoo"), ("vantaa", "helsinki"), ("espoo", "vantaa")]
-    play(model, [True] * 6, lanes=helsinki, prefix="in")
+    start = model.log_m
+    play(model, [True, False] * 6, lanes=LANES[:5], prefix="out")  # elsewhere we win half
+    helsinki = [("helsinki", "tampere"), ("vantaa", "oulu"), ("espoo", "turku")]
+    play(model, [True] * 12, at=TUESDAY_10 + HOUR, lanes=helsinki, prefix="in")  # around Helsinki, every quote
     assert model.outage is not None and {"helsinki", "espoo", "vantaa"} <= model.outage[1]
-    inside = request("X", pickup="helsinki", delivery="espoo")
-    outside = request("Y", pickup="oulu", delivery="kuopio")
-    assert model.in_outage(inside, TUESDAY_10 + HOUR)
-    assert not model.in_outage(outside, TUESDAY_10 + HOUR)
-    assert not model.in_outage(inside, TUESDAY_10 + 8 * HOUR)  # 18:00
+    # The region's wins no longer lift the price everywhere else.
+    assert abs(model.log_m - start) < 1e-9
+    inside = request("X", pickup="helsinki", delivery="oulu")
+    outside = request("Y", pickup="oulu", delivery="helsinki")
+    now = TUESDAY_10 + 2 * HOUR
+    assert model.in_outage(inside, now) and not model.in_outage(outside, now)
+    assert abs(model.multiplier(inside, now) / model.multiplier(request("Z", pickup="helsinki"), now) - 1) < 1e-9
+    assert abs(model.multiplier(inside, now) / model.multiplier(outside, now) - 1.2) < 0.05
+    assert not model.in_outage(inside, DAY + 18 * HOUR)
     assert not model.in_outage(inside, 2 * DAY + 10 * HOUR)  # the next day
+
+
+def test_a_region_that_wins_like_the_rest_is_no_outage():
+    model = PricingModel(7, PLACES)
+    play(model, [True, False] * 15, lanes=LANES)
+    assert model.outage is None
 
 
 def test_trust_rises_by_one_per_order_on_time_and_caps_at_25():
