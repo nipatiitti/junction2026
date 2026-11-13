@@ -260,7 +260,7 @@ copy, and bisects to the value where the outcome flips. A copy has the same futu
 comes from the action alone.
 
 ```sh
-uv run --env-file .env probe.py quote --level 8 --seed scrape-1 --share 0.05   # ~50 requests of the week
+uv run --env-file .env probe.py quote --level 8 --seed scrape-1 --share 0.05 --days 0,1   # ~20 requests
 uv run --env-file .env probe.py fee --level 8 --seed scrape-1 --limit 20       # 20 orders
 ```
 
@@ -269,11 +269,18 @@ uv run --env-file .env probe.py fee --level 8 --seed scrape-1 --limit 20       #
   dealer's value as one number, to `--resolution` (default 1% of the list price), inside `--range` (default 0.6,2.5).
 - `fee`: quotes the request at `--win-ratio` (default 0.5) of the list price to win it, then posts its cars at one
   flat fee per copy and advances `--window` minutes (default 180). `flipRatio` is the lowest flat fee over the typical
-  fee that a driver books within the window, with who booked it and how soon.
-- Each row also has every trial and `monotone`: whether the outcomes change once as the value rises. Two random extra
-  trials per probe (`--checks`) test it. Monotone rows say the world answers with a threshold, not a coin.
+  fee that a driver books within the window (never past the order's `lastPickupAt`), with who booked it, how soon,
+  the gig's views and whether it expired.
+- Each row also has every trial and `monotone`: whether the outcomes change once as the value rises. Two extra trials
+  a little either side of the bracket (`--checks`) test it. Monotone rows say the world answers with a threshold, not a coin.
 - The parent posts no gigs and declines every other request at no cost, so each probe sees drivers who have learned
-  nothing and dealers with no history: the world's first answer, not a week's.
+  nothing and dealers with no history: the world's first answer, not a week's. Two drifts remain. The competitor
+  raises its prices each morning for dealers whose requests it wins, and the parent wins none, so late-week quote
+  flips read high: `--days 0,1` probes only Monday and Tuesday. In fee mode the won orders are never delivered, which
+  lowers what those dealers accept later. Rows carry `day` and `hour`, so price-war and outage days can be told apart.
+- A quote row's `ends` says when it did not flip inside `--range`: `true` (won at both ends), `false` (lost at both)
+  or `inverted`. A fee row's `ends` is `never` (no driver even at the top fee, see `expiredAtTop`) or `always`. A
+  refused action or a lost win quote gives a row with `error` instead.
 - Rows go to `out/probe/<mode>-L<level>-<seed>.jsonl`. Running the same command again skips the rows saved. A probe
   holds the parent and one copy at a time (two practice slots) and leaves `--keep-free` slots (default 2) for
   teammates. Each bisection step is a fork, an advance and a delete: about 8 to 12 steps a probe.
