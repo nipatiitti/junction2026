@@ -1,14 +1,15 @@
 """Admission with a timed return leg: a car counts as a return leg only when one of our transports ends near it, its
 driver gets there in time to collect it, and the car's last stop is near where that transport started.
 
-It builds on the admission control of strategies/admission (#14), unchanged there. The base asks `pairs` for a
-return leg: the car then takes half a place in the area's capacity and costs 0.85 of the usual driver cost. This
+A strategy (strategies/strategy.py) built on the admission control of strategies/admission (#14), unchanged there.
+The base asks `pairs` for a return leg: the car then takes half a place in the area's capacity and costs 0.85 of the usual driver cost. This
 class answers `pairs` with the timed check, and lets each transport carry the return leg of one request only.
 README.md next to this file explains it.
 """
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass
 
@@ -22,7 +23,7 @@ FAR = 10**6  # road minutes between two places the map does not join
 
 
 @dataclass(frozen=True)
-class ChainParams(AdmissionParams):
+class Params(AdmissionParams):
     """The admission thresholds, plus when a request's car is a return leg of one of our transports."""
 
     near: int = 30  # the car waits within this drive of where the transport ends
@@ -34,15 +35,16 @@ class ChainParams(AdmissionParams):
 class ChainAdmission(Admission):
     """Admission control whose return leg is timed, one request for each transport."""
 
-    params: ChainParams
+    params: Params
 
     def __init__(
-        self, roster: list[DriverProfile], world_map: WorldMap, level: int = 8, params: ChainParams | None = None
+        self, roster: list[DriverProfile], world_map: WorldMap, level: int = 8, params: Params | None = None
     ) -> None:
-        super().__init__(roster, world_map, level, params or ChainParams())
+        super().__init__(roster, world_map, level, params or Params())
         # order id -> (request id, its respondBy): the request whose return leg rides on that order's transport
         self.claims: dict[str, tuple[str, int]] = {}
         self.now = 0  # the minute of the request being assessed
+        self.counts: Counter[str] = Counter()  # the week's verdicts and claims, for the summary
 
     def assess(self, request: dict, held: Iterable[Held] = (), now: int | None = None) -> Verdict:
         """The base's verdict, with the timed return leg. An accepted return leg claims its transport."""
@@ -50,14 +52,22 @@ class ChainAdmission(Admission):
         self.now = request["arrivedAt"] if now is None else now
         verdict = super().assess(request, held, now)
         transport = self.chain(request, held, self.now)
-        if verdict.accept and transport is not None:
-            self.claims[transport] = (request["id"], request["respondBy"])
+        if not verdict.accept:
+            self.counts["declined"] += 1
+            self.counts["cost"] += verdict.reason.startswith("cost")  # the driver cost and premium over the maximum
+        else:
+            self.counts["taken"] += 1
+            if transport is not None:
+                self.claims[transport] = (request["id"], request["respondBy"])
+                self.counts["return legs"] += 1
         return verdict
 
     def release(self, request_id: str) -> None:
         """The desk declines a request that admission took: its transport and its place in the area are free."""
-        self.pending.pop(request_id, None)
-        self.claims = {order: claim for order, claim in self.claims.items() if claim[0] != request_id}
+        held = self.pending.pop(request_id, None) is not None
+        claims = {order: claim for order, claim in self.claims.items() if claim[0] != request_id}
+        self.counts["released"] += held or len(claims) < len(self.claims)
+        self.claims = claims
 
     def restore(self, requests: Iterable[dict], held: Iterable[Held]) -> None:
         """Claims the transports again after a restart: a new desk rebuilds its orders from the history, but not the
@@ -72,6 +82,7 @@ class ChainAdmission(Admission):
             transport = self.chain(request, then, at)
             if transport is not None:
                 self.claims[transport] = (request["id"], request["respondBy"])
+                self.counts["restored"] += 1
 
     def pairs(self, request: dict, held: Iterable[Held]) -> bool:
         """What the base asks for the capacity and the expected cost: is the car a return leg?"""
@@ -113,6 +124,22 @@ class ChainAdmission(Admission):
         won and have not delivered."""
         claim = self.claims.get(order_id)
         return claim is not None and (claim[1] >= now or claim[0] in self.orders)
+
+    def summary(self) -> str:
+        """The week's verdicts: the requests taken, and how many as return legs; those declined, and how many for
+        their driver cost; and what the desk freed or a restart claimed again."""
+        c = self.counts
+        if not c:
+            return ""
+        line = (
+            f"Chain admission: {c['taken']} taken, {c['return legs']} of them as return legs; {c['declined']} declined, "
+            f"{c['cost']} of them for the driver cost over the maximum"
+        )
+        if c["released"]:
+            line += f"; {c['released']} freed when the desk declined"
+        if c["restored"]:
+            line += f"; {c['restored']} return legs claimed again after a restart"
+        return line
 
 
 def as_of(order: dict, at: int) -> dict:
