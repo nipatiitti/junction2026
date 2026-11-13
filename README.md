@@ -139,6 +139,31 @@ must name the proxy's CA (cloud sessions set it). Without `HTTPS_PROXY` they con
 turns on pnpm's `shell-emulator`, so the variable works on Windows too. The `--final` WebSocket stream does not go
 through the proxy yet.
 
+### Get the team's scraped data
+
+The team's scraped weeks (`out/scrape`) and probe rows (`out/probe`) are too big for git, so each batch goes up as
+one tarball on a GitHub release of this repository (`data-<date>`). Every release holds all the data, not only the
+new weeks, so the latest one is all you need. Get it, and build your own SQLite database from it (about 10 times the
+size of the folders, so it is not shared):
+
+```sh
+mkdir -p out && gh release download --pattern 'spread-data-*.tar.gz' --output - | tar -xz -C out
+uv run db.py out/scrape    # builds out/spread.sqlite; weeks already in it are skipped
+uv run python -m analysis.facts   # adds the derived tables (analysis/README.md)
+```
+
+To publish a new batch, from the checkout that holds the most data (check `find out/scrape -name meta.json | wc -l`
+first, so a release never holds fewer weeks than the last one):
+
+```sh
+stamp=$(date +%Y%m%d-%H%M) && tar -czf out/spread-data-$stamp.tar.gz -C out scrape probe \
+  && gh release create data-$stamp out/spread-data-$stamp.tar.gz --title "Scraped data $stamp" \
+     --notes "$(find out/scrape -name meta.json | wc -l) weeks, $(cat out/probe/*.jsonl 2>/dev/null | wc -l) probe rows"
+```
+
+A downloaded tarball overwrites the week folders of the same name, which are the same weeks: a seed, level and
+experiment always play the same week.
+
 ### Offline data and scraping more weeks
 
 The data for an offline model of the server is committed in `data/`, so by default the analysis needs no server and
