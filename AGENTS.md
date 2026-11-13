@@ -153,16 +153,17 @@ deleting a branch, closing or editing any other issue you did not create.
 Stack-specific. The first PR that introduces or changes tooling must fill this
 in and keep it current. Every row must be a single copy-pasteable command.
 
-| Task                        | Command                                             |
-| --------------------------- | --------------------------------------------------- |
-| Install dependencies        | `pnpm install`                                      |
-| Lint / format               | `pnpm format`                                       |
-| Lint only (no writes)       | `pnpm lint`                                         |
-| Type check                  | `pnpm check`                                        |
-| Install Python dependencies | `uv sync`                                           |
-| Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`      |
-| Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`               |
-| Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .` |
+| Task                        | Command                                                     |
+| --------------------------- | ----------------------------------------------------------- |
+| Install dependencies        | `pnpm install`                                              |
+| Lint / format               | `pnpm format`                                               |
+| Lint only (no writes)       | `pnpm lint`                                                 |
+| Type check                  | `pnpm check`                                                |
+| Install Python dependencies | `uv sync`                                                   |
+| Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`              |
+| Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                       |
+| Compare two versions        | `uv run python -m strategies.bench dispatch.py origin/main` |
+| Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .`         |
 
 ## Definition of done
 
