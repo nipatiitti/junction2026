@@ -99,10 +99,11 @@ def shown(path: Path) -> str:
 
 class Recorder:
     """Notes the start of a week played online, and saves the week once it has ended. `kind` is practice, board (a
-    ranking run) or final. Saving never stops the run: a failure prints a warning."""
+    ranking run) or final. `policy` names the system that played it: dispatch.py's weeks are `dispatch`. Saving never
+    stops the run: a failure prints a warning."""
 
-    def __init__(self, world: World, level: int, seed: str | None, kind: str):
-        self.world, self.level, self.kind = world, level, kind
+    def __init__(self, world: World, level: int, seed: str | None, kind: str, policy: str = POLICY):
+        self.world, self.level, self.kind, self.policy = world, level, kind, policy
         self.seed = seed or ("random" if kind == "practice" else kind)
         self.version, self.started = git_version(), time.monotonic()
         self.requests_before = getattr(world.client, "requests", 0)
@@ -137,7 +138,7 @@ class Recorder:
             meta = {
                 "seed": self.seed,
                 "level": self.level,
-                "policy": POLICY,
+                "policy": self.policy,
                 "kind": self.kind,
                 "worldId": self.world.id,
                 "version": self.version,
