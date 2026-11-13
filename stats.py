@@ -424,7 +424,8 @@ class Group:
             self.booked_by_posted_hour[hour] += booking is not None
             if reference:
                 self.lists["gigs.openingFeeOverReference"].append(opening / reference)
-                fee_bin = self.fee_bins[f"{math.floor(opening / reference / FEE_BIN) * FEE_BIN:.1f}"]
+                # The tolerance keeps a fee rounded to the cent, such as exactly the typical fee, in its own bin
+                fee_bin = self.fee_bins[f"{math.floor(opening / reference / FEE_BIN + 1e-3) * FEE_BIN:.1f}"]
                 fee_bin["gigs"] += 1
                 fee_bin["booked"] += booking is not None
                 fee_bin["bookings"] += bookings[gig_id]
