@@ -1,10 +1,7 @@
-import { drizzle } from 'drizzle-orm/libsql';
-import { createClient } from '@libsql/client';
-import * as schema from './schema';
-import { DATABASE_URL } from '$app/env/private';
+import { drizzle } from 'drizzle-orm/libsql'
+import { DATABASE_URL } from '$app/env/private'
+import { relations } from './relations.ts'
 
-if (!DATABASE_URL) throw new Error('DATABASE_URL is not set');
+if (!DATABASE_URL) throw new Error('DATABASE_URL is not set')
 
-const client = createClient({ url: DATABASE_URL });
-
-export const db = drizzle(client, { schema });
+export const db = drizzle({ connection: { url: DATABASE_URL }, relations })
