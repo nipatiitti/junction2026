@@ -31,6 +31,8 @@ from spread.types import (
     TimeWindow,
 )
 
+from strategies.admission import Admission, Held
+
 HOUR, DAY = 60, 24 * 60
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 # The events that need an answer. Views and account lines arrive with the next event that needs an answer.
@@ -69,6 +71,8 @@ class Desk:
         self.booked: set[str] = set()  # the gigs that a driver holds now
         self.posts: dict[str, PostAction] = {}  # gig id -> the post that made it
         self.urgent: set[str] = set()  # the orders whose deadline warning has come
+        # Decides which requests to take, from the driver list and the map, loaded once (strategies/admission).
+        self.admission = Admission(world.roster(), world.client.map(), level)
 
     def rejoin(self, snapshot: DeskSnapshot, history: list[DeskEvent]) -> None:
         """Rebuilds what it knows from the world, so a starter that stopped keeps its orders. Then answers
@@ -101,10 +105,13 @@ class Desk:
                 ]
                 if not any(stop["leg"] == event["leg"] for gig in later for stop in gig["stops"]):
                     self.retry(order["id"], event["leg"], event["reason"])
+        for event in history:
+            self.admission.observe(event)
         for request in snapshot["openRequests"]:
             self.quote(request)
 
     def handle(self, event: DeskEvent) -> None:
+        self.admission.observe(event)
         if event["kind"] == "price_request":
             self.quote(event["request"])
         elif event["kind"] == "order_won":
@@ -136,11 +143,20 @@ class Desk:
             self.orders[order_id]["deliveredAt"][leg] = at
 
     def quote(self, request: PriceRequest) -> None:
+        """Quotes the list price of the option that admission picks. A request admission declines gets a
+        price far above the list price, which loses at no cost; up to level 3 every quote wins, so no quote."""
         self.requests[request["id"]] = request
-        first = request["options"][0]
-        self.outbox.append(
-            {"type": "quote", "requestId": request["id"], "prices": {first["kind"]: first["listPriceCents"]}}
-        )
+        held = [
+            Held(o, bool(g := self.gigs_of(o["id"])) and all(x in self.booked for x in g)) for o in self.orders.values()
+        ]
+        verdict = self.admission.assess(request, held, self.now)
+        if verdict.accept:
+            prices = {o["kind"]: o["listPriceCents"] for o in request["options"] if o["kind"] in verdict.options}
+        elif self.level > 3:
+            prices = {o["kind"]: 10 * o["listPriceCents"] for o in request["options"][:1]}
+        else:
+            return
+        self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
 
     def win(self, order: Order) -> None:
         if order["id"] in self.requests and order["id"] not in self.orders:  # rejoin can know it already
