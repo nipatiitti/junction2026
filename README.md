@@ -69,6 +69,16 @@ Leave out `--env-file .env` where the two variables are already set, as in a Cla
 on the same seeds. `--board` plays a ranking run: each ranking world can be played once and its score stays on the
 public rankings, so agree on it in the team first.
 
+At the end of a practice week, `dispatch.py` prints two more lines. `Requests` counts the week's requests by route
+(`advance`, `actions`, `score`, …). `Stops` gives the reason for each `advance`: the kind of event that stopped the
+clock, `poll`, `midnight` or `end`. The request count sets how long a week takes: each request waits for the
+network's round trip, about 175 ms through a Claude Code cloud proxy. To keep the count low, the loop does not stop
+for every price request. The dealer decides at the request's `respondBy`, 15 minutes after the request, on our last
+quote. So while requests keep coming, the loop looks for new ones at least every 14 minutes (`poll`) and quotes them
+together with its answers to the other events. A quote sent anywhere before `respondBy` gets the same answer, so the
+week stays the same. On the level 8 starter week in `data/` (`smoke-1`), this cuts the stops of the clock from 1,725 to
+about 1,390.
+
 - `dispatch.py` is our system. It starts as a copy of the organisers' starter, formatted with ruff.
 - `vendor/` holds the organisers' Python kit of 13 November as a wheel. uv installs it as the package `spread`: the
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
