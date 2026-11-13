@@ -33,6 +33,10 @@ LATE_TOP = 2.5
 URGENT_SPAN = 8 * HOUR
 # Raises after the opening fee, the last one at the top fee. Few and large, so drivers do not learn to wait.
 RAISES = 3
+# The raises before the top come early, this long after the post at the latest: drivers who know they
+# work the next day book a day ahead when the fee is right, before their day fills up. The fee then
+# holds until the top fee is due.
+EARLY_RAISES = (HOUR, 3 * HOUR)
 # The travel margin before `lastPickupAt`: an hour to see the gig, plus the trip from the drivers'
 # homes by public transport, which is slower than the road minutes. Never less than the 3 hours of
 # the deadline warning, never more than 6 hours.
@@ -114,7 +118,7 @@ def plan(now: int, gig: Gig, level: int, floor: float = 0) -> list[FeeStep]:
     cap = max(opening, min(top, worth(gig)))
     steps = [(now, opening)]
     for k in range(1, RAISES + 1):
-        at = now + span * k // RAISES
+        at = now + span * k // RAISES if k == RAISES else min(now + span * k // RAISES, now + EARLY_RAISES[k - 1])
         fee = opening + (top - opening) * k / RAISES
         steps.append((before_night(at, now), top if k == RAISES else min(fee, cap)))
     return valid(steps, level)
