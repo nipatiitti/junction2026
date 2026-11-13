@@ -3,7 +3,10 @@
 Each dealer's quote price starts at the maximum markup, falls only after a lost quote and climbs back after a win,
 never under the cost floor; at level 8 a dealer whose trust can still grow may take a small loss. Each gig gets one
 flat fee, priced by distance, place and the risk of finding no driver, which rises only once the car is late.
-Everything else (the loop, posting, bundling, notes, retries, direct offers, the final) is the root dispatch.py.
+
+Its three strategies (strategies/strategy.py) take the place of the root desk's admission, pricing and fees, and the
+desk feeds them every event like the others. Everything else (the loop, posting, bundling, notes, retries, direct
+offers, the final) is the root dispatch.py, so its improvements reach this system too.
 
 Run it from the repository root: uv run strategies/ratchet/dispatch.py --level 8 --seed spread-1
 """
@@ -13,19 +16,18 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Run as a file, Python looks for modules next to it; dispatch.py, record.py and strategies/ are at the root.
+# Run as a file, Python looks for modules next to it; dispatch.py, tools/ and strategies/ are at the root.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from spread.client import World
-from spread.types import DeskEvent, DeskSnapshot, PriceRequest
+from spread.types import PostAction, PriceRequest
 
 import dispatch as root
-import record
 from strategies.admission import Held
 from strategies.bundling import audience as bundle_audience
-from strategies.ratchet.admission import TrustAdmission
-from strategies.ratchet.fees import RiskFees
-from strategies.ratchet.pricing import RatchetPricing
+from strategies.ratchet import RatchetPricing, RiskFees, TrustAdmission
+from strategies.strategy import Strategy
+from tools import record
 
 POLICY = "ratchet"  # its saved weeks form their own group in out/spread.sqlite
 
@@ -38,40 +40,22 @@ class Recorder(record.Recorder):
 
 
 class Desk(root.Desk):
-    """The root desk with the ratchet's quotes and fees."""
+    """The root desk with the ratchet's admission, pricing and fees."""
 
     def __init__(self, world: World, level: int, now: int):
         super().__init__(world, level, now)
         roster, world_map = self.admission.roster, self.admission.world_map  # loaded once by the root desk
-        self.admission = TrustAdmission(roster, world_map, level)
-        self.pricing = RatchetPricing(level)
-        self.fees = RiskFees(self.fees.market)
-
-    def rejoin(self, snapshot: DeskSnapshot, history: list[DeskEvent]) -> None:
-        super().rejoin(snapshot, history)
-        gig_orders = {gig["id"]: root.orders_in(gig) for gig in snapshot["gigs"]}
-        for event in history:
-            self.learn_risk(event, gig_orders)
-
-    def handle(self, event: DeskEvent) -> None:
-        self.learn_risk(event)
-        super().handle(event)
-
-    def learn_risk(self, event: DeskEvent, gig_orders: dict[str, list[str]] | None = None) -> None:
-        """Tells the fee planner whether an order's gig found a driver before its deadline warning: the first
-        booking or the first warning of each order counts, for each order of a bundle. `gig_orders` maps gig ids
-        to their orders on a rejoin."""
-        if event["kind"] == "deadline_close":
-            order_ids, found = [event["orderId"]], False
-        elif event["kind"] == "gig_booked" or event["kind"] == "offer_answered" and event["answer"] == "accepted":
-            action = self.posts.get(event["gigId"])
-            order_ids = root.orders_in(action) if action else (gig_orders or {}).get(event["gigId"], [])
-            found = True
-        else:
-            return
-        for order_id in order_ids:
-            if order_id in self.orders:
-                self.fees.learn(self.orders[order_id], found)
+        self.admission = TrustAdmission(roster, world_map, level)  # which requests to take, and the floor
+        self.pricing = RatchetPricing(roster, world_map, level)  # the price ratchet per dealer
+        self.fees = RiskFees(roster, world_map, level)  # the flat fee and its raises once late
+        self.strategies: list[Strategy] = [
+            self.notes,
+            self.admission,
+            self.pricing,
+            self.fees,
+            self.offers,
+            self.bundler,
+        ]
 
     def quote(self, request: PriceRequest) -> None:
         """Quotes the options that admission picks at the dealer's price, but never under admission's floor: the
@@ -79,7 +63,6 @@ class Desk(root.Desk):
         take a small loss. A request admission declines gets a price far above the list price, which loses at no
         cost; up to level 3 every quote wins, so no quote."""
         self.requests[request["id"]] = request
-        self.bundler.request(request)
         held = [
             Held(o, bool(g := self.gigs_of(o["id"])) and all(x in self.booked for x in g)) for o in self.orders.values()
         ]
@@ -107,10 +90,16 @@ class Desk(root.Desk):
             else:
                 stops = [stop for unit in group for stop in unit.stops]
                 gig = self.bundler.gig(group, self.now)
-                schedule = self.fees.bundle(gig, group[0].places[0], group[-1].places[-1], self.now, self.level)
+                schedule = self.fees.bundle(gig, group[0].places[0], group[-1].places[-1], self.now)
                 self.outbox.append(
                     {"type": "post", "stops": stops, "audience": bundle_audience(group), "schedule": schedule}
                 )
+
+    def carry(self, action: PostAction, gig_id: str) -> None:
+        """Remembers a gig as the root desk does, and tells the fees which orders it carries: its booking teaches
+        their pickup's risk of no driver."""
+        super().carry(action, gig_id)
+        self.fees.register(gig_id, root.orders_in(action))
 
     def raise_fees(self, order_id: str) -> None:
         """At the order's deadline warning the fee stays: it rises only once the car is late, and the schedule in
@@ -135,7 +124,7 @@ class Desk(root.Desk):
                 self.offers.rescue(gig_id)
 
     def dropped(self, gig_id: str) -> None:
-        """After a drop the schedule in the app stays: the fee rises only once the car is late."""
+        """After a drop the schedule in the app stays, also for a bundle: the fee rises only once the car is late."""
 
 
 # The root loop (play_practice, play_final) plays with this desk, and main() saves its weeks as `ratchet`.

@@ -10,13 +10,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-from spread.types import FeeStep, Leg, Order, PriceRequest
+from spread.types import DeskEvent, DriverProfile, FeeStep, Leg, Order, PriceRequest, WorldMap
 
-from strategies.fees import FeePlanner, Market
+from strategies.fees import FeePlanner
 from strategies.fees import Gig as BundleGig
 from strategies.fees.schedule import valid
-
-from .risk import Risk
+from strategies.ratchet.risk import Risk
+from strategies.strategy import NoParams
 
 HOUR, DAY = 60, 24 * 60
 
@@ -111,52 +111,77 @@ def daytime(at: int) -> bool:
     return NIGHT_TO <= at % DAY < NIGHT_FROM and at // DAY % 7 != SUNDAY
 
 
-class RiskFees:
-    """Plans each gig's fee schedule, and learns place by place how often our gigs find no driver before their
-    deadline warning. It takes the place of `strategies/fees`' `FeePlanner` in the desk."""
+class RiskFees(FeePlanner):
+    """The fees strategy of the ratchet system: plans each gig's fee schedule with the functions above, and learns
+    place by place how often our gigs find no driver before their deadline warning. It builds on the `FeePlanner` of
+    strategies/fees, unchanged there: the same market and typical fee of a trip, and the same level 1 ladder. Its
+    thresholds are the constants above and in risk.py, so its `params` are empty."""
 
-    def __init__(self, market: Market):
-        self.market = market
-        self.risk = Risk(market)
-        self.planner = FeePlanner(market)  # the typical fee of the trip a car makes now (strategies/fees)
+    def __init__(
+        self, roster: list[DriverProfile], world_map: WorldMap, level: int = 8, params: NoParams | None = None
+    ) -> None:
+        super().__init__(roster, world_map, level, params or NoParams())
+        self.risk = Risk(self.market)
         # (Order id, pickup, delivery) -> the order's opening fee over its typical fee, set at its first post for
         # that trip: every later post, repost and retry of the order opens at the same fee, so the fee rises only
         # once the car is late. A car that the dealer sends elsewhere is a new trip, with a new opening fee.
         self.openings: dict[tuple[str, str, str], float] = {}
+        self.orders: dict[str, Order] = {}  # order id -> the order, from `order_won` and `order_changed`
+        self.gig_orders: dict[str, list[str]] = {}  # gig id -> the orders whose cars it carries (`register`)
 
-    def schedule(self, order: Order, request: PriceRequest, cars: int, now: int, level: int) -> list[FeeStep]:
-        gig = self.gig(order, request, cars, now)
+    def observe(self, event: DeskEvent) -> None:
+        """Learns the risk of each pickup place: an order whose gig a driver books before its deadline warning
+        found a driver, one whose warning comes first did not. Each order counts once, for each order of a
+        bundle."""
+        kind = event["kind"]
+        if kind in ("order_won", "order_changed"):
+            self.orders[event["order"]["id"]] = event["order"]
+        elif kind == "deadline_close":
+            self.learn(event["orderId"], False)
+        elif kind == "gig_booked" or kind == "offer_answered" and event["answer"] == "accepted":
+            for order_id in self.gig_orders.get(event["gigId"], []):
+                self.learn(order_id, True)
+
+    def register(self, gig_id: str, order_ids: list[str]) -> None:
+        """A gig the world accepted, with the orders whose cars it carries: its booking teaches their risk."""
+        self.gig_orders[gig_id] = order_ids
+
+    def learn(self, order_id: str, found: bool) -> None:
+        order = self.orders.get(order_id)
+        if order is not None:
+            self.risk.learn(order_id, first(order)["pickup"]["placeId"], found)
+
+    def schedule(self, order: Order, request: PriceRequest, cars: int, now: int) -> list[FeeStep]:
+        """The flat fee of a gig with `cars` of the order's cars, and its raises once the car is late."""
+        gig = self.facts_of(order, request, cars, now)
         leg = first(order)
         key = (order["id"], leg["pickup"]["placeId"], leg["delivery"]["placeId"])
         multiple = self.openings.setdefault(key, opening_multiple(gig))
-        return plan(now, gig, level, opening=gig.typical * multiple)
+        return plan(now, gig, self.level, opening=gig.typical * multiple)
 
-    def bundle(self, gig: BundleGig, pickup: str, delivery: str, now: int, level: int) -> list[FeeStep]:
-        """The schedule of a bundle of several orders' cars (`strategies/bundling`), from the facts that bundling
+    def after_drop(
+        self, order: Order, request: PriceRequest, cars: int, now: int, dropped_fee: int
+    ) -> list[FeeStep] | None:
+        """After a drop the schedule in the app stays: the fee rises only once the car is late."""
+        return None
+
+    def bundle(self, gig: BundleGig, pickup: str, delivery: str, now: int) -> list[FeeStep]:
+        """The schedule of a bundle of several orders' cars (strategies/bundling), from the facts that bundling
         sums for it: the same flat fee and late raises, from its first pickup to its last delivery."""
         facts = self.facts(pickup, delivery, gig.typical, gig.price, gig.last_pickup_at, gig.starts_at)
-        return plan(now, replace(facts, drive_minutes=gig.drive_minutes), level)
-
-    def typical(self, order: Order, request: PriceRequest) -> float:
-        """The typical fee of all the order's cars for the trips they make now: the request's, or after a change
-        of plan the fee of the new trip (`strategies/fees`)."""
-        return self.planner.typical(order, request)
+        return plan(now, replace(facts, drive_minutes=gig.drive_minutes), self.level)
 
     def estimate(self, request: PriceRequest, now: int) -> float:
-        """The opening fee we would post now for all of the request's cars, in cents."""
+        """The opening fee we would post now for all of the request's cars, in cents: admission's floor."""
         leg = request["legs"][0]
         typical = request["referenceFeeCents"]
         starts_at = max(now, leg["pickup"]["window"]["from"])
         facts = self.facts(leg["pickup"]["placeId"], leg["delivery"]["placeId"], typical, 0, 0, starts_at)
         return typical * opening_multiple(facts)
 
-    def learn(self, order: Order, found: bool) -> None:
-        """The order's gig was booked (`found`) or reached its deadline warning with no driver, whichever came
-        first: the risk of its pickup place learns from it."""
-        self.risk.learn(order["id"], first(order)["pickup"]["placeId"], found)
-
-    def gig(self, order: Order, request: PriceRequest, cars: int, now: int) -> Gig:
-        """The facts of a gig with `cars` of the order's cars, read from its first undelivered car."""
+    def facts_of(self, order: Order, request: PriceRequest, cars: int, now: int) -> Gig:
+        """The facts of a gig with `cars` of the order's cars, read from its first undelivered car, for the trip it
+        makes now (`typical` of strategies/fees)."""
         share = cars / len(order["legs"])
         leg = first(order)
         return self.facts(

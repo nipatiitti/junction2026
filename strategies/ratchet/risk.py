@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from collections import Counter
 
-from strategies.fees import Market
+from strategies.fees.market import Market
 
 # The prior: RISK_BASE at a place with as many drivers within reach as the world's median place, rising to 1 at a
 # place with none. It counts as RISK_PRIOR orders, so our own gigs take over after a few orders.
