@@ -200,6 +200,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the cheaper-bundles week: `uv run strategies/bundling_cheaper/dispatch.py --level 8 --seed spread-1`
 - Play the urgency-priced week: `uv run strategies/delivery_urgency/dispatch.py --level 8 --seed spread-1`
 - Play the ratchet week: `uv run strategies/ratchet/dispatch.py --level 8 --seed spread-1`
+- Play the ceiling-pricing week: `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1`
 - Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
 - Measure the note reader: `uv run python -m strategies.notes.check reveal-<world id>`
 - Compare two versions: `uv run python -m strategies.bench dispatch.py origin/main`
