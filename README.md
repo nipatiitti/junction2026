@@ -147,6 +147,7 @@ size of the folders, so it is not shared):
 ```sh
 mkdir -p out && gh release download --pattern 'spread-data-*.tar.gz' --output - | tar -xz -C out
 uv run db.py out/scrape    # builds out/spread.sqlite; weeks already in it are skipped
+uv run python -m analysis.facts   # adds the derived tables (analysis/README.md)
 ```
 
 To publish a new batch, from the checkout that holds the most data (check `find out/scrape -name meta.json | wc -l`
