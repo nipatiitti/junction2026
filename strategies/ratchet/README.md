@@ -10,9 +10,10 @@ A dispatch system with one pricing strategy for both sides of an order (issue #7
   comes there. The fee does not rise while the car can still be on time, so drivers do not learn to wait for raises.
 - **Every car moves.** Once a car is late, its fee rises every daytime hour until a driver takes it.
 
-It builds on the root `dispatch.py`: it replaces the quote, the fee schedule and the answers to a deadline warning
-and a drop. Everything else (the loop, posting, notes, retries, direct offers, the final) is the root system's, so
-improvements there reach this system too. The root `dispatch.py` and `strategies/` stay as they are.
+It builds on the root `dispatch.py`: it replaces the quote, the fee schedule (also of bundles) and the answers to a
+deadline warning and a drop. Everything else (the loop, posting, bundling, notes, retries, direct offers, the final)
+is the root system's, so improvements there reach this system too. The root `dispatch.py` and `strategies/` stay as
+they are.
 
 | File           | What it holds                                                                               |
 | -------------- | ------------------------------------------------------------------------------------------- |
@@ -77,7 +78,8 @@ and a late refund or an undelivered penalty halves the count.
 The typical fee, times a multiple for the distance, the place and the hour, times the risk premium:
 
 1. **Distance.** The typical fee already grows with the distance: it is the drive, the trip to the pickup and the
-   trip home of a driver who lives in the pickup town. On top: 10% for each hour of road from the homes of the
+   trip home of a driver who lives in the pickup town. After a change of plan the typical fee is that of the trip the
+   car makes now (`FeePlanner.typical` of `strategies/fees`), not the request's. On top: 10% for each hour of road from the homes of the
    pickup's 10 nearest drivers (up to 4 hours), their trip to the car, and 5% for a drive of 3 hours or more.
 2. **Place and hour.** Up to 15% at a delivery with no drivers within reach (a long trip home), 10% when the drive
    ends after 18:00, and 15% for Saturday work.
@@ -86,7 +88,12 @@ The typical fee, times a multiple for the distance, the place and the hour, time
    time opens 25% higher.
 
 The opening fee is set at the order's first post and kept for every later post, repost and retry of the order, so
-the fee never rises before the car is late. It is at most 1.5 times the order's price for the gig's cars.
+the fee never rises before the car is late. A car that the dealer sends to another place is a new trip with a new
+opening fee. The opening fee is at most 1.5 times the order's price for the gig's cars, or the typical fee of the trip
+when that is higher.
+
+A bundle of several orders' cars (`strategies/bundling`) gets the same flat fee, from the typical fee and price that
+bundling sums for it, its first pickup and its last delivery.
 
 ### The risk of no driver
 
@@ -99,12 +106,15 @@ where drivers are scarce from the start, and our own gigs correct it during the 
 ### Late: raise until a driver comes
 
 From `lastPickupAt` (moved by `LATE_FROM` minutes), every daytime hour adds 25% of the opening fee (`LATE_RAISE`), up
-to twice the order's price for the gig's cars (`LATE_CEILING`): a car never delivered costs twice its price as a
-penalty, so any lower fee is cheaper than leaving it. There is no raise from 23:00 to 07:00 or on Sunday, when no
-driver books. A gig posted again after `gig_expired` starts at the fee that its lateness has reached and keeps rising.
+to twice the order's price for the gig's cars (`LATE_CEILING`, the penalty for a car never delivered) or three times
+the typical fee of the trip (`LATE_TYPICAL`), whichever is higher: a car that the dealer sent far must move too.
+There is no raise from 23:00 to 07:00 or on Sunday, when no driver books. A gig posted again after `gig_expired`
+starts at the fee that its lateness has reached and keeps rising.
 
 At the deadline warning the fee stays as it is: the schedule already holds the late raises, and the desk sends direct
-offers to drivers near the pickup instead. After a drop the schedule in the app stays too.
+offers to drivers near the pickup instead. As in the root system, an order still waiting for a bundle goes alone
+then, and a bundle that no driver holds is split into one gig for each order, at its own flat fee. After a drop the
+schedule in the app stays.
 
 ## Variables
 
@@ -122,10 +132,11 @@ offers to drivers near the pickup instead. After a drop the schedule in the app 
 | `RISK_PRIOR`      | `risk.py`      | 5       | The prior counts as this many orders                                 |
 | `OPEN_TRAVEL`     | `fees.py`      | 0.10    | Per hour of road from the nearest drivers' homes to the pickup       |
 | `OPEN_SCARCE_END` | `fees.py`      | 0.15    | At a delivery with no drivers within reach                           |
-| `OPEN_CEILING`    | `fees.py`      | 1.5     | The opening fee is at most this times the price for the gig's cars   |
+| `OPEN_CEILING`    | `fees.py`      | 1.5     | The opening fee is at most this times the price, or the typical fee  |
 | `LATE_FROM`       | `fees.py`      | 0       | Minutes after `lastPickupAt` when the raises start; negative: before |
 | `LATE_RAISE`      | `fees.py`      | 0.25    | Each daytime hour late adds this times the opening fee               |
-| `LATE_CEILING`    | `fees.py`      | 2.0     | The late fee is at most this times the price for the gig's cars      |
+| `LATE_CEILING`    | `fees.py`      | 2.0     | The late fee may reach this times the price for the gig's cars       |
+| `LATE_TYPICAL`    | `fees.py`      | 3.0     | ... or this times the typical fee of the trip, whichever is higher   |
 
 `max_markup`, `cut`, `recover` and `daily_recover` are fields of `RatchetParams`, and `trust_loss`, `trust_requests`
 and `min_margin` of `TrustParams`; the fee and risk constants are at the top of their files.
