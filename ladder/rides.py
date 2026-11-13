@@ -1,9 +1,10 @@
 """The ladder: how hard a price request is to move, as a rung. A system that takes rung n takes every ride of rungs 1
 to n, with the handling each of them needs.
 
-The order of the rungs follows how often the starter's level 8 week (`smoke-1`) got such cars to their dealers on
-time (README.md has the table): a plain car ready on a later day was on time 62% to 80% of the time; premium cars,
-private addresses and cars ready at once 23% to 41%; trade-ins and drives over 4 hours under 31%.
+The order of the rungs follows how often such cars reached their dealers on time (README.md has the tables): in the
+starter's level 8 week (`smoke-1`) a plain car ready on a later day was on time 62% to 80% of the time; premium cars,
+private addresses and cars ready at once 23% to 41%; trade-ins and drives over 4 hours under 31%. On the ladder's own
+bench, long rides quoted with a day to search were late 2 times in 63, trade-ins 7 times in 20: trade-ins come last.
 """
 
 from __future__ import annotations
@@ -20,12 +21,12 @@ RUNGS = [
     "easy rides",  # one plain car between dealer sites, no note, ready on a later day, a drive of up to 4 hours
     "notes",  # the note reader sets the windows, the licence and the plates
     "special cars",  # premium cars, electric cars that need a charging stop, private addresses
-    "rides ready today",  # the car is ready on the day its request arrives: a later option, posted for the evening
+    "rides ready today",  # the car is ready on the day its request arrives: a later option, posted for the next morning
+    "long and remote rides",  # a drive over 4 hours, or few drivers near either end: quoted with a day to search
     "trade-ins",  # two cars in one gig, or two gigs over the 12-hour limit
-    "long and remote rides",  # a drive over 4 hours, or few drivers near the pickup
 ]
 TOP_RUNG = 4  # the default of --rung: the best rung on the bench so far (README.md)
-NOTES_RUNG, SPECIAL_RUNG, TODAY_RUNG, TRADE_IN_RUNG, REMOTE_RUNG = 2, 3, 4, 5, 6
+NOTES_RUNG, SPECIAL_RUNG, TODAY_RUNG, REMOTE_RUNG, TRADE_IN_RUNG = 2, 3, 4, 5, 6
 
 MORNING = 7 * 60  # rung 4 posts a car ready today for 07:00 on the next business day
 CHARGE_KM = 200  # an electric car under 30% on a route over this needs a charging stop (rule 3)
@@ -48,6 +49,7 @@ class Ride:
     delivery: str  # the last car's delivery place
     ready: int  # when the first car can be collected: by the request, or later by its note
     today: bool  # ready on the day its request arrives
+    remote: bool  # a drive over 4 hours, or few drivers near either end: it needs a day to find a driver
     shift: int  # minutes the order's deadlines move because the note makes the car ready a day or more later
     note_deadline: int | None  # a tighter deadline from the note
     drive: int  # road minutes of all legs, from each pickup to its delivery
@@ -94,11 +96,12 @@ def classify(request: PriceRequest, market: Market, facts: NoteFacts) -> Ride:
     note = bool(request["note"] and request["note"]["text"].strip())
     today = ready // DAY <= request["arrivedAt"] // DAY
     supply = market.supply(pickup, "experienced" if premium else "all")
+    remote = supply < REMOTE_SUPPLY or market.supply(delivery) < REMOTE_DELIVERY or drive > LONG_DRIVE
     needs = [
+        (TRADE_IN_RUNG, len(legs) > 1, "a trade-in"),
         (REMOTE_RUNG, supply < REMOTE_SUPPLY, "few drivers near the pickup"),
         (REMOTE_RUNG, market.supply(delivery) < REMOTE_DELIVERY, "few drivers near the delivery"),
         (REMOTE_RUNG, drive > LONG_DRIVE, "a drive over 4 hours"),
-        (TRADE_IN_RUNG, len(legs) > 1, "a trade-in"),
         (TODAY_RUNG, today, "ready today"),
         (SPECIAL_RUNG, private, "a private address"),
         (SPECIAL_RUNG, premium, "a premium car"),
@@ -116,6 +119,7 @@ def classify(request: PriceRequest, market: Market, facts: NoteFacts) -> Ride:
         delivery=delivery,
         ready=ready,
         today=today,
+        remote=remote,
         shift=shift,
         note_deadline=facts.deadline,
         drive=drive,

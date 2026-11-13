@@ -22,7 +22,7 @@ DEALER_CAP = 0.15  # a dealer's offset stays within this (in log)
 LOWEST, HIGHEST = 0.9, 2.2  # the world multiplier stays within these
 # Never quote below this times the typical fee, by rung: under it a car does not pay its driver. Harder rungs pay
 # more to their drivers.
-FLOOR = {1: 1.25, 2: 1.25, 3: 1.4, 4: 1.35, 5: 1.4, 6: 1.6}
+FLOOR = {1: 1.25, 2: 1.25, 3: 1.4, 4: 1.35, 5: 1.6, 6: 1.4}
 TRUST_CAP = 25  # level 8: each dealer counts up to 25 orders delivered on time, each worth 1% more
 
 
