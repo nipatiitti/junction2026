@@ -83,7 +83,8 @@ about 1,390.
 - `dispatch.py` is our system. It starts as a copy of the organisers' starter, formatted with ruff.
 - `strategies/` holds the parts of the system, each with its notes. `strategies/admission/` decides
   which price requests to take and which option to quote, and `strategies/pricing/` the price of each quote, learned
-  during the week.
+  during the week. [`strategies/notes/`](strategies/notes/README.md) reads dealer notes into facts (ready time, real
+  hours, deadline, gearbox, plates, tyres) that set the gigs' windows, audience and plates.
 - `vendor/` holds the organisers' Python kit of 13 November as a wheel. uv installs it as the package `spread`: the
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
 - `tests/` holds older tests, kept as they are but no longer run: we do not write or run tests.
@@ -229,11 +230,20 @@ Which scrape answers which question of `SPREAD_AGENT_BRIEF.md`:
 - `arrivalsPerHourOfWeek`: requests per hour from Monday 00:00, per week.
 - `numbers`: quantiles of counts per week, request timing and distance, fees over list prices, gig views, minutes to
   booking, booked fee over the typical fee, drops, no-shows and late drivers per booking, lateness, and driver ratings.
+  `gigs.minutesFromBookingToDrop` gives, for each `gig_dropped`, the minutes since that gig's last booking.
 - `counts`: shares of legs, option sets, note languages, private addresses, car types, failed-visit reasons, order
-  status, and the truth of won cars from the reveal.
+  status, and the truth of won cars from the reveal. `gigs.bookedShareByPostHour` gives, for each hour of the day a
+  gig was posted, the number of gigs (`count`) and the share of them that were booked (`share`).
 - `fits`: straight lines for list price against km, typical fee against drive minutes, and booked fee against the
   typical fee.
 - `quoteResponse`: for bins of quote / list price, how often the dealer took the option and won the request.
+- `feeResponse`: the drivers' side of `quoteResponse`. Gigs in bins of 0.2 of opening fee / typical fee for their cars
+  (`1.2` holds 1.2 to 1.4): the number of gigs, the share booked, quantiles of minutes to the first booking, and drops
+  per booking. Explore weeks spread the ratio, so they give the booking curve.
+- `priceOverFit`: what moves prices besides distance. Each request's list price (one entry per option) and typical
+  fee, divided by the straight line fitted on one-car requests (km for list prices, drive minutes for the typical
+  fee), summed over the request's legs. Quantiles for all requests and split by `note` language (or `none`), `car`
+  (`premium`, else `electric`, else `standard`), number of `legs`, and `privateAddress` (any stop at one).
 - `driverHomeShare` and `ledger`: where drivers live, and money per week by account line.
 
 ### The baseline to beat
