@@ -52,3 +52,29 @@ npm run build
 ```
 
 You can preview the production build with `npm run preview`.
+
+## Code style
+
+[Biome](https://biomejs.dev) lints and formats TypeScript, Svelte, CSS and JSON (config in `biome.json`:
+2 spaces, no semicolons, 120 columns, trailing commas).
+
+```sh
+pnpm format # format, organise imports and apply safe lint fixes
+pnpm lint   # check only, no writes
+```
+
+In VS Code, install the recommended Biome extension to format on save.
+
+## Database
+
+SQLite through [Drizzle](https://orm.drizzle.team) 1.0 (RC) and libSQL. Copy `.env.example` to `.env` first.
+
+- Tables live in `src/lib/server/db/schema.ts`, relations in `src/lib/server/db/relations.ts`.
+- There are no migration files. After changing the schema, push it straight to the database:
+
+```sh
+pnpm db:push   # sync the schema to DATABASE_URL
+pnpm db:studio # browse the data
+```
+
+`pnpm test:unit` pushes the schema to a throwaway database and queries it.
