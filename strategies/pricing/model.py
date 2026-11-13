@@ -1,14 +1,12 @@
-"""Ceiling pricing: the price of a quote that we want to send, as high as we still win, never above our
-maximum and never below what the driver will cost us.
+"""Adaptive quoting: the price of a quote that we want to send, learned from our own wins and losses.
 
-No network: `price` takes a request and its driver cost and returns a price for the options we quote, and
-`observe` takes the `order_won`, `order_lost` and `ledger` events. README.md next to this file explains the model.
+No network: `price` takes a request and returns a price for each option, and `observe` takes the
+`order_won`, `order_lost` and `ledger` events. README.md next to this file explains the model.
 """
 
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 HOUR, DAY = 60, 24 * 60
@@ -16,24 +14,21 @@ WORK_FROM, WORK_TO = 8 * HOUR, 18 * HOUR  # the price war and the outage last fr
 REGION_KM = 80  # an outage region is a town and the places within 80 km of it
 TRUST_CAP = 25  # a dealer counts at most 25 orders on time, each worth 1% at level 8
 
+# The multiplier on the list price that a world starts from, by level: about the middle of the
+# competitor's range. Up to level 3 every quote wins at the list price, so the price stays there.
+START = {4: 1.0, 5: 1.0, 6: 1.0, 7: 1.25, 8: 1.35}
+
 
 @dataclass
 class Params:
-    """The knobs of the model, the variables to tune on the bench (README.md)."""
+    """The knobs of the model. The defaults are the ones that did best on the bench (README.md)."""
 
-    # The maximum: we quote at most the list price times 1 + max_markup. At level 8 the competitor quotes
-    # about 40% over the list price, so 0.39 stays just under it. Every price starts here.
-    max_markup: float = 0.39
-    # The premium on the driver cost for a driver who drops the gig, a failed visit, waiting and a late car.
-    # No quote goes below the driver cost times 1 + risk_premium; when that is above the maximum, we decline.
-    risk_premium: float = 0.10
-    # After a lost quote the multiplier falls by step x target_win (in logs), after a won one it rises by
-    # step x (1 - target_win), so it settles where target_win of the quotes win.
-    target_win: float = 0.5
+    target_win: float = 0.5  # the share of quotes the multiplier aims to win
     step: float = 0.03  # log step of the world's multiplier per outcome
     key_step: float = 0.015  # log step of each pickup, delivery and dealer offset per outcome
     key_limit: float = 0.25  # an offset stays within ±25%
-    floor: float = 0.9  # the learned multiplier never falls below 0.9 times the list price
+    floor: float = 0.9  # the multiplier never falls below 0.9 times the list price
+    ceiling: float = 2.0
     # The price war: the world's multiplier falls `war_drop` (in logs) below its level at the day's
     # first outcome, with losses on at least `war_places` pickup places. Until 18:00 the multiplier
     # follows the war down, or we decline with `war_decline`; then it returns to the day's level.
@@ -59,8 +54,6 @@ class Quote:
     keys: tuple[str, ...]
     pickup: str
     outage: bool  # priced with the outage boost
-    capped: bool = False  # the learned price was at the maximum: a win cannot raise it
-    floored: bool = False  # we quoted the driver cost floor, above the learned price: a loss says nothing of it
 
 
 @dataclass
@@ -71,13 +64,11 @@ class Outcome:
 
 
 class PricingModel:
-    """One world's estimate of the price that wins, under our maximum and over the driver cost, with the
-    price war, the outage and dealer trust."""
+    """One world's estimate of the price that wins, with the price war, the outage and dealer trust."""
 
     def __init__(self, level: int, places: dict[str, tuple[float, float]] | None = None, params: Params | None = None):
         self.level, self.p = level, params or Params()
-        self.top = 1 + self.p.max_markup  # the most we quote over the list price
-        self.log_m = math.log(self.top)  # the world's multiplier on the list price, in logs: it starts at the top
+        self.log_m = math.log(START.get(level, 1.0))  # the world's multiplier on the list price, in logs
         self.offset: dict[str, float] = {}  # "pickup:<place>", "delivery:<place>", "dealer:<id>" -> log offset
         self.quotes: dict[str, Quote] = {}  # request id -> the quote waiting for its outcome
         self.today: dict[int, list[Outcome]] = {}  # day -> the outcomes of usual quotes in 08:00-18:00
@@ -96,74 +87,35 @@ class PricingModel:
 
     # --- prices -------------------------------------------------------------------------------
 
-    def learned(self, request: dict) -> tuple[float, bool]:
-        """The learned multiplier on the list price for this request, between `floor` and the maximum, and
-        whether the maximum cut it."""
-        log_m = self.log_m + sum(self.offset.get(k, 0.0) for k in request_keys(request))
-        capped = log_m >= math.log(self.top) - 1e-9  # the world's multiplier starts exactly at the top
-        return min(self.top, max(self.p.floor, math.exp(log_m))), capped
-
-    def uplift(self, request: dict, now: int) -> float:
-        """How much more than the competitor's price the dealer accepts from us: the outage boost in the
-        outage region, where dealers turn to a dearer backup, and the dealer's trust at level 8. It lifts
-        the price and the maximum alike."""
-        lift = 1.0
-        if self.in_outage(request, now):
-            lift *= math.exp(self.outage_log)
-        if self.level >= 8 and self.p.trust:
-            self.settle(now)
-            lift *= 1 + self.trust.get(request["dealerId"], 0) / 100
-        return lift
-
     def multiplier(self, request: dict, now: int) -> float:
         """The multiplier on the list price for this request now."""
         if self.level <= 3:
             return 1.0
         self.end_war(now)
-        return self.learned(request)[0] * self.uplift(request, now)
+        keys = request_keys(request)
+        log_m = self.log_m + sum(self.offset.get(k, 0.0) for k in keys)
+        m = min(self.p.ceiling, max(self.p.floor, math.exp(log_m)))
+        if self.in_outage(request, now):
+            m *= math.exp(self.outage_log)
+        if self.level >= 8 and self.p.trust:
+            self.settle(now)
+            m *= 1 + self.trust.get(request["dealerId"], 0) / 100
+        return m
 
-    def ceiling(self, request: dict, now: int) -> float:
-        """The highest multiplier on the list price that we quote for this request now: the maximum."""
-        if self.level <= 3:
-            return 1.0
-        return self.top * self.uplift(request, now)
-
-    def price(self, request: dict, now: int, cost: float = 0, kinds: Iterable[str] | None = None) -> dict[str, int]:
-        """A price in cents for each option in `kinds` (every option by default): the learned price, at
-        least the driver cost `cost` (cents) times 1 + risk_premium, and at most the maximum. An option whose
-        floor is above its maximum gets no price. Remembers the quote for its outcome."""
+    def price(self, request: dict, now: int) -> dict[str, int]:
+        """A price in cents for each of the request's options, and remembers the quote for its outcome."""
         if self.level <= 3:  # every quote wins the first option at its list price
             first = request["options"][0]
             return {first["kind"]: first["listPriceCents"]}
-        wanted = None if kinds is None else set(kinds)
-        options = [o for o in request["options"] if wanted is None or o["kind"] in wanted]
-        self.end_war(now)
-        learned, capped = self.learned(request)
-        lift = self.uplift(request, now)
-        least = cost * (1 + self.p.risk_premium)
-        prices: dict[str, int] = {}
-        floored = True
-        for option in options:
-            listed = option["listPriceCents"]
-            if self.in_war(now) and self.p.war_decline:
-                prices[option["kind"]] = listed * self.p.decline_factor
-                floored = False
-                continue
-            most = listed * self.top * lift
-            if least > most:
-                continue  # the driver and the premium cost more than we may ask
-            floored = floored and listed * learned * lift < least
-            prices[option["kind"]] = max(1, int(min(most, max(listed * learned * lift, least)) + 0.5))
-        if prices:
-            self.quotes[request["id"]] = Quote(
-                at=request["arrivedAt"],
-                keys=request_keys(request),
-                pickup=request["legs"][0]["pickup"]["placeId"],
-                outage=self.in_outage(request, now),
-                capped=capped,
-                floored=floored,
-            )
-        return prices
+        m = self.multiplier(request, now)
+        factor = self.p.decline_factor if self.in_war(now) and self.p.war_decline else m
+        self.quotes[request["id"]] = Quote(
+            at=request["arrivedAt"],
+            keys=request_keys(request),
+            pickup=request["legs"][0]["pickup"]["placeId"],
+            outage=self.in_outage(request, now),
+        )
+        return {o["kind"]: max(1, int(o["listPriceCents"] * factor + 0.5)) for o in request["options"]}
 
     def in_war(self, now: int) -> bool:
         return self.war_day == now // DAY and in_hours(now)
@@ -192,20 +144,15 @@ class PricingModel:
             self.ledger(event["line"])
 
     def outcome(self, request_id: str, won: bool) -> None:
-        """A win pushes the multiplier up and a loss pushes it down, so it settles where `target_win` of the
-        quotes win. A win at the maximum leaves it there, and a loss at the driver cost floor teaches nothing
-        about it: our cost lost that request, not our price. Each step fades the older results."""
+        """Tracks a quantile of the winning price: a win pushes the multiplier up and a loss down, so it
+        settles where `target_win` of the quotes win. Each step fades the older results."""
         quote = self.quotes.pop(request_id, None)
         if quote is None:
             return
         day, error = quote.at // DAY, (1.0 if won else 0.0) - self.p.target_win
-        if not won and quote.floored:
-            error = 0.0
         if quote.outage:
             self.outage_log = min(math.log(1.5), max(0.0, self.outage_log + 2 * self.p.key_step * error))
             return
-        if won and quote.capped:
-            error = 0.0
         if day == self.war_day and in_hours(quote.at):
             if not self.p.war_decline and not self.war_over:  # follow the war, but leave the lanes alone
                 self.apply([("", self.p.step * error)])
@@ -228,7 +175,7 @@ class PricingModel:
     def apply(self, updates: list[tuple[str, float]], sign: float = 1.0) -> None:
         for key, delta in updates:
             if key == "":
-                lo, hi = math.log(self.p.floor), math.log(self.top)
+                lo, hi = math.log(self.p.floor), math.log(self.p.ceiling)
                 self.log_m = min(hi, max(lo, self.log_m + sign * delta))
             else:
                 lim = self.p.key_limit

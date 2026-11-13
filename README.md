@@ -86,6 +86,9 @@ about 1,390.
   during the week. [`strategies/notes/`](strategies/notes/README.md) reads dealer notes into facts (ready time, real
   hours, deadline, gearbox, plates, tyres) that set the gigs' windows, audience and plates. `strategies/offers/` sends
   gigs straight to drivers near their pickup.
+- [`strategies/ceiling/`](strategies/ceiling/README.md) is a copy of the system with ceiling pricing: quotes at most
+  39% over the list price, lowered only after lost quotes and never below the driver cost plus a risk premium. Run
+  it with `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1`.
 - `vendor/` holds the organisers' Python kit of 13 November as a wheel. uv installs it as the package `spread`: the
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
 - `tests/` holds older tests, kept as they are but no longer run: we do not write or run tests.
