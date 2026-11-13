@@ -37,6 +37,11 @@ from stats import load_week
 
 POLICIES = ("passive", "starter", "explore")
 PRACTICE_SLOTS = 8  # a team holds at most 8 practice worlds that have not ended
+STOP = threading.Event()  # set on Ctrl-C: every week in play stops at its next request and deletes its world
+
+
+class Stopped(Exception):
+    """The scrape was stopped before the week ended."""
 
 
 def bypasses_proxy(host: str, no_proxy: str) -> bool:
@@ -135,6 +140,8 @@ def play_desk(world: World, desk: Desk) -> None:
     """As dispatch.play_practice, without the daily reports: from one event that needs an answer to the next."""
     ends_at = world.snapshot()["endsAt"]
     while desk.now < ends_at:
+        if STOP.is_set():
+            raise Stopped()
         actions, desk.outbox = desk.outbox, []
         step = world.advance(until=WAKE_ON, max=ends_at, actions=actions)
         desk.read_results(actions, step["results"])
@@ -194,6 +201,8 @@ class Slots:
 
     def create(self, client: Client, level: int, seed: str) -> World:
         while True:
+            if STOP.is_set():
+                raise Stopped()
             with self.lock:
                 open_worlds = sum(1 for w in client.worlds() if not w["ended"])
                 if open_worlds < PRACTICE_SLOTS - self.keep_free:
@@ -202,7 +211,7 @@ class Slots:
                     except SpreadError as error:
                         if error.status != 409:
                             raise
-            time.sleep(5)
+            STOP.wait(5)
 
 
 def safe_name(seed: str) -> str:
@@ -336,10 +345,10 @@ def main(argv: list[str] | None = None) -> None:
                     flush=True,
                 )
         except KeyboardInterrupt:
-            pool.shutdown(wait=False, cancel_futures=True)
-            sys.exit(
-                "Stopping: the weeks in play finish and are saved, the rest are cancelled. A new run skips saved weeks."
-            )
+            STOP.set()
+            print("Stopping: deleting the worlds of the weeks in play.", file=sys.stderr, flush=True)
+            pool.shutdown(wait=True, cancel_futures=True)
+            sys.exit("Stopped. Saved weeks stay, and the same command again skips them.")
     if failed:
         sys.exit(f"{failed} weeks failed; run the same command again to retry them.")
 
