@@ -43,7 +43,7 @@ not ranked. It wins most cars at list price and cannot find drivers for half.
   step's `actions`.
 - **Deterministic:** same seed, level and actions at the same minutes → same
   week to the cent. A change alters driver behaviour from then on, so compare
-  versions on *several* seeds (same seeds for both). Run weeks in parallel.
+  versions on _several_ seeds (same seeds for both). Run weeks in parallel.
 - **`fork`** copies a world at the current minute with the same future (uses
   one of 8 slots).
 - **`reveal`** after the end: your quotes and outcomes, truth about each won
@@ -95,20 +95,20 @@ not ranked. It wins most cars at list price and cannot find drivers for half.
 
 ## Client
 
-| Python / TypeScript | Route |
-| --- | --- |
-| `Client()` (reads `SPREAD_URL`, `SPREAD_KEY`) | |
-| `client.create(level, seed, board)` | `POST /v1/worlds` |
-| `client.worlds()` / `client.world(id)` | `GET /v1/worlds` / none |
-| `client.final()` | `GET /v1/final` |
-| `client.board(level)` | `GET /v1/leaderboards/practice?level=` |
-| `client.map()` | `GET /v1/map` (free) |
-| `world.snapshot()` | `GET /v1/worlds/{id}` |
-| `world.act(actions)` | `POST .../actions` (batches of 50) |
-| `world.advance({ untilEvent, max, actions })` | `POST .../advance` |
-| `world.events(after)` / `world.stream(...)` | `GET .../events` / WebSocket |
-| `world.roster()` | `GET .../drivers` |
-| `world.fork()` / `score()` / `reveal()` / `delete()` | |
+| Python / TypeScript                                  | Route                                  |
+| ---------------------------------------------------- | -------------------------------------- |
+| `Client()` (reads `SPREAD_URL`, `SPREAD_KEY`)        |                                        |
+| `client.create(level, seed, board)`                  | `POST /v1/worlds`                      |
+| `client.worlds()` / `client.world(id)`               | `GET /v1/worlds` / none                |
+| `client.final()`                                     | `GET /v1/final`                        |
+| `client.board(level)`                                | `GET /v1/leaderboards/practice?level=` |
+| `client.map()`                                       | `GET /v1/map` (free)                   |
+| `world.snapshot()`                                   | `GET /v1/worlds/{id}`                  |
+| `world.act(actions)`                                 | `POST .../actions` (batches of 50)     |
+| `world.advance({ untilEvent, max, actions })`        | `POST .../advance`                     |
+| `world.events(after)` / `world.stream(...)`          | `GET .../events` / WebSocket           |
+| `world.roster()`                                     | `GET .../drivers`                      |
+| `world.fork()` / `score()` / `reveal()` / `delete()` |                                        |
 
 Answers use API field names (`referenceFeeCents`). Types: `spread/types.py`,
 `typescript/types.ts` (events are `DeskEvent`). Fractions are refused with a
@@ -122,27 +122,27 @@ Actions: `quote`, `post`, `offer`, `reprice`, `withdraw`, `release` (shapes in
 
 Every event has `seq`, `at` (world minute), `kind`.
 
-| Event | Meaning → what to do |
-| --- | --- |
-| `price_request` | Dealer asks for a price; `respondBy` in 15 min → quote (or decline by quoting high). |
-| `order_won` | Dealer took your price; has deadline, price, `lastPickupAt` → post a gig or offer. |
-| `order_lost` | Competitor won → your price was too high for this dealer/lane/day. |
-| `gig_viewed` | A driver opened your gig; many only browse → nothing. |
-| `gig_booked` | Driver took it at the current fee → can still release (for a fee). |
-| `offer_answered` | `accepted` / `declined` / `expired` → try another driver or the app. |
-| `gig_started` | Driver left; can no longer release. |
-| `driver_late` | Can't make the first window at an open dealer site; `pickupAt` given; still comes → keep, or release free. |
-| `no_show` | Can't make it elsewhere; won't come; gig reopens → as `gig_dropped`. |
-| `gig_dropped` | Driver gave it back; gig reopens → check the schedule can still find someone, raise now. |
-| `gig_expired` | No booking before a stop window ended → repost. |
-| `deadline_close` | No driver 3 h before `lastPickupAt` → raise fee now or send direct offers. |
-| `release` | Held car (payment/ready) can now be collected. |
-| `picked_up` / `delivered` | Car collected / delivered (closed site → counts at next opening). |
-| `visit_failed` | `not_ready`, `closed`, `licence`, `no_plates`; you pay ½ the car's fee share (min €25) → repost fixing the cause. |
-| `order_changed` | Redirect, snow-moved deadline, or private slot moved → re-check deadline and `lastPickupAt`. |
-| `order_cancelled` | Gigs `withdrawn` / `released` / `shortened` / `continues` → repost other cars of withdrawn gigs. |
-| `forecast` | Snow at places/hours (level 5+) → slower drives, some drivers stay home. |
-| `ledger` | One account line; their sum is your score. |
+| Event                     | Meaning → what to do                                                                                              |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `price_request`           | Dealer asks for a price; `respondBy` in 15 min → quote (or decline by quoting high).                              |
+| `order_won`               | Dealer took your price; has deadline, price, `lastPickupAt` → post a gig or offer.                                |
+| `order_lost`              | Competitor won → your price was too high for this dealer/lane/day.                                                |
+| `gig_viewed`              | A driver opened your gig; many only browse → nothing.                                                             |
+| `gig_booked`              | Driver took it at the current fee → can still release (for a fee).                                                |
+| `offer_answered`          | `accepted` / `declined` / `expired` → try another driver or the app.                                              |
+| `gig_started`             | Driver left; can no longer release.                                                                               |
+| `driver_late`             | Can't make the first window at an open dealer site; `pickupAt` given; still comes → keep, or release free.        |
+| `no_show`                 | Can't make it elsewhere; won't come; gig reopens → as `gig_dropped`.                                              |
+| `gig_dropped`             | Driver gave it back; gig reopens → check the schedule can still find someone, raise now.                          |
+| `gig_expired`             | No booking before a stop window ended → repost.                                                                   |
+| `deadline_close`          | No driver 3 h before `lastPickupAt` → raise fee now or send direct offers.                                        |
+| `release`                 | Held car (payment/ready) can now be collected.                                                                    |
+| `picked_up` / `delivered` | Car collected / delivered (closed site → counts at next opening).                                                 |
+| `visit_failed`            | `not_ready`, `closed`, `licence`, `no_plates`; you pay ½ the car's fee share (min €25) → repost fixing the cause. |
+| `order_changed`           | Redirect, snow-moved deadline, or private slot moved → re-check deadline and `lastPickupAt`.                      |
+| `order_cancelled`         | Gigs `withdrawn` / `released` / `shortened` / `continues` → repost other cars of withdrawn gigs.                  |
+| `forecast`                | Snow at places/hours (level 5+) → slower drives, some drivers stay home.                                          |
+| `ledger`                  | One account line; their sum is your score.                                                                        |
 
 ## Map
 
@@ -195,16 +195,16 @@ and snow slows them. Public transport times are not published.
 
 ### Notes (examples)
 
-| Note | If ignored | Do |
-| --- | --- | --- |
-| Pickup hours ("Nouto arkisin ennen klo 14") | `closed` | Pick up inside hours. |
-| Ready later ("Klar först på onsdag kl 12") | `not_ready`, you pay | Pick up after; a ≥ 1 day delay moves the deadline (already in `order_won`). |
-| After payment ("Maksun jälkeen, ei ennen klo 13.30") | `not_ready` | Wait for the `release` event. |
-| Tighter deadline ("by tomorrow 17:00") | Late by note | Plan for it or quote high. |
-| Delivery hours ("Vastaanotto klo 16 asti") | Waits ≤ 2 h at €15/h, counts next opening | Deliver inside hours. |
-| "Manuaalivaihteisto" | `licence` | Audience `manualLicence`. |
-| "Car has no plates" | `no_plates` | `withPlates`. |
-| Summer tyres ("kesärenkailla") | `not_ready` in snow | Avoid snow; snow forecast moves deadline +1 day. |
+| Note                                                 | If ignored                                | Do                                                                          |
+| ---------------------------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------- |
+| Pickup hours ("Nouto arkisin ennen klo 14")          | `closed`                                  | Pick up inside hours.                                                       |
+| Ready later ("Klar först på onsdag kl 12")           | `not_ready`, you pay                      | Pick up after; a ≥ 1 day delay moves the deadline (already in `order_won`). |
+| After payment ("Maksun jälkeen, ei ennen klo 13.30") | `not_ready`                               | Wait for the `release` event.                                               |
+| Tighter deadline ("by tomorrow 17:00")               | Late by note                              | Plan for it or quote high.                                                  |
+| Delivery hours ("Vastaanotto klo 16 asti")           | Waits ≤ 2 h at €15/h, counts next opening | Deliver inside hours.                                                       |
+| "Manuaalivaihteisto"                                 | `licence`                                 | Audience `manualLicence`.                                                   |
+| "Car has no plates"                                  | `no_plates`                               | `withPlates`.                                                               |
+| Summer tyres ("kesärenkailla")                       | `not_ready` in snow                       | Avoid snow; snow forecast moves deadline +1 day.                            |
 
 Notes use paraphrase, abbreviations, typos, mixed languages and corrections.
 Reveal shows what each won order's note meant — use it to measure your parser.
