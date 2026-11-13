@@ -1,5 +1,9 @@
-"""The baseline: the organisers' starter, copied here unchanged. See README.md."""
+"""The baseline: the organisers' starter as strategies. See README.md in this folder."""
 
-from strategies.baseline.baseline import Desk, Retry, play_final, play_practice
+from strategies.baseline.admission import BaselineAdmission
+from strategies.baseline.fees import BaselineFees
+from strategies.baseline.notes import BaselineNotes
+from strategies.baseline.pricing import BaselinePricing
+from strategies.baseline.retry import FIRST_TRY, Retry
 
-__all__ = ["Desk", "Retry", "play_final", "play_practice"]
+__all__ = ["FIRST_TRY", "BaselineAdmission", "BaselineFees", "BaselineNotes", "BaselinePricing", "Retry"]
