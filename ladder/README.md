@@ -176,6 +176,21 @@ delivery minimum. On `spread-1` and `spread-2`, long rides quoted with a day to 
 trade-ins 7 times in 20; and on `spread-3` the late cars that were neither long rides nor trade-ins (remote rides
 among them) rose from 2 to 14. So trade-ins moved to the top rung, and the default stays at rung 4.
 
+With trade-ins at the top, rung 5 (long and remote rides) against rung 4 at commit `ce9a8b3` (later commits change
+only how the final runs and how a refused post is tried again):
+
+| Seed       |                                          Rung 4 |                                          Rung 5 |
+| ---------- | ----------------------------------------------: | ----------------------------------------------: |
+| `spread-1` |                               €9,668.59 (99.1%) |                              €10,326.82 (96.8%) |
+| `spread-2` |                               €6,541.94 (99.1%) |                               €7,678.50 (96.6%) |
+| `spread-3` |                               €4,276.62 (97.9%) |                               €3,788.70 (95.0%) |
+| `spread-4` |                               €8,092.44 (98.2%) |                               €9,585.86 (95.2%) |
+| `spread-5` |                               €6,003.89 (98.7%) |                               €3,203.76 (89.0%) |
+| Total      | €34,583.48 (98.6%), 1,592 orders, 5 of 5 ranked | €34,583.64 (94.6%), 1,918 orders, 4 of 5 ranked |
+
+Rung 5 makes the same margin to 16 cents and is not ranked on `spread-5`. Rung 4, the default, is ranked on every
+week of this bench, at 97.9% on time or more.
+
 The first version on `spread-1`, rung 1: +€2,856.27, 93 orders, 100% on time, 281 requests. All 93 gigs booked, 88 at
 the opening fee, half of them within a minute. Dealers took `same_day` on 74 of them.
 
