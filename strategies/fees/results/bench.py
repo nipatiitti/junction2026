@@ -39,6 +39,7 @@ NO_PREMIUMS = {"OPEN_SCARCE": 0.0, "OPEN_EVENING": 0.0, "OPEN_SATURDAY": 0.0, "O
 
 V8 = {**NO_PREMIUMS, "MARGIN_MIN": 5 * HOUR, "LATE_SHARE": 0.75, "RAISE_SHARES": (0.1, 0.3)}
 V9 = {**V8, "OPEN_BASE": 0.9, "OPEN_FLOOR": 0.9}
+V13 = {**V9, "TOP": 2.5, "LATE_SHARE": 1.0}
 
 # Each version: the constants of strategies/fees/schedule.py that it changes, or None for the starter's fees.
 VERSIONS: dict[str, dict | None] = {
@@ -63,9 +64,13 @@ VERSIONS: dict[str, dict | None] = {
     # v9 spending what it saves on a top fee due 6 to 8 hours before the last pickup.
     "v12": {**V9, "MARGIN_MIN": 6 * HOUR, "MARGIN_MAX": 8 * HOUR},
     # v9 spending what it saves on the starter's top of 2.5 times the typical fee, under twice the price.
-    "v13": {**V9, "TOP": 2.5, "LATE_SHARE": 1.0},
+    "v13": V13,
     # v8 opening at 0.95 times the typical fee.
     "v14": {**V8, "OPEN_BASE": 0.95, "OPEN_FLOOR": 0.95},
+    # v13 opening at 0.85 times the typical fee.
+    "v15": {**V13, "OPEN_BASE": 0.85, "OPEN_FLOOR": 0.85},
+    # v13 with the top fee of v12, due 6 to 8 hours before the last pickup.
+    "v16": {**V13, "MARGIN_MIN": 6 * HOUR, "MARGIN_MAX": 8 * HOUR},
 }
 
 
