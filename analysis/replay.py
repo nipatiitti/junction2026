@@ -121,7 +121,7 @@ class Week:
         self.level: int = self.meta["level"]
         self.experiment = experiment_of(folder)
         if self.experiment == "runs" and self.meta.get("policy") not in (None, "dispatch"):
-            self.experiment = f"runs-{self.meta['policy']}"  # saved weeks of another system, such as ladder/
+            self.experiment = f"runs-{self.meta['policy']}"  # saved weeks of another system
         with gzip.open(folder / "events.jsonl.gz", "rt", encoding="utf-8") as file:
             self.events = sorted((json.loads(line) for line in file), key=lambda e: (e["at"], e["seq"]))
         self.reveal = read_gz(folder / "reveal.json.gz")
