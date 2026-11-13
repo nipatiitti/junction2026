@@ -12,14 +12,16 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`offers/`](offers/README.md)       | `Offers`       | Direct offers to drivers near a gig's pickup                    |
 | [`bundling/`](bundling/README.md)   | `Bundler`      | Which orders' cars go together in one gig                       |
 
-Three folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Five folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
-| Folder                                      | Classes                                | What it is                                                |
-| ------------------------------------------- | -------------------------------------- | --------------------------------------------------------- |
-| [`baseline/`](baseline/README.md)           | `BaselineAdmission`, `BaselineFees`, … | The organisers' starter as strategies: our fixed baseline |
-| [`price_ladder/`](price_ladder/README.md)   | `LadderPricing`, `ShadowAdmission`     | A clamped price ladder with a shadow price on capacity    |
-| [`scarcity_cost/`](scarcity_cost/README.md) | `ScarcityAdmission`                    | Admission with the town's quotas per driver priced in     |
+| Folder                                            | Classes                                | What it is                                                |
+| ------------------------------------------------- | -------------------------------------- | --------------------------------------------------------- |
+| [`baseline/`](baseline/README.md)                 | `BaselineAdmission`, `BaselineFees`, … | The organisers' starter as strategies: our fixed baseline |
+| [`price_ladder/`](price_ladder/README.md)         | `LadderPricing`, `ShadowAdmission`     | A clamped price ladder with a shadow price on capacity    |
+| [`scarcity_cost/`](scarcity_cost/README.md)       | `ScarcityAdmission`                    | Admission with the town's quotas per driver priced in     |
+| [`bundling_more/`](bundling_more/README.md)       | `WaitingBundler`                       | Every order waits for a chain, so more cars share a gig   |
+| [`bundling_cheaper/`](bundling_cheaper/README.md) | `CheapBundler`                         | A bundle keeps a smaller share of its cars' solo bill     |
 
 [`bench/`](bench/README.md) is not a strategy either: it compares versions of `dispatch.py` on the same seeds.
 
