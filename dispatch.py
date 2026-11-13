@@ -10,6 +10,7 @@ import argparse
 import sys
 import time
 from collections import Counter
+from dataclasses import replace
 from itertools import pairwise
 from typing import Any, NamedTuple
 
@@ -195,7 +196,8 @@ class Desk:
             Held(o, bool(g := self.gigs_of(o["id"])) and all(x in self.booked for x in g)) for o in self.orders.values()
         ]
         # Admission weighs the margin at the price we would quote, and pricing prices the options it picks.
-        self.admission.params.price_factor = self.pricing.multiplier(request, self.now)
+        # Its Params are frozen, so it gets a copy with the price factor.
+        self.admission.params = replace(self.admission.params, price_factor=self.pricing.multiplier(request, self.now))
         verdict = self.admission.assess(request, held, self.now)
         facts = self.facts_of(request["id"])
         # The note's deadline passes before the car can be collected (strategies/notes): decline.
