@@ -12,7 +12,7 @@ cars (`strategies/bundling`).
 | ------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `schedule.py` | The schedule: pure functions of a gig's facts and the time, with every constant                                     |
 | `market.py`   | Where the drivers live, from the map and the driver list                                                            |
-| `__init__.py` | `FeePlanner`: turns an order and its request into a gig's facts, with the typical fee of the trip the cars make now |
+| `fees.py`     | `FeePlanner`: turns an order and its request into a gig's facts, with the typical fee of the trip the cars make now |
 | `results/`    | The bench that compares versions of the constants, and every week it played                                         |
 
 ## How a schedule is built
@@ -47,7 +47,43 @@ cars (`strategies/bundling`).
    book again only for more. With more time left, the schedule in the app stays.
 
 The rules hold for every schedule: whole minutes and cents, steps in time order, fees never falling,
-1 to 48 steps, and one step at level 1 (the opening fee).
+1 to 48 steps, and one step at level 1 (the fee the ladder below opens at).
+
+## Level 1: the fee ladder
+
+At level 1 a schedule has one step, drivers do not learn our fees, and they do not drop. At the typical
+fee, 90% of the gigs of a level 1 week booked within 3 minutes, so the typical fee pays far more than the
+cheapest driver needs. `ladder` in `schedule.py` plans the fees a gig goes through instead:
+
+1. It opens at half the typical fee (`LADDER_OPEN`).
+2. While no driver books it, `Desk.raises_due` in `dispatch.py` raises it with `reprice` every 30 minutes
+   (`LADDER_STEP`, on the clock's half hours, so all gigs rise at the same minutes), in 12 even steps
+   (`LADDER_RAISES`), up to the fee that the plan above would open at. Raises wait from 23:00 to 07:00,
+   when drivers sleep, and end an hour before the top fee is due.
+3. With less than 3 hours (`LADDER_MIN_SPAN`) before the top fee is due, there is no ladder: the gig goes
+   at the plan's fee at once. The deadline warning raises the gig as at other levels.
+
+The ladder stops when a driver books the gig, or the gig expires, is withdrawn or is cancelled.
+
+Level 1 practice weeks, `uv run dispatch.py --level 1 --seed <seed>`:
+
+| Seed       | System                          | Margin    | Orders | On time |
+| ---------- | ------------------------------- | --------- | ------ | ------- |
+| `spread-1` | main before the ladder          | €20.97    | 462    | 98.9%   |
+| `spread-1` | fee ladder                      | €6,037.26 | 527    | 98.3%   |
+| `spread-1` | fee ladder, first-option quotes | €7,167.61 | 754    | 97.1%   |
+| `spread-2` | fee ladder, first-option quotes | €8,180.57 | 734    | 97.3%   |
+
+Ranking runs on 13 November, `uv run dispatch.py --level 1 --board`, all ranked. The organisers started the round
+"Saturday 00:00" while run 2 was ending, so runs 1 and 2 count in the round "Friday 20:01" and runs 3 to 5 in the next:
+
+| Run | Round          | Margin     | Orders | On time |
+| --- | -------------- | ---------- | ------ | ------- |
+| 1   | Friday 20:01   | €8,026.68  | 708    | 97.2%   |
+| 2   | Friday 20:01   | €9,148.53  | 806    | 97.0%   |
+| 3   | Saturday 00:00 | €10,921.47 | 786    | 99.0%   |
+| 4   | Saturday 00:00 | €10,696.67 | 797    | 98.2%   |
+| 5   | Saturday 00:00 | €7,610.01  | 730    | 95.6%   |
 
 ## A change of destination
 
@@ -105,15 +141,9 @@ All the constants are at the top of `schedule.py` and `market.py`.
 
 ## Bench results
 
-Level 8, against the starter's fees (`starter`). Every week is a line in `results/bench.jsonl`, made with
-`results/bench.py`, which also sums driver fees, refunds and penalties from the ledger, and saves the week to
-`data/scrape/runs`. The bench plays a version of the constants on top of this checkout's `dispatch.py`; the
-`Main` column is the main it ran on. Weeks are fast now: 8 at a time, 15 weeks take about 15 minutes.
-
-```sh
-uv run python strategies/fees/results/bench.py starter,v16 --seeds spread-1..5   # play
-uv run python strategies/fees/results/bench.py --table --seeds spread-1..5       # the tables below
-```
+Level 8, against the starter's fees (`starter`). The bench played a version of the constants on top of `dispatch.py`;
+the `Main` column is the main it ran on. The script that played these versions is gone: compare versions now with
+the [seed bench](../bench/README.md).
 
 ### On main with admission control and bundling
 
@@ -138,8 +168,7 @@ On `338074c`, `v16` has more orders on time than the starter's fees on 4 of the 
 
 ### Choosing the constants
 
-Played on main `043e1c7`, with admission control and before bundling. Each version is a set of constants in
-`VERSIONS` in `results/bench.py`.
+Played on main `043e1c7`, with admission control and before bundling. Each version is a set of constants of `schedule.py`.
 
 | Version   | What it is                                                                                          |
 | --------- | --------------------------------------------------------------------------------------------------- |

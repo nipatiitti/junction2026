@@ -4,6 +4,8 @@ Reads a dealer's note, in Finnish, Swedish or English, into facts, and turns the
 audience and plates of a gig. Most failed visits come from a note the gig did not follow (HANDBOOK.md,
 "Notes change what happens"); RULES.md, "Notes and changes of plan", says how notes are written.
 
+- `notes.py`: `NoteReader`, the strategy (`strategies/README.md`): `read(request)` reads a request's note once, and
+  `observe` keeps the snowfalls of each `forecast` event, which `pickup_window` waits for.
 - `reader.py`: `read_note(text, arrived_at)` gives a `NoteFacts`, or `NO_FACTS` for a note that states none.
 - `plan.py`: `pickup_window` and `delivery_window` turn the facts into stop windows.
 - `check.py`: measures the reader on reveals, next to the starter's reader.

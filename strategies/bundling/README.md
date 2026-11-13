@@ -4,8 +4,9 @@ Puts the cars of several orders in one gig, as a chain that one driver drives: p
 pickup. The chain saves the driver a trip home after one car and a trip out to the next, so it can pay less per car,
 and in a shortage it needs fewer drivers. From level 3, where gigs with several cars start.
 
-`dispatch.py` hands every new order to the `Bundler`, asks it each step which orders to post together and in what
-stop order (`Desk.post_due`), and posts a group of one exactly as before.
+`dispatch.py` feeds every event to `Bundler.observe`, which keeps each price request's batch and lets a cancelled
+order leave the pool. It hands every new order to the `Bundler`, asks it each step which orders to post together and
+in what stop order (`Desk.post_due`), and posts a group of one exactly as before.
 
 ## When orders wait
 

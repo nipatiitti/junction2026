@@ -28,8 +28,8 @@ from typing import NamedTuple
 from spread.client import SpreadError
 from spread.types import Score
 
-from record import DATABASE, RUNS
-from spread_proxy import ProxyClient
+from tools.record import DATABASE, RUNS
+from tools.spread_proxy import ProxyClient
 
 SLOTS = 8  # a team holds at most 8 practice worlds that have not ended
 DEFAULT_SEEDS = "spread-1..spread-5"
