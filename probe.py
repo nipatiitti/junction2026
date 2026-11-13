@@ -184,7 +184,9 @@ def check_near(found: dict, test: Callable[[int], bool], rng: random.Random, spr
 def monotone(trials: dict[int, bool]) -> bool:
     """True when the outcomes, in order of value, change at most once, from True to False: a threshold, not a coin."""
     outcomes = [trials[v] for v in sorted(trials)]
-    return sum(a != b for a, b in itertools.pairwise(outcomes)) <= 1 and (not outcomes or outcomes[0] or not any(outcomes))
+    return sum(a != b for a, b in itertools.pairwise(outcomes)) <= 1 and (
+        not outcomes or outcomes[0] or not any(outcomes)
+    )
 
 
 def when(minute: int) -> dict:
@@ -242,7 +244,9 @@ def probe_quote(probe: Probe, parent: World, request: dict, args: argparse.Names
                 "flipCents": found["flip"],
                 "flipRatio": None if found["flip"] is None else found["flip"] / list_price,
                 "bracketCents": found["bracket"],
-                "ends": found["ends"],  # "true": won at both ends, "false": lost at both, "inverted": lost low, won high
+                "ends": found[
+                    "ends"
+                ],  # "true": won at both ends, "false": lost at both, "inverted": lost low, won high
                 "monotone": monotone(found["trials"]),
                 "trials": sorted(found["trials"].items()),
             }
@@ -280,7 +284,9 @@ def probe_fee(
         copy = probe.fork(parent)
         try:
             action = {**post, "schedule": [{"at": now, "feeCents": fee}]}
-            step = retrying(lambda: copy.advance(until=["gig_booked", "gig_expired"], max=now + window, actions=[action]))
+            step = retrying(
+                lambda: copy.advance(until=["gig_booked", "gig_expired"], max=now + window, actions=[action])
+            )
             check(step["results"])
             gig = step["results"][-1]["id"]
             mine = [e for e in step["events"] if e.get("gigId") == gig]
@@ -410,7 +416,7 @@ def run(args: argparse.Namespace) -> None:
                         done.add(order["id"])
                         probed += 1
             if actions:
-                results = retrying(lambda: parent.act(actions))
+                results = retrying(lambda actions=actions: parent.act(actions))
                 for action, result in zip(actions, results):
                     if not result["ok"]:
                         print(f"parent: {action['requestId']} refused: {result['reason']}", flush=True)
