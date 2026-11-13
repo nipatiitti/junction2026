@@ -59,6 +59,10 @@ uv run --env-file .env spread-reveal-csv <world id>             # write an ended
 uv run --env-file .env dispatch.py --final                      # play our copy of a test final or of the final
 ```
 
+To compare two versions on the same seeds, use the seed bench: `uv run --env-file .env python -m strategies.bench
+dispatch.py origin/main` plays `spread-1` to `spread-5` at level 8 with both and prints one table. See
+[`strategies/bench/README.md`](strategies/bench/README.md).
+
 Leave out `--env-file .env` where the two variables are already set, as in a Claude Code cloud session.
 
 `--level` is 1 to 8 (the final is level 8). The same seed gives the same week, so compare two versions of the system
@@ -68,7 +72,7 @@ public rankings, so agree on it in the team first.
 - `dispatch.py` is our system. It starts as a copy of the organisers' starter, formatted with ruff.
 - `vendor/` holds the organisers' Python kit of 13 November as a wheel. uv installs it as the package `spread`: the
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
-- `tests/` holds fast tests that need no network: `uv run pytest`.
+- `tests/` and `strategies/` hold fast tests that need no network: `uv run pytest`.
 
 ### The baseline to beat
 
