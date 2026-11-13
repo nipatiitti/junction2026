@@ -8,11 +8,12 @@ twice its price, so every car must move.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from spread.types import FeeStep, Leg, Order, PriceRequest
 
-from strategies.fees import Market
+from strategies.fees import FeePlanner, Market
+from strategies.fees import Gig as BundleGig
 from strategies.fees.schedule import valid
 
 from .risk import Risk
@@ -33,15 +34,18 @@ LONG_DRIVE = 3 * HOUR
 # raises the opening fee: where half of our gigs find nobody in time, the fee opens RISK_WEIGHT / 2 higher.
 RISK_WEIGHT = 0.5
 # The opening fee stays at or under the price for the gig's cars plus the refund for a car late by more than
-# 24 hours: an on-time car never costs more than a late one.
+# 24 hours, so an on-time car never costs more than a late one; but it may always reach the typical fee of the
+# trip, for a car that the dealer sent farther than the request said.
 OPEN_CEILING = 1.5
 # The fee stays flat while the car can still be on time. From LATE_FROM minutes after `lastPickupAt` (negative:
-# before it), every daytime hour adds LATE_RAISE times the opening fee, up to LATE_CEILING times the price: a car
-# never delivered costs twice its price as a penalty.
+# before it), every daytime hour adds LATE_RAISE times the opening fee, up to LATE_CEILING times the price (a car
+# never delivered costs twice its price as a penalty) or LATE_TYPICAL times the typical fee of the trip, whichever
+# is higher: a car that the dealer sent farther must move too.
 LATE_FROM = 0
 LATE_RAISE = 0.25
 LATE_EVERY = HOUR
 LATE_CEILING = 2.0
+LATE_TYPICAL = 3.0
 # No raise at night or on Sunday: no driver books then, so a raise would only meet the next driver higher.
 NIGHT_FROM, NIGHT_TO = 23 * HOUR, 7 * HOUR
 SUNDAY = 6
@@ -52,7 +56,7 @@ MAX_STEPS = 48
 class Gig:
     """What a schedule is planned from, for the cars of one gig."""
 
-    typical: float  # the typical fee for the gig's cars, in cents
+    typical: float  # the typical fee for the gig's cars, for the trip they make now, in cents
     price: float  # the order's price for the gig's cars, in cents
     last_pickup_at: int  # the order's `lastPickupAt`
     starts_at: int  # the earliest pickup: the later of now and the car's ready time
@@ -80,7 +84,7 @@ def plan(now: int, gig: Gig, level: int, opening: float | None = None) -> list[F
     """The fee schedule from `now`: the opening fee (`opening` cents, or the one the gig's facts give), flat while
     the car can be on time, then a raise every daytime hour once it is late."""
     fee = gig.typical * opening_multiple(gig) if opening is None else opening
-    fee = max(1.0, min(fee, gig.price * OPEN_CEILING))
+    fee = max(1.0, min(fee, max(gig.price * OPEN_CEILING, gig.typical)))
     steps = [(now, fee), *late_steps(gig, fee)]
     current = max(f for at, f in steps if at <= now)  # a car posted late starts at the fee its lateness has reached
     return valid([(now, current), *((at, f) for at, f in steps if at > now)], level)
@@ -88,8 +92,8 @@ def plan(now: int, gig: Gig, level: int, opening: float | None = None) -> list[F
 
 def late_steps(gig: Gig, opening: float) -> list[tuple[int, float]]:
     """The raises once the car is late: one every daytime hour from `lastPickupAt` + LATE_FROM, each LATE_RAISE
-    times the opening fee, up to LATE_CEILING times the price."""
-    top = max(opening, gig.price * LATE_CEILING)
+    times the opening fee, up to LATE_CEILING times the price or LATE_TYPICAL times the typical fee."""
+    top = max(opening, gig.price * LATE_CEILING, gig.typical * LATE_TYPICAL)
     steps: list[tuple[int, float]] = []
     at, raises = gig.last_pickup_at + LATE_FROM, 0
     while len(steps) < MAX_STEPS and LATE_RAISE > 0:
@@ -114,14 +118,29 @@ class RiskFees:
     def __init__(self, market: Market):
         self.market = market
         self.risk = Risk(market)
-        # Order id -> its opening fee over its typical fee, set at its first post: every later post, repost and
-        # retry of the order opens at the same fee, so the fee rises only once the car is late.
-        self.openings: dict[str, float] = {}
+        self.planner = FeePlanner(market)  # the typical fee of the trip a car makes now (strategies/fees)
+        # (Order id, pickup, delivery) -> the order's opening fee over its typical fee, set at its first post for
+        # that trip: every later post, repost and retry of the order opens at the same fee, so the fee rises only
+        # once the car is late. A car that the dealer sends elsewhere is a new trip, with a new opening fee.
+        self.openings: dict[tuple[str, str, str], float] = {}
 
     def schedule(self, order: Order, request: PriceRequest, cars: int, now: int, level: int) -> list[FeeStep]:
         gig = self.gig(order, request, cars, now)
-        multiple = self.openings.setdefault(order["id"], opening_multiple(gig))
+        leg = first(order)
+        key = (order["id"], leg["pickup"]["placeId"], leg["delivery"]["placeId"])
+        multiple = self.openings.setdefault(key, opening_multiple(gig))
         return plan(now, gig, level, opening=gig.typical * multiple)
+
+    def bundle(self, gig: BundleGig, pickup: str, delivery: str, now: int, level: int) -> list[FeeStep]:
+        """The schedule of a bundle of several orders' cars (`strategies/bundling`), from the facts that bundling
+        sums for it: the same flat fee and late raises, from its first pickup to its last delivery."""
+        facts = self.facts(pickup, delivery, gig.typical, gig.price, gig.last_pickup_at, gig.starts_at)
+        return plan(now, replace(facts, drive_minutes=gig.drive_minutes), level)
+
+    def typical(self, order: Order, request: PriceRequest) -> float:
+        """The typical fee of all the order's cars for the trips they make now: the request's, or after a change
+        of plan the fee of the new trip (`strategies/fees`)."""
+        return self.planner.typical(order, request)
 
     def estimate(self, request: PriceRequest, now: int) -> float:
         """The opening fee we would post now for all of the request's cars, in cents."""
@@ -143,7 +162,7 @@ class RiskFees:
         return self.facts(
             leg["pickup"]["placeId"],
             leg["delivery"]["placeId"],
-            request["referenceFeeCents"] * share,
+            self.typical(order, request) * share,
             order["priceCents"] * share,
             order["lastPickupAt"],
             max(now, leg["pickup"]["window"]["from"]),
