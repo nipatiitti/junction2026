@@ -25,8 +25,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 
-from spread.client import Client, SpreadError
+from spread.client import SpreadError
 from spread.types import Score
+
+from spread_proxy import ProxyClient
 
 SLOTS = 8  # a team holds at most 8 practice worlds that have not ended
 DEFAULT_SEEDS = "spread-1..spread-5"
@@ -347,7 +349,7 @@ class Bench:
         for _ in range(SLOT_TRIES):
             world_id, code, output = self.run(version, seed)
             if code == 0 and world_id is not None:
-                score = Client().world(world_id).score()
+                score = ProxyClient().world(world_id).score()
                 print(f"{seed:<12} {version.label}: margin {euros(score['marginCents'])}, world {world_id}", flush=True)
                 return Result(version.label, seed, world_id, score)
             if self.stopping.is_set():
@@ -425,7 +427,7 @@ class Bench:
             worlds = set(self.unfinished.values())
         if not worlds:
             return
-        client = Client()
+        client = ProxyClient()
         try:
             listed = {world["worldId"]: world for world in client.worlds()}
         except SpreadError as error:
@@ -475,7 +477,7 @@ def main() -> None:
     except ValueError as error:
         parser.error(str(error))
     try:
-        Client()  # stops at once when SPREAD_KEY is not set
+        ProxyClient()  # stops at once when SPREAD_KEY is not set
     except SpreadError as error:
         sys.exit(f"spread: {error}")
     versions: list[Version] = []

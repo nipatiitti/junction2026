@@ -32,6 +32,7 @@ from spread.types import (
     TimeWindow,
 )
 
+from spread_proxy import ProxyClient
 from strategies.admission import Admission, Held
 
 HOUR, DAY = 60, 24 * 60
@@ -517,7 +518,7 @@ def main() -> None:
     parser.add_argument("--final", action="store_true", help="play your copy of the final from the live stream")
     args = parser.parse_args()
     try:
-        client = Client()
+        client = ProxyClient()
         requests = count_requests(client)
         score, stop_reasons = None, None
         if args.final:
