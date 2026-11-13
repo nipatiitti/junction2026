@@ -7,8 +7,9 @@
  * a few hours before the last pickup. A dynamic programme over (slice, fee, raises left) finds that schedule
  * exactly, in well under a millisecond. */
 import type { FeeStep } from '../../../vendor/spread-typescript/types.ts'
+import { DAY, HOUR } from '../../time.ts'
 import { type Features, feeExtra } from './extras.ts'
-import { acceptHazard, DAY, dropShare, HOUR, type Slice, slicesOf } from './hazard.ts'
+import { acceptHazard, dropShare, type Slice, slicesOf } from './hazard.ts'
 import { clamp, type FeeParams } from './params.ts'
 import type { FeeState } from './state.ts'
 

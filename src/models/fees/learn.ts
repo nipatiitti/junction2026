@@ -17,8 +17,9 @@ import type {
   NoShowEvent,
   OrderCancelledEvent,
 } from '../../../vendor/spread-typescript/types.ts'
+import { DAY } from '../../time.ts'
 import { featureList } from './extras.ts'
-import { DAY, priorHazard, slicesOf } from './hazard.ts'
+import { priorHazard, slicesOf } from './hazard.ts'
 import { clamp, type FeeParams } from './params.ts'
 import { basisOf, costOf, type FeeGig, feeAt } from './plan.ts'
 import { type FeeState, type FollowedGig, newFeeState } from './state.ts'

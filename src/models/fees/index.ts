@@ -1,4 +1,4 @@
-/** The fee and capacity models (SPREAD_AGENT_BRIEF.md, Design 2-4): pure functions over plain data. README.md
+/** The fee and capacity models (src/BRIEF.md, Design 2-4): pure functions over plain data. README.md
  * says what each does, its prior, how it learns, and the flags. */
 export { type Features, featuresOf, feeExtra } from './extras.ts'
 export { acceptHazard } from './hazard.ts'

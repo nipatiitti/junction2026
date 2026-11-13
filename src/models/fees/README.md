@@ -1,6 +1,6 @@
 # Fee models
 
-The fee and capacity side of `SPREAD_AGENT_BRIEF.md` (Design 2–4, findings 7–12) as pure TypeScript: no network,
+The fee and capacity side of `src/BRIEF.md` (Design 2–4, findings 7–12) as pure TypeScript: no network,
 no packages, plain data in and out. A strategy builds a `FeeGig` for a request or an order, asks `planFees` for
 the schedule and its cost `c`, and passes every world event to `learn`.
 
