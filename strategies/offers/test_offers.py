@@ -65,7 +65,7 @@ def test_a_driver_finishing_near_the_pickup_is_chosen_before_one_living_far_away
 def test_a_chain_offer_goes_below_the_app_fee():
     o = offers_with([driver("near", "kaukola")], ("g1", gig()))
     finishes(o, "near", "asema", TUESDAY_10 - 30)
-    (sent,) = o.chain_offers(TUESDAY_10)
+    (sent,) = o.due(TUESDAY_10)
     assert sent["driverId"] == "near" and sent["feeCents"] < 10000
 
 
@@ -134,3 +134,19 @@ def test_no_offers_below_level_3():
     o = Offers([driver("local", "asema")], world_map(), level=2)
     o.register("g1", gig(), SCHEDULE)
     assert o.offers("g1", TUESDAY_10, rescue=True) == []
+
+
+def test_a_rescue_asks_drivers_seen_working_today_first():
+    o = offers_with([driver("idle", "asema"), driver("busy", "satama")], ("g1", gig()))
+    o.observe({"kind": "gig_viewed", "at": TUESDAY_10 - HOUR, "gigId": "g0", "driverId": "busy"})
+    assert [a["driverId"] for a in o.offers("g1", TUESDAY_10, rescue=True)] == ["busy", "idle"]
+
+
+def test_a_gig_past_its_deadline_warning_is_rescued_at_each_step_until_booked():
+    o = offers_with([driver(f"d{i}", "asema") for i in range(5)], ("g1", gig()))
+    assert o.due(TUESDAY_10) == []  # no one finishes near it, and it is not rescued yet
+    o.rescue("g1")
+    assert len(o.due(TUESDAY_10)) == PER_GIG_OPEN
+    assert len(o.due(TUESDAY_10 + 11)) == 2  # the next drivers, once the first offers have run out
+    o.observe({"kind": "gig_booked", "at": TUESDAY_10 + 15, "gigId": "g1", "driverId": "d0", "feeCents": 1})
+    assert o.due(TUESDAY_10 + 30) == []

@@ -6,7 +6,8 @@ See README.md next to this file for when an offer goes out, to whom and at what 
 
 from __future__ import annotations
 
-from collections import defaultdict
+import re
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import NamedTuple
 
@@ -68,6 +69,8 @@ class Offers:
         self.skip: set[tuple[str, int]] = set()  # (driver, day): declined or did not read: not again that day
         self.pending: dict[str, dict[str, int]] = defaultdict(dict)  # gig id -> driver -> minute the offer went
         self.asked: set[tuple[str, str]] = set()  # (gig, driver): offered once already
+        self.active: set[tuple[str, int]] = set()  # (driver, day): viewed, booked or answered us: works today
+        self.rescuing: set[str] = set()  # gigs past their deadline warning, rescued until a driver books them
         self.answers: dict[str, int] = defaultdict(int)  # sent, accepted, declined, expired, refused
         self.refusals: list[str] = []
 
@@ -95,13 +98,22 @@ class Offers:
     def forget(self, gig_id: str) -> None:
         """A gig that left the app: withdrawn, expired or done."""
         self.open.discard(gig_id)
+        self.rescuing.discard(gig_id)
         self.pending.pop(gig_id, None)
+
+    def rescue(self, gig_id: str) -> None:
+        """A gig past its deadline warning: from now on, also ask drivers who live near its pickup."""
+        self.rescuing.add(gig_id)
 
     def observe(self, event: dict) -> None:
         kind, at = event["kind"], event["at"]
         gig_id = event.get("gigId")
+        seen = kind in ("gig_viewed", "gig_booked", "offer_answered") and event.get("answer") != "expired"
+        if seen and "driverId" in event:  # an unread offer says nothing; anything else says they work today
+            self.active.add((event["driverId"], at // DAY))
         if kind == "gig_booked":
             self.open.discard(gig_id)
+            self.rescuing.discard(gig_id)
             self.pending.pop(gig_id, None)
             self.holder[gig_id] = event["driverId"]
             info = self.gigs.get(gig_id)
@@ -161,8 +173,11 @@ class Offers:
                     continue
                 reach = self.minutes.get((driver["homePlaceId"], info.pickup), 10**6)
                 if reach <= p.home_minutes and now + reach <= latest:
-                    # A reliable driver first: one who has dropped few gigs for the gigs they did.
-                    ranked.append((100 + reach + 60 * driver["drops"] / (driver["completedGigs"] + 5), driver_id))
+                    # A driver seen working today first, then a reliable one: few drops for the gigs they did.
+                    idle = 0 if (driver_id, day) in self.active else 200
+                    ranked.append(
+                        (100 + idle + reach + 60 * driver["drops"] / (driver["completedGigs"] + 5), driver_id)
+                    )
         ranked.sort()
         return [
             d
@@ -197,11 +212,13 @@ class Offers:
             actions.append({"type": "offer", "gigId": gig_id, "driverId": driver, "feeCents": fee})
         return actions
 
-    def chain_offers(self, now: int) -> list[dict]:
-        """Offers for every open gig whose pickup one of our drivers finishes near."""
+    def due(self, now: int) -> list[dict]:
+        """The offers to send now, once the step's events are all read, so no gig a driver has just booked
+        gets one: for every open gig, to our drivers who finish near its pickup, and for a rescued gig also
+        to drivers who live near it."""
         actions = []
         for gig_id in sorted(self.open):
-            actions += self.offers(gig_id, now)
+            actions += self.offers(gig_id, now, rescue=gig_id in self.rescuing)
         return actions
 
     def refused(self, reason: str) -> None:
@@ -214,6 +231,10 @@ class Offers:
         return (
             f"Offers: {a['sent']} sent, {a['accepted']} accepted, {a['declined']} declined, "
             f"{a['expired']} expired, {a['refused']} refused"
+            + "".join(
+                f"\n  refused {n}x: {reason}"
+                for reason, n in Counter(re.sub(r"\S*\d\S*", "#", r) for r in self.refusals).most_common(5)
+            )
         )
 
 
