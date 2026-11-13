@@ -80,7 +80,7 @@ together with its answers to the other events. A quote sent anywhere before `res
 week stays the same. On the level 8 starter week in `data/` (`smoke-1`), this cuts the stops of the clock from 1,725 to
 about 1,390.
 
-- `dispatch.py` is our system. It starts as a copy of the organisers' starter, formatted with ruff.
+- `dispatch.py` is our system. It started as a copy of the organisers' starter, formatted with ruff.
 - `strategies/` holds the parts of the system, each with its notes. `strategies/admission/` decides
   which price requests to take and which option to quote, and `strategies/pricing/` the price of each quote, learned
   during the week. [`strategies/notes/`](strategies/notes/README.md) reads dealer notes into facts (ready time, real
@@ -117,8 +117,9 @@ and `SPREAD_RECORD=0`. It writes only the folder: run `uv run db.py` to add it t
 
 The same kit exists for TypeScript, so half of the team can work there. `vendor/spread-typescript/` holds the
 organisers' TypeScript kit of 13 November, unchanged: the client (`spread.ts`), its types, the starter and
-`reveal-csv.ts`. Lint and format skip `vendor/`. `src/dispatch.ts` is our TypeScript system. It starts as a copy of the
-starter that imports the vendored client, and it gives the same baseline as `dispatch.py`.
+`reveal-csv.ts`. Lint and format skip `vendor/`. `src/dispatch.ts` is our TypeScript system. It is still a copy of the
+starter that imports the vendored client and saves its weeks, so it gives the starter's
+[baseline](#the-baseline-to-beat).
 
 ```sh
 pnpm dispatch --level 8 --seed spread-1   # a whole practice week with our TypeScript system
@@ -149,9 +150,9 @@ uv run stats.py   # reads data/scrape, writes out/summary.json, prints the main 
 uv run db.py      # loads data/scrape into out/spread.sqlite
 ```
 
-`data/spread.sqlite` is the scraped weeks already loaded, ready to query. It does not grow with the saved online runs
-(a played week takes about 4 MB there, and GitHub refuses files over 100 MB), so for those run `uv run db.py` and
-query `out/spread.sqlite`. Only to add scraped weeks, play them on the server with `scrape.py`, which saves each week's raw data under `out/scrape`, and then pass those folders to the two scripts:
+The database is not committed: `uv run db.py` builds it from the committed week folders in a few seconds, the saved
+online runs included. Only to add scraped weeks, play them on the server with `scrape.py`, which saves each week's raw
+data under `out/scrape`, and then pass those folders to the two scripts:
 
 ```sh
 uv run --env-file .env scrape.py --policy passive --levels 4,5,6,7,8 --seeds 20   # requests only: 10 requests a week
@@ -179,18 +180,17 @@ Tables, keyed by `week_id` (a row of `weeks`):
 
 Derived analysis tables (win model, booking hazard, order economics, supply) are built by
 `uv run python -m analysis.facts`; see `analysis/README.md`.
+The hindsight oracle (where a week's margin went, and what a perfect dispatcher could have kept):
+`uv run python -m analysis.oracle`.
 One page with the whole picture: `uv run python -m analysis.report` writes `out/report.html`.
 
 A passive week takes about 1.7 MB in the database, and a played week about 20 MB, most of it gig views. The week
 folders hold the same data gzipped (about 0.1 MB and 2 MB), so the database can always be rebuilt from them.
 
-`data/` holds the team's committed scrape: the week folders in `data/scrape/<policy>/L<level>/<seed>/`, the saved
-online runs in `data/scrape/runs/` ([Every online run is saved](#every-online-run-is-saved)), and
-`data/spread.sqlite` built from them (`select level, policy, seed from weeks` lists the weeks). Open the database
-directly, or rebuild it and the summary from the folders without the server with `uv run db.py` and `uv run stats.py`.
-The default outputs go to `out/`, so the committed files stay as they are.
-
-GitHub refuses files over 100 MB, so once the database outgrows that, commit only the week folders and rebuild it.
+`data/` holds the team's committed scrape: the week folders in `data/scrape/<policy>/L<level>/<seed>/` and the saved
+online runs in `data/scrape/runs/` ([Every online run is saved](#every-online-run-is-saved)). Build the database and
+the summary from them, without the server, with `uv run db.py` and `uv run stats.py` (`select level, policy, seed from
+weeks` lists the weeks). Both write to `out/`, which is not committed.
 
 Policies:
 
@@ -307,9 +307,9 @@ them in time.
 | 7     | -€50,442.49 | 817        | 52.3%   | no     |
 | 8     | -€72,612.51 | 949        | 45.5%   | no     |
 
-They match the handbook to the cent. `dispatch.py`, still unchanged from the starter, gives the same level 8 result.
-We measured levels 6 and 7 with the organisers' TypeScript starter, before we chose Python; the handbook says that
-both starters play alike.
+They match the handbook to the cent. The first `dispatch.py`, an unchanged copy of the starter, gave the same level 8
+result. We measured levels 6 and 7 with the organisers' TypeScript starter, before we chose Python; the handbook says
+that both starters play alike.
 
 ### Claude Code cloud environments
 

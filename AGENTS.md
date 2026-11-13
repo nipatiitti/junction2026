@@ -203,6 +203,7 @@ in and keep it current. Every row must be a single copy-pasteable command.
 | Play a week in TypeScript   | `pnpm dispatch --level 8 --seed spread-1`                   |
 | Write a week to CSV (TS)    | `pnpm reveal-csv <world id>`                                |
 | Build the facts tables      | `uv run python -m analysis.facts`                           |
+| Margin gap report (oracle)  | `uv run python -m analysis.oracle`                          |
 | Build the overview report   | `uv run python -m analysis.report`                          |
 
 ## Definition of done

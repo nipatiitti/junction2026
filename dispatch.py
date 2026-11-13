@@ -1,7 +1,6 @@
-"""The starter: a whole dispatch system that you can read in five minutes, then change. HANDBOOK.md says
-what it does and how to run it (`spread-starter --help` lists the options).
-
-To change it, copy this file and run the copy: python dispatch.py
+"""Our dispatch system for Spread: it quotes dealers' price requests and posts gigs to drivers for one simulated week.
+The loop and the desk come from the organisers' starter, and the decisions from strategies/. README.md says how to
+run it, and docs/spread/HANDBOOK.md what the world does.
 """
 
 from __future__ import annotations
