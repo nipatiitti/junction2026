@@ -31,6 +31,12 @@ Its weeks are saved like the root system's (`tools/record.py`), with the policy 
 they form their own group in `out/spread.sqlite`. At the end of a practice week each strategy prints a line:
 `Ceiling` counts the quotes set by the maximum and by the driver cost floor, and gives the world's multiplier;
 `Chain admission` counts the requests taken, as return legs among them, and those declined for their driver cost.
+On `spread-1` they read:
+
+```text
+Chain admission: 677 taken, 238 of them as return legs; 360 declined, 232 of them for the driver cost over the maximum
+Ceiling: 677 quotes, 188 at the maximum, 79 at the driver cost floor; world x1.33
+```
 
 ## The strategy
 
@@ -88,8 +94,9 @@ Why 10%: in the saved level 8 week of the starter (`smoke-1` in `data/scrape/sta
 driver drop the gig at least once. Those orders paid 1.94 times their typical fee in driver fees, against 1.57 for
 the others: 24% more. In plain euros the gap is only 4%, because drops are commoner on cheap lanes. The cost
 estimate scales with the typical fee, so the 24% is the figure that counts. Failed visits, waiting and releases added
-1.5% of the fees. Together that is about 9% on top of the fee of a gig that goes well. On the saved level 8 requests (`smoke-1` and `smoke-2`), the driver
-cost plus 10% is above 1.39 × the list price for 35% of the requests, and its median is 1.28 × the list price.
+1.5% of the fees. Together that is about 9% on top of the fee of a gig that goes well. On the saved level 8 requests
+(`smoke-1` and `smoke-2`), the driver cost plus 10% is above 1.39 × the list price for 35% of the requests, and its
+median is 1.28 × the list price.
 
 ## How the price is learned
 
@@ -144,6 +151,10 @@ the saving real or to stop counting it.
 Level 8, seeds `spread-1` to `spread-5`, the code of commit `a29cf75` against the root `dispatch.py` of `main` at
 `74f0de6`, with `uv run python -m strategies.bench strategies/ceiling/dispatch.py dispatch.py --jobs 2`. The weeks are
 saved in `data/scrape/runs/L8/`: policy `ceiling` for this system, `dispatch` for the root one.
+
+That code was a full copy of the root `dispatch.py`. Since commit `3856724` the system is a subclass of the root
+`Desk` with the same quote and strategies, and the root `dispatch.py` has not changed since `74f0de6`. A week of it on
+`spread-1` gave the same result: €9,831.09 from 386 orders, 97.4% on time.
 
 | Seed      | Ceiling margin |    Root margin | Ceiling orders | Root orders | Ceiling on time | Root on time |
 | --------- | -------------: | -------------: | -------------: | ----------: | --------------: | -----------: |
