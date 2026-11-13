@@ -95,6 +95,27 @@ capacity and costs 0.85 of the usual driver cost, as in `strategies/admission`.
 
 ## Bench
 
-Level 8, seeds `spread-1` to `spread-5`, against the root `dispatch.py` on `main`.
+Level 8, seeds `spread-1` to `spread-5`, against the root `dispatch.py` of `main` (commit `ce01491`), with
+`uv run python -m strategies.bench strategies/ceiling/dispatch.py dispatch.py --jobs 2`. The weeks are saved in
+`data/scrape/runs/L8/`: policy `ceiling` for this system, `dispatch` for the root one.
 
-Not run yet: the team's eight practice slots were full.
+| Seed      | Ceiling margin |    Root margin | Ceiling orders | Root orders | Ceiling on time | Root on time |
+| --------- | -------------: | -------------: | -------------: | ----------: | --------------: | -----------: |
+| spread-1  |      €8,102.33 |      €7,738.40 |            387 |         379 |           97.7% |        97.9% |
+| spread-2  |      €5,880.25 |      €4,577.46 |            332 |         360 |           98.2% |        98.1% |
+| spread-3  |      €3,373.67 |      €2,760.04 |            241 |         300 |           99.2% |        99.0% |
+| spread-4  |      €7,631.07 |      €6,707.48 |            359 |         360 |           98.1% |        95.6% |
+| spread-5  |      €4,785.38 |      €4,745.99 |            319 |         326 |           97.5% |        96.3% |
+| **Total** | **€29,772.70** | **€26,529.37** |          1,638 |       1,725 |           98.0% |        97.3% |
+
+Ceiling pricing earns €3,243.33 more in total, more on every seed, and every week of both is ranked. What the saved
+weeks show (from `out/spread.sqlite`, all five seeds):
+
+- It wins fewer orders (1,638 against 1,725) at about the same price: the quotes it won averaged 1.37 × the list
+  price against 1.36. Revenue per order is €87.81 against €90.24.
+- The margin comes from cost: driver fees per delivered car are €68.25 against €73.38, and late refunds and
+  penalties €1,260 against €1,809. Here a car is taken only when its driver cost plus 10% fits under the maximum;
+  the root system takes a car whose cost fits under its learned price, with no premium.
+- Where the competitor is dear, the cap holds the price down: on `spread-1` the root system's quotes that won had a
+  median of 1.51 × the list price against 1.42 here (above 1.39 through dealer trust and the outage). It still ends
+  ahead there, on cost.
