@@ -14,7 +14,6 @@ from itertools import pairwise
 from typing import Any, NamedTuple
 
 from spread.client import Client, SpreadError, Unreachable, World
-from spread.starter import window_from_note  # noqa: F401  # the starter's reader, which tests/test_dispatch.py imports
 from spread.types import (
     Action,
     ActionResult,
