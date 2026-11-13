@@ -205,6 +205,7 @@ in and keep it current. Every row must be a single copy-pasteable command.
 | Build the facts tables      | `uv run python -m analysis.facts`                                                                   |
 | Margin gap report (oracle)  | `uv run python -m analysis.oracle`                                                                  |
 | Get the team's scraped data | `mkdir -p out && gh release download --pattern 'spread-data-*.tar.gz' --output - \| tar -xz -C out` |
+| Build the overview report   | `uv run python -m analysis.report`                                                                  |
 
 ## Definition of done
 
