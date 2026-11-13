@@ -31,14 +31,18 @@ from pathlib import Path
 from typing import Any
 
 from spread.client import Client, SpreadError, World
+
+# The kit's starter, not dispatch.py: it never changes, so weeks scraped on different days stay comparable, and a
+# change to our strategy cannot break the scraper. The policy `dispatch` plays our dispatch.py instead.
+from spread.starter import WAKE_ON, Desk, pickups
 from spread.types import Order, PriceRequest
 
 from db import add_week, connect, load_folders
-from dispatch import DAY, HOUR, WAKE_ON, Desk, pickups
 from spread_proxy import ProxyClient, bypasses_proxy  # noqa: F401  (tests import bypasses_proxy from here)
 from stats import load_week
 
-POLICIES = ("passive", "starter", "explore")
+POLICIES = ("passive", "starter", "explore", "dispatch")
+HOUR, DAY = 60, 24 * 60
 PRACTICE_SLOTS = 8  # a team holds at most 8 practice worlds that have not ended
 STOP = threading.Event()  # set on Ctrl-C or a kill: every week in play stops at its next request and deletes its world
 WORLD = "world.json"  # in a week's folder from the world's creation until the week is saved: the world it plays
@@ -195,7 +199,7 @@ class ExploreDesk(Desk):
             self.outbox.append({"type": "offer", "gigId": gig_id, "driverId": driver["id"], "feeCents": cents})
 
 
-def play_week(world: World, desk: Desk | None, recorder: Recorder, sample_every: int) -> None:
+def play_week(world: World, desk: Any, recorder: Recorder, sample_every: int, wake_on: list = WAKE_ON) -> None:
     """Plays to the end: without a desk (passive) with no actions, else from one event that needs an answer to the
     next, as dispatch.play_practice without the daily reports. Stops at each midnight for the driver list, and every
     `sample_every` minutes (0: never) for the positions of our drivers."""
@@ -213,7 +217,7 @@ def play_week(world: World, desk: Desk | None, recorder: Recorder, sample_every:
                 # Posts first, so their direct offers go in the same minute, before an app driver books the gig.
                 desk.send()
             actions, desk.outbox = desk.outbox, []
-            step = world.advance(until=WAKE_ON, max=stop, actions=actions)
+            step = world.advance(until=wake_on, max=stop, actions=actions)
             desk.read_results(actions, step["results"])
             desk.now = step["now"]
             for event in step["events"]:
@@ -387,13 +391,18 @@ def scrape_week(
 def play(world: World, level: int, seed: str, policy: str, args: argparse.Namespace, roster: list) -> Recorder:
     now = world.snapshot()["now"]
     recorder = Recorder(world, now)
-    desk: Desk | None = None
+    desk: Any = None
+    wake_on = WAKE_ON
     if policy == "starter":
         desk = Desk(world, level, now)
+    elif policy == "dispatch":
+        import dispatch  # only here: a broken dispatch.py must not stop the other policies
+
+        desk, wake_on = dispatch.Desk(world, level, now), dispatch.WAKE_ON
     elif policy == "explore":
         rng = random.Random(f"{seed}:{level}")
         desk = ExploreDesk(world, level, now, rng, args, roster, world.client.map())
-    play_week(world, desk, recorder, args.sample_every)
+    play_week(world, desk, recorder, args.sample_every, wake_on)
     return recorder
 
 
