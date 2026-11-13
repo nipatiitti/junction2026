@@ -274,7 +274,7 @@ class Desk:
             windows=windows,
             hours=hours,
             audience=audience_for(order, legs, facts),
-            typical=self.requests[order_id]["referenceFeeCents"] * share,
+            typical=self.fees.typical(order, self.requests[order_id]) * share,
             price=order["priceCents"] * share,
             last_pickup_at=order["lastPickupAt"],
         )

@@ -220,12 +220,14 @@ Tables, keyed by `week_id` (a row of `weeks`):
 | `positions`                      | sample of where one of our drivers was, with `--sample-every`                                                                                                                                                                               |
 | `probes`                         | delivery option that `probe.py quote` bisected: level, seed, request, list price, the flip (`flip_cents`, `flip_ratio`, `bracket_low_cents` = highest price known to win), `ends`, `monotone`, `error`, and every trial as JSON in `trials` |
 | `fee_probes`, `probe_files`      | order that `probe.py fee` bisected, with the same flip columns for the flat fee and who booked at the flip; probe file that was loaded, with its size and mtime                                                                             |
+| `shape_probes`                   | pair of requests that `probe.py shape` probed: kind, order ids, lanes, each car's single flip and the combined flip, `saving_ratio`, `same_driver`, who booked and their home, and the trials                                               |
 
 Derived analysis tables (win model, booking hazard, order economics, supply) are built by
 `uv run python -m analysis.facts`; see `analysis/README.md`.
 The hindsight oracle (where a week's margin went, and what a perfect dispatcher could have kept):
 `uv run python -m analysis.oracle`.
-One page with the whole picture: `uv run python -m analysis.report` writes `out/report.html`.
+One page with the whole picture: `uv run python -m analysis.report` writes `out/report.html` and serves it on
+localhost until Ctrl-C (`--no-serve` only writes the file).
 
 A passive week takes about 1.7 MB in the database, and a played week about 20 MB, most of it gig views. The week
 folders hold the same data gzipped (about 0.1 MB and 2 MB), so the database can always be rebuilt from them.
@@ -316,6 +318,7 @@ comes from the action alone.
 ```sh
 uv run --env-file .env probe.py quote --level 8 --seed scrape-1 --share 0.05 --days 0,1   # ~20 requests
 uv run --env-file .env probe.py fee --level 8 --seed scrape-1 --limit 20       # 20 orders
+uv run --env-file .env probe.py shape --level 8 --seed scrape-1 --days 0,1     # ~42 pairs
 ```
 
 - `quote`: at a request's arrival, quotes one option at a time in copies and advances to `respondBy`. `flipRatio` is
@@ -324,7 +327,24 @@ uv run --env-file .env probe.py fee --level 8 --seed scrape-1 --limit 20       #
 - `fee`: quotes the request at `--win-ratio` (default 0.5) of the list price to win it, then posts its cars at one
   flat fee per copy and advances `--window` minutes (default 180). `flipRatio` is the lowest flat fee over the typical
   fee that a driver books within the window (never past the order's `lastPickupAt`), with who booked it, how soon,
-  the gig's views and whether it expired.
+  the gig's views and whether it expired. `atFlip` also has the booking driver's `homePlaceId`, `toPickupKm` and
+  `fromDeliveryKm`.
+- `shape`: is one gig of two cars cheaper than two gigs? A pair is a `trade_in` (one request, two cars), a
+  `round_trip` (two one-car requests on exact reverse lanes that arrive at most `--gap` minutes apart, default 180)
+  or a `chain` (the second car starts where the first ends but ends 100 km or more from the start; a control, add it
+  with `--kinds trade_in,round_trip,chain`). The first run of a seed and level scouts the week's requests into
+  `out/probe/requests-L<level>-<seed>.json`; the request stream does not depend on our actions. The probe wins both
+  orders, and at the minute the second is won bisects three gigs in copies: `single[0]` and `single[1]` (each car
+  alone) and `combined` (both cars, its fee the gig's total). `savingRatio` is (sum of single flips - combined flip)
+  over the pair's typical fee: positive means one gig is cheaper than two. `together` posts both single gigs at once at
+  their single flips and says who booked them and whether one driver took both (`sameDriver`). `returnKm` is the drive
+  from the last delivery back to the first pickup (12 km for a round trip, 100+ for a chain). The row's `ends` names
+  each treatment that did not flip, as `combined:never`. The scout holds one slot, once per seed and level; a pair
+  then costs about 39 copies and 35 seconds.
+- `shape` limits: a round trip saves the drive to the second pickup and also ends where it began; comparing
+  `savingRatio` of round trips and chains by `returnKm`, and `atFlip.fromDeliveryKm`, separates the two only in part.
+  Each flip is the cheapest driver of that gig, often a different one per treatment, and a trade-in's own extra
+  (trade-in, private address, the customer's slot) is mixed into its saving.
 - Each row also has every trial and `monotone`: whether the outcomes change once as the value rises. Two extra trials
   a little either side of the bracket (`--checks`) test it. Monotone rows say the world answers with a threshold, not a coin.
 - The parent posts no gigs and declines every other request at no cost, so each probe sees drivers who have learned
@@ -336,7 +356,7 @@ uv run --env-file .env probe.py fee --level 8 --seed scrape-1 --limit 20       #
   or `inverted`. A fee row's `ends` is `never` (no driver even at the top fee, see `expiredAtTop`) or `always`. A
   refused action or a lost win quote gives a row with `error` instead.
 - Rows go to `out/probe/<mode>-L<level>-<seed>.jsonl`. `uv run db.py` loads them into the `probes` and `fee_probes`
-  tables; run it again after a probe has grown. Running the same command again skips the rows saved. A probe
+  tables (not `shape` rows yet); run it again after a probe has grown. Running the same command again skips the rows saved. A probe
   holds the parent and one copy at a time (two practice slots) and leaves `--keep-free` slots (default 2) for
   teammates. Each bisection step is a fork, an advance and a delete: about 8 to 12 steps a probe.
 
