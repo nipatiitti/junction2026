@@ -57,9 +57,10 @@ def find_weeks(roots: Iterable[Path]) -> Iterator[Path]:
 
 
 def load_map(roots: Iterable[Path]) -> dict | None:
+    """The map that scrape.py saved in an output folder, also when given a folder above it. Every week has the same map."""
     for root in roots:
-        if (root / "map.json").exists():
-            return read_json(root / "map.json")
+        for path in sorted(root.rglob("map.json")):
+            return read_json(path)
     return None
 
 

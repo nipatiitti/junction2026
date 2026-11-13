@@ -3,7 +3,7 @@
 import gzip
 import json
 
-from stats import Week, find_weeks, load_week, quantiles, summarise
+from stats import Week, find_weeks, load_map, load_week, quantiles, summarise
 
 WORLD_MAP = {
     "places": [{"id": "a", "name": "Aa", "lat": 0, "lon": 0}, {"id": "b", "name": "Bb", "lat": 0, "lon": 1}],
@@ -159,3 +159,10 @@ def test_weeks_load_from_the_folders_that_scrape_writes(tmp_path):
     (tmp_path / "L8" / "t-2.partial" / "meta.json").write_text("{}")
     assert list(find_weeks([tmp_path])) == [folder]
     assert load_week(folder) == week
+
+
+def test_the_map_is_found_in_a_scrape_folder_below_the_one_given(tmp_path):
+    (tmp_path / "passive").mkdir()
+    (tmp_path / "passive" / "map.json").write_text(json.dumps(WORLD_MAP))
+    assert load_map([tmp_path]) == WORLD_MAP
+    assert load_map([tmp_path / "explore"]) is None
