@@ -206,6 +206,8 @@ on one line, so two PRs that each add a command do not conflict.
 - Get the team's scraped data: `mkdir -p out && gh release download --pattern 'spread-data-*.tar.gz' --output - | tar -xz -C out`
 - Build and serve the report: `uv run python -m analysis.report`
 - Build the report file only: `uv run python -m analysis.report --no-serve`
+- Play a week with the ladder: `uv run ladder/play.py --level 8 --seed spread-1`
+- Rehearse the final (ladder): `uv run ladder/rehearse.py --seed spread-1`
 
 ## Definition of done
 

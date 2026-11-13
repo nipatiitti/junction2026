@@ -113,6 +113,22 @@ saves into this checkout.
 `pnpm dispatch` saves its weeks with `src/record.ts`, in the same folder format and with the same `SPREAD_RUNS_DIR`
 and `SPREAD_RECORD=0`. It writes only the folder: run `uv run db.py` to add it to `out/spread.sqlite`.
 
+### The ride ladder: a second system
+
+[`ladder/`](ladder/README.md) is a second dispatch system, built from scratch and independent of `dispatch.py`. It
+takes only the rides that are easy to move on time first (one plain car between dealer sites, ready on a later day,
+a drive of up to 4 hours), and unlocks harder kinds of rides one rung at a time: notes, special cars, cars ready
+today, long and remote rides, trade-ins. It plays rung 4 by default: on level 8, `spread-1` to `spread-5`, it made
+€34,131 to €35,749 in the five weeks, 98.4% to 98.6% on time, all ranked; the rungs above it add little and cost
+on-time share. It saves its weeks like `dispatch.py`, under the policy `ladder`.
+
+```sh
+uv run ladder/play.py --level 8 --seed spread-1             # a practice week at the default rung
+uv run ladder/play.py --level 8 --seed spread-1 --rung 1    # easy rides only
+uv run ladder/rehearse.py --seed spread-1                   # play the final's code path on a practice world
+uv run ladder/play.py --final                               # our copy of a test final or of the final
+```
+
 ### Play a practice week in TypeScript
 
 The same kit exists for TypeScript, so half of the team can work there. `vendor/spread-typescript/` holds the
