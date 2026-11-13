@@ -90,7 +90,6 @@ about 1,390.
   orders' cars in one gig when that saves a driver's trips, and holds batch orders briefly to find them.
 - `vendor/` holds the organisers' Python kit of 13 November as a wheel. uv installs it as the package `spread`: the
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
-- `tests/` holds older tests, kept as they are but no longer run: we do not write or run tests.
 
 ### Every online run is saved
 
