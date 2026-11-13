@@ -3,7 +3,7 @@ this checkout's dispatch.py, sums each week's ledger (driver fees, refunds and p
 one JSON line per week to bench.jsonl. Every week is saved with record.Recorder, as dispatch.py saves its own.
 
     uv run python strategies/fees/results/bench.py VERSION[,VERSION...] [--seeds spread-1..5] [--level 8] [--jobs 5]
-    uv run python strategies/fees/results/bench.py --table          # the README's table, from bench.jsonl
+    uv run python strategies/fees/results/bench.py --table [--seeds spread-1..5]  # the README's tables
 
 A version is a name in VERSIONS: `starter` plays the starter's rising and steep fees, the others play
 strategies/fees with some of the constants of schedule.py changed. The weeks of one call play at once, up to
@@ -228,20 +228,22 @@ def bench(versions: list[str], seeds: list[str], level: int, jobs: int) -> None:
             future.result()
 
 
-def table() -> str:
-    """One line per version and set of seeds, over the main it ran on: the README's table."""
+def table(seeds: list[str] | None = None) -> str:
+    """One line per version and the main it ran on, over its weeks on `seeds` (all its weeks without): the
+    README's tables."""
     groups: dict[tuple, list[dict]] = defaultdict(list)
     for line in RESULTS.read_text().splitlines():
         row = json.loads(line)
-        groups[(row.get("main", "#15"), row["version"])].append(row)
+        if seeds is None or row["seed"] in seeds:
+            groups[(row.get("main", "#15"), row["version"])].append(row)
     lines = ["| Main | Version | Seeds | Margin | On time | Fees per delivered car | Refunds and penalties per car |"]
     lines.append("| --- | --- | --- | --- | --- | --- | --- |")
     for (main, version), rows in groups.items():
         cars, orders = sum(r["cars"] for r in rows), sum(r["orders"] for r in rows)
         on_time = sum(r["onTime"] * r["orders"] for r in rows) / orders
-        seeds = ", ".join(r["seed"].removeprefix("spread-") for r in rows)
+        played = ", ".join(sorted((r["seed"].removeprefix("spread-") for r in rows), key=lambda x: (len(x), x)))
         lines.append(
-            f"| {main} | `{version}` | {seeds} | €{sum(r['margin'] for r in rows):,.0f} | {on_time:.1%} "
+            f"| {main} | `{version}` | {played} | €{sum(r['margin'] for r in rows):,.0f} | {on_time:.1%} "
             f"| €{sum(r['fees'] for r in rows) / cars:.2f} "
             f"| €{sum(r['refunds'] + r['penalties'] for r in rows) / cars:.2f} |"
         )
@@ -254,11 +256,13 @@ def main() -> None:
     parser.add_argument("--seeds", default="spread-1..5")
     parser.add_argument("--level", type=int, default=8)
     parser.add_argument("--jobs", type=int, default=5, help="weeks at once, 1 to 8 (default 5)")
-    parser.add_argument("--table", action="store_true", help="print the table of bench.jsonl and stop")
+    parser.add_argument(
+        "--table", action="store_true", help="print the table of bench.jsonl, on --seeds if given, and stop"
+    )
     parser.add_argument("--one", nargs=2, metavar=("VERSION", "SEED"), help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.table:
-        print(table())
+        print(table(seeds_of(args.seeds) if "--seeds" in sys.argv else None))
     elif args.one:
         print(json.dumps(play(args.one[0], args.level, args.one[1])), flush=True)
     else:

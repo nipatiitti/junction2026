@@ -37,7 +37,7 @@ LATE_SHARE = 1.0
 LATE_TOP = 2.5
 # With less than this left before the top fee is due, the schedule opens closer to its top.
 URGENT_SPAN = 8 * HOUR
-# Raises after the opening fee, the last one at the top fee. Few and large, so drivers do not learn to wait.
+# Raises after the opening fee, the last one at the top fee. Few, so drivers do not learn to wait for the next.
 RAISES = 3
 # The raises before the top come early, this long after the post at the latest: drivers who know they
 # work the next day book a day ahead when the fee is right, before their day fills up. The fee then

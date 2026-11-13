@@ -57,38 +57,104 @@ All the constants are at the top of `schedule.py` and `market.py`.
 
 ## Bench results
 
-Level 8, against the starter's fees (`baseline`). Every run is in `results/bench.jsonl`, made with
-`results/bench.py`, which also sums driver fees, refunds and penalties from the ledger. Weeks take about
-8 minutes each from a cloud session, so not every version ran on every seed.
+Level 8, against the starter's fees (`starter`). Every week is a line in `results/bench.jsonl`, made with
+`results/bench.py`, which also sums driver fees, refunds and penalties from the ledger, and saves the week to
+`data/scrape/runs`. The bench plays a version of the constants on top of this checkout's `dispatch.py`; the
+`Main` column is the main it ran on. Weeks are fast now: 8 at a time, 15 weeks take about 15 minutes.
 
-| Version    | What it is                                                                                                |
-| ---------- | --------------------------------------------------------------------------------------------------------- |
-| `baseline` | The starter's `rising` and `steep` fees                                                                   |
-| `v1`       | This module with raises at even times from now to the top fee                                             |
-| `v2`       | `v1`, opening at 1.1 times or more, top fee due 4 hours or more before the last pickup, `LATE_SHARE` 0.75 |
-| `v3`       | `v1` with the two raises before the top in the first 1 and 3 hours: the code in this folder               |
+```sh
+uv run python strategies/fees/results/bench.py starter,v16 --seeds spread-1..5   # play
+uv run python strategies/fees/results/bench.py --table --seeds spread-1..5       # the tables below
+```
+
+### On main with admission control and bundling
+
+The constants in `schedule.py` are `v16`. Both criteria of #62 hold on `spread-1` to `spread-5`: more orders on
+time than with the starter's fees, at no higher fee per delivered car. They also hold on `spread-6` to
+`spread-10`, which played no part in choosing `v16`. `v3`, the schedule merged in #15, costs €3.50 more per
+car than the starter's fees here.
+
+| Seeds   | Version   | Margin  | On time | Fees per delivered car | Refunds and penalties per car |
+| ------- | --------- | ------- | ------- | ---------------------- | ----------------------------- |
+| 1 to 5  | `starter` | €30,566 | 97.1%   | €69.73                 | €0.95                         |
+| 1 to 5  | `v3`      | €24,559 | 96.9%   | €73.24                 | €1.16                         |
+| 1 to 5  | `v16`     | €31,569 | 97.5%   | €69.72                 | €0.88                         |
+| 6 to 10 | `starter` | €41,396 | 97.8%   | €74.57                 | €1.23                         |
+| 6 to 10 | `v16`     | €41,300 | 98.5%   | €74.11                 | €0.74                         |
+
+`v16` has more orders on time than the starter's fees on 9 of the 10 seeds.
+
+### Choosing the constants
+
+Played on main `043e1c7`, with admission control and before bundling. Each version is a set of constants in
+`VERSIONS` in `results/bench.py`.
+
+| Version   | What it is                                                                                          |
+| --------- | --------------------------------------------------------------------------------------------------- |
+| `starter` | The starter's `rising` and `steep` fees                                                             |
+| `v3`      | The schedule merged in #15: opening premiums, raises 1/3 and 2/3 of the way to a top of 2 times     |
+| `v4`      | `v3` opening at 1.1 times or more, top due 4 hours or more before `lastPickupAt`, `LATE_SHARE` 0.75 |
+| `v5`      | `v4` with a top of 2.5 times under twice the price                                                  |
+| `v6`      | `v4` without the opening premiums                                                                   |
+| `v7`      | `v6` with small early raises, 10% and 30% of the way to the top                                     |
+| `v8`      | `v7` with the top due 5 hours or more before `lastPickupAt`                                         |
+| `v9`      | `v8` opening at 0.9 times                                                                           |
+| `v10`     | `v8` with the scarcity premium                                                                      |
+| `v11`     | `v9` with the scarcity premium                                                                      |
+| `v12`     | `v9` with the top due 6 to 8 hours before `lastPickupAt`                                            |
+| `v13`     | `v9` with a top of 2.5 times under twice the price                                                  |
+| `v14`     | `v8` opening at 0.95 times                                                                          |
+| `v15`     | `v13` opening at 0.85 times                                                                         |
+| `v16`     | `v13` with the top due 6 to 8 hours before `lastPickupAt`: `schedule.py` now                        |
+
+| Seeds   | Version   | Margin  | On time | Fees per delivered car | Refunds and penalties per car |
+| ------- | --------- | ------- | ------- | ---------------------- | ----------------------------- |
+| 1 to 5  | `starter` | €32,326 | 97.1%   | €70.23                 | €1.00                         |
+| 1 to 5  | `v3`      | €26,529 | 97.3%   | €73.38                 | €1.05                         |
+| 1 to 5  | `v4`      | €22,198 | 97.7%   | €77.52                 | €1.06                         |
+| 1 to 5  | `v5`      | €16,870 | 97.8%   | €80.71                 | €1.05                         |
+| 1 to 5  | `v6`      | €27,648 | 97.3%   | €73.70                 | €1.28                         |
+| 1 to 5  | `v7`      | €32,845 | 96.1%   | €69.94                 | €1.52                         |
+| 1 to 5  | `v8`      | €31,967 | 97.2%   | €70.38                 | €1.37                         |
+| 1 to 5  | `v9`      | €36,248 | 96.7%   | €66.58                 | €1.38                         |
+| 1 to 5  | `v10`     | €31,102 | 96.8%   | €71.75                 | €1.17                         |
+| 1 to 5  | `v11`     | €35,479 | 96.9%   | €66.79                 | €1.21                         |
+| 1 to 5  | `v12`     | €36,808 | 97.0%   | €67.42                 | €1.31                         |
+| 1 to 5  | `v13`     | €31,773 | 97.4%   | €70.38                 | €1.03                         |
+| 1 to 5  | `v14`     | €35,756 | 97.0%   | €67.59                 | €1.12                         |
+| 1 to 5  | `v15`     | €31,997 | 97.2%   | €68.78                 | €1.17                         |
+| 1 to 5  | `v16`     | €31,078 | 97.9%   | €70.14                 | €0.98                         |
+| 6 to 10 | `starter` | €40,647 | 98.1%   | €73.94                 | €0.64                         |
+| 6 to 10 | `v3`      | €35,039 | 97.8%   | €77.62                 | €0.98                         |
+| 6 to 10 | `v9`      | €48,366 | 97.1%   | €68.77                 | €1.26                         |
+| 6 to 10 | `v16`     | €38,092 | 98.1%   | €75.90                 | €1.11                         |
+
+What the runs show:
+
+- With admission control the shortage is mild: the week wins 300 to 380 orders, not 950, and 97% of them are
+  on time with any fees. Late cars cost about €1 per delivered car in refunds and penalties, so a fee schedule
+  pays for more on-time orders only if it costs almost nothing more.
+- About two thirds of the gigs book at their opening fee in every version. With `v3`'s premiums the
+  average gig opened at 1.08 times the typical fee and no more of them booked at it, and its raises reached
+  about 1.35 and 1.7 times within 3 hours, against the starter's 1.1 and 1.3.
+- Most late cars had 100 to 150 viewers and no booking until their gig expired at the end of its window;
+  posted again without windows, they booked within minutes at the top fee, for the next morning. Their
+  drivers wanted the fee but could no longer reach the pickup in time. A top fee due earlier in the pickup
+  day (`v12`, `v16`) books more of them.
+- Opening at 0.9 times the typical fee saves €3.50 to €5 per car on both seed sets (`v9`). `v16` spends that
+  on a higher, earlier top. On `043e1c7`, `spread-6` to `spread-10` did not repeat `v16`'s gain on the seeds
+  that chose it; on main with bundling they did. One seed's on-time share moves by a point between two
+  versions with little in common, so compare versions on 10 seeds. Whether fees should aim for margin (`v9`)
+  rather than on-time share is issue #109.
+
+### Earlier runs, #15
+
+Played on main before admission control, when the week won about 950 orders and half of them were late.
+`baseline` is the starter's fees, `v1` to `v3` as above.
 
 | Seeds         | Version    | Margin    | On time | Fees per delivered car | Refunds and penalties per car |
 | ------------- | ---------- | --------- | ------- | ---------------------- | ----------------------------- |
 | spread-1 to 5 | `baseline` | −€334,779 | 52.0%   | €124.35                | €31.76                        |
 | spread-1 to 5 | `v1`       | −€263,822 | 51.0%   | €107.50                | €31.81                        |
-| spread-2, 3   | `baseline` | −€102,344 | 57.9%   | €116.11                | €25.75                        |
-| spread-2, 3   | `v1`       | −€85,273  | 55.2%   | €103.46                | €27.12                        |
 | spread-2, 3   | `v3`       | −€84,144  | 55.9%   | €103.88                | €25.85                        |
-| spread-1, 3   | `baseline` | −€128,049 | 51.8%   | €121.69                | €28.95                        |
 | spread-1, 3   | `v2`       | −€115,422 | 52.8%   | €111.27                | €32.58                        |
-
-What the runs show:
-
-- Fees per delivered car fall by €10 to €17 in every version, and the margin rises by €12,000 to
-  €71,000. Drivers stop waiting for raises: the median booked fee over the first fee viewed falls from
-  1.3 to 1.5 with the starter's fees to 1.0.
-- The on-time share does not rise yet with `v1` or `v3`. The issue's acceptance criterion is not met.
-  `v2`, with dearer opening fees and an earlier top, beats the starter's on-time share on its two seeds,
-  at a smaller margin gain.
-- The shortage limits what fees can do. On `spread-1`, about 120 different drivers book on a working day,
-  about one gig each, against 150 to 250 orders a day, and most late orders find their driver just after
-  `lastPickupAt`, once their gig is posted again without windows. Fees decide which orders get the
-  drivers and at what cost; winning fewer orders (issue #14) adds more on-time share than fees can.
-- On `spread-3`, the orders that the starter delivered on time and `v1` did not had a lead of about a
-  day: the starter's hourly raises had them booked 24 hours ahead. `v3` raises early for that reason.
