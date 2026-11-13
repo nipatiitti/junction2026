@@ -6,10 +6,11 @@ strategy decides, and scores each decision against what the week shows really ha
 how a different decision would have ended, the decision counts as unknown. No server, no key, nothing played.
 
     uv run python -m analysis.replay [FOLDER ...] [--out out/replay.html] [--csv out/replay.csv] [--jobs 4]
-                                     [--port 8001] [--no-serve]
+                                     [--probe out/probe] [--port 8001] [--no-serve]
 
 Without folders it reads every week under `out/scrape` (the team's release) and `data/scrape` (the committed weeks
-and our saved runs). analysis/README.md ("Offline replay") says what each strategy's numbers mean.
+and our saved runs). It also scores pricing and fees on probe.py's rows in `out/probe` (#145), and puts the starter's
+weeks next to ours. analysis/README.md ("Offline replay") says what each strategy's numbers mean.
 """
 
 from __future__ import annotations
@@ -18,10 +19,14 @@ import argparse
 import copy
 import csv
 import gzip
+import heapq
 import itertools
 import json
 import os
+import random
+import re
 import statistics
+import subprocess
 import sys
 import time
 from collections import Counter, defaultdict
@@ -30,6 +35,7 @@ from pathlib import Path
 
 import dispatch
 from analysis import report as r
+from strategies.baseline import BaselineFees
 from strategies.bundling.bundling import fee_share, saving
 from strategies.notes import check
 
@@ -160,6 +166,16 @@ class Week:
             "margin": score.get("marginCents"),
             "won": score.get("wonOrders"),
             "on_time": score.get("onTimeShare"),
+            # For "Every strategy against none" and "Every saved week": the rest of the score, what the week paid
+            # its drivers per car delivered, and the commit of a saved run (record.py).
+            "revenue": score.get("revenueCents"),
+            "undelivered": score.get("undeliveredShare"),
+            "ranked": score.get("ranked"),
+            "driver_fees": -sum(
+                e["line"]["cents"] for e in self.events if e["kind"] == "ledger" and e["line"]["kind"] == "driver_fee"
+            ),
+            "cars": sum(1 for e in self.events if e["kind"] == "delivered"),
+            "version": self.meta.get("version"),
         }
 
     def desk(self) -> dispatch.Desk:
@@ -594,6 +610,204 @@ def replay_week(folder: str) -> dict:
             parts = result
         for strategy, scores in parts.items():
             out[strategy] = {**scores, "seconds": seconds}
+    return out
+
+
+# ---------------------------------------------------------------- the probes
+#
+# A saved week can judge a quote or a fee only against its own. probe.py measured the answers directly, in copies of
+# a world: a quote row's flip is the highest multiple of the list price that wins the request, a fee row's flip the
+# lowest flat fee a driver books within its window. Each seed's request stream is its passive week.
+
+PROBES = "out/probe"
+PROBE_FILE = re.compile(r"(quote|fee)-L(\d+)-(.+)\.jsonl$")
+PROBE_TOP = 2.5  # a quote row that won at both ends of probe.py's range (0.6 to 2.5) wins up to at least this
+MULTIPLES = [round(0.6 + 0.05 * i, 2) for i in range(33)]  # fixed multiples of the list price, 0.6 to 2.2
+DAY = 24 * HOUR
+
+
+def load_probes(folder: str) -> dict[tuple[str, int, str], list[dict]]:
+    """probe.py's rows by (mode, level, seed), without the rows that ended in an error."""
+    found: dict[tuple[str, int, str], list[dict]] = defaultdict(list)
+    for path in sorted(Path(folder).glob("*.jsonl")) if os.path.isdir(folder) else []:
+        if (m := PROBE_FILE.match(path.name)) is None:
+            continue
+        for line in path.read_text().splitlines():
+            if line.strip() and not (row := json.loads(line)).get("error"):
+                found[(m[1], int(m[2]), m[3])].append(row)
+    return found
+
+
+class Stream:
+    """A seed's request stream, from its passive week, with that week's drivers and map: what probe.py probed."""
+
+    def __init__(self, folder: Path):
+        with gzip.open(folder / "events.jsonl.gz", "rt", encoding="utf-8") as file:
+            events = [json.loads(line) for line in file]
+        self.requests = {e["request"]["id"]: e["request"] for e in events if e["kind"] == "price_request"}
+        self.roster = read_gz(folder / "drivers.json.gz")
+        self.map = json.loads(find_map(folder).read_text())
+
+    def desk(self, level: int) -> dispatch.Desk:
+        return dispatch.Desk(OfflineWorld(self.roster, self.map), level, 0)
+
+
+def passive_week(level: int, seed: str, roots: list[str]) -> Path | None:
+    for root in roots:
+        folder = Path(root) / "passive" / f"L{level}" / seed
+        if (folder / "events.jsonl.gz").exists() and (folder / "drivers.json.gz").exists() and find_map(folder):
+            return folder
+    return None
+
+
+def flip_of(row: dict) -> float | None:
+    """A quote row's flip; one that lost at both ends of the range wins at no price, one that won at both up to the top."""
+    if row.get("flipRatio") is not None:
+        return row["flipRatio"]
+    ends = str(row.get("ends")).lower()
+    return 0.0 if ends == "false" else PROBE_TOP if ends == "true" else None
+
+
+def replay_quote_probes(level: int, seed: str, rows: list[dict], stream: Stream) -> dict:
+    """strategies/pricing through the seed's request stream on the probed days, each request quoted at its first
+    option, as the starter quotes. A quote wins under its flip: the probed one where there is one, else one drawn
+    from the probed flips of the same day, so the model learns as in a week. Only the probed requests are scored."""
+    flips = {(row["requestId"], row["option"]): f for row in rows if (f := flip_of(row)) is not None}
+    probed = {rid for rid, _ in flips}
+    days = sorted({req["arrivedAt"] // DAY for rid, req in stream.requests.items() if rid in probed})
+    requests = sorted(
+        (req for req in stream.requests.values() if req["arrivedAt"] // DAY in days),
+        key=lambda req: (req["arrivedAt"], req["id"]),
+    )
+    pool: dict[int, list[float]] = defaultdict(list)  # day -> the probed flips of that day
+    for req in requests:
+        for option in req["options"]:
+            if (req["id"], option["kind"]) in flips:
+                pool[req["arrivedAt"] // DAY].append(flips[(req["id"], option["kind"])])
+    pricing = stream.desk(level).pricing
+    rng = random.Random(f"probe-{level}-{seed}")  # the same draws on every run
+    pending: list[tuple[int, int, dict]] = []  # (respondBy, n, the outcome event) in time order
+    scored: list[tuple[int, float, float]] = []  # (list price, flip, the model's multiple) of each probed request
+    won = revenue = 0
+    for n, req in enumerate(requests):
+        while pending and pending[0][0] <= req["arrivedAt"]:
+            pricing.observe(heapq.heappop(pending)[2])
+        first = req["options"][0]
+        truth = flips.get((req["id"], first["kind"]))
+        flip = truth if truth is not None else rng.choice(pool[req["arrivedAt"] // DAY])
+        ratio = pricing.price(req, req["arrivedAt"])[first["kind"]] / first["listPriceCents"]
+        outcome = (
+            {"kind": "order_won", "at": req["respondBy"], "order": {"id": req["id"], "dealerId": req["dealerId"]}}
+            if ratio < flip
+            else {"kind": "order_lost", "at": req["respondBy"], "requestId": req["id"]}
+        )
+        heapq.heappush(pending, (req["respondBy"], n, outcome))
+        won += ratio < flip
+        revenue += round(first["listPriceCents"] * ratio) if ratio < flip else 0
+        if truth is not None:
+            scored.append((first["listPriceCents"], truth, ratio))
+
+    def at(multiple: float) -> dict:
+        wins = [(price, flip) for price, flip, _ in scored if multiple < flip]
+        return {"multiple": multiple, "won": len(wins), "revenue": sum(round(price * multiple) for price, _ in wins)}
+
+    model = [(price, ratio) for price, flip, ratio in scored if ratio < flip]
+    return {
+        "days": days,
+        "requests": len(requests),
+        "probed": len(scored),
+        "model_won": len(model),
+        "model_revenue": sum(round(price * ratio) for price, ratio in model),
+        "model_ratio": statistics.fmean(ratio for _, _, ratio in scored) if scored else None,
+        "list_won": at(1.0)["won"],
+        "list_revenue": at(1.0)["revenue"],
+        "flip_won": sum(1 for _, flip, _ in scored if flip > 0),
+        "flip_revenue": sum(round(price * flip) for price, flip, _ in scored if flip > 0),
+        "stream_won": won,
+        "stream_revenue": revenue,
+        "_curve": [at(m) for m in MULTIPLES],
+    }
+
+
+def first_reach(plan: list[dict], flip: int | None, last_pickup: int) -> tuple[int, int] | None:
+    """The first step of a schedule at or over the flip, before the last pickup: (minute, fee), or None."""
+    for step in plan if flip is not None else []:
+        if step["at"] > last_pickup:
+            return None
+        if step["feeCents"] >= flip:
+            return step["at"], step["feeCents"]
+    return None
+
+
+def replay_fee_probes(level: int, seed: str, rows: list[dict], stream: Stream) -> dict:
+    """strategies/fees and the starter's fees (strategies/baseline) plan each fee-probed order's schedule from the
+    minute it was won; each books at its first step at or over the order's flip, before its last pickup."""
+    desk = stream.desk(level)
+    baseline = BaselineFees(stream.roster, stream.map, level)
+    orders = []
+    for row in rows:
+        request = stream.requests.get(row["orderId"])
+        if request is None:
+            continue
+        option = next((o for o in request["options"] if o["kind"] == row["option"]), request["options"][0])
+        legs = request["legs"]
+        order = {
+            "id": request["id"],
+            "dealerId": request["dealerId"],
+            "option": row["option"],
+            "legs": legs,
+            "deliveredAt": [None] * len(legs),
+            "priceCents": option["listPriceCents"],  # what the order would earn at the list price
+            "lastPickupAt": row["lastPickupAt"],
+            "deadline": row["deadline"],
+        }
+        now, flip = row["wonAt"], (round(row["flipCents"]) if row.get("flipCents") is not None else None)
+        found = {"order": request["id"], "typical": request["referenceFeeCents"], "flip": flip}
+        for name, planner in (("ours", desk.fees), ("starter", baseline)):
+            plan = planner.schedule(order, request, len(legs), now)
+            reach = first_reach(plan, flip, row["lastPickupAt"])
+            found[name] = {
+                "opening": plan[0]["feeCents"],
+                "minutes": reach[0] - now if reach else None,
+                "fee": reach[1] if reach else None,
+            }
+        orders.append(found)
+    known = [o for o in orders if o["flip"] is not None]
+
+    def part(name: str) -> dict:
+        booked = [o for o in known if o[name]["fee"] is not None]
+        return {
+            f"{name}_booked": len(booked),
+            f"{name}_paid": sum(o[name]["fee"] for o in booked),
+            f"{name}_over_typical": statistics.fmean(o[name]["fee"] / o["typical"] for o in booked) if booked else None,
+            f"{name}_over_flip": statistics.fmean(o[name]["fee"] / o["flip"] for o in booked) if booked else None,
+            f"{name}_at_post": sum(1 for o in booked if o[name]["minutes"] == 0),
+        }
+
+    return {
+        "orders": len(known),
+        "never": len(orders) - len(known),
+        "flip_over_typical": statistics.fmean(o["flip"] / o["typical"] for o in known) if known else None,
+        **part("ours"),
+        **part("starter"),
+        "_orders": known,
+    }
+
+
+def replay_probes(probe_dir: str, roots: list[str]) -> list[dict]:
+    """Both probe replays on every probed seed whose passive week is saved: one result per mode, level and seed."""
+    out = []
+    for (mode, level, seed), rows in sorted(load_probes(probe_dir).items()):
+        folder = passive_week(level, seed, roots)
+        result: dict = {"mode": mode, "level": level, "seed": seed, "rows": len(rows)}
+        if folder is None:
+            out.append({**result, "error": f"no passive week of {seed} at level {level}"})
+            continue
+        try:
+            replay = replay_quote_probes if mode == "quote" else replay_fee_probes
+            out.append({**result, **replay(level, seed, rows, Stream(folder))})
+        except Exception as error:  # noqa: BLE001  # one seed's failure must not hide the others
+            out.append({**result, "error": f"{type(error).__name__}: {error}"})
     return out
 
 
@@ -1053,6 +1267,622 @@ def section_offers(results: list[dict]) -> str:
     return r.section("offers", "Offers: gigs sent straight to drivers", r.grid([card1, card2]))
 
 
+def seed_key(seed: str) -> tuple:
+    stem, _, n = str(seed).rpartition("-")
+    return (stem, int(n)) if n.isdigit() else (str(seed), 0)
+
+
+def ratio_fmt(v: float | None) -> str:
+    return "–" if v is None else f"{v:.2f}×"
+
+
+def section_quote_probes(probes: list[dict]) -> str:
+    """Pricing scored on probe.py's quote flips: the model, the list price and every fixed multiple."""
+    rows = [p for p in probes if p["mode"] == "quote" and "error" not in p and p["probed"]]
+    if not rows:
+        return r.section("quote-probes", "Pricing on the probes", r.muted("No quote probes in out/probe."))
+    cards = []
+    for level in sorted({p["level"] for p in rows}, reverse=True):
+        seeds = sorted((p for p in rows if p["level"] == level), key=lambda p: seed_key(p["seed"]))
+        probed = sum(p["probed"] for p in seeds)
+        model, listed, flip = (sum(p[k] for p in seeds) for k in ("model_revenue", "list_revenue", "flip_revenue"))
+        curve = [
+            {
+                "multiple": m,
+                "won": sum(p["_curve"][i]["won"] for p in seeds),
+                "revenue": sum(p["_curve"][i]["revenue"] for p in seeds),
+            }
+            for i, m in enumerate(MULTIPLES)
+        ]
+        best = max(curve, key=lambda c: c["revenue"])
+        ratio = statistics.fmean(p["model_ratio"] for p in seeds if p["model_ratio"] is not None)
+        y_max = r.nice_ticks(0, max(flip, best["revenue"]) / 100, 4)[-1]
+        chart = r.line_chart(
+            [
+                {
+                    "name": "every quote at one multiple",
+                    "short": "one multiple for all",
+                    "cls": "s1",
+                    "pts": [
+                        (
+                            c["multiple"],
+                            c["revenue"] / 100,
+                            f"{c['multiple']:.2f}× the list price: {c['won']} of {probed} won, {r.eur(c['revenue'])}",
+                        )
+                        for c in curve
+                    ],
+                },
+                {
+                    "name": "every request at its flip",
+                    "short": "at the flip",
+                    "cls": "total",
+                    "pts": [
+                        (m, flip / 100, f"Every request at its flip: {r.eur(flip)}")
+                        for m in (MULTIPLES[0], MULTIPLES[-1])
+                    ],
+                },
+                {
+                    "name": "pricing model",
+                    "short": "model",
+                    "cls": "s2",
+                    "pts": [(ratio, model / 100, f"strategies/pricing, {ratio:.2f}× on average: {r.eur(model)}")],
+                },
+            ],
+            x_range=(MULTIPLES[0], MULTIPLES[-1]),
+            x_ticks=[(v, f"{v:.1f}×") for v in (0.6, 1.0, 1.4, 1.8, 2.2)],
+            x_label="quote over the list price",
+            y_max=y_max,
+            y_ticks=r.nice_ticks(0, y_max, 4),
+            y_fmt=r.short_eur,
+            y_label="revenue won, €",
+            refs=((1.0, "list"),),
+            aria=f"Revenue won on the probed requests by quote multiple, level {level}",
+        )
+        table = r.table(
+            [
+                [
+                    p["seed"],
+                    ", ".join(r.DAYS[d] for d in p["days"]),
+                    f"{p['requests']:,}",
+                    f"{p['probed']:,}",
+                    ratio_fmt(p["model_ratio"]),
+                    f"{p['model_won']} / {p['list_won']} / {p['flip_won']}",
+                    r.eur(p["model_revenue"]),
+                    r.eur(p["list_revenue"]),
+                    r.eur(p["flip_revenue"]),
+                ]
+                for p in seeds
+            ],
+            ["Seed", "Days", "Requests", "Probed", "Model", "Won: model / list / flip", "Model", "List", "Flip"],
+        )
+        cards.append(
+            r.card(
+                f"Level {level}: the pricing model wins {r.eur(model)} on {probed} probed requests, the list price "
+                f"{r.eur(listed)}; one multiple, {best['multiple']:.2f}×, would win {r.eur(best['revenue'])}",
+                chart,
+                r.legend(
+                    [("s1", "every quote at one multiple"), ("s2", "strategies/pricing"), ("total", "at the flip")]
+                ),
+                notes=[
+                    (
+                        f"{probed} requests on {len(seeds)} seeds have a probed flip: the highest multiple of the list "
+                        "price that wins them, from probe.py quote. A quote wins below its flip. Each request is quoted "
+                        "at its first option, as the starter quotes."
+                    ),
+                    (
+                        "The pricing model runs through the seed's whole request stream on the probed days (its "
+                        "passive week) and learns from each answer: the probed flip where there is one, else a flip "
+                        "drawn from the same day's probed requests. Dealer trust stays at zero: it needs deliveries."
+                    ),
+                    (
+                        "probe.py's parent world wins nothing, so the competitor has not raised its prices for these "
+                        "dealers, and it probed Monday and Tuesday at level 8."
+                    ),
+                ],
+                data=table,
+            )
+        )
+        diffs = [
+            {
+                "label": p["seed"],
+                "sub": f"{p['probed']} probed, {ratio_fmt(p['model_ratio'])}",
+                "dots": [
+                    (
+                        p["model_revenue"] - p["list_revenue"],
+                        True,
+                        "s1" if p["model_revenue"] >= p["list_revenue"] else "s2",
+                        0,
+                        f"{p['seed']}: the model {r.eur(p['model_revenue'])}, the list price {r.eur(p['list_revenue'])}",
+                    )
+                ],
+                "end": r.eur_signed(p["model_revenue"] - p["list_revenue"]),
+            }
+            for p in seeds
+        ]
+        span, ticks = cents_axis([p["model_revenue"] - p["list_revenue"] for p in seeds])
+        higher = sum(1 for p in seeds if p["model_revenue"] > p["list_revenue"])
+        cards.append(
+            r.card(
+                f"Level {level}: the model wins more than the list price on {higher} of {len(seeds)} seeds",
+                r.strip_chart(
+                    diffs,
+                    x_range=span,
+                    x_ticks=ticks,
+                    x_label="the model's revenue less the list price's, € on the probed requests",
+                    refs=((0, "", "ref"),),
+                    aria=f"Model revenue less list-price revenue per seed, level {level}",
+                ),
+                r.legend([("dot:s1", "the model wins more"), ("dot:s2", "the list price wins more")]),
+            )
+        )
+    return r.section("quote-probes", "Pricing on the probes: what each price would win", r.grid(cards))
+
+
+def cents_axis(values: list[float]) -> tuple[tuple[float, float], list]:
+    """An axis in cents, labelled in euros, that holds the values and zero."""
+    ticks = r.nice_ticks(min([*values, 0]) / 100, max([*values, 0]) / 100, 4)
+    return (ticks[0] * 100, ticks[-1] * 100), [(t * 100, r.short_eur(t)) for t in ticks]
+
+
+FEE_TIMES = [
+    ("now", "at the post", "s1"),
+    ("hour", "within 1 h", "q2"),
+    ("three", "within 3 h", "q1"),
+    ("later", "later", "o1"),
+    ("never", "never reaches the flip", "total"),
+]
+
+
+def section_fee_probes(probes: list[dict]) -> str:
+    """Our fee schedules and the starter's scored on probe.py's fee flips."""
+    seeds = sorted(
+        (p for p in probes if p["mode"] == "fee" and "error" not in p and p["orders"]),
+        key=lambda p: seed_key(p["seed"]),
+    )
+    if not seeds:
+        return r.section("fee-probes", "Fees on the probes", r.muted("No fee probes in out/probe."))
+    orders = [{**o, "seed": p["seed"], "level": p["level"]} for p in seeds for o in p["_orders"]]
+    names = (("ours", "Ours", "s1"), ("starter", "Starter", "s2"))
+
+    def booked(name: str) -> list[dict]:
+        return [o for o in orders if o[name]["fee"] is not None]
+
+    def mean_over_typical(name: str) -> float | None:
+        b = booked(name)
+        return statistics.fmean(o[name]["fee"] / o["typical"] for o in b) if b else None
+
+    strip_rows = [
+        {
+            "label": "Flip",
+            "sub": "lowest fee booked",
+            "dots": [
+                (
+                    o["flip"] / o["typical"],
+                    True,
+                    "total",
+                    jitter(i),
+                    f"{o['seed']} {o['order']}: flip {r.eur(o['flip'])}",
+                )
+                for i, o in enumerate(orders)
+            ],
+            "mark": statistics.fmean(o["flip"] / o["typical"] for o in orders),
+            "mark_tip": "mean flip over the typical fee",
+            "end": ratio_fmt(statistics.fmean(o["flip"] / o["typical"] for o in orders)),
+        }
+    ]
+    for name, label, cls in names:
+        strip_rows.append(
+            {
+                "label": label,
+                "sub": f"{len(booked(name))} of {len(orders)} booked",
+                "dots": [
+                    (
+                        o[name]["fee"] / o["typical"],
+                        True,
+                        cls,
+                        jitter(i),
+                        f"{o['seed']} {o['order']}: {label.lower()} pays {r.eur(o[name]['fee'])}, flip {r.eur(o['flip'])}",
+                    )
+                    for i, o in enumerate(booked(name))
+                ],
+                "mark": mean_over_typical(name),
+                "mark_tip": f"mean fee paid over the typical fee, {label.lower()}",
+                "end": ratio_fmt(mean_over_typical(name)),
+            }
+        )
+    top = max(row[0] for s in strip_rows for row in s["dots"])
+    ticks = r.nice_ticks(0, top, 5)
+    per_seed = r.table(
+        [
+            [
+                p["seed"],
+                p["orders"],
+                p["never"],
+                ratio_fmt(p["flip_over_typical"]),
+                f"{p['ours_booked']} / {p['starter_booked']}",
+                ratio_fmt(p["ours_over_typical"]),
+                ratio_fmt(p["starter_over_typical"]),
+                r.eur(p["ours_paid"]),
+                r.eur(p["starter_paid"]),
+            ]
+            for p in seeds
+        ],
+        [
+            "Seed",
+            "Orders",
+            "Never booked",
+            "Flip",
+            "Booked: ours / starter",
+            "Ours paid",
+            "Starter paid",
+            "Ours, €",
+            "Starter, €",
+        ],
+    )
+    card1 = r.card(
+        f"Our fees book {len(booked('ours'))} of {len(orders)} probed orders and pay {ratio_fmt(mean_over_typical('ours'))} "
+        f"the typical fee; the starter's book {len(booked('starter'))} and pay {ratio_fmt(mean_over_typical('starter'))}",
+        r.strip_chart(
+            strip_rows,
+            x_range=(0, ticks[-1]),
+            x_ticks=[(t, f"{t:g}×") for t in ticks],
+            x_label="fee over the typical fee",
+            refs=((1.0, "typical", "ref"),),
+            aria="Fee paid over the typical fee per probed order",
+        ),
+        r.legend([("dot:total", "the flip"), ("dot:s1", "strategies/fees"), ("dot:s2", "the starter's fees")]),
+        notes=[
+            (
+                "probe.py fee won each order and posted its cars at one flat fee in copies of the world: the flip is "
+                "the lowest fee a driver booked within the window (180 minutes, never past the last pickup). Our "
+                "schedule (strategies/fees) and the starter's (strategies/baseline) are planned from the minute the "
+                "order was won, at its list price; each books at its first step at or over the flip, before the last "
+                "pickup, and pays that step."
+            ),
+            (
+                "A driver who took the flat fee at the post may not be there for a step that reaches it hours later, "
+                "and the starter's steep fees after a deadline warning are left out."
+            ),
+        ],
+        data=per_seed,
+    )
+    timing = []
+    for name, label, _ in names:
+        parts: Counter[str] = Counter()
+        for o in orders:
+            m = o[name]["minutes"]
+            parts[
+                "never" if m is None else "now" if m == 0 else "hour" if m <= 60 else "three" if m <= 180 else "later"
+            ] += 1
+        timing.append(
+            {
+                "label": label,
+                "sub": f"{len(orders)} orders",
+                "parts": {k: (parts[k], f"{label}: {name_} {parts[k]} orders") for k, name_, _ in FEE_TIMES},
+            }
+        )
+    card2 = r.card(
+        f"Ours reaches the flip at the post on {sum(1 for o in booked('ours') if o['ours']['minutes'] == 0)} orders, "
+        f"the starter's on {sum(1 for o in booked('starter') if o['starter']['minutes'] == 0)}",
+        r.stacked_hbar(timing, FEE_TIMES, "When each schedule reaches the order's flip", "share of the probed orders"),
+        r.legend([(cls, name_) for _, name_, cls in FEE_TIMES]),
+        notes=[f"{sum(p['never'] for p in seeds)} more probed orders found no driver even at the top fee tried."],
+    )
+    every = r.details_block(
+        f"Every probed order ({len(orders)})",
+        r.table(
+            [
+                [
+                    o["seed"],
+                    o["order"],
+                    r.eur(o["typical"]),
+                    r.eur(o["flip"]),
+                    r.eur(o["ours"]["opening"]),
+                    r.eur(o["ours"]["fee"]) if o["ours"]["fee"] is not None else "–",
+                    o["ours"]["minutes"] if o["ours"]["minutes"] is not None else "–",
+                    r.eur(o["starter"]["fee"]) if o["starter"]["fee"] is not None else "–",
+                    o["starter"]["minutes"] if o["starter"]["minutes"] is not None else "–",
+                ]
+                for o in orders
+            ],
+            [
+                "Seed",
+                "Order",
+                "Typical",
+                "Flip",
+                "Our opening",
+                "Ours paid",
+                "Ours, min",
+                "Starter paid",
+                "Starter, min",
+            ],
+        ),
+    )
+    return r.section("fee-probes", "Fees on the probes: what each schedule would pay", r.grid([card1, card2]) + every)
+
+
+def section_overview(results: list[dict]) -> str:
+    """The starter's played weeks next to our saved runs, level by level, from each week's own score."""
+    shown = {
+        "starter": "None (the starter)",
+        "runs": "Every strategy (dispatch.py)",
+        "runs-ladder": "The ladder",
+        "runs-ts-starter": "The starter in TypeScript",
+    }
+    colour = {"starter": "total", "runs": "s1", "runs-ladder": "s3", "runs-ts-starter": "s4"}
+    label = {"starter": "None", "runs": "Every strategy", "runs-ladder": "The ladder", "runs-ts-starter": "TS starter"}
+    by: dict[tuple[int, str], list[dict]] = defaultdict(list)
+    for res in results:
+        w = res["week"]
+        if w["experiment"] in shown:
+            by[(w["level"], w["experiment"])].append(w)
+    levels = sorted({level for level, exp in by if exp == "starter" and (level, "runs") in by}, reverse=True)
+    if not levels:
+        return ""
+    cards, table_rows = [], []
+    for level in levels:
+        groups_ = [(exp, by[(level, exp)]) for exp in shown if (level, exp) in by]
+        rows = []
+        for exp, weeks in groups_:
+            mean = statistics.fmean(w["margin"] for w in weeks)
+            rows.append(
+                {
+                    "label": label[exp],
+                    "sub": f"{len(weeks)} weeks",
+                    "dots": [
+                        (
+                            w["margin"],
+                            True,
+                            colour[exp],
+                            jitter(i),
+                            tip(w, f"{r.eur(w['margin'])}, {r.pct(w['on_time'])} on time"),
+                        )
+                        for i, w in enumerate(weeks)
+                    ],
+                    "mark": mean,
+                    "mark_tip": f"mean {r.eur(mean)} a week",
+                    "end": r.eur(mean),
+                }
+            )
+            won = sum(w["won"] or 0 for w in weeks)
+            table_rows.append(
+                [
+                    f"L{level}",
+                    shown[exp],
+                    len(weeks),
+                    r.eur(mean),
+                    r.eur(statistics.fmean(w["revenue"] or 0 for w in weeks)),
+                    f"{won / len(weeks):,.0f}",
+                    r.pct(share(sum((w["on_time"] or 0) * (w["won"] or 0) for w in weeks), won)),
+                    r.pct(share(sum((w["undelivered"] or 0) * (w["won"] or 0) for w in weeks), won)),
+                    f"{sum(1 for w in weeks if w['ranked'])} of {len(weeks)}",
+                    r.eur(statistics.fmean(w["driver_fees"] for w in weeks)),
+                    r.eur(share(sum(w["driver_fees"] for w in weeks), sum(w["cars"] for w in weeks))),
+                ]
+            )
+        span, ticks = cents_axis([w["margin"] for _, weeks in groups_ for w in weeks])
+        ours, none = (
+            statistics.fmean(w["margin"] for w in by[(level, "runs")]),
+            statistics.fmean(w["margin"] for w in by[(level, "starter")]),
+        )
+        cards.append(
+            r.card(
+                f"Level {level}: every strategy makes {r.eur(ours)} a week, the starter {r.eur(none)}",
+                r.strip_chart(
+                    rows,
+                    x_range=span,
+                    x_ticks=ticks,
+                    x_label="margin, € per week",
+                    refs=((0, "", "ref"),),
+                    aria=f"Margin per week, the starter against our systems, level {level}",
+                ),
+                r.legend([(f"dot:{colour[exp]}", shown[exp]) for exp, _ in groups_]),
+                notes=[
+                    (
+                        "Each played week's own score. The starter's weeks are the team's scrapes; ours are every saved "
+                        "run with a reveal. The seeds differ (scrape-N against spread-N), the level is the same."
+                    )
+                ],
+            )
+        )
+    table = r.table(
+        table_rows,
+        [
+            "Level",
+            "System",
+            "Weeks",
+            "Margin / week",
+            "Revenue / week",
+            "Orders / week",
+            "On time",
+            "Not delivered",
+            "Ranked",
+            "Driver fees / week",
+            "Fees / car",
+        ],
+    )
+    card = r.card("Each system's weeks, per week", table)
+    return r.section("overview", "Every strategy against none", r.grid(cards) + card)
+
+
+def column_dots(groups_: list[dict], *, y_ticks, y_fmt, y_label: str, x_label: str, refs=(), aria: str) -> str:
+    """Groups along x in order (commits), a dot per week and a line through the groups' means. Each group has `x`
+    (its tick label), `dots` [(y, tip)], `mean` and `mean_tip`. Unlike r.line_chart, y may be negative."""
+    h = 230
+    x0, x1, y0, y1 = r.ML, r.W - 14, r.MT, h - r.MB
+    lo, hi = y_ticks[0], y_ticks[-1]
+    step = (x1 - x0) / max(len(groups_), 1)
+
+    def px(i: float) -> float:
+        return x0 + step * (i + 0.5)
+
+    def py(v: float) -> float:
+        return y1 - (min(max(v, lo), hi) - lo) / ((hi - lo) or 1) * (y1 - y0)
+
+    out = [r.svg_open(h, aria), r.y_grid([(py(v), y_fmt(v)) for v in y_ticks], x0, x1)]
+    out.append(f'<line x1="{x0}" x2="{x1}" y1="{y1}" y2="{y1}" class="axis"/>')
+    if lo < 0 < hi:
+        out.append(f'<line x1="{x0}" x2="{x1}" y1="{py(0):.1f}" y2="{py(0):.1f}" class="axis"/>')
+    for v, name in refs:
+        out.append(f'<line x1="{x0}" x2="{x1}" y1="{py(v):.1f}" y2="{py(v):.1f}" class="ref"/>')
+        out.append(r.t(x1, py(v) - 4, name, "tk", "end"))
+    every = max(1, -(-len(groups_) // 12))
+    for i, g in enumerate(groups_):
+        if i % every == 0 or i == len(groups_) - 1:
+            out.append(r.t(px(i), y1 + 14, g["x"], "tk", "middle"))
+    out.append(r.t((x0 + x1) / 2, h - 4, x_label, "al", "middle"))
+    out.append(r.t(11, (y0 + y1) / 2, y_label, "al", "middle", f' transform="rotate(-90 11 {(y0 + y1) / 2:.1f})"'))
+    spread = min(step * 0.35, 9)
+    for i, g in enumerate(groups_):
+        for j, (y, text) in enumerate(g["dots"]):
+            x = px(i) + ((j % 5) - 2) / 2 * spread
+            out.append(
+                f'<g><circle cx="{x:.1f}" cy="{py(y):.1f}" r="2.6" class="pt q2"/>'
+                f'<circle cx="{x:.1f}" cy="{py(y):.1f}" r="8" class="hit">{r.title(text)}</circle></g>'
+            )
+    means = [(px(i), py(g["mean"])) for i, g in enumerate(groups_)]
+    if len(means) > 1:
+        out.append('<path d="M' + " L".join(f"{a:.1f},{b:.1f}" for a, b in means) + '" class="line s1"/>')
+    for (x, y), g in zip(means, groups_, strict=True):
+        out.append(r.point(x, y, "s1", g["mean_tip"]))
+    out.append("</svg>")
+    return "".join(out)
+
+
+def git_commit(sha: str) -> dict | None:
+    """The time and subject of a commit, or None when this checkout does not have it."""
+    done = subprocess.run(
+        ["git", "log", "-1", "--format=%ct%x09%h%x09%s", sha], capture_output=True, text=True, check=False
+    )
+    if done.returncode != 0 or not done.stdout.strip():
+        return None
+    at, short, subject = done.stdout.strip().split("\t", 2)
+    return {"at": int(at), "short": short, "subject": subject}
+
+
+def section_history(results: list[dict]) -> str:
+    """Every saved run of dispatch.py with a reveal, by the commit that played it (meta.json's `version`)."""
+    weeks = [res["week"] for res in results if res["week"]["experiment"] == "runs"]
+    if not weeks:
+        return ""
+    level = max({w["level"] for w in weeks}, key=lambda lv: sum(1 for w in weeks if w["level"] == lv))
+    weeks = [w for w in weeks if w["level"] == level]
+    by: dict[str, list[dict]] = defaultdict(list)
+    for w in weeks:
+        by[(w["version"] or "unknown").removesuffix("-dirty")].append(w)
+    commits = []
+    for sha, ws in by.items():
+        info = git_commit(sha) if sha != "unknown" else None
+        commits.append({"sha": sha, "info": info, "weeks": sorted(ws, key=lambda w: seed_key(w["seed"]))})
+    commits.sort(key=lambda c: (c["info"]["at"] if c["info"] else float("inf"), c["sha"]))
+    for n, c in enumerate(commits, 1):
+        c.update(
+            n=n,
+            name=c["info"]["short"] if c["info"] else c["sha"][:7],
+            margin=statistics.fmean(w["margin"] for w in c["weeks"]),
+            on_time=statistics.fmean(w["on_time"] or 0 for w in c["weeks"]),
+        )
+    commit_of = {w["world"]: c for c in commits for w in c["weeks"]}
+
+    def week_tip(c: dict, w: dict) -> str:
+        return f"#{c['n']} {c['name']} on {w['seed']}: {r.eur(w['margin'])}, {r.pct(w['on_time'])} on time"
+
+    margins = [w["margin"] / 100 for w in weeks]
+    shares = [w["on_time"] or 0 for w in weeks]
+    top = max(commits, key=lambda c: c["margin"])
+    card1 = r.card(
+        f"The best commit, #{top['n']} {top['name']}, averaged {r.eur(top['margin'])} a week over "
+        f"{len(top['weeks'])} saved weeks",
+        column_dots(
+            [
+                {
+                    "x": str(c["n"]),
+                    "dots": [(w["margin"] / 100, week_tip(c, w)) for w in c["weeks"]],
+                    "mean": c["margin"] / 100,
+                    "mean_tip": f"#{c['n']} {c['name']}: mean {r.eur(c['margin'])} over {len(c['weeks'])} weeks",
+                }
+                for c in commits
+            ],
+            y_ticks=r.nice_ticks(min([*margins, 0]), max([*margins, 0]), 4),
+            y_fmt=r.short_eur,
+            y_label="margin, € per week",
+            x_label="commit, in time order (table below)",
+            aria="Margin of every saved week by commit",
+        ),
+        r.legend([("dot:q2", "one week"), ("s1", "mean of the commit's weeks")]),
+        notes=[
+            (
+                f"Every saved run of dispatch.py at level {level} that has a reveal, by the commit that played it. The "
+                "seeds differ between commits, and the fee bench played other fee constants on some, so a commit's "
+                "mean is a rough guide, not a measurement. Weeks are grouped by meta.json's policy, so a week "
+                "that another system saved as dispatch counts here too."
+            )
+        ],
+    )
+    card2 = r.card(
+        f"{sum(1 for w in weeks if w['ranked'])} of {len(weeks)} saved weeks are ranked (90% or more on time)",
+        column_dots(
+            [
+                {
+                    "x": str(c["n"]),
+                    "dots": [(w["on_time"] or 0, week_tip(c, w)) for w in c["weeks"]],
+                    "mean": c["on_time"],
+                    "mean_tip": f"#{c['n']} {c['name']}: mean {r.pct(c['on_time'])} on time",
+                }
+                for c in commits
+            ],
+            y_ticks=r.nice_ticks(min([*shares, 0.9]), 1.0, 4),
+            y_fmt=lambda v: f"{v * 100:g}%",
+            y_label="orders on time",
+            x_label="commit, in time order (table below)",
+            refs=((0.9, "ranked from 90%"),),
+            aria="On-time share of every saved week by commit",
+        ),
+        r.legend([("dot:q2", "one week"), ("s1", "mean of the commit's weeks")]),
+    )
+    commit_table = r.table(
+        [
+            [
+                c["n"],
+                c["name"],
+                time.strftime("%a %H:%M", time.localtime(c["info"]["at"])) if c["info"] else "–",
+                (c["info"]["subject"][:72] + ("…" if len(c["info"]["subject"]) > 72 else "")) if c["info"] else "–",
+                len(c["weeks"]),
+                r.eur(c["margin"]),
+                r.pct(c["on_time"]),
+                f"{sum(1 for w in c['weeks'] if w['ranked'])} of {len(c['weeks'])}",
+            ]
+            for c in commits
+        ],
+        ["#", "Commit", "When", "Subject", "Weeks", "Mean margin", "On time", "Ranked"],
+    )
+    by_seed: dict[str, list[dict]] = defaultdict(list)
+    for w in weeks:
+        by_seed[w["seed"]].append(w)
+    seed_rows = []
+    for seed in sorted(by_seed, key=seed_key):
+        ws = by_seed[seed]
+        best, worst = max(ws, key=lambda w: w["margin"]), min(ws, key=lambda w: w["margin"])
+        seed_rows.append(
+            [
+                seed,
+                len(ws),
+                r.eur(best["margin"]),
+                f"#{commit_of[best['world']]['n']} {commit_of[best['world']]['name']}",
+                r.eur(worst["margin"]),
+                r.eur(statistics.fmean(w["margin"] for w in ws)),
+                r.pct(statistics.fmean(w["on_time"] or 0 for w in ws)),
+            ]
+        )
+    seed_table = r.table(seed_rows, ["Seed", "Weeks", "Best", "Best by", "Worst", "Mean", "On time"])
+    body = (
+        r.grid([card1, card2])
+        + r.card("Commits that played saved weeks", commit_table)
+        + r.card("Best and worst week of each seed", seed_table)
+    )
+    return r.section("history", "Every saved week, by commit", body)
+
+
 def scoreboard(results: list[dict]) -> str:
     """One row per experiment: the headline number of each strategy."""
     out = []
@@ -1100,16 +1930,21 @@ def errors(results: list[dict]) -> str:
 
 SECTIONS = [
     ("scoreboard", "Scoreboard"),
+    ("overview", "All or none"),
     ("notes", "Notes"),
     ("admission", "Admission"),
     ("pricing", "Pricing"),
+    ("quote-probes", "Pricing on probes"),
     ("fees", "Fees"),
+    ("fee-probes", "Fees on probes"),
     ("bundling", "Bundling"),
     ("offers", "Offers"),
+    ("history", "Saved weeks"),
 ]
 
 
-def page(results: list[dict], seconds: float, no_reveal: int = 0) -> str:
+def page(results: list[dict], seconds: float, no_reveal: int = 0, probes: list[dict] | None = None) -> str:
+    probes = probes or []
     built = (
         f"Built {time.strftime('%Y-%m-%d %H:%M')} from {len(results)} saved weeks in {seconds:.0f} s, with the "
         "strategies of this checkout. Each week's recorded events go to each strategy in order, as dispatch.py "
@@ -1121,13 +1956,18 @@ def page(results: list[dict], seconds: float, no_reveal: int = 0) -> str:
     nav = "".join(f'<a href="#{sid}">{i}. {r.E(n)}</a>' for i, (sid, n) in enumerate(SECTIONS, 1))
     body = (
         r.section("scoreboard", "Scoreboard", scoreboard(results))
+        + section_overview(results)
         + section_notes(results)
         + section_admission(results)
         + section_pricing(results)
+        + section_quote_probes(probes)
         + section_fees(results)
+        + section_fee_probes(probes)
         + section_bundling(results)
         + section_offers(results)
+        + section_history(results)
         + errors(results)
+        + probe_errors(probes)
     )
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
@@ -1142,8 +1982,14 @@ def page(results: list[dict], seconds: float, no_reveal: int = 0) -> str:
 # ---------------------------------------------------------------- output
 
 
-def write_csv(results: list[dict], path: str) -> None:
-    """One row per week, strategy and number."""
+def probe_errors(probes: list[dict]) -> str:
+    rows = [[p["mode"], p["level"], p["seed"], p["error"]] for p in probes if "error" in p]
+    return r.section("probe-errors", "Probe errors", r.table(rows, ["Probe", "Level", "Seed", "Error"])) if rows else ""
+
+
+def write_csv(results: list[dict], path: str, probes: list[dict] | None = None) -> None:
+    """One row per week, strategy and number; then one per probed seed and number, with the experiment `probe`,
+    the strategy `pricing-probes` or `fees-probes` and no world."""
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
@@ -1157,6 +2003,12 @@ def write_csv(results: list[dict], path: str) -> None:
                     writer.writerow(
                         [w["experiment"], w["level"], w["seed"], w["world"], w["policy"], strategy, metric, value]
                     )
+        for p in probes or []:
+            strategy = "pricing-probes" if p["mode"] == "quote" else "fees-probes"
+            for metric, value in p.items():
+                if metric.startswith("_") or metric in ("mode", "level", "seed") or isinstance(value, (dict, list)):
+                    continue
+                writer.writerow(["probe", p["level"], p["seed"], "", "", strategy, metric, value])
 
 
 def skipped(no_reveal: int) -> str:
@@ -1186,6 +2038,27 @@ def print_summary(results: list[dict]) -> None:
         )
 
 
+def print_probes(probes: list[dict]) -> None:
+    """One line per probe mode and level: the strategy against the starter's way, summed over the probed seeds."""
+    for (mode, level), group in itertools.groupby(
+        sorted((p for p in probes if "error" not in p), key=lambda p: (p["mode"], -p["level"])),
+        key=lambda p: (p["mode"], p["level"]),
+    ):
+        ps = list(group)
+        if mode == "quote":
+            print(
+                f"Pricing on {sum(p['probed'] for p in ps)} probed requests, L{level}: model "
+                f"{r.eur(sum(p['model_revenue'] for p in ps))}, list price {r.eur(sum(p['list_revenue'] for p in ps))}, "
+                f"at the flip {r.eur(sum(p['flip_revenue'] for p in ps))}"
+            )
+        else:
+            n = sum(p["orders"] for p in ps)
+            print(
+                f"Fees on {n} probed orders, L{level}: ours book {sum(p['ours_booked'] for p in ps)}, the starter's "
+                f"{sum(p['starter_booked'] for p in ps)}"
+            )
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(
         description="Replay every strategy on the saved weeks, offline, and chart the results."
@@ -1193,6 +2066,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("folders", nargs="*", help=f"folders to search for saved weeks (default: {' '.join(ROOTS)})")
     ap.add_argument("--out", default="out/replay.html")
     ap.add_argument("--csv", default="out/replay.csv")
+    ap.add_argument("--probe", default=PROBES, help=f"probe.py's rows (default {PROBES})")
     ap.add_argument("--jobs", type=int, default=os.cpu_count() or 1, help="weeks replayed at once (CPU only)")
     ap.add_argument("--no-serve", action="store_true", help="only write the files")
     ap.add_argument("--port", type=int, default=8001, help="port to serve on; a free one is used if it is taken")
@@ -1214,13 +2088,15 @@ def main(argv: list[str] | None = None) -> None:
             failed = [s for s in STRATEGIES if "error" in res.get(s, {})]
             note = f", failed: {', '.join(failed)}" if failed else ""
             print(f"  {done:>3}/{len(folders)} {w['experiment']} L{w['level']} {w['seed']}{note}", flush=True)
+    probes = replay_probes(args.probe, ROOTS)
     seconds = time.perf_counter() - start
-    write_csv(results, args.csv)
-    text = page(results, seconds, no_reveal)
+    write_csv(results, args.csv, probes)
+    text = page(results, seconds, no_reveal, probes)
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     Path(args.out).write_text(text, encoding="utf-8")
     print()
     print_summary(results)
+    print_probes(probes)
     print(f"\nWrote {args.out} ({len(text.encode()) // 1024} kB) and {args.csv} in {seconds:.0f} s.")
     if not args.no_serve:
         r.serve(text, args.port)
