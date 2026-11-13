@@ -54,7 +54,7 @@ WAKE_ON_BUSY: list[DeskEventKind] = [k for k in WAKE_ON if k not in ("price_requ
 POLL = 14
 RETRY_AFTER = 2 * HOUR  # a car that was not ready, or a closed site, is tried again this much later
 TWELVE_HOURS = 12 * HOUR  # a gig with more than one car may plan at most this much driving
-REFUSALS = 3  # posts of one car the world may refuse before the desk stops posting it
+REFUSALS = 3  # posts of one car the world may refuse in a row before the desk pauses between posts of it
 TOMORROW = True  # rung 4: post a car ready today as a gig for the next business morning
 
 
@@ -94,6 +94,7 @@ class Job:
     posted: set[int] = field(default_factory=set)  # legs that have had a gig
     plain: set[int] = field(default_factory=set)  # legs to post without windows of their own, after a refusal
     refusals: dict[int, int] = field(default_factory=dict)  # leg -> posts of it the world refused
+    next_try: dict[int, int] = field(default_factory=dict)  # leg -> no post before this minute, after refusals
 
     def undelivered(self) -> list[int]:
         return [leg for leg, at in enumerate(self.order["deliveredAt"]) if at is None]
@@ -171,8 +172,9 @@ class Desk:
 
     def refused(self, action: PostAction, reason: str) -> None:
         """A post the world refused, usually for a stop window. The car goes again at the next tick without windows
-        of its own, so the order's windows apply, or run to the end of the world. After REFUSALS refusals the desk
-        stops posting the car, so a post the world keeps refusing never loops."""
+        of its own, so the order's windows apply, or run to the end of the world. After REFUSALS refusals in a row it
+        goes again only after a pause that doubles each time, from an hour: a post the world keeps refusing never
+        loops, and the car is never given up, since a car not delivered costs twice its price."""
         print(f"Post refused: {reason}", file=sys.stderr, flush=True)
         job = self.jobs.get(action["stops"][0]["orderId"])
         if job is not None:
@@ -180,8 +182,8 @@ class Desk:
                 job.pickup_from.pop(leg, None)
                 job.plain.add(leg)
                 job.refusals[leg] = job.refusals.get(leg, 0) + 1
-                if job.refusals[leg] == REFUSALS:
-                    print(f"Gave up posting {job.order['id']} leg {leg}.", file=sys.stderr, flush=True)
+                if job.refusals[leg] >= REFUSALS:
+                    job.next_try[leg] = self.now + HOUR * 2 ** min(6, job.refusals[leg] - REFUSALS)
 
     # What we know
 
@@ -349,7 +351,7 @@ class Desk:
             if gig_id is not None and self.gigs[gig_id].status in LIVE:
                 continue
             job.gigs.pop(leg, None)
-            if (order["id"], leg) not in self.posting and job.refusals.get(leg, 0) < REFUSALS:
+            if (order["id"], leg) not in self.posting and job.next_try.get(leg, 0) <= self.now:
                 waiting.append(leg)
         together = self.level >= 3 and not job.refusals  # gigs with several cars start at level 3
         if waiting == [0, 1] and together and self.trade_in_drive(order) <= TWELVE_HOURS:
@@ -485,6 +487,8 @@ class Desk:
                 job.gigs[leg] = gig_id
                 job.posted.add(leg)
                 job.pickup_from.pop(leg, None)
+                job.refusals.pop(leg, None)
+                job.next_try.pop(leg, None)
 
     def repriced(self, gig_id: str) -> None:
         """A new schedule for an open gig: after a drop or a no-show (that driver wants more), a deadline warning,

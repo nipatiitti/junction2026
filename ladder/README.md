@@ -102,7 +102,8 @@ with few drivers booked at their opening fee 37% of the time, against 84% to 96%
   the final the desk reads the world's event log about five times a second and answers each page of new events in
   one pass, so a burst of requests goes out in one batch of actions. A desk that restarts rebuilds its books from
   the world's events and snapshot, and the next tick fills any gap. A post the world refuses goes again without
-  windows of our own, and after three refusals the desk stops posting that car, so a refusal never loops.
+  windows of our own; after three refusals in a row the car goes again only after a pause that doubles each time,
+  from an hour, so a refusal never loops and no car is given up.
 - **Few requests.** While requests keep coming, the clock stops every 14 minutes rather than at each request or win:
   the dealer decides 15 minutes after the request, on our last quote. A level 8 week takes about 300 requests.
 - **Admission.** A request is quoted when its rung is taken, an option leaves 5 hours beyond the drive (1 hour for a
