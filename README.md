@@ -86,6 +86,10 @@ about 1,390.
   during the week. [`strategies/notes/`](strategies/notes/README.md) reads dealer notes into facts (ready time, real
   hours, deadline, gearbox, plates, tyres) that set the gigs' windows, audience and plates. `strategies/offers/` sends
   gigs straight to drivers near their pickup.
+- [`strategies/ratchet/`](strategies/ratchet/README.md) is a second system built on `dispatch.py`: each dealer's quote
+  price falls only after a lost quote and climbs back towards a maximum markup after a win, dealers whose trust can
+  still grow may take a small loss, and each gig has one flat fee priced by distance, place and the risk of finding no
+  driver, which rises only once the car is late. Run it with `uv run strategies/ratchet/dispatch.py --seed spread-1`.
 - `vendor/` holds the organisers' Python kit of 13 November as a wheel. uv installs it as the package `spread`: the
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
 - `tests/` holds older tests, kept as they are but no longer run: we do not write or run tests.
