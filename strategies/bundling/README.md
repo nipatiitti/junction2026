@@ -75,4 +75,22 @@ bundled cars 88, bundle bookings 37, expired 2, split at warning 3`.
 
 ## Results
 
-To be filled in from the bench.
+The bench at level 8, this branch against main with the crash fix of #72 (`3338f93`), on `spread-1` to `spread-10`.
+Driver fees per car are the `driver_fee` lines over the `delivered` events of the saved weeks.
+
+| Seeds          | Version  |     Margin | On time | Driver fees per car |
+| -------------- | -------- | ---------: | ------: | ------------------: |
+| spread-1 to 5  | bundling | €24,558.60 |   96.9% |              €73.24 |
+| spread-1 to 5  | main     | €26,529.37 |   97.3% |              €73.38 |
+| spread-6 to 10 | bundling | €36,965.64 |   97.8% |              €77.07 |
+| spread-6 to 10 | main     | €35,262.36 |   97.7% |              €77.83 |
+| all 10         | bundling | €61,524.24 |  97.34% |              €75.14 |
+| all 10         | main     | €61,791.73 |  97.50% |              €75.57 |
+
+Every week of both versions is ranked. Over the 10 weeks, bundling posted 187 bundles, 181 of them were done, and
+their 399 cars cost €48.69 each against €75 on average. They are about one car in eight, so the week's fees per car
+fall by only 0.6%. The margin and the on-time share move within the noise: a version with no waiting
+(`hold = 0`), which made only 2 to 5 bundles a week and so plays almost as main does, ended €1,773 under main on
+`spread-1` to `spread-5`, as much as the gap above. Most bundles are return legs and chains; a same-yard bundle is
+rare, because at level 8 most yards have drivers within about 25 minutes, so sending one driver back to the yard costs
+what it saves. Batch orders that wait are what find the bundles: without the wait, a week has only 2 to 5.
