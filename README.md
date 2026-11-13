@@ -157,6 +157,9 @@ must name the proxy's CA (cloud sessions set it). Without `HTTPS_PROXY` they con
 turns on pnpm's `shell-emulator`, so the variable works on Windows too. The `--final` WebSocket stream does not go
 through the proxy yet.
 
+The fee and capacity models of the brief (booking hazard, fee schedule solver, fee extras, `lambda` and `mu`) are pure
+modules in `src/models/fees/`, with priors in `src/params/fees.json`: see [its README](src/models/fees/README.md).
+
 ### Get the team's scraped data
 
 The team's scraped weeks (`out/scrape`) and probe rows (`out/probe`) are too big for git, so each batch goes up as
