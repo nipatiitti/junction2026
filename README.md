@@ -59,6 +59,10 @@ uv run --env-file .env spread-reveal-csv <world id>             # write an ended
 uv run --env-file .env dispatch.py --final                      # play our copy of a test final or of the final
 ```
 
+To compare two versions on the same seeds, use the seed bench: `uv run --env-file .env python -m strategies.bench
+dispatch.py origin/main` plays `spread-1` to `spread-5` at level 8 with both and prints one table. See
+[`strategies/bench/README.md`](strategies/bench/README.md).
+
 Leave out `--env-file .env` where the two variables are already set, as in a Claude Code cloud session.
 
 `--level` is 1 to 8 (the final is level 8). The same seed gives the same week, so compare two versions of the system
@@ -138,7 +142,9 @@ Policies:
 Seeds are `<--seed-prefix>-<n>`, default `scrape-1` and up. Each week goes to `out/scrape/<policy>/L<level>/<seed>/`
 (`out/` is not committed): `events.jsonl.gz` (every event), `reveal.json.gz`, `snapshot.json.gz` (orders and gigs at
 the end), `drivers.json.gz` (the driver list at the start), `score.json` and `meta.json`. A saved week is skipped, so
-running the same command again resumes. `--workers` weeks run at once (default 4), and the scraper always leaves
+running the same command again resumes. Ctrl-C, and a kill such as `timeout` or a stopped session (SIGTERM, SIGHUP),
+deletes the worlds in play, so they free the team's practice slots. A week's folder holds `world.json` while its world
+is in play: after a harder kill, the next run deletes that world and plays the week again, or saves it if it ended. `--workers` weeks run at once (default 4), and the scraper always leaves
 `--keep-free` practice slots (default 2) for teammates. A week with a policy that acts takes about 2,000 requests: a
 few minutes at 175 ms a request through a Claude Code cloud proxy. The scraper's client goes through `HTTPS_PROXY`
 when one is set, so there the proxy adds the team key and `SPREAD_KEY` can be a placeholder.
