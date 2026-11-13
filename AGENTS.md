@@ -2,7 +2,8 @@
 
 - **Language**: TypeScript
 - **Package Manager**: pnpm
-- **Add-ons**: experimental, ai-tools, drizzle, sveltekit-adapter, tailwindcss, playwright
+- **Runtime**: Node 22.18+, running `.ts` files directly (no build step)
+- **Tooling**: Biome (lint and format), `tsc` (type check only), `node --test`
 
 ---
 
@@ -142,17 +143,15 @@ deleting a branch, closing or editing an issue you did not create.
 Stack-specific. The first PR that introduces or changes tooling must fill this
 in and keep it current. Every row must be a single copy-pasteable command.
 
-| Task                        | Command                                                       |
-| --------------------------- | ------------------------------------------------------------- |
-| Install dependencies        | `pnpm install`                                                |
-| Run the app                 | `pnpm dev`                                                    |
-| Run one test file / dir     | `node --test src/lib/server/db/schema.test.ts`                |
-| Run tests by name           | `node --test --test-name-pattern="<name>" "src/**/*.test.ts"` |
-| Run the full test suite     | `pnpm test`                                                   |
-| Lint / format               | `pnpm format`                                                 |
-| Lint only (no writes)       | `pnpm lint`                                                   |
-| Type check                  | `pnpm check`                                                  |
-| Push schema to the database | `pnpm db:push`                                                |
+| Task                    | Command                                                       |
+| ----------------------- | ------------------------------------------------------------- |
+| Install dependencies    | `pnpm install`                                                |
+| Run one test file / dir | `node --test src/path/to/file.test.ts`                        |
+| Run tests by name       | `node --test --test-name-pattern="<name>" "src/**/*.test.ts"` |
+| Run the full test suite | `pnpm test`                                                   |
+| Lint / format           | `pnpm format`                                                 |
+| Lint only (no writes)   | `pnpm lint`                                                   |
+| Type check              | `pnpm check`                                                  |
 
 ## Definition of done
 
