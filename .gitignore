@@ -1,30 +1,17 @@
 node_modules
 
-# Output
-.output
-.vercel
-.netlify
-.wrangler
-/.svelte-kit
-/build
-
-# OS
-.DS_Store
-Thumbs.db
-
 # Env
 .env
 .env.*
 !.env.example
-!.env.test
 
-# Vite
-vite.config.js.timestamp-*
-vite.config.ts.timestamp-*
-# Playwright
-test-results
-# SQLite
-*.db
+# Local output
+/out
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Python
 .venv

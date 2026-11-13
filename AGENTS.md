@@ -1,8 +1,9 @@
 ## Project Configuration
 
-- **Language**: TypeScript
+- **Language**: Python 3.15 for the dispatch system (`dispatch.py`), run with uv; TypeScript for code in `src/`
 - **Package Manager**: pnpm
-- **Add-ons**: experimental, ai-tools, drizzle, sveltekit-adapter, tailwindcss, playwright
+- **Runtime**: Node 22.18+, running `.ts` files directly (no build step)
+- **Tooling**: Biome (lint and format), `tsc` (type check only), `node --test`
 
 ## The challenge
 
@@ -158,14 +159,12 @@ in and keep it current. Every row must be a single copy-pasteable command.
 | Task                        | Command                                                       |
 | --------------------------- | ------------------------------------------------------------- |
 | Install dependencies        | `pnpm install`                                                |
-| Run the app                 | `pnpm dev`                                                    |
-| Run one test file / dir     | `node --test src/lib/server/db/schema.test.ts`                |
+| Run one test file / dir     | `node --test src/path/to/file.test.ts`                        |
 | Run tests by name           | `node --test --test-name-pattern="<name>" "src/**/*.test.ts"` |
 | Run the full test suite     | `pnpm test`                                                   |
 | Lint / format               | `pnpm format`                                                 |
 | Lint only (no writes)       | `pnpm lint`                                                   |
 | Type check                  | `pnpm check`                                                  |
-| Push schema to the database | `pnpm db:push`                                                |
 | Install Python dependencies | `uv sync`                                                     |
 | Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`                |
 | Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                         |
