@@ -25,8 +25,9 @@ now)` returns a price for each option, and `observe(event)` takes `order_won`, `
 
 ## The price war (level 8)
 
-Nine losses in the last ten quotes of one day, between 08:00 and 18:00, on at least four pickup places, is the price
-war. The model then undoes what those losses taught, and until 18:00 quotes `0.8 × m` (the competitor's 20% cut).
+Eighteen losses in the last twenty quotes of one day, between 08:00 and 18:00, on at least six pickup places, is the
+price war. At a 50% win target a run like that comes by chance on about one day in twenty; in the war we lose nearly
+every quote, so it shows within about an hour. The model then undoes what those losses taught, and until 18:00 quotes `0.8 × m` (the competitor's 20% cut).
 Those quotes teach nothing. The next day it quotes `m` again. `Params(war_cut=None)` declines during the war instead.
 
 ## The outage (levels 6–8)

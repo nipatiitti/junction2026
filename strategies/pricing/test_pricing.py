@@ -14,7 +14,15 @@ PLACES = {
     "kuopio": (62.8924, 27.677),
     "pori": (61.4851, 21.7975),
 }
-LANES = [("tampere", "oulu"), ("oulu", "turku"), ("turku", "kuopio"), ("kuopio", "pori"), ("pori", "tampere")]
+LANES = [
+    ("tampere", "oulu"),
+    ("oulu", "turku"),
+    ("turku", "kuopio"),
+    ("kuopio", "pori"),
+    ("pori", "tampere"),
+    ("helsinki", "tampere"),
+    ("espoo", "oulu"),
+]
 
 
 def request(rid: str, at: int = TUESDAY_10, pickup="tampere", delivery="oulu", dealer="D1", list_price=10_000) -> dict:
@@ -100,7 +108,9 @@ def test_a_burst_of_losses_on_many_lanes_is_the_price_war_and_it_ends_the_next_d
     model = PricingModel(8)
     play(model, [True, False] * 5, at=10 * HOUR, prefix="warm")  # Monday
     usual = model.multiplier(request("X"), TUESDAY_10 + 2 * HOUR)
-    play(model, [False] * 10, at=TUESDAY_10 + HOUR)
+    play(model, [False] * 17, at=TUESDAY_10 + HOUR, prefix="early")
+    assert model.war_day is None  # a shorter run of losses can be bad luck
+    play(model, [False] * 3, at=TUESDAY_10 + HOUR)
     assert model.war_day == 1
     # What the losing run taught is undone, and the war price is the usual price cut by 20%.
     assert abs(model.multiplier(request("X"), TUESDAY_10 + 2 * HOUR) - usual) < 1e-9
@@ -113,19 +123,19 @@ def test_a_burst_of_losses_on_many_lanes_is_the_price_war_and_it_ends_the_next_d
 
 def test_losses_on_one_lane_only_are_not_a_price_war():
     model = PricingModel(8)
-    play(model, [False] * 12, lanes=[("tampere", "oulu")])
+    play(model, [False] * 25, lanes=[("tampere", "oulu")])
     assert model.war_day is None
 
 
 def test_the_war_can_be_declined_instead():
     model = PricingModel(8, params=Params(war_cut=None))
-    play(model, [False] * 10)
+    play(model, [False] * 20)
     assert model.price(request("W", list_price=10_000), TUESDAY_10 + HOUR)["next_day"] == 100_000
 
 
 def test_levels_below_8_have_no_price_war():
     model = PricingModel(7)
-    play(model, [False] * 12)
+    play(model, [False] * 25)
     assert model.war_day is None
 
 
