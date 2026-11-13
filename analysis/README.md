@@ -567,8 +567,9 @@ uv run python -m analysis.replay out/scrape/explore-win --jobs 2 --port 8123 --o
 
 Without folders it reads every week under `out/scrape` (the team's release, see the main README) and `data/scrape`
 (the committed weeks and our saved runs). It replays each played week that has a reveal, once per world: passive
-weeks have no orders and are skipped. It needs no database. The weeks run in parallel (`--jobs`, default the number
-of CPUs); the 106 played weeks of the release and the repository take about 100 s. It plays nothing online.
+weeks have no orders and are skipped. Saved runs of `dispatch.py` and of another system (the ladder) are separate
+rows. It needs no database. The weeks run in parallel (`--jobs`, default the number of CPUs); the 288 played weeks of
+the release and the repository take about 140 s on 4 CPUs. It plays nothing online.
 
 There is no offline model of the world, so it replays the weeks: each week's recorded events go to each strategy in
 order, as `dispatch.py` feeds them, and each decision is scored against what the week shows really happened. Where
