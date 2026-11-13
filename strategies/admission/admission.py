@@ -279,6 +279,8 @@ class Admission:
         cost = self.expected_cost(request, held)
         min_slack = p.min_slack / max(squeeze, 0.5)
         usable = [o for o in request["options"] if self.option_slack(request, o, now) >= min_slack]
+        if self.level == 1:  # every quote wins the request's first option, whichever option it prices
+            usable = [o for o in usable[:1] if o is request["options"][0]]
         if not usable:
             return Verdict(False, [], cost, -1.0, "no option leaves time for the drive")
         comfortable = [o for o in usable if self.option_slack(request, o, now) >= p.comfortable_slack / squeeze]
