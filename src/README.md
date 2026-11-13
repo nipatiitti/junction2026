@@ -104,7 +104,7 @@ pnpm tune --resume out/tune-<date>-<time>.json --keys SPREAD_KEY,SPREAD_KEY_2   
 Every candidate (`--candidates`, 24) plays the first seed of `--seeds` (`spread-1..spread-5`); each round the best
 share (`--keep`, 0.34) plays the next seed, until `--finalists` (3) are left, who play every seed that is left. With
 24 candidates on 5 seeds that is 24 + 9 + 4 + 3 × 2 = 43 weeks. A candidate's score is its mean margin on the seeds
-it played, minus €100M for each week under `--min-on-time` (0.93), so such a candidate never wins; the candidates of a
+it played, minus €100M for each week under `--min-on-time` (0.93) or not ranked, so such a candidate never wins; the candidates of a
 round have all played the same seeds. Each key of `--keys` (names of variables, `SPREAD_KEY` by default) plays one
 world at a time, so two keys play two weeks side by side. The weeks are played and saved as in `pnpm bench`. A week
 that throws puts its candidate out (`out` in the table); a refused key, full practice slots or the rate limit stops the
@@ -112,7 +112,7 @@ search. Ctrl-C deletes the worlds in play.
 
 The state goes to `out/tune-<date>-<time>.json` after every week, and `--resume <file>` goes on from it without
 replaying a week, with the settings of the file. After each round a table lists the candidates still in it, best first:
-`Seeds` played, mean `Margin`, mean `On time`, `Under` (weeks under the minimum) and the params that differ from the
+`Seeds` played, mean `Margin`, mean `On time`, `Under` (weeks under the minimum or not ranked) and the params that differ from the
 defaults. At the end the best params go to `out/tune-<date>-<time>-best.json`, a `--params` file for `pnpm dispatch`,
 with its mean margin and on-time share on the tuning seeds; with `--holdout`, the best and the defaults then play the
 holdout seeds, and a last table shows both. Judge the params by the holdout, not by the tuning seeds they were picked on.

@@ -33,6 +33,7 @@ type Week = {
   worldId?: string
   marginCents?: number
   onTimeShare?: number
+  ranked?: boolean
   error?: string
 }
 
@@ -138,7 +139,7 @@ function standing(state: State, candidate: number, seeds: string[]): Standing {
   const scored = weeks.filter((week) => week.error === undefined)
   const mean = (values: number[]) => (values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0)
   const marginCents = mean(scored.map((week) => week.marginCents!))
-  const under = scored.filter((week) => week.onTimeShare! < state.minOnTime).length
+  const under = scored.filter((week) => week.ranked === false || week.onTimeShare! < state.minOnTime).length
   return {
     candidate,
     played: scored.length,
@@ -189,7 +190,13 @@ async function playAll(state: State, queue: Week[], clients: Client[], file: str
       const label = `${state.strategy} #${week.candidate}`
       try {
         const { worldId, score } = await playOnNewWorld(client, run, state.level, week.seed, label)
-        state.weeks.push({ ...week, worldId, marginCents: score.marginCents, onTimeShare: score.onTimeShare })
+        state.weeks.push({
+          ...week,
+          worldId,
+          marginCents: score.marginCents,
+          onTimeShare: score.onTimeShare,
+          ranked: score.ranked,
+        })
       } catch (error) {
         // A refused key, a full set of practice slots or the rate limit stops the search, not the candidate.
         if (error instanceof SpreadError && [401, 403, 409, 429].includes(error.status)) throw error
