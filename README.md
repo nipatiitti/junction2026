@@ -164,7 +164,7 @@ size of the folders, so it is not shared):
 
 ```sh
 mkdir -p out && gh release download --pattern 'spread-data-*.tar.gz' --output - | tar -xz -C out
-uv run db.py out/scrape    # builds out/spread.sqlite; weeks already in it are skipped
+uv run db.py out/scrape out/probe    # builds out/spread.sqlite; weeks already in it are skipped, changed probe files are reloaded
 uv run python -m analysis.facts   # adds the derived tables (analysis/README.md)
 ```
 
@@ -207,17 +207,19 @@ file, `--no-db` to skip it). `db.py` loads weeks that were saved without it; wee
 Query it with any SQLite tool, for example `sqlite3 out/spread.sqlite "select kind, count(*) from events group by kind"`.
 Tables, keyed by `week_id` (a row of `weeks`):
 
-| Table                            | One row for each                                                                                                                        |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `weeks`                          | week: seed, level, policy, explore ranges, score, events, requests, seconds; `settings` holds the other options and the git commit      |
-| `events`                         | event, with `data` the event's JSON (read fields with `json_extract`); `gig_viewed` keeps only its columns                              |
-| `requests`, `legs`, `options`    | price request; car of a request, with the reveal's truth for won orders; delivery option, with our quote and whether the dealer took it |
-| `orders`, `gigs`, `views`        | won order at the end of the week; gig we posted; view of our gigs with the fee the driver saw                                           |
-| `drivers`, `ledger`, `forecasts` | driver at the start of the week; account line; snow forecast                                                                            |
-| `places`, `roads`                | the map                                                                                                                                 |
-| `actions`                        | action the scrape sent (quote, post, reprice, offer, withdraw), with its minute, its world answer and its JSON in `data`                |
-| `rosters`                        | driver at each midnight and at the end of the week: rating, completed gigs and drops (they count only our gigs)                         |
-| `positions`                      | sample of where one of our drivers was, with `--sample-every`                                                                           |
+| Table                            | One row for each                                                                                                                                                                                                                            |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `weeks`                          | week: seed, level, policy, explore ranges, score, events, requests, seconds; `settings` holds the other options and the git commit                                                                                                          |
+| `events`                         | event, with `data` the event's JSON (read fields with `json_extract`); `gig_viewed` keeps only its columns                                                                                                                                  |
+| `requests`, `legs`, `options`    | price request; car of a request, with the reveal's truth for won orders; delivery option, with our quote and whether the dealer took it                                                                                                     |
+| `orders`, `gigs`, `views`        | won order at the end of the week; gig we posted; view of our gigs with the fee the driver saw                                                                                                                                               |
+| `drivers`, `ledger`, `forecasts` | driver at the start of the week; account line; snow forecast                                                                                                                                                                                |
+| `places`, `roads`                | the map                                                                                                                                                                                                                                     |
+| `actions`                        | action the scrape sent (quote, post, reprice, offer, withdraw), with its minute, its world answer and its JSON in `data`                                                                                                                    |
+| `rosters`                        | driver at each midnight and at the end of the week: rating, completed gigs and drops (they count only our gigs)                                                                                                                             |
+| `positions`                      | sample of where one of our drivers was, with `--sample-every`                                                                                                                                                                               |
+| `probes`                         | delivery option that `probe.py quote` bisected: level, seed, request, list price, the flip (`flip_cents`, `flip_ratio`, `bracket_low_cents` = highest price known to win), `ends`, `monotone`, `error`, and every trial as JSON in `trials` |
+| `fee_probes`, `probe_files`      | order that `probe.py fee` bisected, with the same flip columns for the flat fee and who booked at the flip; probe file that was loaded, with its size and mtime                                                                             |
 
 Derived analysis tables (win model, booking hazard, order economics, supply) are built by
 `uv run python -m analysis.facts`; see `analysis/README.md`.
@@ -333,7 +335,8 @@ uv run --env-file .env probe.py fee --level 8 --seed scrape-1 --limit 20       #
 - A quote row's `ends` says when it did not flip inside `--range`: `true` (won at both ends), `false` (lost at both)
   or `inverted`. A fee row's `ends` is `never` (no driver even at the top fee, see `expiredAtTop`) or `always`. A
   refused action or a lost win quote gives a row with `error` instead.
-- Rows go to `out/probe/<mode>-L<level>-<seed>.jsonl`. Running the same command again skips the rows saved. A probe
+- Rows go to `out/probe/<mode>-L<level>-<seed>.jsonl`. `uv run db.py` loads them into the `probes` and `fee_probes`
+  tables; run it again after a probe has grown. Running the same command again skips the rows saved. A probe
   holds the parent and one copy at a time (two practice slots) and leaves `--keep-free` slots (default 2) for
   teammates. Each bisection step is a fork, an advance and a delete: about 8 to 12 steps a probe.
 
