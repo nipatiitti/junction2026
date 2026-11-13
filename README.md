@@ -99,6 +99,15 @@ Tables, keyed by `week_id` (a row of `weeks`):
 A passive week takes about 1.7 MB in the database, and a played week about 20 MB, most of it gig views. The week
 folders hold the same data gzipped (about 0.1 MB and 2 MB), so the database can always be rebuilt from them.
 
+`data/scrape/` holds the team's committed scrape as week folders: passive weeks on the seeds `scrape-1` to `scrape-30`
+at levels 1 to 8, and explore weeks on `scrape-1` to `scrape-10` at level 8. Build the database and the summary from
+it without the server:
+
+```sh
+uv run db.py data/scrape --db out/spread.sqlite
+uv run stats.py data/scrape/passive data/scrape/explore --out out/summary.json
+```
+
 Policies:
 
 - `passive` sends nothing and advances to the end at once. The week shows its price requests, forecasts and drivers.
