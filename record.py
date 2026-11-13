@@ -142,6 +142,7 @@ class Recorder:
                 "worldId": self.world.id,
                 "version": self.version,
                 "revealed": reveal is not None,
+                "recorded": False,  # no actions, rosters or positions, which scrape.py records
                 "quoteRange": None,
                 "feeRange": None,
             }
