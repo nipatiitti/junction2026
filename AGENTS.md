@@ -1,3 +1,11 @@
+## Project Configuration
+
+- **Language**: TypeScript
+- **Package Manager**: pnpm
+- **Add-ons**: experimental, ai-tools, drizzle, sveltekit-adapter, tailwindcss, playwright
+
+---
+
 # Agent workflow
 
 Rules for every coding agent working in this repository. They are stack-agnostic:
