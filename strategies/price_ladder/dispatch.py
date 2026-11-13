@@ -10,7 +10,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Run as a file, Python looks for modules next to it; record.py, spread_proxy.py and strategies/ are at the root.
+# Run as a file, Python looks for modules next to it; tools/ and strategies/ are at the root.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import argparse
@@ -21,7 +21,6 @@ from itertools import pairwise
 from typing import Any, NamedTuple
 
 from spread.client import Client, SpreadError, Unreachable, World
-from spread.starter import window_from_note  # noqa: F401  # the starter's reader, which tests/test_dispatch.py imports
 from spread.types import (
     Action,
     ActionResult,
@@ -39,9 +38,6 @@ from spread.types import (
     TimeWindow,
 )
 
-import record
-from record import Recorder
-from spread_proxy import ProxyClient
 from strategies.admission import Held
 from strategies.bundling import Bundler, Unit
 from strategies.bundling import audience as bundle_audience
@@ -53,6 +49,9 @@ from strategies.notes import NO_FACTS, NoteFacts, NoteReader, Snow, delivery_win
 from strategies.offers import GigInfo, Offers
 from strategies.price_ladder import LadderPricing, ShadowAdmission
 from strategies.strategy import Strategy
+from tools import record
+from tools.record import Recorder
+from tools.spread_proxy import ProxyClient
 
 # The weeks this system plays are saved with the policy "price-ladder", so they form their own group in the data.
 record.POLICY = "price-ladder"

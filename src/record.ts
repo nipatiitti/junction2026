@@ -1,6 +1,6 @@
-/** Saves every week that src/dispatch.ts plays on the server as a scraped week, like record.py does for dispatch.py:
- * the week's folder under data/scrape/runs/L<level>/<seed>/<world id>/, in scrape.py's format. `uv run db.py` then
- * adds it to the database out/spread.sqlite. README.md says what is saved.
+/** Saves every week that src/dispatch.ts and src/bench.ts play on the server as a scraped week, like record.py does for dispatch.py:
+ * the week's folder under data/scrape/runs/L<level>/<seed>/<world id>/, in scrape.py's format. `uv run python -m tools.db` then
+ * adds it to the database out/spread.sqlite. tools/README.md says what is saved.
  *
  * SPREAD_RUNS_DIR changes where the weeks go, and SPREAD_RECORD=0 saves nothing. */
 import { execFileSync } from 'node:child_process'
@@ -11,11 +11,11 @@ import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
 import type { DeskEvent, DriverProfile } from '../vendor/spread-typescript/spread.ts'
 import { SpreadError, type World } from '../vendor/spread-typescript/spread.ts'
+import type { Run } from './harness/params.ts'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const RUNS = path.resolve(process.env.SPREAD_RUNS_DIR || path.join(ROOT, 'data', 'scrape', 'runs'))
 const ENABLED = (process.env.SPREAD_RECORD ?? '1') !== '0'
-const POLICY = 'dispatch' // the policy of a saved run, next to scrape.py's passive, starter and explore
 const REVEAL_TRIES = 6 // the reveal of a final opens when the final has ended: try for half a minute
 
 export type Kind = 'practice' | 'board' | 'final'
@@ -24,7 +24,7 @@ const safeName = (seed: string): string => seed.replace(/[^A-Za-z0-9._-]/g, '_')
 const sleep = (ms: number) => new Promise((done) => setTimeout(done, ms))
 
 /** Every event of the world, oldest first, in pages in case the server caps an answer. */
-async function allEvents(world: World): Promise<DeskEvent[]> {
+export async function allEvents(world: World): Promise<DeskEvent[]> {
   let events: DeskEvent[] = []
   while (true) {
     const page = await world.events(events.at(-1)?.seq ?? -1)
@@ -56,26 +56,29 @@ function shown(file: string): string {
 }
 
 /** Notes the start of a week played online, and saves the week once it has ended. `kind` is practice, board (a
- * ranking run) or final. Saving never stops the run: a failure prints a warning. */
+ * ranking run) or final. The policy is `ts-<strategy>`, next to scrape.py's passive, starter and explore, and the
+ * settings name the strategy and its params. Saving never stops the run: a failure prints a warning. */
 export class Recorder {
   readonly world: World
   readonly level: number
   readonly seed: string
   readonly kind: Kind
+  readonly run: Run
   readonly version = gitVersion()
   readonly started = performance.now()
   drivers: DriverProfile[] = []
 
-  private constructor(world: World, level: number, seed: string | undefined, kind: Kind) {
+  private constructor(world: World, level: number, seed: string | undefined, kind: Kind, run: Run) {
     this.world = world
     this.level = level
     this.kind = kind
+    this.run = run
     this.seed = seed ?? (kind === 'practice' ? 'random' : kind)
   }
 
   /** A recorder for a week that starts now, with the driver list at the start, as scrape.py saves it. */
-  static async start(world: World, level: number, seed: string | undefined, kind: Kind): Promise<Recorder> {
-    const recorder = new Recorder(world, level, seed, kind)
+  static async start(world: World, level: number, seed: string | undefined, kind: Kind, run: Run): Promise<Recorder> {
+    const recorder = new Recorder(world, level, seed, kind, run)
     if (ENABLED) {
       try {
         recorder.drivers = await world.roster()
@@ -119,7 +122,7 @@ export class Recorder {
       const meta = {
         seed: this.seed,
         level: this.level,
-        policy: POLICY,
+        policy: `ts-${this.run.name}`,
         kind: this.kind,
         worldId: this.world.id,
         version: this.version,
@@ -130,6 +133,7 @@ export class Recorder {
         events: events.length,
         score,
         seconds: Math.round((performance.now() - this.started) / 100) / 10,
+        settings: { strategy: this.run.name, params: this.run.params },
       }
       // Written to a temporary folder, then renamed, so a folder with meta.json is always complete.
       const partial = `${target}.partial`
@@ -149,7 +153,7 @@ export class Recorder {
       console.error(`Could not save the week to ${shown(target)}: ${(error as Error).message ?? error}`)
       return
     }
-    console.log(`Saved the week to ${shown(target)}. uv run db.py adds it to out/spread.sqlite.`)
+    console.log(`Saved the week to ${shown(target)}. uv run python -m tools.db adds it to out/spread.sqlite.`)
   }
 
   /** The map, once for every run, as scrape.py saves it next to its weeks. Runs that save at the same time each

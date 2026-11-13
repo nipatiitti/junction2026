@@ -9,7 +9,7 @@ The goal is a strategy that is generic (no constants tied to one world), robust
   brief.
 - **Data.** Every number below comes from `out/spread.sqlite` on 14 November:
   181 saved weeks, 1,730 quote probes and 289 fee probes. Rebuild it with
-  `uv run db.py && uv run python -m analysis.facts`. `analysis/README.md` lists
+  `uv run python -m tools.db && uv run python -m analysis.facts`. `analysis/README.md` lists
   the tables. Level 8 unless a line says otherwise.
 - **Code.** Build this design in TypeScript, in `src/`, on the kit in
   `vendor/spread-typescript/`. `src/dispatch.ts` is still a copy of the
@@ -17,7 +17,7 @@ The goal is a strategy that is generic (no constants tied to one world), robust
   spread-1` and check it with `pnpm check` and `pnpm lint`. Keep the solvers
   free of packages. The Python system `dispatch.py`, with its parts in
   `strategies/`, is the reference: its weeks are the `runs` rows below. The
-  data tools stay in Python: `probe.py` forks a world to find where a price or
+  data tools stay in Python: `tools/probe.py` forks a world to find where a price or
   a fee flips, and `analysis.oracle` reports the gap to hindsight.
 
 ## Where we are

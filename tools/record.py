@@ -1,6 +1,6 @@
 """Saves every week that dispatch.py plays on the server as a scraped week, so each online run adds to the team's
 data: the week's folder under data/scrape/runs/L<level>/<seed>/<world id>/, in scrape.py's format, and its rows in the
-SQLite database (db.py). Analysis then runs against the saved weeks instead of playing more weeks online. README.md
+SQLite database (db.py). Analysis then runs against the saved weeks instead of playing more weeks online. tools/README.md
 says what is saved.
 
 SPREAD_RUNS_DIR and SPREAD_DB change where the weeks go; the bench sets both, so the versions that it checks out into
@@ -22,7 +22,7 @@ from typing import Any
 
 from spread.client import SpreadError, World
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 RUNS = Path(os.environ.get("SPREAD_RUNS_DIR") or ROOT / "data" / "scrape" / "runs")
 DATABASE = Path(os.environ.get("SPREAD_DB") or ROOT / "out" / "spread.sqlite")
 ENABLED = os.environ.get("SPREAD_RECORD", "1") != "0"
@@ -169,8 +169,8 @@ class Recorder:
         partial.replace(path)
 
     def add_to_database(self, target: Path) -> None:
-        from db import add_map, add_week, connect  # db.py and stats.py load only for the saving
-        from stats import load_week
+        from tools.db import add_map, add_week, connect  # db.py and stats.py load only for the saving
+        from tools.stats import load_week
 
         database = connect(DATABASE)
         try:
