@@ -33,7 +33,7 @@ Several of us build dispatch systems in parallel; the team picks one for the fin
 | [Ride ladder](ladder/README.md)                                    | `uv run ladder/play.py --level 8 --seed spread-1`                         |
 | [Price ladder](strategies/price_ladder/README.md)                  | `uv run strategies/price_ladder/dispatch.py --level 8 --seed spread-1`    |
 | [Baseline](strategies/baseline/README.md), the organisers' starter | `uv run python strategies/baseline/baseline.py --level 8 --seed spread-1` |
-| [TypeScript](src/README.md), still the starter                     | `pnpm dispatch --level 8 --seed spread-1`                                 |
+| [TypeScript](src/README.md): a harness that plays one strategy     | `pnpm dispatch --strategy starter --level 8 --seed spread-1`              |
 
 - `--final` plays our copy of a test final or of the final. `--board` plays a ranking run: each ranking world can be
   played once and its score stays on the public rankings, so agree on it in the team first.
