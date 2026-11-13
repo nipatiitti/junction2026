@@ -1,7 +1,6 @@
-"""The starter: a whole dispatch system that you can read in five minutes, then change. HANDBOOK.md says
-what it does and how to run it (`spread-starter --help` lists the options).
-
-To change it, copy this file and run the copy: python dispatch.py
+"""Our dispatch system for Spread: it quotes dealers' price requests and posts gigs to drivers for one simulated week.
+The loop and the desk come from the organisers' starter, and the decisions from strategies/. README.md says how to
+run it, and docs/spread/HANDBOOK.md what the world does.
 """
 
 from __future__ import annotations
@@ -10,6 +9,7 @@ import argparse
 import sys
 import time
 from collections import Counter
+from dataclasses import replace
 from itertools import pairwise
 from typing import Any, NamedTuple
 
@@ -35,7 +35,11 @@ from spread.types import (
 from record import Recorder
 from spread_proxy import ProxyClient
 from strategies.admission import Admission, Held
+from strategies.bundling import Bundler, Unit
+from strategies.bundling import audience as bundle_audience
 from strategies.fees import FeePlanner, Market
+from strategies.fees import after_drop as fees_after_drop
+from strategies.fees import plan as fees_plan
 from strategies.notes import NO_FACTS, NoteFacts, Snow, delivery_window, pickup_window, read_note
 from strategies.offers import GigInfo, Offers
 from strategies.pricing import PricingModel, places_from_map
@@ -92,6 +96,7 @@ class Desk:
         self.offers = Offers(roster, world_map, level)
         self.pricing = PricingModel(level, places_from_map(world_map))  # the price of a quote (strategies/pricing)
         self.fees = FeePlanner(Market(world_map, roster))  # plans each gig's fee schedule (strategies/fees)
+        self.bundler = Bundler(self.fees.market)  # puts several orders' cars in one gig (strategies/bundling)
 
     def rejoin(self, snapshot: DeskSnapshot, history: list[DeskEvent]) -> None:
         """Rebuilds what it knows from the world, so a starter that stopped keeps its orders. Then answers
@@ -99,7 +104,8 @@ class Desk:
         posted: dict[str, list[Gig]] = {}  # order id -> its gigs, oldest first
         self.booked = {gig["id"] for gig in snapshot["gigs"] if gig["status"] in ("booked", "working", "done")}
         for gig in snapshot["gigs"]:
-            posted.setdefault(gig["stops"][0]["orderId"], []).append(gig)
+            for order_id in orders_in(gig):
+                posted.setdefault(order_id, []).append(gig)
             if gig["status"] in ("open", "booked", "working"):
                 self.carry(
                     {"type": "post", "stops": gig["stops"], "audience": gig["audience"], "schedule": gig["schedule"]},
@@ -148,8 +154,12 @@ class Desk:
         elif event["kind"] == "order_changed":
             self.change(event["order"])
         elif event["kind"] == "order_cancelled":  # the world has stopped the car and told each of its gigs what happens
+            self.bundler.forget(event["orderId"])
             for books in (self.orders, self.leg_gigs):
                 books.pop(event["orderId"], None)
+            for gig in event["gigs"]:  # a withdrawn bundle: post its other cars again
+                if gig["outcome"] == "withdrawn":
+                    self.post_rest(gig["gigId"], event["orderId"])
         elif event["kind"] == "visit_failed":
             self.retry(event["orderId"], event["leg"], event["reason"])
         elif event["kind"] == "gig_expired":
@@ -158,6 +168,8 @@ class Desk:
             self.raise_fees(event["orderId"])
         elif event["kind"] == "gig_booked" or event["kind"] == "offer_answered" and event["answer"] == "accepted":
             self.booked.add(event["gigId"])
+            if event["gigId"] in self.posts and len(orders_in(self.posts[event["gigId"]])) > 1:
+                self.bundler.counts["bundle bookings"] += 1
             if "feeCents" in event:  # an accepted offer does not say its fee
                 self.booked_fees[event["gigId"]] = event["feeCents"]
         elif event["kind"] == "gig_dropped":
@@ -191,11 +203,13 @@ class Desk:
         admission declines gets a price far above the list price, which loses at no cost; up to level 3
         every quote wins, so no quote."""
         self.requests[request["id"]] = request
+        self.bundler.request(request)
         held = [
             Held(o, bool(g := self.gigs_of(o["id"])) and all(x in self.booked for x in g)) for o in self.orders.values()
         ]
         # Admission weighs the margin at the price we would quote, and pricing prices the options it picks.
-        self.admission.params.price_factor = self.pricing.multiplier(request, self.now)
+        # Params is frozen, so swap in a copy with the new factor.
+        self.admission.params = replace(self.admission.params, price_factor=self.pricing.multiplier(request, self.now))
         verdict = self.admission.assess(request, held, self.now)
         facts = self.facts_of(request["id"])
         # The note's deadline passes before the car can be collected (strategies/notes): decline.
@@ -212,31 +226,90 @@ class Desk:
     def win(self, order: Order) -> None:
         if order["id"] in self.requests and order["id"] not in self.orders:  # rejoin can know it already
             self.orders[order["id"]] = order
-            self.post(order, undelivered(order))
+            if self.level >= 3:  # gigs with several cars: bundling posts it, perhaps with other orders
+                batch = self.requests[order["id"]].get("batchId")
+                self.bundler.hold(order["id"], batch, order["lastPickupAt"], self.now)
+            else:
+                self.post(order, undelivered(order))
+
+    def post_due(self) -> None:
+        """Posts the new orders that bundling lets go now: each alone, or several in one gig (strategies/bundling)."""
+        for group in self.bundler.due(self.now, self.unit):
+            if len(group) == 1:
+                self.post(self.orders[group[0].order_id], group[0].legs)
+            else:
+                stops = [stop for unit in group for stop in unit.stops]
+                schedule = fees_plan(self.now, self.bundler.gig(group, self.now), self.level)
+                self.outbox.append(
+                    {"type": "post", "stops": stops, "audience": bundle_audience(group), "schedule": schedule}
+                )
+
+    def unit(self, order_id: str) -> Unit | None:
+        """An order's undelivered cars as bundling sees them: the stops that `post` would send for them alone,
+        with each stop's place, window and stated hours, or None when the order is gone."""
+        order = self.orders.get(order_id)
+        legs = undelivered(order) if order is not None else []
+        if order is None or not legs:
+            return None
+        facts = self.facts_of(order_id)
+        stops = without_windows(stops_for(order, legs, facts, FIRST_TRY, self.now, self.snow), self.now)
+        places, windows, hours = [], [], []
+        for stop in stops:
+            leg = order["legs"][stop["leg"]]
+            side = leg["pickup"] if stop["kind"] == "pickup" else leg["delivery"]
+            own: TimeWindow = (
+                side["window"]
+                if stop["kind"] == "pickup"
+                else {"from": side["window"]["from"], "to": max(side["window"]["from"], order["deadline"])}
+            )
+            places.append(side["placeId"])
+            windows.append(stop.get("window", own))
+            hours.append(side["hours"])
+        share = len(legs) / len(order["legs"])
+        return Unit(
+            order_id=order_id,
+            legs=legs,
+            stops=stops,
+            places=places,
+            windows=windows,
+            hours=hours,
+            audience=audience_for(order, legs, facts),
+            typical=self.requests[order_id]["referenceFeeCents"] * share,
+            price=order["priceCents"] * share,
+            last_pickup_at=order["lastPickupAt"],
+        )
 
     def change(self, order: Order) -> None:
         if order["id"] in self.orders:
             self.orders[order["id"]] = order
+            if self.bundler.holds(order["id"]):  # not posted yet: it goes from the pool with the new plan
+                return
             if self.withdraw(order["id"]):
                 self.post(order, undelivered(order))
 
     def repost(self, gig_id: str) -> None:
-        """Posts a gig again when one of its windows ended before a driver booked it."""
+        """Posts a gig again when one of its windows ended before a driver booked it. A bundle goes again as
+        one gig for each order."""
         action = self.posts.get(gig_id)
-        # A gig the starter has already taken off and posted again, after a change of plan, needs nothing.
-        if action is None or not any(
-            self.leg_gigs.get(s["orderId"], {}).get(s["leg"]) == gig_id for s in action["stops"]
-        ):
+        if action is None:
             return
-        for stop in action["stops"]:
-            self.leg_gigs.get(stop["orderId"], {}).pop(stop["leg"], None)
-        order = self.orders.get(action["stops"][0]["orderId"])
-        if order is None:
-            return
-        # One of its windows has ended, perhaps at a site's closing time before the window's own end: post without its own stop windows,
-        # except the pickup window that the note still needs.
-        stops = [self.noted_pickup(stop) for stop in without_windows(action["stops"], float("inf"))]
-        self.outbox.append({**action, "stops": stops, "schedule": self.fees_for(order, pickups(action))})
+        if len(orders_in(action)) > 1:
+            self.bundler.counts["expired"] += 1
+        for order_id in orders_in(action):
+            own = [stop for stop in action["stops"] if stop["orderId"] == order_id]
+            # A gig the starter has already taken off and posted again, after a change of plan, needs nothing.
+            if not any(self.leg_gigs.get(order_id, {}).get(stop["leg"]) == gig_id for stop in own):
+                continue
+            for stop in own:
+                self.leg_gigs.get(order_id, {}).pop(stop["leg"], None)
+            order = self.orders.get(order_id)
+            if order is None:
+                continue
+            # One of its windows has ended, perhaps at a site's closing time before the window's own end: post
+            # without its own stop windows, except the pickup window that the note still needs.
+            stops = [self.noted_pickup(stop) for stop in without_windows(own, float("inf"))]
+            cars = sum(1 for stop in own if stop["kind"] == "pickup")
+            self.outbox.append({**action, "stops": stops, "schedule": self.fees_for(order, cars)})
 
     def noted_pickup(self, stop: StopRef) -> StopRef:
         """A pickup inside what the note says, from now on: after the car is ready and inside the real hours."""
@@ -255,9 +328,16 @@ class Desk:
         order = self.orders.get(order_id)
         if order is None:
             return
+        if self.bundler.holds(order_id):  # still waiting for a bundle: it goes alone now
+            self.bundler.forget(order_id)
+            self.post(order, undelivered(order))
+            return
         self.send_post_of(order_id)
         for gig_id in self.gigs_of(order_id):
-            if gig_id not in self.booked:
+            if gig_id in self.posts and len(orders_in(self.posts[gig_id])) > 1 and gig_id not in self.booked:
+                self.bundler.counts["split at warning"] += 1
+                self.split(gig_id)  # a bundle that found no driver: each order's cars go alone, at their own fees
+            elif gig_id not in self.booked:
                 schedule = self.fees_for(order, pickups(self.posts[gig_id]))
                 self.outbox.append({"type": "reprice", "gigId": gig_id, "schedule": schedule})
                 self.offers.reschedule(gig_id, schedule)
@@ -273,7 +353,13 @@ class Desk:
         order = self.orders.get(action["stops"][0]["orderId"]) if action else None
         if action is None or fee is None or order is None or gig_id not in self.gigs_of(order["id"]):
             return
-        schedule = self.fees.after_drop(order, self.requests[order["id"]], pickups(action), self.now, self.level, fee)
+        if len(orders_in(action)) > 1:
+            group = [unit for order_id in orders_in(action) if (unit := self.unit(order_id)) is not None]
+            schedule = fees_after_drop(self.now, self.bundler.gig(group, self.now), self.level, fee) if group else None
+        else:
+            schedule = self.fees.after_drop(
+                order, self.requests[order["id"]], pickups(action), self.now, self.level, fee
+            )
         if schedule:
             self.outbox.append({"type": "reprice", "gigId": gig_id, "schedule": schedule})
             self.offers.reschedule(gig_id, schedule)
@@ -289,12 +375,8 @@ class Desk:
             )
 
     def post(self, order: Order, legs: list[int], retry: Retry = FIRST_TRY) -> None:
-        # A premium car needs an experienced driver: the fine is €150 a car.
         facts = self.facts_of(order["id"])
-        audience: Audience = {
-            "experienced": any(leg["car"]["premium"] for leg in order["legs"]),
-            "manualLicence": retry.manual_licence or (0 in legs and facts.manual),
-        }
+        audience = audience_for(order, legs, facts, retry)
         stops = without_windows(stops_for(order, legs, facts, retry, self.now, self.snow), self.now)
         self.outbox.append(
             {"type": "post", "stops": stops, "audience": audience, "schedule": self.fees_for(order, len(legs))}
@@ -316,12 +398,12 @@ class Desk:
         for stop in action["stops"]:
             self.leg_gigs.setdefault(stop["orderId"], {})[stop["leg"]] = gig_id
         self.posts[gig_id] = action
-        order = self.orders.get(action["stops"][0]["orderId"])
-        if order is not None:
-            self.offers.register(gig_id, gig_info(order, action, self.admission.minutes), action["schedule"])
+        if all(order_id in self.orders for order_id in orders_in(action)):
+            self.offers.register(gig_id, gig_info(self.orders, action, self.admission.minutes), action["schedule"])
 
     def withdraw(self, order_id: str) -> bool:
-        """Takes an order's gigs out of the drivers' app. False, and nothing withdrawn, when a driver holds one of them."""
+        """Takes an order's gigs out of the drivers' app. False, and nothing withdrawn, when a driver holds one of them.
+        The other orders of a withdrawn bundle go again alone."""
         self.send_post_of(order_id)
         gigs = self.gigs_of(order_id)
         if any(gig_id in self.booked for gig_id in gigs):
@@ -330,11 +412,30 @@ class Desk:
         self.outbox += [{"type": "withdraw", "gigId": gig_id} for gig_id in gigs]
         for gig_id in gigs:
             self.offers.forget(gig_id)
+            self.post_rest(gig_id, order_id)
         return True
 
+    def split(self, gig_id: str) -> None:
+        """Takes a bundle that no driver holds out of the app, and posts each of its orders' cars alone."""
+        self.outbox.append({"type": "withdraw", "gigId": gig_id})
+        self.offers.forget(gig_id)
+        self.post_rest(gig_id, None)
+
+    def post_rest(self, gig_id: str, skip: str | None) -> None:
+        """Posts alone the cars that the gig carried for each order but `skip`: the gig has left the app."""
+        action = self.posts.get(gig_id)
+        for order_id in orders_in(action) if action else []:
+            carried = self.leg_gigs.get(order_id, {})
+            legs = [leg for leg, gig in carried.items() if gig == gig_id]
+            if order_id == skip or not legs or order_id not in self.orders:
+                continue
+            for leg in legs:
+                carried.pop(leg)
+            self.post(self.orders[order_id], sorted(legs))
+
     def send_post_of(self, order_id: str) -> None:
-        """A post of the order still in the outbox goes to the world now, so the starter knows its gig. Each gig carries one order."""
-        if any(action["type"] == "post" and action["stops"][0]["orderId"] == order_id for action in self.outbox):
+        """A post of the order still in the outbox goes to the world now, so the starter knows its gig."""
+        if any(action["type"] == "post" and order_id in orders_in(action) for action in self.outbox):
             self.send()
 
     def send(self) -> None:
@@ -348,18 +449,28 @@ class Desk:
         for action, result in zip(actions, results):
             if action["type"] == "post" and result["ok"] is True:
                 self.carry(action, result["id"])
+            elif action["type"] == "post" and len(orders_in(action)) > 1:  # a bundle the world refused: each alone
+                self.bundler.counts["refused"] += 1
+                print(f"Bundle refused: {result['reason']}", file=sys.stderr, flush=True)
+                for order_id in orders_in(action):
+                    if order_id in self.orders:
+                        cars = [s["leg"] for s in action["stops"] if s["orderId"] == order_id and s["kind"] == "pickup"]
+                        self.post(self.orders[order_id], cars)
             elif action["type"] == "offer" and result["ok"] is False:
                 self.offers.refused(result["reason"])
 
 
-def gig_info(order: Order, action: PostAction, minutes: dict[tuple[str, str], int]) -> GigInfo:
+def gig_info(orders: dict[str, Order], action: PostAction, minutes: dict[tuple[str, str], int]) -> GigInfo:
     """What offers need to know of a gig: where it starts and ends, by when, the drive, and who may take it."""
     stops = action["stops"]
-    places = [order["legs"][s["leg"]]["pickup" if s["kind"] == "pickup" else "delivery"]["placeId"] for s in stops]
+    places = [
+        orders[s["orderId"]]["legs"][s["leg"]]["pickup" if s["kind"] == "pickup" else "delivery"]["placeId"]
+        for s in stops
+    ]
     drive = sum(minutes.get((a, b), 0) for a, b in pairwise(places))
     return GigInfo(
         pickup=places[0],
-        pickup_until=order["lastPickupAt"],
+        pickup_until=min(orders[order_id]["lastPickupAt"] for order_id in orders_in(action)),
         end=places[-1],
         drive=drive,
         manual=action["audience"]["manualLicence"],
@@ -374,6 +485,20 @@ def retry_from(order: Order, request: PriceRequest, leg: int, now: int) -> int:
     promised = next((o["deadline"] for o in request["options"] if o["kind"] == order["option"]), order["deadline"])
     delay = max(0, order["deadline"] - promised)
     return max(now + 2 * HOUR, order["legs"][leg]["pickup"]["window"]["from"] + delay)
+
+
+def orders_in(action: PostAction | Gig) -> list[str]:
+    """The orders whose cars a gig carries, in stop order: one, or several in a bundle."""
+    return list(dict.fromkeys(stop["orderId"] for stop in action["stops"]))
+
+
+def audience_for(order: Order, legs: list[int], facts: NoteFacts, retry: Retry = FIRST_TRY) -> Audience:
+    """Who may take the order's cars: a premium car needs an experienced driver (the fine is €150 a car), and
+    a manual car, by the note or a failed visit, a manual licence."""
+    return {
+        "experienced": any(leg["car"]["premium"] for leg in order["legs"]),
+        "manualLicence": retry.manual_licence or (0 in legs and facts.manual),
+    }
 
 
 def undelivered(order: Order) -> list[int]:
@@ -444,6 +569,9 @@ def play_practice(world: World, level: int) -> Counter[str]:
     while desk.now < ends_at:
         day, midnight = desk.now // DAY, (desk.now // DAY + 1) * DAY
         until, poll_at = (WAKE_ON_BUSY, desk.now + POLL) if busy else (WAKE_ON, ends_at)
+        held_until = desk.bundler.next_due()  # an order waiting for a bundle must go when its wait ends
+        if held_until is not None:
+            poll_at = min(poll_at, max(desk.now + 1, held_until))
         # One request a step: the advance applies the outbox, then moves the clock.
         actions, desk.outbox = desk.outbox, []
         step = world.advance(until=until, max=min(ends_at, midnight, poll_at), actions=actions)
@@ -454,10 +582,12 @@ def play_practice(world: World, level: int) -> Counter[str]:
         busy = any(event["kind"] == "price_request" for event in step["events"])
         for event in step["events"]:
             desk.handle(event)
+        desk.post_due()  # the new orders that bundling lets go now
         desk.outbox += desk.offers.due(desk.now)  # once all the step's events are read
         if desk.now // DAY > day:
             report(WEEKDAYS[day % 7], world.score())
     print(desk.offers.summary(), flush=True)
+    print(desk.bundler.summary(), flush=True)
     return stops
 
 
@@ -477,6 +607,7 @@ def play_final(world: World) -> None:
         desk.now = world.client.final()["now"] if event is None else max(desk.now, event["at"])
         if event is not None:
             desk.handle(event)
+        desk.post_due()
         desk.outbox += desk.offers.due(desk.now)
         desk.send()
         if desk.now // DAY > day:

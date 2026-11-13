@@ -63,7 +63,6 @@ class _Tracked:
     deadline: int
     delivered: list[int | None]
     pickup: str
-    dealer: str
 
 
 @dataclass
@@ -77,7 +76,6 @@ class Admission:
 
     def __post_init__(self) -> None:
         self.minutes: dict[tuple[str, str], int] = {(r["from"], r["to"]): r["minutes"] for r in self.world_map["roads"]}
-        self.places = [p["id"] for p in self.world_map["places"]]
         self.home = {d["id"]: d["homePlaceId"] for d in self.roster}
         self.homes: dict[str, dict[str, int]] = {a: defaultdict(int) for a in ("all", "experienced", "manual")}
         for d in self.roster:
@@ -128,9 +126,7 @@ class Admission:
             order = event["order"]
             self.pending.pop(order["id"], None)
             pickup = order["legs"][0]["pickup"]["placeId"]
-            self.orders[order["id"]] = _Tracked(
-                order["deadline"], list(order["deliveredAt"]), pickup, order["dealerId"]
-            )
+            self.orders[order["id"]] = _Tracked(order["deadline"], list(order["deliveredAt"]), pickup)
             self.won[pickup] += 1
         elif kind == "order_lost":
             self.pending.pop(event["requestId"], None)
