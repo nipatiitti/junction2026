@@ -5,6 +5,7 @@ import type {
   ActionResult,
   DeskEvent,
   DeskSnapshot,
+  Gig,
   Order,
   PostAction,
   PriceRequest,
@@ -50,13 +51,12 @@ export class Desk implements Books {
     const posted = Map.groupBy(snapshot.gigs, (gig) => gig.stops[0]!.orderId) // order id -> its gigs, oldest first
     for (const gig of snapshot.gigs) if (['booked', 'working', 'done'].includes(gig.status)) this.booked.add(gig.id)
     for (const gig of snapshot.gigs)
-      if (['open', 'booked', 'working'].includes(gig.status))
-        this.carry({ type: 'post', stops: gig.stops, audience: gig.audience, schedule: gig.schedule }, gig.id)
+      if (['open', 'booked', 'working'].includes(gig.status)) this.carry(postOf(gig), gig.id)
     for (const event of history) if (event.kind === 'price_request') this.requests.set(event.request.id, event.request)
     for (const event of history) if (event.kind === 'deadline_close') this.urgent.add(event.orderId)
     for (const order of snapshot.orders)
       if (this.requests.has(order.id) && order.status !== 'cancelled') this.orders.set(order.id, order)
-    for (const event of history) this.observe(event)
+    this.replay(history, snapshot.gigs)
     for (const order of this.orders.values())
       if (order.status === 'waiting' && this.gigsOf(order.id).length === 0)
         await this.post('won', order, undelivered(order))
@@ -70,6 +70,22 @@ export class Desk implements Books {
       }
     }
     for (const request of snapshot.openRequests) this.quote(request)
+  }
+
+  /** Feeds the strategy the event log, and between the events each gig of the snapshot as an accepted post at the
+   * minute it was posted: before the first event after that minute, or before the first event that names it. */
+  replay(history: DeskEvent[], gigs: Gig[]): void {
+    let untold = [...gigs].sort((a, b) => a.postedAt - b.postedAt)
+    const tell = (due: (gig: Gig) => boolean) => {
+      for (const gig of untold.filter(due)) this.accepted(postOf(gig), gig.id, gig.postedAt)
+      untold = untold.filter((gig) => !due(gig))
+    }
+    for (const event of history) {
+      const named = gigsNamed(event)
+      tell((gig) => gig.postedAt < event.at || named.includes(gig.id))
+      this.observe(event)
+    }
+    tell(() => true)
   }
 
   async handle(event: DeskEvent): Promise<void> {
@@ -108,6 +124,11 @@ export class Desk implements Books {
     this.guard.run('observe', () => this.strategy.observe(event, this))
   }
 
+  /** Tells the strategy an action that the world accepted. */
+  accepted(action: Action, id: string, at: number = this.now): void {
+    this.guard.run('observe', () => this.strategy.accepted(action, id, at, this))
+  }
+
   /** The strategy's prices, or a decline: far above list, or no quote up to level 3, where every quote wins. */
   quote(request: PriceRequest): void {
     this.requests.set(request.id, request)
@@ -123,11 +144,11 @@ export class Desk implements Books {
     }
   }
 
-  /** The strategy's gig, or the starter's when the strategy fails. */
-  plan(need: GigNeed): PostAction {
-    const gig =
-      this.guard.run('gig', () => this.strategy.gig(need, this)) ?? starterGig(need, this, this.strategy.setup.level)
-    return whole({ type: 'post', ...gig })
+  /** The strategy's gigs, or the starter's when the strategy fails or plans none. */
+  plan(need: GigNeed): PostAction[] {
+    const plans = [this.guard.run('gig', () => this.strategy.gig(need, this)) ?? []].flat()
+    if (plans.length === 0) plans.push(starterGig(need, this, this.strategy.setup.level))
+    return plans.map((gig) => whole({ type: 'post', ...gig }))
   }
 
   delivered(orderId: string, leg: number, at: number): void {
@@ -156,7 +177,7 @@ export class Desk implements Books {
     for (const { orderId, leg } of previous.stops) this.legGigs.get(orderId)?.delete(leg)
     const order = this.orders.get(previous.stops[0]!.orderId)
     if (!order) return
-    this.outbox.push(this.plan({ why: 'repost', order, legs: legsOf(previous, order.id), previous }))
+    this.outbox.push(...this.plan({ why: 'repost', order, legs: legsOf(previous, order.id), previous }))
   }
 
   /** From the order's deadline warning on, its gigs that no driver holds take the urgent fees. */
@@ -168,8 +189,8 @@ export class Desk implements Books {
     for (const gigId of this.gigsOf(orderId)) {
       if (this.booked.has(gigId)) continue
       const previous = this.posts.get(gigId)!
-      const { schedule } = this.plan({ why: 'urgent', order, legs: legsOf(previous, orderId), previous })
-      this.outbox.push({ type: 'reprice', gigId, schedule })
+      const [plan] = this.plan({ why: 'urgent', order, legs: legsOf(previous, orderId), previous })
+      if (plan) this.outbox.push({ type: 'reprice', gigId, schedule: plan.schedule })
     }
   }
 
@@ -180,12 +201,14 @@ export class Desk implements Books {
     await this.post('retry', order, [leg], reason)
   }
 
-  /** Posts one gig for the legs. A trade-in over the 12-hour limit for a gig with two cars goes as one gig per car. */
+  /** Posts the strategy's gigs for the legs. A leg that no accepted gig carries, as in a trade-in refused as one gig
+   * over the 12-hour limit for two cars, goes again as a gig of its own. */
   async post(why: GigNeed['why'], order: Order, legs: number[], failed?: GigNeed['failed']): Promise<void> {
-    this.outbox.push(this.plan({ why, order, legs, failed }))
+    this.outbox.push(...this.plan({ why, order, legs, failed }))
     if (legs.length === 1) return
     await this.send()
-    if (this.gigsOf(order.id).length === 0) for (const leg of legs) await this.post('split', order, [leg], failed)
+    const carried = this.legGigs.get(order.id)
+    for (const leg of legs) if (!carried?.has(leg)) await this.post('split', order, [leg], failed)
   }
 
   /** The gigs that carry the order's undelivered legs: one, or one for each leg of a split trade-in. */
@@ -231,8 +254,11 @@ export class Desk implements Books {
       if (!result.ok) {
         const reason = `${action.type}: ${result.reason.replace(/\b[A-Za-z]?\d[\w:]*/g, '#')}` // without ids and times, so like reasons count together
         this.refused.set(reason, (this.refused.get(reason) ?? 0) + 1)
-      } else if (action.type === 'post') this.carry(action, result.id)
+        return
+      }
+      if (action.type === 'post') this.carry(action, result.id)
       else if (action.type === 'withdraw') this.forget(action.gigId)
+      this.accepted(action, result.id)
     })
   }
 
@@ -248,3 +274,15 @@ const undelivered = (order: Order): number[] =>
 /** The legs of the order that a post carries. */
 const legsOf = (action: PostAction, orderId: string): number[] =>
   action.stops.filter((stop) => stop.orderId === orderId && stop.kind === 'pickup').map((stop) => stop.leg)
+
+/** The gigs that an event names. */
+const gigsNamed = (event: DeskEvent): string[] =>
+  'gigId' in event ? [event.gigId] : event.kind === 'order_cancelled' ? event.gigs.map((gig) => gig.gigId) : []
+
+/** The post that made a gig. */
+const postOf = (gig: Gig): PostAction => ({
+  type: 'post',
+  stops: gig.stops,
+  audience: gig.audience,
+  schedule: gig.schedule,
+})
