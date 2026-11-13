@@ -48,6 +48,23 @@ rating ≥ 4.8 with ≥ 50 completed gigs for a premium car.
 
 ## Bench
 
-Seeds `spread-1` to `spread-5`, level 8, against the same system without offers (admission control, #14).
+Level 8, against `main` without offers (admission control, #14, and the polling loop, #36). The run was stopped
+before every seed had played on both versions, so only spread-3 and spread-4 are paired.
 
-BENCH_TABLE
+| Seed | Main margin | Offers margin | Main on time | Offers on time | Main fee per car | Offers fee per car |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| spread-3 | -€53.27 | -€21.42 | 97.0% | 96.7% | €47.79 | €47.66 |
+| spread-4 | -€285.29 | -€298.49 | 97.1% | 96.7% | €54.57 | €54.66 |
+| **Total** | **-€338.56** | **-€319.91** | | | **€51.20** | **€51.18** |
+
+spread-1 played only with offers: €456.36 margin, 96.4% on time.
+
+Offers sent per week: 591 to 861, of which 3 to 7 were accepted, about a third declined and two thirds expired
+unread. None was refused. An earlier version, which decided offers in the middle of a step, had 140 to 146 refused a
+week: the gig had just been booked. Deciding once a step, after all the step's events, fixed that.
+
+On the previous base, without the polling loop, the first version of offers lowered the driver fee per delivered
+car from €52.54 to €52.14 over all five seeds (1,604 and 1,601 cars), at the same on-time share.
+
+So far offers change little: drivers take under 1% of them. Most of the drivers we ask do not work that day or do
+not read the offer in its 10 minutes, and the ones who read it decline at 85% of the app fee.
