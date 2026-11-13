@@ -52,6 +52,7 @@ export type GigWhy =
   | 'retry' // a visit failed: see `failed`
   | 'repost' // one of the gig's windows ended before a driver booked it: see `previous`
   | 'urgent' // the deadline warning came: only the schedule counts, as a reprice of `previous`
+  | 'lost' // no gig carries the legs, and none waits: after a refused post, or a change to another order of a combined gig
 
 export type GigNeed = {
   why: GigWhy
