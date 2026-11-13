@@ -134,6 +134,12 @@ pnpm dispatch --final                     # play our copy of a test final or of 
 scripts read `.env` when it exists, and otherwise the variables already set. To take a new kit version, download
 `$SPREAD_URL/kit/spread-typescript.tar.gz` and replace the files in `vendor/spread-typescript/`.
 
+The three scripts set `NODE_USE_ENV_PROXY=1`, so on Node 22.21+ `fetch` goes through `HTTPS_PROXY` when it is set, as in a
+Claude Code cloud session, where the proxy swaps the placeholder `SPREAD_KEY` for the real key; `NODE_EXTRA_CA_CERTS`
+must name the proxy's CA (cloud sessions set it). Without `HTTPS_PROXY` they connect straight to the server. `.npmrc`
+turns on pnpm's `shell-emulator`, so the variable works on Windows too. The `--final` WebSocket stream does not go
+through the proxy yet.
+
 ### Offline data and scraping more weeks
 
 The data for an offline model of the server is committed in `data/`, so by default the analysis needs no server and
@@ -255,6 +261,38 @@ Which scrape answers which question of `SPREAD_AGENT_BRIEF.md`:
   fee), summed over the request's legs. Quantiles for all requests and split by `note` language (or `none`), `car`
   (`premium`, else `electric`, else `standard`), number of `legs`, and `privateAddress` (any stop at one).
 - `driverHomeShare` and `ledger`: where drivers live, and money per week by account line.
+
+### Probe a world: where does a quote or a fee flip?
+
+`probe.py` answers what a scrape cannot: it forks one practice world at one minute, tries one price or fee in each
+copy, and bisects to the value where the outcome flips. A copy has the same future draws as its parent, so the flip
+comes from the action alone.
+
+```sh
+uv run --env-file .env probe.py quote --level 8 --seed scrape-1 --share 0.05 --days 0,1   # ~20 requests
+uv run --env-file .env probe.py fee --level 8 --seed scrape-1 --limit 20       # 20 orders
+```
+
+- `quote`: at a request's arrival, quotes one option at a time in copies and advances to `respondBy`. `flipRatio` is
+  the highest price over the list price that wins this request with this world's draws: the competitor and the
+  dealer's value as one number, to `--resolution` (default 1% of the list price), inside `--range` (default 0.6,2.5).
+- `fee`: quotes the request at `--win-ratio` (default 0.5) of the list price to win it, then posts its cars at one
+  flat fee per copy and advances `--window` minutes (default 180). `flipRatio` is the lowest flat fee over the typical
+  fee that a driver books within the window (never past the order's `lastPickupAt`), with who booked it, how soon,
+  the gig's views and whether it expired.
+- Each row also has every trial and `monotone`: whether the outcomes change once as the value rises. Two extra trials
+  a little either side of the bracket (`--checks`) test it. Monotone rows say the world answers with a threshold, not a coin.
+- The parent posts no gigs and declines every other request at no cost, so each probe sees drivers who have learned
+  nothing and dealers with no history: the world's first answer, not a week's. Two drifts remain. The competitor
+  raises its prices each morning for dealers whose requests it wins, and the parent wins none, so late-week quote
+  flips read high: `--days 0,1` probes only Monday and Tuesday. In fee mode the won orders are never delivered, which
+  lowers what those dealers accept later. Rows carry `day` and `hour`, so price-war and outage days can be told apart.
+- A quote row's `ends` says when it did not flip inside `--range`: `true` (won at both ends), `false` (lost at both)
+  or `inverted`. A fee row's `ends` is `never` (no driver even at the top fee, see `expiredAtTop`) or `always`. A
+  refused action or a lost win quote gives a row with `error` instead.
+- Rows go to `out/probe/<mode>-L<level>-<seed>.jsonl`. Running the same command again skips the rows saved. A probe
+  holds the parent and one copy at a time (two practice slots) and leaves `--keep-free` slots (default 2) for
+  teammates. Each bisection step is a fork, an advance and a delete: about 8 to 12 steps a probe.
 
 ### The baseline to beat
 
