@@ -16,7 +16,7 @@ const index = new WeakMap<WorldMap, Map<string, Road>>()
 
 /** The road from one place to another, or undefined when the map has none. */
 export function road(map: WorldMap | undefined, from: string, to: string): Road | undefined {
-  if (!map) return undefined
+  if (typeof map !== 'object' || map === null) return undefined
   let roads = index.get(map)
   if (!roads) {
     roads = new Map((map.roads ?? []).map((r) => [`${r.from}\n${r.to}`, r]))
