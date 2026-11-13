@@ -37,6 +37,8 @@ NEVER = (30 * DAY, 30 * DAY)  # EARLY_RAISES that never come before the even tim
 
 NO_PREMIUMS = {"OPEN_SCARCE": 0.0, "OPEN_EVENING": 0.0, "OPEN_SATURDAY": 0.0, "OPEN_LONG": 0.0}
 
+V8 = {**NO_PREMIUMS, "MARGIN_MIN": 5 * HOUR, "LATE_SHARE": 0.75, "RAISE_SHARES": (0.1, 0.3)}
+
 # Each version: the constants of strategies/fees/schedule.py that it changes, or None for the starter's fees.
 VERSIONS: dict[str, dict | None] = {
     "starter": None,
@@ -50,7 +52,13 @@ VERSIONS: dict[str, dict | None] = {
     # v6 with small early raises, about as far as the starter's: 1.1 and 1.3 times the typical fee.
     "v7": {**NO_PREMIUMS, "MARGIN_MIN": 4 * HOUR, "LATE_SHARE": 0.75, "RAISE_SHARES": (0.1, 0.3)},
     # v7 with the top fee due 5 hours or more before the last pickup.
-    "v8": {**NO_PREMIUMS, "MARGIN_MIN": 5 * HOUR, "LATE_SHARE": 0.75, "RAISE_SHARES": (0.1, 0.3)},
+    "v8": V8,
+    # v8 opening at 0.9 times the typical fee: about the typical fee after an hour, 1.23 times after three.
+    "v9": {**V8, "OPEN_BASE": 0.9, "OPEN_FLOOR": 0.9},
+    # v8 with the premium where few drivers live near the pickup.
+    "v10": {**V8, "OPEN_SCARCE": 0.3},
+    # v9 with the premium where few drivers live near the pickup.
+    "v11": {**V8, "OPEN_BASE": 0.9, "OPEN_FLOOR": 0.9, "OPEN_SCARCE": 0.3},
 }
 
 

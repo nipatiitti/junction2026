@@ -13,8 +13,9 @@ from spread.types import FeeStep
 
 HOUR, DAY = 60, 24 * 60
 
-# The opening fee, as a multiple of the typical fee: one, plus a premium for each thing that makes
+# The opening fee, as a multiple of the typical fee: OPEN_BASE, plus a premium for each thing that makes
 # the work dearer for a driver than the typical fee assumes.
+OPEN_BASE = 1.0
 OPEN_SCARCE = 0.30  # at a pickup with no drivers within reach, against the world's median place
 OPEN_EVENING = 0.10  # the drive ends after 18:00, when the trip home is dear
 OPEN_SATURDAY = 0.15  # Saturday work
@@ -89,7 +90,7 @@ def worth(gig: Gig) -> float:
 
 def opening_multiple(gig: Gig) -> float:
     """The opening fee over the typical fee, by place and hour."""
-    multiple = 1 + OPEN_SCARCE * min(1.0, max(0.0, gig.scarcity))
+    multiple = OPEN_BASE + OPEN_SCARCE * min(1.0, max(0.0, gig.scarcity))
     ends = gig.starts_at + gig.drive_minutes
     if ends % DAY >= 18 * HOUR or ends // DAY > gig.starts_at // DAY:
         multiple += OPEN_EVENING
