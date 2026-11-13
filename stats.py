@@ -1,8 +1,10 @@
 """Turns weeks saved by scrape.py into distributions for an offline model of the server. Needs no network.
 
-    uv run stats.py out/scrape/passive out/scrape/explore
+    uv run stats.py                                        # the team's committed weeks in data/scrape
+    uv run stats.py out/scrape/passive out/scrape/explore  # weeks from your own scrape
 
-Writes summary.json into the first folder (or --out) and prints the main numbers. Groups are "L<level>/<policy>".
+Without folders, reads data/scrape and writes out/summary.json. With folders, writes summary.json into the first
+folder. --out chooses another file. Prints the main numbers. Groups are "L<level>/<policy>".
 README.md lists what the summary holds.
 """
 
@@ -17,6 +19,7 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any, NamedTuple
 
+OFFLINE_DATA = Path(__file__).parent / "data" / "scrape"  # the team's committed scrape: no server needed
 HOUR, DAY = 60, 24 * 60
 MAX_ENUM = 30  # a text or bool field with more distinct values than this is not an enumeration
 RATIO_BIN = 0.05  # width of the bins of quote / list price
@@ -499,14 +502,22 @@ def report(summary: dict) -> str:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Summarises weeks saved by scrape.py.")
-    parser.add_argument("folders", nargs="+", type=Path, help="scrape output folders")
-    parser.add_argument("--out", type=Path, help="where to write summary.json (default: the first folder)")
+    parser.add_argument(
+        "folders", nargs="*", type=Path, help="scrape output folders (default: the committed data/scrape)"
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        help="where to write summary.json (default: the first folder, or out/summary.json for data/scrape)",
+    )
     args = parser.parse_args(argv)
-    folders = list(find_weeks(args.folders))
+    roots = args.folders or [OFFLINE_DATA]
+    folders = list(find_weeks(roots))
     if not folders:
         raise SystemExit("No saved weeks (folders with meta.json) found.")
-    summary = summarise((load_week(f) for f in folders), load_map(args.folders))
-    out = args.out or args.folders[0] / "summary.json"
+    summary = summarise((load_week(f) for f in folders), load_map(roots))
+    out = args.out or (args.folders[0] / "summary.json" if args.folders else Path("out/summary.json"))
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(summary, indent=1, default=str) + "\n")
     print(report(summary))
     print(f"{len(folders)} weeks summarised into {out}")
