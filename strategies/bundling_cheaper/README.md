@@ -39,3 +39,21 @@ simply be pushed down — only the cap can.
 
 `Params(fee_cap=0.95)` reproduces the base's fee rule exactly, so the cap is the only difference and the bench
 against the baseline isolates it.
+
+## Bench
+
+Level 8, seed `spread-1`, one practice week per variant, played on the server by `strategies.bench`. Margin is the
+score; `fees / car` and `orders in chains` are read from each week's own ledger and snapshot.
+
+| variant                       | margin        | vs `dispatch.py` | orders won | on time | ranked | fees / car | orders in chains |
+| ----------------------------- | ------------- | ---------------- | ---------- | ------- | ------ | ---------- | ---------------- |
+| `strategies/scarcity_cost`    | **€8,884.43** | +€821.03         | 364        | 98.6%   | yes    | €60.62     | 35               |
+| `dispatch.py` (root)          | €8,063.40     | —                | 369        | 98.1%   | yes    | €64.21     | 40               |
+| `strategies/price_ladder`     | €6,200.04     | −€1,863.36       | 440        | 97.3%   | yes    | €68.72     | 60               |
+| `strategies/bundling_cheaper` | €6,182.79     | −€1,880.61       | 430        | 96.5%   | yes    | €69.65     | 59               |
+| `strategies/bundling_more`    | €6,173.59     | −€1,889.81       | 441        | 97.3%   | yes    | €65.33     | 227              |
+| `strategies/baseline`         | −€72,612.51   | +€80,675.91      | 949        | 45.5%   | no     | €125.23    | 0                |
+
+The two bundling folders share their base: `strategies/price_ladder`. Against it, `bundling_more` chains 227 orders
+instead of 60 and cuts fees per car from €68.72 to €65.33, and `bundling_cheaper` changes neither the number of chains
+nor the margin. Both land within €26 of their base, which is noise on one seed; only `scarcity_cost` moved.
