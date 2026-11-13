@@ -112,8 +112,10 @@ from every committed week, these runs included. `SPREAD_RUNS_DIR` and `SPREAD_DB
 `SPREAD_RECORD=0` saves nothing. The bench sets the first two, so a git version that it plays in a temporary worktree
 saves into this checkout.
 
-`pnpm dispatch` saves its weeks with `src/record.ts`, in the same folder format and with the same `SPREAD_RUNS_DIR`
-and `SPREAD_RECORD=0`. It writes only the folder: run `uv run db.py` to add it to `out/spread.sqlite`.
+`pnpm dispatch` and `pnpm bench` save their weeks with `src/record.ts`, in the same folder format and with the same
+`SPREAD_RUNS_DIR` and `SPREAD_RECORD=0`. The policy is `ts-<strategy>`, such as `ts-starter`, and `settings` in
+`meta.json` names the strategy and its params. They write only the folder: run `uv run db.py` to add it to
+`out/spread.sqlite`.
 
 ### The ride ladder: a second system
 
@@ -135,15 +137,56 @@ uv run ladder/play.py --final                               # our copy of a test
 
 The same kit exists for TypeScript, so half of the team can work there. `vendor/spread-typescript/` holds the
 organisers' TypeScript kit of 13 November, unchanged: the client (`spread.ts`), its types, the starter and
-`reveal-csv.ts`. Lint and format skip `vendor/`. `src/dispatch.ts` is our TypeScript system. It is still a copy of the
-starter that imports the vendored client and saves its weeks, so it gives the starter's
+`reveal-csv.ts`. Lint and format skip `vendor/`. `src/dispatch.ts` is our TypeScript system: a harness that plays a
+week with one strategy. The `starter` strategy decides exactly as the organisers' starter, so it gives the starter's
 [baseline](#the-baseline-to-beat).
 
 ```sh
-pnpm dispatch --level 8 --seed spread-1   # a whole practice week with our TypeScript system
-pnpm starter --level 8 --seed spread-1    # the same week with the organisers' unchanged starter
-pnpm reveal-csv <world id>                # write an ended week and its reveal to CSV files
-pnpm dispatch --final                     # play our copy of a test final or of the final
+pnpm dispatch --level 8 --seed spread-1                          # a whole practice week with the starter strategy
+pnpm dispatch --strategy starter --set markup=1.3 --seed spread-1  # another strategy or other params
+pnpm starter --level 8 --seed spread-1                           # the same week with the organisers' unchanged starter
+pnpm reveal-csv <world id>                                       # write an ended week and its reveal to CSV files
+pnpm dispatch --final                                            # play our copy of a test final or of the final
+```
+
+`--strategy <name>` picks the strategy (`starter` by default). `--params <file>` overrides its params with the values
+of a JSON file, and `--set key=value` overrides one; both can be given more than once, and a key that the strategy
+does not have is an error. `--board` plays a ranking run and `--final` the final, as before.
+
+**The harness** (`src/harness/`) does everything that is not a decision, so a strategy does not know whether a
+practice week (`advance`) or a final (the event stream) runs:
+
+- `desk.ts` keeps the books (requests, orders, gigs, booked gigs, deadline warnings) and rebuilds them from the
+  snapshot and the event log after a restart, so no quote or gig goes twice. It does the order mechanics: it posts a
+  won order, posts again after a failed visit, withdraws and posts again after a change, reposts after `gig_expired`,
+  reprices after the deadline warning, and splits a trade-in that is refused as one gig.
+- `guard.ts` runs every strategy call within a time budget (1.5 s for a quote). On an error or a late answer the desk
+  declines the request (10 times the list price, or no quote up to level 3) or posts the starter's gig, counts it, and
+  goes on. A refused action is counted, never thrown. The end of a week prints both counts.
+- `loops.ts` holds the practice and the live loop, `week.ts` plays one week and saves it. The client sends at most 50
+  actions a request and waits for the tokens that the `RateLimit-*` headers name.
+
+**Write a strategy** in its own folder, `src/strategies/<name>/`, and add one line to `src/strategies/index.ts`. A
+strategy extends `Strategy` from `src/strategy.ts`: it is built from the driver list, the map, the level and its
+params (defaults in its `StrategyKind`), and answers these calls, each with a read-only view of the books and the clock:
+
+- `quote(request, books)`: a price for each option offered, or null to decline.
+- `gig(need, books)`: the stops, audience and fee schedule for some legs of an order. `need.why` says why (a won
+  order, a change, a split trade-in, a retry after `need.failed`, a repost or an urgent reprice of `need.previous`).
+- `observe(event, books)`: every event of the week, before the desk acts on it. After a restart the harness builds a
+  new strategy and feeds it the whole event log, so keep the state rebuildable from the events.
+- `tick(books)` every `every` minutes, optional: any actions (reprice, withdraw, direct offer, combined gig).
+- `summary()`: one line printed at the end of the week.
+
+**Compare strategies** with `pnpm bench`. It plays each strategy on each seed at one level, one week after another,
+saves every week, and prints a table of margin, revenue, orders won, on-time share and ranked for each strategy and
+seed, with each strategy's mean; it writes the same as a CSV to `out/bench-ts-<date>-<time>.csv` (`--csv` names
+another file). A strategy can carry params: `<name>:key=value,key=value`, or a JSON file in place of a pair.
+`--key-env <NAME>` takes the Spread key from another variable, so two benches can run on two keys. Ctrl-C deletes
+the world in play. It never plays a ranking run or a final.
+
+```sh
+pnpm bench starter starter:markup=1.3 --level 8 --seeds spread-1..spread-5
 ```
 
 `pnpm dispatch` saves every week it finishes to `data/scrape/runs/`, like `dispatch.py`
