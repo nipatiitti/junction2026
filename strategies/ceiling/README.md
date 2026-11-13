@@ -1,18 +1,26 @@
 # Ceiling pricing
 
-A copy of our dispatch system whose quotes are as high as we still win, never above our maximum and never below
-what the driver will likely cost us. Issue #64. It copies the root `dispatch.py` of `main` at commit `74f0de6` and
-builds on `strategies/pricing` and `strategies/admission`. Those and the root `dispatch.py` stay as they are.
+A dispatch system whose quotes are as high as we still win, never above our maximum and never below what the driver
+will likely cost us. Issue #64.
 
-| File           | What it holds                                                                                        |
-| -------------- | ---------------------------------------------------------------------------------------------------- |
-| `dispatch.py`  | A copy of the root `dispatch.py` that quotes with the two strategies below                           |
-| `pricing.py`   | `CeilingPricing`: the adaptive quoting of `strategies/pricing`, under the maximum and over the floor |
-| `admission.py` | `ChainAdmission`: the admission control of `strategies/admission`, with a timed return leg           |
+Its two strategies are subclasses of `Strategy` ([`strategies/strategy.py`](../strategy.py)), each of the root
+strategy it builds on, with the same constructor `(roster, world_map, level=8, params=None)` and a frozen `Params`.
+`dispatch.py` builds them in place of the root desk's admission and pricing and puts them in `Desk.strategies`, so the
+desk feeds them every event like the others. It also replaces the desk's quote, and claims the return legs again when
+the desk rejoins a week after a restart. Everything else (the loop, posting, fees, bundling, notes, retries, direct
+offers, the final) is the root system's, so improvements there reach this system too. The root `dispatch.py` and the
+other folders of `strategies/` stay as they are.
+
+| File           | Class            | Builds on       | What it decides                                               |
+| -------------- | ---------------- | --------------- | ------------------------------------------------------------- |
+| `pricing.py`   | `CeilingPricing` | `PricingModel`  | The price of a quote: under the maximum, over the driver cost |
+| `admission.py` | `ChainAdmission` | `Admission`     | Which requests to take, with a timed return leg               |
+| `dispatch.py`  | `Desk`           | the root `Desk` | The system: the root desk with the two strategies above       |
 
 ## Run it
 
-From the repository root, like the root `dispatch.py`:
+From the repository root, like the root `dispatch.py`, with the same options (`--level`, `--seed`, `--board`,
+`--final`):
 
 ```sh
 uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1                         # a practice week
@@ -20,7 +28,9 @@ uv run python -m strategies.bench strategies/ceiling/dispatch.py dispatch.py --j
 ```
 
 Its weeks are saved like the root system's (`tools/record.py`), with the policy `ceiling` instead of `dispatch`, so
-they form their own group in `out/spread.sqlite`.
+they form their own group in `out/spread.sqlite`. At the end of a practice week each strategy prints a line:
+`Ceiling` counts the quotes set by the maximum and by the driver cost floor, and gives the world's multiplier;
+`Chain admission` counts the requests taken, as return legs among them, and those declined for their driver cost.
 
 ## The strategy
 
@@ -59,7 +69,8 @@ otherwise pay, not at a flat 39% over the list price.
 
 ## The variables
 
-`CeilingParams` in `pricing.py` holds the two new ones, next to those it takes from `strategies/pricing`.
+`Params` in `pricing.py` (exported as `CeilingParams`) holds the two new ones, next to those it takes from
+`strategies/pricing`.
 
 | Variable       | Default | What it does                                                                              |
 | -------------- | ------- | ----------------------------------------------------------------------------------------- |
@@ -70,8 +81,8 @@ otherwise pay, not at a flat 39% over the list price.
 | `key_step`     | 0.015   | The same for each pickup, delivery and dealer offset: 0.75% per outcome                   |
 | `floor`        | 0.9     | The learned multiplier never falls below 0.9 × the list price                             |
 
-`ChainParams` in `admission.py` holds the return leg's: `near`, `wait`, `back` and `spare` (see
-[The return leg](#the-return-leg)), next to the thresholds of `strategies/admission`.
+`Params` in `admission.py` (exported as `ChainParams`) holds the return leg's: `near`, `wait`, `back` and `spare`
+(see [The return leg](#the-return-leg)), next to the thresholds of `strategies/admission`.
 
 Why 10%: in the saved level 8 week of the starter (`smoke-1` in `data/scrape/starter`), 31% of the orders had a
 driver drop the gig at least once. Those orders paid 1.94 times their typical fee in driver fees, against 1.57 for

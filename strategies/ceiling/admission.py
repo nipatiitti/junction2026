@@ -64,9 +64,9 @@ class ChainAdmission(Admission):
 
     def release(self, request_id: str) -> None:
         """The desk declines a request that admission took: its transport and its place in the area are free."""
-        held = self.pending.pop(request_id, None) is not None
+        was_pending = self.pending.pop(request_id, None) is not None
         claims = {order: claim for order, claim in self.claims.items() if claim[0] != request_id}
-        self.counts["released"] += held or len(claims) < len(self.claims)
+        self.counts["released"] += was_pending or len(claims) < len(self.claims)
         self.claims = claims
 
     def restore(self, requests: Iterable[dict], held: Iterable[Held]) -> None:
