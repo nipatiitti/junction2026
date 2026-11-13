@@ -378,6 +378,35 @@ They match the handbook to the cent. The first `dispatch.py`, an unchanged copy 
 result. We measured levels 6 and 7 with the organisers' TypeScript starter, before we chose Python; the handbook says
 that both starters play alike.
 
+### Level 1
+
+At level 1 the dealer ignores our prices: every quote wins the request's first option at its list price, which is
+only about 10% above the typical fee. So the margin comes from paying drivers less than the typical fee, and from
+taking every request we can deliver on time. Level 1 has a [fee ladder](strategies/fees/README.md) (gigs open at half
+the typical fee and rise every 30 minutes while no driver books them), and its own
+[admission](strategies/admission/README.md) rules (it judges only the first option, and holds more unbooked orders).
+Levels 2 to 8 play as before.
+
+Practice weeks, `uv run dispatch.py --level 1 --seed <seed>`:
+
+| Seed       | System                          | Margin    | Orders | On time |
+| ---------- | ------------------------------- | --------- | ------ | ------- |
+| `spread-1` | main before the ladder          | €20.97    | 462    | 98.9%   |
+| `spread-1` | fee ladder                      | €6,037.26 | 527    | 98.3%   |
+| `spread-1` | fee ladder, first-option quotes | €7,167.61 | 754    | 97.1%   |
+| `spread-2` | fee ladder, first-option quotes | €8,180.57 | 734    | 97.3%   |
+
+Ranking runs on 13 November, `uv run dispatch.py --level 1 --board`, all ranked. The organisers started the round
+"Saturday 00:00" while run 2 was ending, so runs 1 and 2 count in the round "Friday 20:01" and runs 3 to 5 in the next:
+
+| Run | Round          | Margin     | Orders | On time |
+| --- | -------------- | ---------- | ------ | ------- |
+| 1   | Friday 20:01   | €8,026.68  | 708    | 97.2%   |
+| 2   | Friday 20:01   | €9,148.53  | 806    | 97.0%   |
+| 3   | Saturday 00:00 | €10,921.47 | 786    | 99.0%   |
+| 4   | Saturday 00:00 | €10,696.67 | 797    | 98.2%   |
+| 5   | Saturday 00:00 | €7,610.01  | 730    | 95.6%   |
+
 ### Claude Code cloud environments
 
 Variables belong to one cloud environment. Every session that starts in that environment gets them. Each environment

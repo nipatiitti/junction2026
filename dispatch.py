@@ -40,6 +40,7 @@ from strategies.bundling import audience as bundle_audience
 from strategies.fees import FeePlanner, Market
 from strategies.fees import after_drop as fees_after_drop
 from strategies.fees import plan as fees_plan
+from strategies.fees.schedule import LADDER_STEP
 from strategies.notes import NO_FACTS, NoteFacts, Snow, delivery_window, pickup_window, read_note
 from strategies.offers import GigInfo, Offers
 from strategies.pricing import PricingModel, places_from_map
@@ -89,6 +90,8 @@ class Desk:
         self.booked_fees: dict[str, int] = {}  # gig id -> the fee that its driver booked it at
         self.facts: dict[str, NoteFacts] = {}  # request id -> what its note says
         self.snow: dict[str, list[Snow]] = {}  # place id -> the snowfalls forecast there
+        # Level 1: gig id -> the raises still to come while no driver books it (strategies/fees, `ladder`).
+        self.ladders: dict[str, list[FeeStep]] = {}
         # The driver list and the map, loaded once: admission decides which requests to take
         # (strategies/admission), and offers send gigs to drivers near their pickup (strategies/offers).
         roster, world_map = world.roster(), world.client.map()
@@ -155,6 +158,8 @@ class Desk:
             self.change(event["order"])
         elif event["kind"] == "order_cancelled":  # the world has stopped the car and told each of its gigs what happens
             self.bundler.forget(event["orderId"])
+            for gig in event["gigs"]:
+                self.ladders.pop(gig["gigId"], None)
             for books in (self.orders, self.leg_gigs):
                 books.pop(event["orderId"], None)
             for gig in event["gigs"]:  # a withdrawn bundle: post its other cars again
@@ -163,11 +168,13 @@ class Desk:
         elif event["kind"] == "visit_failed":
             self.retry(event["orderId"], event["leg"], event["reason"])
         elif event["kind"] == "gig_expired":
+            self.ladders.pop(event["gigId"], None)
             self.repost(event["gigId"])
         elif event["kind"] == "deadline_close":  # it comes again when a driver drops the car after the first warning
             self.raise_fees(event["orderId"])
         elif event["kind"] == "gig_booked" or event["kind"] == "offer_answered" and event["answer"] == "accepted":
             self.booked.add(event["gigId"])
+            self.ladders.pop(event["gigId"], None)
             if event["gigId"] in self.posts and len(orders_in(self.posts[event["gigId"]])) > 1:
                 self.bundler.counts["bundle bookings"] += 1
             if "feeCents" in event:  # an accepted offer does not say its fee
@@ -340,6 +347,7 @@ class Desk:
             elif gig_id not in self.booked:
                 schedule = self.fees_for(order, pickups(self.posts[gig_id]))
                 self.outbox.append({"type": "reprice", "gigId": gig_id, "schedule": schedule})
+                self.ladders.pop(gig_id, None)  # the warning's fee replaces the ladder's
                 self.offers.reschedule(gig_id, schedule)
                 self.offers.rescue(gig_id)
 
@@ -400,6 +408,12 @@ class Desk:
         self.posts[gig_id] = action
         if all(order_id in self.orders for order_id in orders_in(action)):
             self.offers.register(gig_id, gig_info(self.orders, action, self.admission.minutes), action["schedule"])
+        if self.level == 1 and len(orders_in(action)) == 1 and (order := self.orders.get(orders_in(action)[0])):
+            # The post went at the ladder's first fee: remember its raises (strategies/fees).
+            posted = action["schedule"][0]
+            steps = self.fees.ladder(order, self.requests[order["id"]], pickups(action), posted["at"])
+            if len(steps) > 1 and steps[0]["feeCents"] == posted["feeCents"]:
+                self.ladders[gig_id] = steps[1:]
 
     def withdraw(self, order_id: str) -> bool:
         """Takes an order's gigs out of the drivers' app. False, and nothing withdrawn, when a driver holds one of them.
@@ -412,6 +426,7 @@ class Desk:
         self.outbox += [{"type": "withdraw", "gigId": gig_id} for gig_id in gigs]
         for gig_id in gigs:
             self.offers.forget(gig_id)
+            self.ladders.pop(gig_id, None)
             self.post_rest(gig_id, order_id)
         return True
 
@@ -432,6 +447,32 @@ class Desk:
             for leg in legs:
                 carried.pop(leg)
             self.post(self.orders[order_id], sorted(legs))
+
+    def raises_due(self) -> list[Action]:
+        """Level 1: reprices each gig that no driver has booked to its ladder's fee, once the raise is due."""
+        actions: list[Action] = []
+        for gig_id, steps in list(self.ladders.items()):
+            due = [step for step in steps if step["at"] <= self.now]
+            if not due:
+                continue
+            action, rest = self.posts.get(gig_id), steps[len(due) :]
+            live = action is not None and any(gig_id in self.gigs_of(order_id) for order_id in orders_in(action))
+            if rest and live:
+                self.ladders[gig_id] = rest
+            else:
+                del self.ladders[gig_id]
+            if live and gig_id not in self.booked:
+                fee = due[-1]["feeCents"]
+                actions.append({"type": "reprice", "gigId": gig_id, "schedule": [{"at": self.now, "feeCents": fee}]})
+        return actions
+
+    def next_raise(self) -> int | None:
+        """The minute of the next ladder raise, or None. A post still in the outbox gets its ladder once the
+        world accepts it, so the clock also stops at the next raise minute for it."""
+        due = [steps[0]["at"] for steps in self.ladders.values()]
+        if self.level == 1 and any(action["type"] == "post" for action in self.outbox):
+            due.append((self.now // LADDER_STEP + 1) * LADDER_STEP)
+        return min(due, default=None)
 
     def send_post_of(self, order_id: str) -> None:
         """A post of the order still in the outbox goes to the world now, so the starter knows its gig."""
@@ -572,6 +613,9 @@ def play_practice(world: World, level: int) -> Counter[str]:
         held_until = desk.bundler.next_due()  # an order waiting for a bundle must go when its wait ends
         if held_until is not None:
             poll_at = min(poll_at, max(desk.now + 1, held_until))
+        raise_at = desk.next_raise()  # level 1: a gig that no driver has booked rises on its ladder
+        if raise_at is not None:
+            poll_at = min(poll_at, max(desk.now + 1, raise_at))
         # One request a step: the advance applies the outbox, then moves the clock.
         actions, desk.outbox = desk.outbox, []
         step = world.advance(until=until, max=min(ends_at, midnight, poll_at), actions=actions)
@@ -584,6 +628,7 @@ def play_practice(world: World, level: int) -> Counter[str]:
             desk.handle(event)
         desk.post_due()  # the new orders that bundling lets go now
         desk.outbox += desk.offers.due(desk.now)  # once all the step's events are read
+        desk.outbox += desk.raises_due()
         if desk.now // DAY > day:
             report(WEEKDAYS[day % 7], world.score())
     print(desk.offers.summary(), flush=True)

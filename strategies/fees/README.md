@@ -47,7 +47,23 @@ cars (`strategies/bundling`).
    book again only for more. With more time left, the schedule in the app stays.
 
 The rules hold for every schedule: whole minutes and cents, steps in time order, fees never falling,
-1 to 48 steps, and one step at level 1 (the opening fee).
+1 to 48 steps, and one step at level 1 (the fee the ladder below opens at).
+
+## Level 1: the fee ladder
+
+At level 1 a schedule has one step, drivers do not learn our fees, and they do not drop. At the typical
+fee, 90% of the gigs of a level 1 week booked within 3 minutes, so the typical fee pays far more than the
+cheapest driver needs. `ladder` in `schedule.py` plans the fees a gig goes through instead:
+
+1. It opens at half the typical fee (`LADDER_OPEN`).
+2. While no driver books it, `Desk.raises_due` in `dispatch.py` raises it with `reprice` every 30 minutes
+   (`LADDER_STEP`, on the clock's half hours, so all gigs rise at the same minutes), in 12 even steps
+   (`LADDER_RAISES`), up to the fee that the plan above would open at. Raises wait from 23:00 to 07:00,
+   when drivers sleep, and end an hour before the top fee is due.
+3. With less than 3 hours (`LADDER_MIN_SPAN`) before the top fee is due, there is no ladder: the gig goes
+   at the plan's fee at once. The deadline warning raises the gig as at other levels.
+
+The ladder stops when a driver books the gig, or the gig expires, is withdrawn or is cancelled.
 
 ## A change of destination
 
