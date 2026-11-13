@@ -153,10 +153,11 @@ def test_levels_below_8_have_no_price_war():
 
 def test_a_region_that_wins_far_more_than_the_rest_is_the_outage_and_gets_dearer_that_day():
     model = PricingModel(7, PLACES)
+    play(model, [True, False] * 50, at=10 * HOUR, lanes=LANES[:5], prefix="warm")  # Monday: 100 outcomes to learn from
     start = model.log_m
-    play(model, [True, False] * 6, lanes=LANES[:5], prefix="out")  # elsewhere we win half
+    play(model, [True, False] * 8, lanes=LANES[:5], prefix="out")  # elsewhere we win half
     helsinki = [("helsinki", "tampere"), ("vantaa", "oulu"), ("espoo", "turku")]
-    play(model, [True] * 12, at=TUESDAY_10 + HOUR, lanes=helsinki, prefix="in")  # around Helsinki, every quote
+    play(model, [True] * 15, at=TUESDAY_10 + HOUR, lanes=helsinki, prefix="in")  # around Helsinki, every quote
     assert model.outage is not None and {"helsinki", "espoo", "vantaa"} <= model.outage[1]
     # The region's wins no longer lift the price everywhere else.
     assert abs(model.log_m - start) < 1e-9
@@ -170,9 +171,29 @@ def test_a_region_that_wins_far_more_than_the_rest_is_the_outage_and_gets_dearer
     assert not model.in_outage(inside, 2 * DAY + 10 * HOUR)  # the next day
 
 
+def test_there_is_one_outage_a_week_and_no_price_war_on_its_day():
+    model = PricingModel(8, PLACES)
+    play(model, [True, False] * 50, at=10 * HOUR, lanes=LANES[:5], prefix="warm")
+    play(model, [True, False] * 8, lanes=LANES[:5], prefix="out")
+    helsinki = [("helsinki", "tampere"), ("vantaa", "oulu"), ("espoo", "turku")]
+    play(model, [True] * 15, at=TUESDAY_10 + HOUR, lanes=helsinki, prefix="in")
+    assert model.outage is not None and model.outage[0] == 1
+    play(model, [False] * 30, at=TUESDAY_10 + 2 * HOUR, lanes=LANES[:5], prefix="lose")
+    assert model.war_day is None
+    play(model, [True] * 15, at=2 * DAY + 10 * HOUR, lanes=helsinki, prefix="wed")
+    assert model.outage[0] == 1
+
+
 def test_a_region_that_wins_like_the_rest_is_no_outage():
     model = PricingModel(7, PLACES)
-    play(model, [True, False] * 15, lanes=LANES)
+    play(model, [True, False] * 50, at=10 * HOUR, lanes=LANES[:5], prefix="warm")
+    play(model, [True, True, False] * 30, lanes=LANES)
+    assert model.outage is None
+
+
+def test_no_outage_before_the_world_has_100_outcomes():
+    model = PricingModel(7, PLACES)
+    play(model, [True] * 30, at=10 * HOUR, lanes=[("helsinki", "tampere")])
     assert model.outage is None
 
 

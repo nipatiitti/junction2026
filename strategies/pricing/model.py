@@ -35,12 +35,12 @@ class Params:
     war_drop: float = 0.15
     war_places: int = 6
     war_decline: bool = False
-    # The outage: a region whose win share today is above the rest of the day's, by `outage_gap` and
-    # by `outage_z` in a two-proportion test, with at least `outage_min` outcomes on each side. Its
-    # requests then start at `outage_boost` times the price, and that boost learns until 18:00.
-    outage_min: int = 12
-    outage_z: float = 2.5
-    outage_gap: float = 0.15
+    # The outage, once a week: `outage_wins` wins in the last `outage_window` outcomes of one region
+    # on one day, once the world has `outage_after` outcomes. Its requests then start at
+    # `outage_boost` times the price, and that boost learns until 18:00.
+    outage_window: int = 15
+    outage_wins: int = 14
+    outage_after: int = 100
     outage_boost: float = 1.2
     trust: bool = True  # level 8: add 1% per order the dealer counts
     decline_factor: int = 10  # a declined option is quoted at ten times its list price
@@ -78,6 +78,7 @@ class PricingModel:
         self.outage: tuple[int, frozenset[str]] | None = None  # (day, the pickup places of the region)
         self.outage_log = 0.0  # the outage boost, in logs, learned from the boosted quotes
         self.near = neighbours(places or {})
+        self.seen = 0  # the outcomes of usual quotes so far
         # Dealer trust, counted from the ledger.
         self.trust: dict[str, int] = {}
         self.dealer_of: dict[str, str] = {}  # order id -> dealer
@@ -160,14 +161,16 @@ class PricingModel:
             self.day_open.setdefault(day, self.log_m)
         updates = [("", self.p.step * error)] + [(k, self.p.key_step * error) for k in quote.keys]
         self.apply(updates)
+        self.seen += 1
         if not in_hours(quote.at):
             return
         outcomes = self.today.setdefault(day, [])
         outcomes.append(Outcome(won, quote.pickup, updates))
-        if self.level >= 8 and day > 0 and self.war_day is None:
-            self.detect_war(day, outcomes)
-        if self.level >= 6 and day != self.war_day and (self.outage is None or self.outage[0] != day):
+        # One outage and one price war a week, never on the same day.
+        if self.level >= 6 and self.outage is None and day != self.war_day:
             self.detect_outage(day, outcomes)
+        if self.level >= 8 and day > 0 and self.war_day is None and (self.outage is None or self.outage[0] != day):
+            self.detect_war(day, outcomes)
 
     def apply(self, updates: list[tuple[str, float]], sign: float = 1.0) -> None:
         for key, delta in updates:
@@ -187,26 +190,24 @@ class PricingModel:
             self.war_day = day
 
     def detect_outage(self, day: int, outcomes: list[Outcome]) -> None:
-        """A region that wins far more often than the rest of the day is the outage there. What its
-        wins taught the world and its lanes today is undone, and the region gets its own boost."""
-        best: tuple[float, frozenset[str]] | None = None
+        """A run of wins in one region is the outage there: dealers there pay about 30% more. What the
+        region's wins taught the world and its lanes today is undone, and it gets its own boost."""
+        if self.seen < self.p.outage_after or not self.near:
+            return
+        best: tuple[int, float, frozenset[str]] | None = None
         for region in self.near.values():
+            if outcomes[-1].pickup not in region:
+                continue  # only the regions of the latest outcome can have changed
             inside = [o for o in outcomes if o.pickup in region]
-            n_in, n_out = len(inside), len(outcomes) - len(inside)
-            if n_in < self.p.outage_min or n_out < self.p.outage_min:
-                continue
-            w_in = sum(o.won for o in inside)
-            p_in, p_out = w_in / n_in, (sum(o.won for o in outcomes) - w_in) / n_out
-            pooled = (w_in + p_out * n_out) / (n_in + n_out)
-            spread = math.sqrt(pooled * (1 - pooled) * (1 / n_in + 1 / n_out)) or 1.0
-            z = (p_in - p_out) / spread
-            if p_in - p_out >= self.p.outage_gap and z >= self.p.outage_z and (best is None or z > best[0]):
-                best = (z, region)
+            recent = inside[-self.p.outage_window :]
+            wins, share = sum(o.won for o in recent), sum(o.won for o in inside) / len(inside)
+            if len(recent) == self.p.outage_window and wins >= self.p.outage_wins:
+                best = max(best or (wins, share, region), (wins, share, region), key=lambda b: b[:2])
         if best is None:
             return
-        self.outage, self.outage_log = (day, best[1]), math.log(self.p.outage_boost)
+        self.outage, self.outage_log = (day, best[2]), math.log(self.p.outage_boost)
         for o in outcomes:
-            if o.pickup in best[1]:
+            if o.pickup in best[2]:
                 self.apply(o.updates, -1.0)
 
     # --- dealer trust -------------------------------------------------------------------------
