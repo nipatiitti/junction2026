@@ -39,7 +39,7 @@ car dealers and pays freelance drivers to move the cars, for one simulated week.
 # Agent workflow
 
 Rules for every coding agent working in this repository. They are stack-agnostic:
-the only stack-specific part is the [Commands](#commands) table.
+the only stack-specific part is the [Commands](#commands) list.
 
 The loop: **issue → branch → build → PR → keep it mergeable → merged.**
 Optimise for speed. Small issues, small PRs, no tests.
@@ -115,14 +115,14 @@ running tests.
   runner.
 - Leave existing tests and the `tests/` folder as they are.
 - Check your work by reading it, and with lint, format and type check from the
-  Commands table.
+  Commands list.
 
 ## 5. Documentation
 
 - Document the feature in the same PR: update `README.md` or the relevant page
   under `docs/`. Say what it does and how to use it — keep it short.
 - If you change how the project is run or built, update the Commands
-  table below in the same PR.
+  list below in the same PR.
 
 ## 6. Pull request
 
@@ -185,27 +185,27 @@ deleting a branch, closing or editing any other issue you did not create
 ## Commands
 
 Stack-specific. The first PR that introduces or changes tooling must fill this
-in and keep it current. Every row must be a single copy-pasteable command.
+in and keep it current. Each item is one task and a single copy-pasteable command,
+on one line, so two PRs that each add a command do not conflict.
 
-| Task                        | Command                                                                                             |
-| --------------------------- | --------------------------------------------------------------------------------------------------- |
-| Install dependencies        | `pnpm install`                                                                                      |
-| Lint / format               | `pnpm format`                                                                                       |
-| Lint only (no writes)       | `pnpm lint`                                                                                         |
-| Type check                  | `pnpm check`                                                                                        |
-| Install Python dependencies | `uv sync`                                                                                           |
-| Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`                                                      |
-| Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                                                               |
-| Measure the note reader     | `uv run python -m strategies.notes.check reveal-<world id>`                                         |
-| Compare two versions        | `uv run python -m strategies.bench dispatch.py origin/main`                                         |
-| Build the saved-weeks DB    | `uv run db.py`                                                                                      |
-| Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .`                                                 |
-| Play a week in TypeScript   | `pnpm dispatch --level 8 --seed spread-1`                                                           |
-| Write a week to CSV (TS)    | `pnpm reveal-csv <world id>`                                                                        |
-| Build the facts tables      | `uv run python -m analysis.facts`                                                                   |
-| Margin gap report (oracle)  | `uv run python -m analysis.oracle`                                                                  |
-| Get the team's scraped data | `mkdir -p out && gh release download --pattern 'spread-data-*.tar.gz' --output - \| tar -xz -C out` |
-| Build the overview report   | `uv run python -m analysis.report`                                                                  |
+- Install dependencies: `pnpm install`
+- Lint / format: `pnpm format`
+- Lint only (no writes): `pnpm lint`
+- Type check: `pnpm check`
+- Install Python dependencies: `uv sync`
+- Play a Spread practice week: `uv run dispatch.py --level 8 --seed spread-1`
+- Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
+- Measure the note reader: `uv run python -m strategies.notes.check reveal-<world id>`
+- Compare two versions: `uv run python -m strategies.bench dispatch.py origin/main`
+- Build the saved-weeks DB: `uv run db.py`
+- Lint / format Python: `uv run ruff check --fix . && uv run ruff format .`
+- Play a week in TypeScript: `pnpm dispatch --level 8 --seed spread-1`
+- Write a week to CSV (TS): `pnpm reveal-csv <world id>`
+- Build the facts tables: `uv run python -m analysis.facts`
+- Margin gap report (oracle): `uv run python -m analysis.oracle`
+- Get the team's scraped data: `mkdir -p out && gh release download --pattern 'spread-data-*.tar.gz' --output - | tar -xz -C out`
+- Build and serve the report: `uv run python -m analysis.report`
+- Build the report file only: `uv run python -m analysis.report --no-serve`
 
 ## Definition of done
 
