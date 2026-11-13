@@ -1,5 +1,6 @@
 """Loads weeks saved by scrape.py into one SQLite database, for queries with SQL. Needs no network.
 
+    uv run db.py                                 # the team's committed weeks in data/scrape into out/spread.sqlite
     uv run db.py out/scrape                      # every saved week under out/scrape into out/spread.sqlite
     sqlite3 out/spread.sqlite "select kind, count(*) from events group by kind"
 
@@ -13,7 +14,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-from stats import Week, find_weeks, load_map, load_week
+from stats import OFFLINE_DATA, Week, find_weeks, load_map, load_week
 
 SCHEMA = """
 create table if not exists weeks (
@@ -339,11 +340,13 @@ def load_folders(db: sqlite3.Connection, roots: list[Path]) -> tuple[int, int]:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Loads weeks saved by scrape.py into a SQLite database.")
-    parser.add_argument("folders", nargs="+", type=Path, help="scrape output folders")
+    parser.add_argument(
+        "folders", nargs="*", type=Path, help="scrape output folders (default: the committed data/scrape)"
+    )
     parser.add_argument("--db", type=Path, default=Path("out/spread.sqlite"), help="default out/spread.sqlite")
     args = parser.parse_args(argv)
     db = connect(args.db)
-    added, skipped = load_folders(db, args.folders)
+    added, skipped = load_folders(db, args.folders or [OFFLINE_DATA])
     weeks = db.execute("select count(*) from weeks").fetchone()[0]
     print(f"{added} weeks added, {skipped} already there; {args.db} holds {weeks} weeks")
 

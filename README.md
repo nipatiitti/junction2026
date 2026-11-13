@@ -10,21 +10,22 @@ Short versions of the Spread challenge documents (rules, handbook, API, judging)
 
 ## Stack
 
-The dispatch system is Python 3.15, run with uv: `dispatch.py`, with tests in `tests/`. See
-[Spread challenge](#spread-challenge) for its commands.
+The dispatch system is Python 3.15, run with uv: `dispatch.py`. See [Spread challenge](#spread-challenge) for its
+commands.
 
 The repository is also a plain TypeScript project on Node 22.18+ (no build step: Node runs `.ts` files directly), with
-pnpm, Biome, and `node --test`. Our TypeScript dispatch system is `src/dispatch.ts`; see
-[Play a practice week in TypeScript](#play-a-practice-week-in-typescript). Tests sit next to the code as `*.test.ts`.
+pnpm and Biome. Our TypeScript dispatch system is `src/dispatch.ts`; see
+[Play a practice week in TypeScript](#play-a-practice-week-in-typescript).
 
 ```sh
 pnpm install
 pnpm check   # type check
 pnpm lint    # lint and format check, no writes
 pnpm format  # format, organise imports and apply safe lint fixes
-pnpm test    # all tests
-node --test src/path/to/file.test.ts   # one test file
 ```
+
+We do not write or run tests (see [`AGENTS.md`](AGENTS.md)): check changes by reading them, with lint, format and type
+check, and by comparing versions on practice weeks.
 
 In VS Code, install the recommended Biome extension to format on save.
 
@@ -80,11 +81,11 @@ week stays the same. On the level 8 starter week in `data/` (`smoke-1`), this cu
 about 1,390.
 
 - `dispatch.py` is our system. It starts as a copy of the organisers' starter, formatted with ruff.
-- `strategies/` holds the parts of the system, each with its tests and notes. `strategies/admission/` decides
+- `strategies/` holds the parts of the system, each with its notes. `strategies/admission/` decides
   which price requests to take and which option to quote.
 - `vendor/` holds the organisers' Python kit of 13 November as a wheel. uv installs it as the package `spread`: the
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
-- `tests/` holds fast tests that need no network: `uv run pytest`.
+- `tests/` holds older tests, kept as they are but no longer run: we do not write or run tests.
 
 ### Play a practice week in TypeScript
 
@@ -103,15 +104,24 @@ pnpm dispatch --final                     # play our copy of a test final or of 
 The scripts read `.env` when it exists, and otherwise the variables already set. To take a new kit version, download
 `$SPREAD_URL/kit/spread-typescript.tar.gz` and replace the files in `vendor/spread-typescript/`.
 
-### Scrape weeks for an offline model
+### Offline data and scraping more weeks
 
-`scrape.py` plays practice weeks on many seeds at once and saves each week's raw data. `stats.py` turns saved weeks
-into distributions, offline. Together they give the data for an offline model of the server.
+The data for an offline model of the server is committed in `data/`, so by default the analysis needs no server and
+no key. `stats.py` turns saved weeks into distributions and `db.py` loads them into SQLite. Without folders, both read
+the team's committed weeks in `data/scrape`:
+
+```sh
+uv run stats.py   # reads data/scrape, writes out/summary.json, prints the main numbers
+uv run db.py      # loads data/scrape into out/spread.sqlite
+```
+
+`data/spread.sqlite` is the same weeks already loaded, ready to query. Only to add weeks, play them on the server with
+`scrape.py`, which saves each week's raw data under `out/scrape`, and then pass those folders to the two scripts:
 
 ```sh
 uv run --env-file .env scrape.py --policy passive --levels 4,5,6,7,8 --seeds 20   # requests only: 10 requests a week
 uv run --env-file .env scrape.py --policy explore --levels 8 --seeds 10            # random prices: dealer and driver answers
-uv run stats.py out/scrape/passive out/scrape/explore                               # writes summary.json, prints the main numbers
+uv run stats.py out/scrape/passive out/scrape/explore                               # writes summary.json into out/scrape/passive
 uv run db.py out/scrape                                                             # loads saved weeks into out/spread.sqlite
 ```
 
@@ -134,12 +144,8 @@ folders hold the same data gzipped (about 0.1 MB and 2 MB), so the database can 
 
 `data/` holds the team's committed scrape: the week folders in `data/scrape/<policy>/L<level>/<seed>/`, and
 `data/spread.sqlite` built from them (`select level, policy, seed from weeks` lists the weeks). Open the database
-directly, or rebuild it and the summary from the folders without the server:
-
-```sh
-uv run db.py data/scrape --db out/spread.sqlite
-uv run stats.py data/scrape --out out/summary.json
-```
+directly, or rebuild it and the summary from the folders without the server with `uv run db.py` and `uv run stats.py`.
+The default outputs go to `out/`, so the committed files stay as they are.
 
 GitHub refuses files over 100 MB, so once the database outgrows that, commit only the week folders and rebuild it.
 
