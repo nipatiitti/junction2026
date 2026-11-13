@@ -5,9 +5,9 @@ from __future__ import annotations
 from spread.types import FeeStep, Order, PriceRequest
 
 from .market import Market
-from .schedule import Gig, after_drop, plan
+from .schedule import Gig, after_drop, ladder, plan
 
-__all__ = ["FeePlanner", "Gig", "Market", "after_drop", "plan"]
+__all__ = ["FeePlanner", "Gig", "Market", "after_drop", "ladder", "plan"]
 
 
 class FeePlanner:
@@ -23,6 +23,10 @@ class FeePlanner:
         self, order: Order, request: PriceRequest, cars: int, now: int, level: int, dropped_fee: int
     ) -> list[FeeStep] | None:
         return after_drop(now, self.gig(order, request, cars, now), level, dropped_fee)
+
+    def ladder(self, order: Order, request: PriceRequest, cars: int, now: int) -> list[FeeStep]:
+        """Level 1: the fees of a gig posted now, while no driver books it (see `ladder`)."""
+        return ladder(now, self.gig(order, request, cars, now))
 
     def gig(self, order: Order, request: PriceRequest, cars: int, now: int) -> Gig:
         """The facts of a gig with `cars` of the order's cars, read from its first undelivered car."""
