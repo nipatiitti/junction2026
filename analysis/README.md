@@ -246,7 +246,148 @@ from order_facts group by 1;
 
 ## For the hindsight oracle (#66)
 
-- Waterfall: the account columns of `week_facts`; on-time slack: `week_facts.late_slack`.
-- Selection bound: `order_facts.margin_cents > 0`; delivery bound: `price_cents` and `driver_fee_cents` of `order_facts`.
-- Fee bound: `gig_facts` rows with `outcome = 'done'`, lowest `fee_ratio` by `pickup_place`, `delivery_place`, `posted_day`.
-- Quote brackets: `quote_facts.ratio` against `taken` by lane and day.
+The oracle reads these tables: see [Hindsight oracle](#hindsight-oracle) below.
+
+# Hindsight oracle
+
+## What it answers
+
+Where each played week's margin went (the account, line by line), and how much a dispatcher with perfect hindsight
+could have kept: a ladder of nested upper bounds, split into the brief's buckets (quoting, driver fees, combining).
+
+```sh
+uv run python -m analysis.oracle                                  # every played week of out/spread.sqlite
+uv run python -m analysis.oracle --weeks --experiment explore-win # the week table first, one experiment
+uv run python -m analysis.oracle --db data/spread.sqlite --probe out/probe --json out/oracle.json --week 73
+```
+
+It reads the facts tables, so run `uv run python -m analysis.facts` first; it opens the database read-only and never
+writes to it. Weeks in scope are those with an order (`week_facts.won > 0`). `--week` and `--experiment` (repeatable)
+narrow the printed tables only: the JSON (`--json`, default `out/oracle.json`, `-` for none) always holds every
+played week, and the pooled inputs (fee comparables, win curves) always use every week of the database. `--probe`
+is the folder of `probe.py` quote files (`quote-L<level>-<seed>.jsonl`, default `out/probe`); without one the quote
+side uses brackets only. 70 weeks take about 2 s.
+
+## The ladder
+
+Each bound takes the one before and relaxes one more thing, so the gains add up without counting anything twice:
+
+```
+margin (actual)
+  + selection_gain   perfect accept/decline, everything else as it happened
+  + delivery_gain    every kept order on time, at the fees paid
+  + fee_gain         every done gig at the lowest comparable fee
+  + quote_gain       every request priced at its flip (sampled or estimated)
+  = oracle
+```
+
+Every bound is an **upper bound on margin under its assumptions**, never a forecast. Money is integer cents, signed
+as in the ledger for the account lines; every gain is ≥ 0. Ledger lines that name no order (`unallocated_cents`, 0
+today) are carried unchanged through every bound.
+
+**Selection.** Decline every order that lost money (and every cancelled one); keep the rest as they happened.
+Assumes costs are those that happened, declining costs nothing (a losing quote is free), dealer trust and the
+competitor's answer to fewer wins are ignored, and the drivers freed by dropped orders are not reused. It is an
+upper bound for the selection alone because it keeps exactly the orders that made money. `on_time_share_after` is
+the on-time share of the kept orders.
+
+**Delivery.** Every kept order arrives on time: no refund, penalty, fine, failed visit, waiting or release fee; the
+driver fees are those we paid. An order that was never delivered is costed at the week's paid fee ratio
+(`cost_ratio_paid`, counted in `undelivered_costed`). Assumes a driver was there in time for every kept order at the
+fee finally paid, and notes read perfectly; every removed line is a cost, so it can only raise the margin.
+`refunds_avoided_cents`, `penalties_avoided_cents` and `handling_avoided_cents` split the gain for the reader but
+need not add up to it: some orders become worth keeping only now.
+
+**Fee.** Each gig a driver completed is paid the lowest fee, as a share of the typical fee, that a driver completed
+a comparable gig for in the same world (same seed and level): the same car in any of our weeks (`twin`), or the same
+lane booked the same day for the same audience (`lane`). Assumes the driver who took the comparable could have taken
+this gig too, at that share, whatever the hour, deadline option and what drivers had learned by then. It is the
+lowest of several draws, so it flatters. Coverage is honest: a gig without a cheaper comparable saves nothing.
+Dropped bookings are not comparables (a driver who gives a gig back takes it again only for more).
+
+**Quote, from probe flips** (`quote.source = "probe"`, when the week's seed and level have a probe of at least 20
+requests). A probed request's flip `F` is the highest price known to win. The probe's parent world delivers nothing
+and wins nothing, so a flip is the **world's first answer**: dealer trust 0, no late history, a competitor that has
+not yet answered our wins. In a played week a dealer with trust `t` accepts prices up to `t`% higher (level 8), so
+flips understate what on-time delivery earns later in the week; and the competitor lowers its prices for dealers
+whose requests we mostly win, so they overstate what winning everything earns. The oracle adds neither: `F` is used
+as it is, an order won above `F` counts 0, and `won_above_flip` shows how often trust mattered. Because the parent
+wins nothing, the competitor raises its prices each morning: flips after Monday read high. The window's days are in
+`days`, and the week figure extrapolates the window (`extrapolated`). Capacity is ignored: winning every profitable
+request in a shortage needs drivers who are not there, and `new_cost` is the week's average paid fee ratio, not the
+fee of the marginal driver. This is the loosest of the bounds. An order the selection bound dropped is still
+repriced to `F` in full, which can only overstate.
+
+**Quote, from brackets** (every week; `quote.source = "brackets"` without a usable probe). A lost quote says the
+flip was below it, a won quote that it was at or above. `lost_ceiling_cents` is a strict ceiling on the revenue of
+the lost requests; `lost_below_similar` counts lost requests quoted below the median winning ratio of that day, a
+measure of how uneven the market is, not money. `estimate` is the expected flip given the bracket, from a win curve
+(`win_curves` in the JSON) that pools all our weeks of that level and weekday (one priced option only). It knows
+neither this world's price level nor the war or outage day, and it contains the trust our own weeks built by that
+weekday: an **estimate**, not a bound. On the probed requests it gives 0.87–1.18 × the probe's flip revenue.
+
+## What is measurable now (`split`)
+
+| Bucket | Value | Measurable now? |
+|---|---|---|
+| `quoting_cents` | `selection_gain + quote_gain` | Yes. Selection exactly (given what happened); the price side exactly on probed requests, estimated elsewhere. |
+| `driver_fees_cents` | `fee_gain` | Partly: only against fees that some driver really took in the same world; lanes we posted once have no comparable. |
+| `delivery_cents` | `delivery_gain` | Yes, exactly (a fourth bucket the brief does not name: lateness, penalties, handling). |
+| `combining_cents` | `null` | **No.** No scraped week has a gig with cars of two orders, so no fee of a combined gig was ever observed. |
+
+`combining.candidates` is the pool of counted single-leg orders that share pickup, delivery and deadline day with
+another order of the week (`candidate_fee_cents`: their fees). It is the size of the pool, not a saving.
+
+## On-time slack
+
+`on_time.late_slack` is how many more late orders the week could have afforded and stay at 90% on time; positive
+slack is unused room for risky profitable orders. With negative slack the week is not ranked and its margin does
+not count at all; `drops_to_rank` is how many late orders it had to decline to be ranked. Every set the bounds keep
+is fully on time, so the oracle week is ranked.
+
+## The JSON (`out/oracle.json`)
+
+Top-level keys: `version`, `generated_at`, `db`, `assumptions` (the text of each bound's assumptions), `weeks`,
+`experiments`, `win_curves` (`level`, `day`, `rows`, `pooled`, bin midpoints `mid`, non-increasing win share `win`).
+One `WEEK` (money in integer cents; `quote.probe` is null without a probe, `brackets.estimate` null without a curve):
+
+```json
+{
+  "week_id": 73, "world_id": "w407f…", "seed": "scrape-1", "level": 8, "experiment": "explore-win",
+  "waterfall": {"revenue_cents": 0, "driver_fee_cents": 0, "late_refund_cents": 0, "undelivered_penalty_cents": 0,
+                "fine_cents": 0, "failed_visit_cents": 0, "waiting_cents": 0, "release_fee_cents": 0, "other_cents": 0,
+                "margin_cents": 0, "unallocated_cents": 0,
+                "refunds": {"le_2h": {"orders": 0, "cents": 0}, "le_24h": {}, "le_2bd": {}, "gt_2bd": {}, "late_other": {}}},
+  "selection": {"margin_cents": 0, "gain_cents": 0, "orders_kept": 0, "orders_dropped": 0, "cancelled_dropped": 0,
+                "dropped_margin_cents": 0, "on_time_share_after": 0.97, "ranked_after": true},
+  "delivery": {"margin_cents": 0, "gain_cents": 0, "orders_kept": 0, "cost_ratio_paid": 1.21, "undelivered_costed": 0,
+               "refunds_avoided_cents": 0, "penalties_avoided_cents": 0, "handling_avoided_cents": 0},
+  "fee": {"margin_cents": 0, "gain_cents": 0, "orders_kept": 0, "gigs_done": 0, "gigs_with_lower": 0,
+          "saving_twin_cents": 0, "saving_lane_cents": 0, "cost_ratio_bound": 1.05},
+  "quote": {"source": "probe", "gain_cents": 0,
+            "probe": {"requests": 38, "skipped_rows": 0, "mismatched": 0, "days": [0, 1], "window": [544, 2790],
+                      "window_requests": 402, "week_requests": 1035, "scale": 10.58, "extrapolated": true,
+                      "won": 6, "lost": 3, "not_quoted": 29, "unwinnable": 0, "won_above_flip": 0,
+                      "flip_revenue_cents": 0, "won_revenue_cents": 0, "underpriced_cents": 0,
+                      "lost_winnable_cents": 0, "not_quoted_winnable_cents": 0, "window_gain_cents": 0, "week_gain_cents": 0},
+            "brackets": {"lost_requests": 0, "lost_ceiling_cents": 0,
+                         "lost_bins": [{"ratio": 1.2, "requests": 0, "ceiling_cents": 0}],
+                         "lost_below_similar": {"requests": 0, "revenue_cents": 0},
+                         "estimate": {"flip_revenue_cents": 0, "underpriced_cents": 0, "lost_winnable_cents": 0,
+                                      "not_quoted_winnable_cents": 0, "week_gain_cents": 0}}},
+  "on_time": {"counted": 0, "on_time": 0, "late": 0, "undelivered": 0, "share": 0.968, "ranked": true,
+              "late_slack": 12, "drops_to_rank": 0},
+  "combining": {"candidates": 0, "candidate_fee_cents": 0},
+  "oracle_cents": 0, "gap_cents": 0,
+  "split": {"quoting_cents": 0, "driver_fees_cents": 0, "delivery_cents": 0, "combining_cents": null},
+  "warnings": []
+}
+```
+
+An `EXPERIMENT` (one per experiment and level) has `experiment`, `level`, `weeks`, `week_ids`, `ranked_weeks`, then
+the same blocks with every cents value and count summed over its weeks. Shares and cost ratios are recomputed from
+the sums; flags (`ranked_after`, `ranked`, `extrapolated`) become counts of weeks; `on_time.late_slack` is the
+lowest of the weeks; `quote` adds `weeks_probe` and `weeks_brackets` (`source` is `"mixed"` when both occur), and
+`quote.probe.window` is null. `per_week` holds the means per week of the margin, the four gains
+(`selection_gain_cents` …), the oracle, the gap and each waterfall line (`per_week.waterfall`).
+`analysis.oracle.build(db_path, probe_dir)` returns the same object for other scripts.

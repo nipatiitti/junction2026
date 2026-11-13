@@ -178,6 +178,8 @@ Tables, keyed by `week_id` (a row of `weeks`):
 
 Derived analysis tables (win model, booking hazard, order economics, supply) are built by
 `uv run python -m analysis.facts`; see `analysis/README.md`.
+The hindsight oracle (where a week's margin went, and what a perfect dispatcher could have kept):
+`uv run python -m analysis.oracle`.
 
 A passive week takes about 1.7 MB in the database, and a played week about 20 MB, most of it gig views. The week
 folders hold the same data gzipped (about 0.1 MB and 2 MB), so the database can always be rebuilt from them.
