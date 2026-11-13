@@ -3,7 +3,8 @@
 ## What it is
 
 Derived tables in the scrape database, so that a question about the world is one SQL query. They are built from
-the raw tables of `db.py` (see the main README) and live in the same file:
+the raw tables of `db.py` (see the main README) and live in the same file, beside the `probes` and
+`fee_probes` tables of `db.py` that hold the probe rows:
 
 ```sh
 uv run python -m analysis.facts                          # build the weeks that have no facts yet (out/spread.sqlite)
@@ -25,152 +26,152 @@ least 4.8 and at least 50 completed gigs.
 
 ### `week_facts`: one row per week
 
-| Column | Meaning |
-|---|---|
-| `week_id`, `world_id`, `seed`, `level`, `policy` | from `weeks` |
-| `experiment` | the folder after `scrape/` (`passive`, `explore-win`, `explore-ceiling`, `starter`…), else the policy |
-| `recorded` | 1 when the week has an action log (`actions` rows) |
-| `quote_share`, `fee_shape`, `fee_cap`, `offers` | the explore settings (`weeks.settings`) |
-| `quote_lo`, `quote_hi`, `fee_lo`, `fee_hi` | the explore ranges |
-| `drivers`, `drivers_experienced`, `drivers_manual`, `towns_with_drivers` | the driver list at the start |
-| `requests`, `quoted`, `declined`, `unquoted` | requests; with a real quote; only declined (≥ 5 × list); never answered |
-| `won`, `cancelled`, `counted`, `delivered`, `on_time`, `late`, `undelivered` | orders, from `order_facts` |
-| `on_time_share` | `on_time / counted` (equals `weeks.on_time_share`) |
-| `late_slack` | `counted // 10 - (late + undelivered)`: more late orders the week can take and stay at 90%; negative = not ranked |
-| `revenue_cents` … `fine_cents`, `other_cents` | ledger sums by kind, signed as in the ledger (costs negative) |
-| `margin_cents` | sum of every ledger line (equals `weeks.margin_cents`) |
-| `gigs`, `bookings`, `drops`, `no_shows`, `expired`, `views` | gigs; `gig_booked`, `gig_dropped`, `no_show`, `gig_expired` events; views |
-| `war_day` | the day `week_days` guesses as the price war, else null |
-| `facts_version` | the builder's `VERSION` |
+| Column                                                                       | Meaning                                                                                                           |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `week_id`, `world_id`, `seed`, `level`, `policy`                             | from `weeks`                                                                                                      |
+| `experiment`                                                                 | the folder after `scrape/` (`passive`, `explore-win`, `explore-ceiling`, `starter`…), else the policy             |
+| `recorded`                                                                   | 1 when the week has an action log (`actions` rows)                                                                |
+| `quote_share`, `fee_shape`, `fee_cap`, `offers`                              | the explore settings (`weeks.settings`)                                                                           |
+| `quote_lo`, `quote_hi`, `fee_lo`, `fee_hi`                                   | the explore ranges                                                                                                |
+| `drivers`, `drivers_experienced`, `drivers_manual`, `towns_with_drivers`     | the driver list at the start                                                                                      |
+| `requests`, `quoted`, `declined`, `unquoted`                                 | requests; with a real quote; only declined (≥ 5 × list); never answered                                           |
+| `won`, `cancelled`, `counted`, `delivered`, `on_time`, `late`, `undelivered` | orders, from `order_facts`                                                                                        |
+| `on_time_share`                                                              | `on_time / counted` (equals `weeks.on_time_share`)                                                                |
+| `late_slack`                                                                 | `counted // 10 - (late + undelivered)`: more late orders the week can take and stay at 90%; negative = not ranked |
+| `revenue_cents` … `fine_cents`, `other_cents`                                | ledger sums by kind, signed as in the ledger (costs negative)                                                     |
+| `margin_cents`                                                               | sum of every ledger line (equals `weeks.margin_cents`)                                                            |
+| `gigs`, `bookings`, `drops`, `no_shows`, `expired`, `views`                  | gigs; `gig_booked`, `gig_dropped`, `no_show`, `gig_expired` events; views                                         |
+| `war_day`                                                                    | the day `week_days` guesses as the price war, else null                                                           |
+| `facts_version`                                                              | the builder's `VERSION`                                                                                           |
 
 ### `quote_facts`: one row per delivery option of each request (the win model)
 
-| Column | Meaning |
-|---|---|
-| `week_id`, `level`, `request_id`, `option` | the option (`same_day`, `next_day`, `within_3_days`) |
-| `dealer_id`, `batch_id`, `batch_size` | the dealer; requests in the same batch (1 without one) |
-| `arrived_at`, `respond_by`, `day`, `hour` | when the request came; `day`, `hour` of `arrived_at` |
-| `legs` | cars of the request (2 = trade-in) |
-| `pickup_place`, `delivery_place`, `km` | leg 0 |
-| `km_total`, `minutes_total` | over all legs |
-| `private_pickup`, `private_delivery`, `premium`, `electric` | true on any leg |
-| `low_charge` | an electric car under 30% going over 200 km (needs a charging stop) |
-| `has_note`, `note_language` | the request has a note; its language |
-| `options_offered`, `option_rank` | options of the request; 0 same day, 1 next day, 2 within three days |
-| `deadline`, `hours_to_deadline` | the option's deadline; hours from arrival to it |
-| `lead_minutes` | leg 0 ready time minus arrival |
-| `list_price_cents`, `reference_fee_cents`, `fee_share` | list price; typical driver fee of the request; their ratio |
-| `quote_cents`, `ratio` | our last quote (null when not priced); quote over list |
-| `declined`, `quoted` | `ratio >= 5` (a decline); a real quote |
-| `options_quoted`, `cheapest`, `min_other_ratio` | quoted options of the request; this is the cheapest; the lowest ratio among the others |
-| `outcome`, `taken` | `won`, `lost`, `unquoted`; the dealer took this option from us |
-| `dealer_trust` | the dealer's trust count at the decision, rebuilt from revenue and refund lines (+1 on time up to 25, halved when late) |
-| `dealer_on_time_before`, `dealer_late_before` | our orders for this dealer delivered on time / late before the decision |
-| `dealer_open_orders`, `dealer_overdue_open` | its orders won and not delivered; those past their deadline |
-| `dealer_requests_before`, `dealer_quoted_before`, `dealer_won_before`, `dealer_unquoted_before` | the dealer's earlier decided requests of the week |
-| `drivers_pickup`, `drivers_delivery`, `drivers_near_pickup`, `drivers_near_delivery` | drivers living at / near leg 0's places |
-| `war_guess` | the request came on the guessed price-war day |
+| Column                                                                                          | Meaning                                                                                                                 |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `week_id`, `level`, `request_id`, `option`                                                      | the option (`same_day`, `next_day`, `within_3_days`)                                                                    |
+| `dealer_id`, `batch_id`, `batch_size`                                                           | the dealer; requests in the same batch (1 without one)                                                                  |
+| `arrived_at`, `respond_by`, `day`, `hour`                                                       | when the request came; `day`, `hour` of `arrived_at`                                                                    |
+| `legs`                                                                                          | cars of the request (2 = trade-in)                                                                                      |
+| `pickup_place`, `delivery_place`, `km`                                                          | leg 0                                                                                                                   |
+| `km_total`, `minutes_total`                                                                     | over all legs                                                                                                           |
+| `private_pickup`, `private_delivery`, `premium`, `electric`                                     | true on any leg                                                                                                         |
+| `low_charge`                                                                                    | an electric car under 30% going over 200 km (needs a charging stop)                                                     |
+| `has_note`, `note_language`                                                                     | the request has a note; its language                                                                                    |
+| `options_offered`, `option_rank`                                                                | options of the request; 0 same day, 1 next day, 2 within three days                                                     |
+| `deadline`, `hours_to_deadline`                                                                 | the option's deadline; hours from arrival to it                                                                         |
+| `lead_minutes`                                                                                  | leg 0 ready time minus arrival                                                                                          |
+| `list_price_cents`, `reference_fee_cents`, `fee_share`                                          | list price; typical driver fee of the request; their ratio                                                              |
+| `quote_cents`, `ratio`                                                                          | our last quote (null when not priced); quote over list                                                                  |
+| `declined`, `quoted`                                                                            | `ratio >= 5` (a decline); a real quote                                                                                  |
+| `options_quoted`, `cheapest`, `min_other_ratio`                                                 | quoted options of the request; this is the cheapest; the lowest ratio among the others                                  |
+| `outcome`, `taken`                                                                              | `won`, `lost`, `unquoted`; the dealer took this option from us                                                          |
+| `dealer_trust`                                                                                  | the dealer's trust count at the decision, rebuilt from revenue and refund lines (+1 on time up to 25, halved when late) |
+| `dealer_on_time_before`, `dealer_late_before`                                                   | our orders for this dealer delivered on time / late before the decision                                                 |
+| `dealer_open_orders`, `dealer_overdue_open`                                                     | its orders won and not delivered; those past their deadline                                                             |
+| `dealer_requests_before`, `dealer_quoted_before`, `dealer_won_before`, `dealer_unquoted_before` | the dealer's earlier decided requests of the week                                                                       |
+| `drivers_pickup`, `drivers_delivery`, `drivers_near_pickup`, `drivers_near_delivery`            | drivers living at / near leg 0's places                                                                                 |
+| `war_guess`                                                                                     | the request came on the guessed price-war day                                                                           |
 
 ### `order_facts`: one row per won order (cancelled included)
 
-| Column | Meaning |
-|---|---|
-| `week_id`, `level`, `order_id`, `dealer_id`, `option` | |
-| `won_at`, `day`, `hour` | when we won it |
-| `legs`, `pickup_place`, `delivery_place`, `km`, `km_total`, `private_pickup`, `private_delivery`, `premium`, `electric`, `has_note` | the request's lane and cars |
-| `price_cents`, `list_price_cents`, `ratio`, `reference_fee_cents` | our price; the taken option's list price; their ratio; typical fee |
-| `deadline_won`, `last_pickup_won`, `deadline` | deadline and last pickup at the win; the deadline at the end |
-| `changes`, `place_changed` | changes of plan; one of them moved a place |
-| `ready_late`, `held`, `needs_plates`, `manual_gearbox`, `summer_tyres`, `note_deadline`, `hours_differ` | the truth behind the note (reveal) |
-| `status`, `cancelled`, `cancelled_at`, `counted` | status at the end; cancelled; when; counts for the delivery minimum |
-| `delivered_at` | minute of its revenue line |
-| `revenue_cents` … `other_cents` | its ledger lines by kind, signed |
-| `extra_driving_cents` | the part of `driver_fee_cents` paid for extra driving after a change of plan |
-| `margin_cents` | sum of the account columns |
-| `refund_pct`, `late_minutes` | from the late refund line; `late_minutes` is 0 when on time |
-| `late_bucket` | `on_time`, `le_2h`, `le_24h`, `le_2bd`, `gt_2bd`, `late_other`, `undelivered`, `cancelled` |
-| `on_time` | null when cancelled |
-| `gigs`, `bookings`, `drops`, `no_shows`, `expired`, `reprices`, `failed_visits`, `views`, `viewers` | over the gigs that carry it |
-| `shared_gig` | a gig of it also carries another order |
-| `first_posted_at`, `minutes_to_post`, `first_fee_ratio` | its first gig; minutes from the win; its opening fee over the typical fee |
-| `first_view_fee_cents` | the fee a driver saw first (what drivers learn from) |
-| `first_booked_at`, `minutes_to_booking`, `first_booked_ratio` | the first booking; minutes from the first post; fee over typical |
-| `paid_ratio` | driver fees paid (without extra driving) over the typical fee |
-| `open_minutes` | minutes its gigs were open |
-| `dealer_trust_won` | the dealer's trust count when we won it |
+| Column                                                                                                                              | Meaning                                                                                    |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `week_id`, `level`, `order_id`, `dealer_id`, `option`                                                                               |                                                                                            |
+| `won_at`, `day`, `hour`                                                                                                             | when we won it                                                                             |
+| `legs`, `pickup_place`, `delivery_place`, `km`, `km_total`, `private_pickup`, `private_delivery`, `premium`, `electric`, `has_note` | the request's lane and cars                                                                |
+| `price_cents`, `list_price_cents`, `ratio`, `reference_fee_cents`                                                                   | our price; the taken option's list price; their ratio; typical fee                         |
+| `deadline_won`, `last_pickup_won`, `deadline`                                                                                       | deadline and last pickup at the win; the deadline at the end                               |
+| `changes`, `place_changed`                                                                                                          | changes of plan; one of them moved a place                                                 |
+| `ready_late`, `held`, `needs_plates`, `manual_gearbox`, `summer_tyres`, `note_deadline`, `hours_differ`                             | the truth behind the note (reveal)                                                         |
+| `status`, `cancelled`, `cancelled_at`, `counted`                                                                                    | status at the end; cancelled; when; counts for the delivery minimum                        |
+| `delivered_at`                                                                                                                      | minute of its revenue line                                                                 |
+| `revenue_cents` … `other_cents`                                                                                                     | its ledger lines by kind, signed                                                           |
+| `extra_driving_cents`                                                                                                               | the part of `driver_fee_cents` paid for extra driving after a change of plan               |
+| `margin_cents`                                                                                                                      | sum of the account columns                                                                 |
+| `refund_pct`, `late_minutes`                                                                                                        | from the late refund line; `late_minutes` is 0 when on time                                |
+| `late_bucket`                                                                                                                       | `on_time`, `le_2h`, `le_24h`, `le_2bd`, `gt_2bd`, `late_other`, `undelivered`, `cancelled` |
+| `on_time`                                                                                                                           | null when cancelled                                                                        |
+| `gigs`, `bookings`, `drops`, `no_shows`, `expired`, `reprices`, `failed_visits`, `views`, `viewers`                                 | over the gigs that carry it                                                                |
+| `shared_gig`                                                                                                                        | a gig of it also carries another order                                                     |
+| `first_posted_at`, `minutes_to_post`, `first_fee_ratio`                                                                             | its first gig; minutes from the win; its opening fee over the typical fee                  |
+| `first_view_fee_cents`                                                                                                              | the fee a driver saw first (what drivers learn from)                                       |
+| `first_booked_at`, `minutes_to_booking`, `first_booked_ratio`                                                                       | the first booking; minutes from the first post; fee over typical                           |
+| `paid_ratio`                                                                                                                        | driver fees paid (without extra driving) over the typical fee                              |
+| `open_minutes`                                                                                                                      | minutes its gigs were open                                                                 |
+| `dealer_trust_won`                                                                                                                  | the dealer's trust count when we won it                                                    |
 
 ### `gig_facts`: one row per gig (fee bound, how low drivers go, where bookers live)
 
-| Column | Meaning |
-|---|---|
-| `week_id`, `level`, `gig_id`, `source` | `source`: `actions` (fees rebuilt from the action log) or `gigs` (last schedule only) |
-| `order_id`, `orders`, `cars`, `order_post_no` | first stop's order; orders and cars in it; 1 for the order's first gig, 2 for the next… |
-| `pickup_place`, `delivery_place`, `km`, `drive_minutes` | first pickup, last delivery, over its cars |
-| `private_pickup`, `private_delivery`, `premium`, `experienced`, `manual_licence`, `with_plates`, `with_charging` | its cars and audience |
-| `posted_at`, `posted_day`, `posted_hour` | |
-| `typical_fee_cents` | the typical fee for its cars |
-| `opening_fee_cents`, `opening_ratio`, `top_fee_cents` | first step of the first schedule; over typical; last step of the last schedule |
-| `steps`, `reprices` | steps of the first schedule; reprices |
-| `spells`, `open_minutes` | its `gig_spells` rows; minutes open |
-| `views`, `viewers`, `bookings`, `drops`, `no_shows`, `failed_visits` | |
-| `first_booked_at`, `first_booked_fee_cents`, `minutes_to_booking` | the first booking |
-| `outcome` | `open`, `booked`, `working`, `done`, or for a withdrawn gig `expired`, `cancelled`, `released`, `withdrawn` |
-| `driver_id`, `booked_at`, `fee_cents`, `fee_ratio` | the last booking (null without a driver) |
-| `paid_cents`, `started_at` | driver fees paid (positive); last start |
-| `last_pickup_at_post`, `minutes_to_last_pickup` | the order's last pickup known at the post; minutes left |
-| `driver_home`, `home_to_pickup_km`, `delivery_to_home_km` | where the driver lives; road km to the pickup and back home |
+| Column                                                                                                           | Meaning                                                                                                     |
+| ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `week_id`, `level`, `gig_id`, `source`                                                                           | `source`: `actions` (fees rebuilt from the action log) or `gigs` (last schedule only)                       |
+| `order_id`, `orders`, `cars`, `order_post_no`                                                                    | first stop's order; orders and cars in it; 1 for the order's first gig, 2 for the next…                     |
+| `pickup_place`, `delivery_place`, `km`, `drive_minutes`                                                          | first pickup, last delivery, over its cars                                                                  |
+| `private_pickup`, `private_delivery`, `premium`, `experienced`, `manual_licence`, `with_plates`, `with_charging` | its cars and audience                                                                                       |
+| `posted_at`, `posted_day`, `posted_hour`                                                                         |                                                                                                             |
+| `typical_fee_cents`                                                                                              | the typical fee for its cars                                                                                |
+| `opening_fee_cents`, `opening_ratio`, `top_fee_cents`                                                            | first step of the first schedule; over typical; last step of the last schedule                              |
+| `steps`, `reprices`                                                                                              | steps of the first schedule; reprices                                                                       |
+| `spells`, `open_minutes`                                                                                         | its `gig_spells` rows; minutes open                                                                         |
+| `views`, `viewers`, `bookings`, `drops`, `no_shows`, `failed_visits`                                             |                                                                                                             |
+| `first_booked_at`, `first_booked_fee_cents`, `minutes_to_booking`                                                | the first booking                                                                                           |
+| `outcome`                                                                                                        | `open`, `booked`, `working`, `done`, or for a withdrawn gig `expired`, `cancelled`, `released`, `withdrawn` |
+| `driver_id`, `booked_at`, `fee_cents`, `fee_ratio`                                                               | the last booking (null without a driver)                                                                    |
+| `paid_cents`, `started_at`                                                                                       | driver fees paid (positive); last start                                                                     |
+| `last_pickup_at_post`, `minutes_to_last_pickup`                                                                  | the order's last pickup known at the post; minutes left                                                     |
+| `driver_home`, `home_to_pickup_km`, `delivery_to_home_km`                                                        | where the driver lives; road km to the pickup and back home                                                 |
 
 ### `gig_spells`: one row per period a gig was open at one fee within one day (the booking hazard)
 
-| Column | Meaning |
-|---|---|
-| `week_id`, `level`, `gig_id`, `spell`, `source` | `spell` numbers the gig's rows in time order |
-| `fee_run` | rows with one `fee_run` are one period at one fee, cut at midnight |
-| `interval` | open intervals of the gig: a new one after each drop or no-show |
-| `order_id`, `order_post_no`, `cars`, `orders`, `pickup_place`, `delivery_place`, `km`, `drive_minutes`, `private_pickup`, `premium`, `experienced`, `manual_licence` | of the gig |
-| `start_at`, `end_at`, `minutes`, `day_minutes` | the period; its minutes; those between 07:00 and 23:00 |
-| `day`, `hour` | of `start_at` |
-| `fee_cents`, `typical_fee_cents`, `fee_ratio`, `next_fee_cents` | the fee shown; typical; ratio; the next row's fee after a raise, reprice or midnight |
-| `last_pickup_at`, `minutes_to_last_pickup`, `deadline_warned` | the order's last pickup known at `start_at`; minutes left; a `deadline_close` came |
-| `opened_by` | `post`, `drop`, `no_show` |
-| `order_age_minutes` | minutes since the order's first gig was posted |
-| `views`, `viewers`, `new_viewers` | views in the row; drivers; drivers who had not seen the order before |
-| `order_views_before`, `order_viewers_before`, `order_viewed_before` | views of the order's gigs before `start_at` |
-| `first_view_fee_cents`, `fee_over_first_view` | the order's first viewed fee (before `start_at`); this fee over it |
-| `order_bookings_before` | earlier bookings of the order's gigs |
-| `taught_orders`, `taught_raise`, `taught_wait` | the week's bookings so far; their mean fee over the first viewed fee and mean minutes after it |
-| `drivers_pickup`, `drivers_near_pickup`, `snow` | drivers at / near the pickup; snow forecast there |
-| `offers` | direct offers sent during the row |
-| `end_kind` | `booked`, `raise`, `reprice`, `midnight`, `expired`, `withdrawn`, `cancelled`, `end` |
-| `end_estimated` | the end is a guess (a withdraw without the action log) |
-| `booked`, `driver_id`, `booked_fee_cents`, `via_offer` | the booking that ended the row |
-| `kept` | the booking held to the end (no drop, no-show, release or cancellation) |
-| `view_fee_mismatches` | views in the row that saw another fee |
+| Column                                                                                                                                                               | Meaning                                                                                        |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `week_id`, `level`, `gig_id`, `spell`, `source`                                                                                                                      | `spell` numbers the gig's rows in time order                                                   |
+| `fee_run`                                                                                                                                                            | rows with one `fee_run` are one period at one fee, cut at midnight                             |
+| `interval`                                                                                                                                                           | open intervals of the gig: a new one after each drop or no-show                                |
+| `order_id`, `order_post_no`, `cars`, `orders`, `pickup_place`, `delivery_place`, `km`, `drive_minutes`, `private_pickup`, `premium`, `experienced`, `manual_licence` | of the gig                                                                                     |
+| `start_at`, `end_at`, `minutes`, `day_minutes`                                                                                                                       | the period; its minutes; those between 07:00 and 23:00                                         |
+| `day`, `hour`                                                                                                                                                        | of `start_at`                                                                                  |
+| `fee_cents`, `typical_fee_cents`, `fee_ratio`, `next_fee_cents`                                                                                                      | the fee shown; typical; ratio; the next row's fee after a raise, reprice or midnight           |
+| `last_pickup_at`, `minutes_to_last_pickup`, `deadline_warned`                                                                                                        | the order's last pickup known at `start_at`; minutes left; a `deadline_close` came             |
+| `opened_by`                                                                                                                                                          | `post`, `drop`, `no_show`                                                                      |
+| `order_age_minutes`                                                                                                                                                  | minutes since the order's first gig was posted                                                 |
+| `views`, `viewers`, `new_viewers`                                                                                                                                    | views in the row; drivers; drivers who had not seen the order before                           |
+| `order_views_before`, `order_viewers_before`, `order_viewed_before`                                                                                                  | views of the order's gigs before `start_at`                                                    |
+| `first_view_fee_cents`, `fee_over_first_view`                                                                                                                        | the order's first viewed fee (before `start_at`); this fee over it                             |
+| `order_bookings_before`                                                                                                                                              | earlier bookings of the order's gigs                                                           |
+| `taught_orders`, `taught_raise`, `taught_wait`                                                                                                                       | the week's bookings so far; their mean fee over the first viewed fee and mean minutes after it |
+| `drivers_pickup`, `drivers_near_pickup`, `snow`                                                                                                                      | drivers at / near the pickup; snow forecast there                                              |
+| `offers`                                                                                                                                                             | direct offers sent during the row                                                              |
+| `end_kind`                                                                                                                                                           | `booked`, `raise`, `reprice`, `midnight`, `expired`, `withdrawn`, `cancelled`, `end`           |
+| `end_estimated`                                                                                                                                                      | the end is a guess (a withdraw without the action log)                                         |
+| `booked`, `driver_id`, `booked_fee_cents`, `via_offer`                                                                                                               | the booking that ended the row                                                                 |
+| `kept`                                                                                                                                                               | the booking held to the end (no drop, no-show, release or cancellation)                        |
+| `view_fee_mismatches`                                                                                                                                                | views in the row that saw another fee                                                          |
 
 ### `town_days`: one row per week, place and day 0–9 (supply)
 
-| Column | Meaning |
-|---|---|
-| `week_id`, `level`, `place`, `day` | |
-| `drivers_home`, `experienced_home`, `manual_home`, `drivers_near` | drivers living there / near |
-| `snow` | a forecast covers the place that day |
-| `requests`, `requests_delivery`, `won` | requests that day picking up / delivering there; orders won picking up there |
-| `viewers_home`, `views_home`, `bookers_home`, `bookings_home`, `starters_home` | drivers living there who viewed, booked, started a gig that day |
-| `gigs_posted`, `gigs_open`, `open_minutes` | gigs picking up there: posted; open; minutes open |
-| `views`, `viewers`, `bookings`, `booked_share` | views and bookings of those gigs; bookings per open gig |
-| `mean_booked_ratio`, `min_booked_ratio` | booked fee over typical fee |
+| Column                                                                         | Meaning                                                                      |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `week_id`, `level`, `place`, `day`                                             |                                                                              |
+| `drivers_home`, `experienced_home`, `manual_home`, `drivers_near`              | drivers living there / near                                                  |
+| `snow`                                                                         | a forecast covers the place that day                                         |
+| `requests`, `requests_delivery`, `won`                                         | requests that day picking up / delivering there; orders won picking up there |
+| `viewers_home`, `views_home`, `bookers_home`, `bookings_home`, `starters_home` | drivers living there who viewed, booked, started a gig that day              |
+| `gigs_posted`, `gigs_open`, `open_minutes`                                     | gigs picking up there: posted; open; minutes open                            |
+| `views`, `viewers`, `bookings`, `booked_share`                                 | views and bookings of those gigs; bookings per open gig                      |
+| `mean_booked_ratio`, `min_booked_ratio`                                        | booked fee over typical fee                                                  |
 
 Passive weeks fill only the drivers, snow and requests columns.
 
 ### `week_days`: one row per week and weekday 0–4 (day effects, the price war)
 
-| Column | Meaning |
-|---|---|
-| `week_id`, `level`, `day` | |
-| `requests`, `quoted`, `won` | requests arriving that day; quoted; won |
-| `band_n`, `band_won`, `band_share` | real quotes at 1.0–1.25 × list between 08:00 and 18:00; those taken; their share |
-| `war_score` | `band_share` minus the mean of the week's other days (with 10+ quotes in the band) |
-| `war_guess` | the day with the lowest score, at level 8, when it is −0.25 or lower |
+| Column                             | Meaning                                                                            |
+| ---------------------------------- | ---------------------------------------------------------------------------------- |
+| `week_id`, `level`, `day`          |                                                                                    |
+| `requests`, `quoted`, `won`        | requests arriving that day; quoted; won                                            |
+| `band_n`, `band_won`, `band_share` | real quotes at 1.0–1.25 × list between 08:00 and 18:00; those taken; their share   |
+| `war_score`                        | `band_share` minus the mean of the week's other days (with 10+ quotes in the band) |
+| `war_guess`                        | the day with the lowest score, at level 8, when it is −0.25 or lower               |
 
 ## Reading the data
 
@@ -242,6 +243,21 @@ from week_facts where won > 0 group by 1, 2;
 select late_bucket, count(*) orders, sum(late_refund_cents + undelivered_penalty_cents) / 100 cost,
        round(avg(margin_cents) / 100.0, 2) mean_margin
 from order_facts group by 1;
+```
+
+Several weeks share a probe's seed and level, so each flip joins every played week of that world; the list price is
+in the join because the oracle treats a different list price as a different request.
+
+```sql
+-- 11. Did our quote sit under the probe's flip, and did it win? Level 8, single-option quotes.
+select q.outcome, count(*) as quotes, sum(q.quote_cents <= p.bracket_low_cents) as under_flip,
+       round(avg(q.ratio), 2) as our_ratio, round(avg(p.flip_ratio), 2) as flip_ratio
+from probes p
+join weeks w on w.seed = p.seed and w.level = p.level
+join quote_facts q on q.week_id = w.id and q.request_id = p.request_id and q.option = p.option
+                  and q.list_price_cents = p.list_price_cents
+where p.level = 8 and p.flip_ratio is not null and p.monotone = 1 and q.quoted = 1 and q.options_quoted = 1
+group by 1;
 ```
 
 ## For the hindsight oracle (#66)
@@ -328,12 +344,12 @@ weekday: an **estimate**, not a bound. On the probed requests it gives 0.87–1.
 
 ## What is measurable now (`split`)
 
-| Bucket | Value | Measurable now? |
-|---|---|---|
-| `quoting_cents` | `selection_gain + quote_gain` | Yes. Selection exactly (given what happened); the price side exactly on probed requests, estimated elsewhere. |
-| `driver_fees_cents` | `fee_gain` | Partly: only against fees that some driver really took in the same world; lanes we posted once have no comparable. |
-| `delivery_cents` | `delivery_gain` | Yes, exactly (a fourth bucket the brief does not name: lateness, penalties, handling). |
-| `combining_cents` | `null` | **No.** No scraped week has a gig with cars of two orders, so no fee of a combined gig was ever observed. |
+| Bucket              | Value                         | Measurable now?                                                                                                    |
+| ------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `quoting_cents`     | `selection_gain + quote_gain` | Yes. Selection exactly (given what happened); the price side exactly on probed requests, estimated elsewhere.      |
+| `driver_fees_cents` | `fee_gain`                    | Partly: only against fees that some driver really took in the same world; lanes we posted once have no comparable. |
+| `delivery_cents`    | `delivery_gain`               | Yes, exactly (a fourth bucket the brief does not name: lateness, penalties, handling).                             |
+| `combining_cents`   | `null`                        | **No.** No scraped week has a gig with cars of two orders, so no fee of a combined gig was ever observed.          |
 
 `combining.candidates` is the pool of counted single-leg orders that share pickup, delivery and deadline day with
 another order of the week (`candidate_fee_cents`: their fees). It is the size of the pool, not a saving.
@@ -353,33 +369,109 @@ One `WEEK` (money in integer cents; `quote.probe` is null without a probe, `brac
 
 ```json
 {
-  "week_id": 73, "world_id": "w407f…", "seed": "scrape-1", "level": 8, "experiment": "explore-win",
-  "waterfall": {"revenue_cents": 0, "driver_fee_cents": 0, "late_refund_cents": 0, "undelivered_penalty_cents": 0,
-                "fine_cents": 0, "failed_visit_cents": 0, "waiting_cents": 0, "release_fee_cents": 0, "other_cents": 0,
-                "margin_cents": 0, "unallocated_cents": 0,
-                "refunds": {"le_2h": {"orders": 0, "cents": 0}, "le_24h": {}, "le_2bd": {}, "gt_2bd": {}, "late_other": {}}},
-  "selection": {"margin_cents": 0, "gain_cents": 0, "orders_kept": 0, "orders_dropped": 0, "cancelled_dropped": 0,
-                "dropped_margin_cents": 0, "on_time_share_after": 0.97, "ranked_after": true},
-  "delivery": {"margin_cents": 0, "gain_cents": 0, "orders_kept": 0, "cost_ratio_paid": 1.21, "undelivered_costed": 0,
-               "refunds_avoided_cents": 0, "penalties_avoided_cents": 0, "handling_avoided_cents": 0},
-  "fee": {"margin_cents": 0, "gain_cents": 0, "orders_kept": 0, "gigs_done": 0, "gigs_with_lower": 0,
-          "saving_twin_cents": 0, "saving_lane_cents": 0, "cost_ratio_bound": 1.05},
-  "quote": {"source": "probe", "gain_cents": 0,
-            "probe": {"requests": 38, "skipped_rows": 0, "mismatched": 0, "days": [0, 1], "window": [544, 2790],
-                      "window_requests": 402, "week_requests": 1035, "scale": 10.58, "extrapolated": true,
-                      "won": 6, "lost": 3, "not_quoted": 29, "unwinnable": 0, "won_above_flip": 0,
-                      "flip_revenue_cents": 0, "won_revenue_cents": 0, "underpriced_cents": 0,
-                      "lost_winnable_cents": 0, "not_quoted_winnable_cents": 0, "window_gain_cents": 0, "week_gain_cents": 0},
-            "brackets": {"lost_requests": 0, "lost_ceiling_cents": 0,
-                         "lost_bins": [{"ratio": 1.2, "requests": 0, "ceiling_cents": 0}],
-                         "lost_below_similar": {"requests": 0, "revenue_cents": 0},
-                         "estimate": {"flip_revenue_cents": 0, "underpriced_cents": 0, "lost_winnable_cents": 0,
-                                      "not_quoted_winnable_cents": 0, "week_gain_cents": 0}}},
-  "on_time": {"counted": 0, "on_time": 0, "late": 0, "undelivered": 0, "share": 0.968, "ranked": true,
-              "late_slack": 12, "drops_to_rank": 0},
-  "combining": {"candidates": 0, "candidate_fee_cents": 0},
-  "oracle_cents": 0, "gap_cents": 0,
-  "split": {"quoting_cents": 0, "driver_fees_cents": 0, "delivery_cents": 0, "combining_cents": null},
+  "week_id": 73,
+  "world_id": "w407f…",
+  "seed": "scrape-1",
+  "level": 8,
+  "experiment": "explore-win",
+  "waterfall": {
+    "revenue_cents": 0,
+    "driver_fee_cents": 0,
+    "late_refund_cents": 0,
+    "undelivered_penalty_cents": 0,
+    "fine_cents": 0,
+    "failed_visit_cents": 0,
+    "waiting_cents": 0,
+    "release_fee_cents": 0,
+    "other_cents": 0,
+    "margin_cents": 0,
+    "unallocated_cents": 0,
+    "refunds": { "le_2h": { "orders": 0, "cents": 0 }, "le_24h": {}, "le_2bd": {}, "gt_2bd": {}, "late_other": {} }
+  },
+  "selection": {
+    "margin_cents": 0,
+    "gain_cents": 0,
+    "orders_kept": 0,
+    "orders_dropped": 0,
+    "cancelled_dropped": 0,
+    "dropped_margin_cents": 0,
+    "on_time_share_after": 0.97,
+    "ranked_after": true
+  },
+  "delivery": {
+    "margin_cents": 0,
+    "gain_cents": 0,
+    "orders_kept": 0,
+    "cost_ratio_paid": 1.21,
+    "undelivered_costed": 0,
+    "refunds_avoided_cents": 0,
+    "penalties_avoided_cents": 0,
+    "handling_avoided_cents": 0
+  },
+  "fee": {
+    "margin_cents": 0,
+    "gain_cents": 0,
+    "orders_kept": 0,
+    "gigs_done": 0,
+    "gigs_with_lower": 0,
+    "saving_twin_cents": 0,
+    "saving_lane_cents": 0,
+    "cost_ratio_bound": 1.05
+  },
+  "quote": {
+    "source": "probe",
+    "gain_cents": 0,
+    "probe": {
+      "requests": 38,
+      "skipped_rows": 0,
+      "mismatched": 0,
+      "days": [0, 1],
+      "window": [544, 2790],
+      "window_requests": 402,
+      "week_requests": 1035,
+      "scale": 10.58,
+      "extrapolated": true,
+      "won": 6,
+      "lost": 3,
+      "not_quoted": 29,
+      "unwinnable": 0,
+      "won_above_flip": 0,
+      "flip_revenue_cents": 0,
+      "won_revenue_cents": 0,
+      "underpriced_cents": 0,
+      "lost_winnable_cents": 0,
+      "not_quoted_winnable_cents": 0,
+      "window_gain_cents": 0,
+      "week_gain_cents": 0
+    },
+    "brackets": {
+      "lost_requests": 0,
+      "lost_ceiling_cents": 0,
+      "lost_bins": [{ "ratio": 1.2, "requests": 0, "ceiling_cents": 0 }],
+      "lost_below_similar": { "requests": 0, "revenue_cents": 0 },
+      "estimate": {
+        "flip_revenue_cents": 0,
+        "underpriced_cents": 0,
+        "lost_winnable_cents": 0,
+        "not_quoted_winnable_cents": 0,
+        "week_gain_cents": 0
+      }
+    }
+  },
+  "on_time": {
+    "counted": 0,
+    "on_time": 0,
+    "late": 0,
+    "undelivered": 0,
+    "share": 0.968,
+    "ranked": true,
+    "late_slack": 12,
+    "drops_to_rank": 0
+  },
+  "combining": { "candidates": 0, "candidate_fee_cents": 0 },
+  "oracle_cents": 0,
+  "gap_cents": 0,
+  "split": { "quoting_cents": 0, "driver_fees_cents": 0, "delivery_cents": 0, "combining_cents": null },
   "warnings": []
 }
 ```
@@ -394,46 +486,59 @@ lowest of the weeks; `quote` adds `weeks_probe` and `weeks_brackets` (`source` i
 
 # Overview report
 
-One static page with the whole picture of the scraped weeks:
+One static page with the whole picture of the scraped weeks, for deciding what to build next:
 
 ```sh
 uv run python -m analysis.facts    # first: the facts tables
-uv run python -m analysis.oracle   # optional: out/oracle.json, the gap bounds of section 6
-uv run python -m analysis.report   # writes out/report.html
-uv run python -m analysis.report --db data/spread.sqlite --probe out/probe --oracle out/oracle.json --out out/report.html
+uv run python -m analysis.oracle   # optional: out/oracle.json, the gap bounds of section 5
+uv run python -m analysis.report   # writes out/report.html and serves it on http://localhost:8000/
+uv run python -m analysis.report --no-serve   # only writes out/report.html (for scripts)
+uv run python -m analysis.report --port 8123 --db data/spread.sqlite --probe out/probe --oracle out/oracle.json --out out/report.html
 ```
 
-It opens the database read-only. Open `out/report.html` in a browser or share the file: it is one file with inline
-SVG, no JavaScript and no network, in light and dark, one column on a phone. Hover a point, bar or dot for its exact
-values; each chart's numbers are under "Data". Without `out/oracle.json` it calls `analysis.oracle` if that module
-exists, else section 6 shows only the account waterfall. Points with too few rows are not drawn (the line breaks)
-but stay in the data table.
+By default it builds the page, writes it and serves it on localhost with the standard library's web server: it
+prints the URL, and Ctrl-C stops it. `--port` picks the port (default 8000); if the port is taken it uses a free
+one and prints that. The server serves only the page as it was built; run the command again for new data.
+`--no-serve` writes the file and exits.
 
-1. **Experiments.** Which experiment and level made or lost how much, and how many of its weeks would have been
-   ranked. Table per experiment and level; *Margin of each week*: one dot per week, filled when ranked (≥ 90% on
-   time), hollow when not, a tick at the mean.
-2. **Dealers: the win curve.** Share won against quote / list price, only on requests where we priced one option.
-   *By level*: level 8 pays well above list. *By weekday, level 8*: later days win at higher prices: dealers trust
-   us more, and the competitor raises its prices for dealers it keeps winning. *The price-war day*: on one day a
-   week the competitor quotes 20% lower (the day is a guess). *By dealer trust*: each on-time order raises what its
-   dealer accepts by 1%, up to 25; a late order halves the count.
-3. **Probe: where a quote flips.** The exact price at which a request flips from won to lost in one world, from
-   `out/probe`. Tiles: probed requests, median flip, share below list, share never won. *Flip price of the first
-   option* (histogram); *Flip by delivery option*: slower options flip lower, the dealer pays for speed; *Probe
-   against our quotes, level 8 Mondays*: the same curve from two sources.
-4. **Drivers: the booking curve.** Bookings per open daytime hour (a rate, not a share). *By fee over the typical
-   fee*; *By hours to the last pickup time, level 8*: the deadline warning comes at 3 hours, after that only a
-   higher fee finds a driver; *Share of gigs booked within a day of posting, by opening fee*: the plain reading.
-5. **Supply by town.** *Drivers at home and booked share by town, level 8*: where the drivers live in a shortage
-   world and where gigs get booked (a gig-day is one gig open on one day).
-6. **Order economics.** Per experiment: *Where the money went (mean week)*, revenue down to margin; *What a perfect
-   dispatcher keeps (mean week, upper bounds)*, margin up to the oracle by the four bounds of `analysis.oracle`,
-   with their assumptions and the brief's split; a table over all experiments.
-7. **On time.** *On-time share of each week* against the 90% minimum; *Counted orders by lateness*, with the refund
-   of each bucket; a table with counts, slack, refunds and penalties.
+It opens the database read-only. `out/report.html` is one file with inline SVG, no JavaScript and no network, in
+light and dark, one column on a phone, so it can also be opened or shared as a file. Without `out/oracle.json` it
+calls `analysis.oracle` if that module exists, else section 5 shows only the account waterfall.
+
+How to read it:
+
+- **The strip at the top** has the five numbers that matter: the weeks scraped, the best mean margin at the highest
+  played level, that experiment's on-time share, the median probe flip, and the biggest of the oracle's four gains
+  in that experiment. That experiment (the best at the highest level) is the one the single-experiment charts show.
+- **Every chart's title is its takeaway**, computed from the data ("Trust raises the win share from 32% to 74% at
+  1.4–1.6 × list"), so it changes when the data does.
+- **"Data and method"** under a chart holds what it counts, its caveats and its numbers as a table; "Method and
+  caveats" under a section holds what applies to the whole section. Hover a point, bar or dot for its exact values.
+- Sample sizes are in the axis labels and legends. Points with too few rows are not drawn (the line breaks) but
+  stay in the data table.
+
+1. **Experiments.** The margin of each week, one dot per week, filled when ranked (≥ 90% on time), a tick at the
+   mean; an experiment far below all the others (the starter) gets its own panel with its own axis. The on-time
+   share of each week against the 90% minimum. Counted orders by lateness. The table of all experiments is folded
+   under the cards.
+2. **Dealers: what price wins.** Share won against quote / list price, only on requests where we priced one option:
+   by level, by dealer trust (level 8) and on the guessed price-war day (level 8). The level 8 curve by weekday is
+   a folded table.
+3. **Probe: where a quote flips.** From `out/probe`: the flip price of the first option at the level with the most
+   probed requests (histogram), the flip by level and delivery option, and the fee probe (`fee-L*.jsonl`): the
+   lowest flat fee, over the typical fee, at which a driver books a gig within the window. Without fee probe rows
+   the third chart compares the probe with our own level 8 Monday quotes; with them that comparison is a sentence
+   under "Method and caveats".
+4. **Drivers: what fee books.** Level 8: the share of gigs booked within a day by opening fee (the booking rate by
+   fee and level is a table under it), bookings per open daytime hour by hours left to the last pickup time, and
+   the towns: drivers living there against the share of gig-days booked.
+5. **Economics: where the margin goes.** For the experiment of the strip: revenue down to margin, and margin up to
+   the oracle by the four bounds of `analysis.oracle`. For every experiment: the gap to the oracle as shares of the
+   four bounds. The euros of all experiments and the assumptions of the bounds are folded.
 
 Caveats: the win curves use only requests with one priced option (with several, each option's share reads about
 half as high); the war day is a guess from the win share, so its gap is partly by construction; probe flips are
-the first answers of a world that won nothing (no trust, no competitor reaction); booking rates use only weeks
-with an action log; supply is an average over worlds, which level 8 reshuffles; the oracle's bars are upper bounds,
-each under its stated assumptions, not forecasts.
+the first answers of a world that won nothing (no trust, no competitor reaction), and the fee probe is a small
+sample; booking rates use only weeks with an action log, and their fee bands are not an experiment (a gig still
+open at a high fee is a hard one); supply is an average over worlds, which level 8 reshuffles; the oracle's bars
+are upper bounds, each under its stated assumptions, not forecasts.
