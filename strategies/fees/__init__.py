@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from spread.client import World
-from spread.types import FeeStep, Order, PriceRequest
+from spread.types import FeeStep, Leg, Order, PriceRequest
 
 from .market import Market
-from .schedule import Gig, after_drop, plan
+from .schedule import Gig, after_drop, plan, trip_fee
 
 __all__ = ["FeePlanner", "Gig", "Market", "after_drop", "plan"]
 
@@ -17,11 +16,6 @@ class FeePlanner:
     def __init__(self, market: Market):
         self.market = market
 
-    @classmethod
-    def for_world(cls, world: World) -> FeePlanner:
-        """Reads the map and the driver list once: two requests."""
-        return cls(Market(world.client.map(), world.roster()))
-
     def schedule(self, order: Order, request: PriceRequest, cars: int, now: int, level: int) -> list[FeeStep]:
         return plan(now, self.gig(order, request, cars, now), level)
 
@@ -30,13 +24,21 @@ class FeePlanner:
     ) -> list[FeeStep] | None:
         return after_drop(now, self.gig(order, request, cars, now), level, dropped_fee)
 
+    def typical(self, order: Order, request: PriceRequest) -> float:
+        """The typical fee of all the order's cars, for the trips they make now. The request's typical fee
+        is for the trips it asked for. After a change of plan (`order_changed`), the order's legs go to the
+        new place and the request's keep the old one: the typical fee is then that of the first car's trip."""
+        if all(trip(asked) == trip(now) for asked, now in zip(request["legs"], order["legs"])):
+            return request["referenceFeeCents"]
+        return trip_fee(self.market.minutes(*trip(order["legs"][0])))
+
     def gig(self, order: Order, request: PriceRequest, cars: int, now: int) -> Gig:
         """The facts of a gig with `cars` of the order's cars, read from its first undelivered car."""
         share = cars / len(order["legs"])
         first = next((leg for leg, at in zip(order["legs"], order["deliveredAt"]) if at is None), order["legs"][0])
         pickup, delivery = first["pickup"]["placeId"], first["delivery"]["placeId"]
         return Gig(
-            typical=request["referenceFeeCents"] * share,
+            typical=self.typical(order, request) * share,
             price=order["priceCents"] * share,
             last_pickup_at=order["lastPickupAt"],
             starts_at=max(now, first["pickup"]["window"]["from"]),
@@ -44,3 +46,8 @@ class FeePlanner:
             scarcity=self.market.scarcity(pickup),
             travel_minutes=self.market.travel_minutes(pickup),
         )
+
+
+def trip(leg: Leg) -> tuple[str, str]:
+    """The places a car goes from and to."""
+    return leg["pickup"]["placeId"], leg["delivery"]["placeId"]

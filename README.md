@@ -80,12 +80,13 @@ together with its answers to the other events. A quote sent anywhere before `res
 week stays the same. On the level 8 starter week in `data/` (`smoke-1`), this cuts the stops of the clock from 1,725 to
 about 1,390.
 
-- `dispatch.py` is our system. It starts as a copy of the organisers' starter, formatted with ruff.
+- `dispatch.py` is our system. It started as a copy of the organisers' starter, formatted with ruff.
 - `strategies/` holds the parts of the system, each with its notes. `strategies/admission/` decides
   which price requests to take and which option to quote, and `strategies/pricing/` the price of each quote, learned
   during the week. [`strategies/notes/`](strategies/notes/README.md) reads dealer notes into facts (ready time, real
   hours, deadline, gearbox, plates, tyres) that set the gigs' windows, audience and plates. `strategies/offers/` sends
-  gigs straight to drivers near their pickup.
+  gigs straight to drivers near their pickup. [`strategies/bundling/`](strategies/bundling/README.md) puts several
+  orders' cars in one gig when that saves a driver's trips, and holds batch orders briefly to find them.
 - [`strategies/ratchet/`](strategies/ratchet/README.md) is a second system built on `dispatch.py`: each dealer's quote
   price falls only after a lost quote and climbs back towards a maximum markup after a win, dealers whose trust can
   still grow may take a small loss, and each gig has one flat fee priced by distance, place and the risk of finding no
@@ -116,12 +117,29 @@ saves into this checkout.
 `pnpm dispatch` saves its weeks with `src/record.ts`, in the same folder format and with the same `SPREAD_RUNS_DIR`
 and `SPREAD_RECORD=0`. It writes only the folder: run `uv run db.py` to add it to `out/spread.sqlite`.
 
+### The ride ladder: a second system
+
+[`ladder/`](ladder/README.md) is a second dispatch system, built from scratch and independent of `dispatch.py`. It
+takes only the rides that are easy to move on time first (one plain car between dealer sites, ready on a later day,
+a drive of up to 4 hours), and unlocks harder kinds of rides one rung at a time: notes, special cars, cars ready
+today, long and remote rides, trade-ins. It plays rung 4 by default: on level 8, `spread-1` to `spread-5`, it made
+€34,131 to €35,749 in the five weeks, 98.4% to 98.6% on time, all ranked; the rungs above it add little and cost
+on-time share. It saves its weeks like `dispatch.py`, under the policy `ladder`.
+
+```sh
+uv run ladder/play.py --level 8 --seed spread-1             # a practice week at the default rung
+uv run ladder/play.py --level 8 --seed spread-1 --rung 1    # easy rides only
+uv run ladder/rehearse.py --seed spread-1                   # play the final's code path on a practice world
+uv run ladder/play.py --final                               # our copy of a test final or of the final
+```
+
 ### Play a practice week in TypeScript
 
 The same kit exists for TypeScript, so half of the team can work there. `vendor/spread-typescript/` holds the
 organisers' TypeScript kit of 13 November, unchanged: the client (`spread.ts`), its types, the starter and
-`reveal-csv.ts`. Lint and format skip `vendor/`. `src/dispatch.ts` is our TypeScript system. It starts as a copy of the
-starter that imports the vendored client, and it gives the same baseline as `dispatch.py`.
+`reveal-csv.ts`. Lint and format skip `vendor/`. `src/dispatch.ts` is our TypeScript system. It is still a copy of the
+starter that imports the vendored client and saves its weeks, so it gives the starter's
+[baseline](#the-baseline-to-beat).
 
 ```sh
 pnpm dispatch --level 8 --seed spread-1   # a whole practice week with our TypeScript system
@@ -141,6 +159,31 @@ must name the proxy's CA (cloud sessions set it). Without `HTTPS_PROXY` they con
 turns on pnpm's `shell-emulator`, so the variable works on Windows too. The `--final` WebSocket stream does not go
 through the proxy yet.
 
+### Get the team's scraped data
+
+The team's scraped weeks (`out/scrape`) and probe rows (`out/probe`) are too big for git, so each batch goes up as
+one tarball on a GitHub release of this repository (`data-<date>`). Every release holds all the data, not only the
+new weeks, so the latest one is all you need. Get it, and build your own SQLite database from it (about 10 times the
+size of the folders, so it is not shared):
+
+```sh
+mkdir -p out && gh release download --pattern 'spread-data-*.tar.gz' --output - | tar -xz -C out
+uv run db.py out/scrape out/probe    # builds out/spread.sqlite; weeks already in it are skipped, changed probe files are reloaded
+uv run python -m analysis.facts   # adds the derived tables (analysis/README.md)
+```
+
+To publish a new batch, from the checkout that holds the most data (check `find out/scrape -name meta.json | wc -l`
+first, so a release never holds fewer weeks than the last one):
+
+```sh
+stamp=$(date +%Y%m%d-%H%M) && tar -czf out/spread-data-$stamp.tar.gz -C out scrape probe \
+  && gh release create data-$stamp out/spread-data-$stamp.tar.gz --title "Scraped data $stamp" \
+     --notes "$(find out/scrape -name meta.json | wc -l) weeks, $(cat out/probe/*.jsonl 2>/dev/null | wc -l) probe rows"
+```
+
+A downloaded tarball overwrites the week folders of the same name, which are the same weeks: a seed, level and
+experiment always play the same week.
+
 ### Offline data and scraping more weeks
 
 The data for an offline model of the server is committed in `data/`, so by default the analysis needs no server and
@@ -152,9 +195,9 @@ uv run stats.py   # reads data/scrape, writes out/summary.json, prints the main 
 uv run db.py      # loads data/scrape into out/spread.sqlite
 ```
 
-`data/spread.sqlite` is the scraped weeks already loaded, ready to query. It does not grow with the saved online runs
-(a played week takes about 4 MB there, and GitHub refuses files over 100 MB), so for those run `uv run db.py` and
-query `out/spread.sqlite`. Only to add scraped weeks, play them on the server with `scrape.py`, which saves each week's raw data under `out/scrape`, and then pass those folders to the two scripts:
+The database is not committed: `uv run db.py` builds it from the committed week folders in a few seconds, the saved
+online runs included. Only to add scraped weeks, play them on the server with `scrape.py`, which saves each week's raw
+data under `out/scrape`, and then pass those folders to the two scripts:
 
 ```sh
 uv run --env-file .env scrape.py --policy passive --levels 4,5,6,7,8 --seeds 20   # requests only: 10 requests a week
@@ -168,28 +211,35 @@ file, `--no-db` to skip it). `db.py` loads weeks that were saved without it; wee
 Query it with any SQLite tool, for example `sqlite3 out/spread.sqlite "select kind, count(*) from events group by kind"`.
 Tables, keyed by `week_id` (a row of `weeks`):
 
-| Table                            | One row for each                                                                                                                        |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `weeks`                          | week: seed, level, policy, explore ranges, score, events, requests, seconds; `settings` holds the other options and the git commit      |
-| `events`                         | event, with `data` the event's JSON (read fields with `json_extract`); `gig_viewed` keeps only its columns                              |
-| `requests`, `legs`, `options`    | price request; car of a request, with the reveal's truth for won orders; delivery option, with our quote and whether the dealer took it |
-| `orders`, `gigs`, `views`        | won order at the end of the week; gig we posted; view of our gigs with the fee the driver saw                                           |
-| `drivers`, `ledger`, `forecasts` | driver at the start of the week; account line; snow forecast                                                                            |
-| `places`, `roads`                | the map                                                                                                                                 |
-| `actions`                        | action the scrape sent (quote, post, reprice, offer, withdraw), with its minute, its world answer and its JSON in `data`                |
-| `rosters`                        | driver at each midnight and at the end of the week: rating, completed gigs and drops (they count only our gigs)                         |
-| `positions`                      | sample of where one of our drivers was, with `--sample-every`                                                                           |
+| Table                            | One row for each                                                                                                                                                                                                                            |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `weeks`                          | week: seed, level, policy, explore ranges, score, events, requests, seconds; `settings` holds the other options and the git commit                                                                                                          |
+| `events`                         | event, with `data` the event's JSON (read fields with `json_extract`); `gig_viewed` keeps only its columns                                                                                                                                  |
+| `requests`, `legs`, `options`    | price request; car of a request, with the reveal's truth for won orders; delivery option, with our quote and whether the dealer took it                                                                                                     |
+| `orders`, `gigs`, `views`        | won order at the end of the week; gig we posted; view of our gigs with the fee the driver saw                                                                                                                                               |
+| `drivers`, `ledger`, `forecasts` | driver at the start of the week; account line; snow forecast                                                                                                                                                                                |
+| `places`, `roads`                | the map                                                                                                                                                                                                                                     |
+| `actions`                        | action the scrape sent (quote, post, reprice, offer, withdraw), with its minute, its world answer and its JSON in `data`                                                                                                                    |
+| `rosters`                        | driver at each midnight and at the end of the week: rating, completed gigs and drops (they count only our gigs)                                                                                                                             |
+| `positions`                      | sample of where one of our drivers was, with `--sample-every`                                                                                                                                                                               |
+| `probes`                         | delivery option that `probe.py quote` bisected: level, seed, request, list price, the flip (`flip_cents`, `flip_ratio`, `bracket_low_cents` = highest price known to win), `ends`, `monotone`, `error`, and every trial as JSON in `trials` |
+| `fee_probes`, `probe_files`      | order that `probe.py fee` bisected, with the same flip columns for the flat fee and who booked at the flip; probe file that was loaded, with its size and mtime                                                                             |
+| `shape_probes`                   | pair of requests that `probe.py shape` probed: kind, order ids, lanes, each car's single flip and the combined flip, `saving_ratio`, `same_driver`, who booked and their home, and the trials                                               |
+
+Derived analysis tables (win model, booking hazard, order economics, supply) are built by
+`uv run python -m analysis.facts`; see `analysis/README.md`.
+The hindsight oracle (where a week's margin went, and what a perfect dispatcher could have kept):
+`uv run python -m analysis.oracle`.
+One page with the whole picture: `uv run python -m analysis.report` writes `out/report.html` and serves it on
+localhost until Ctrl-C (`--no-serve` only writes the file).
 
 A passive week takes about 1.7 MB in the database, and a played week about 20 MB, most of it gig views. The week
 folders hold the same data gzipped (about 0.1 MB and 2 MB), so the database can always be rebuilt from them.
 
-`data/` holds the team's committed scrape: the week folders in `data/scrape/<policy>/L<level>/<seed>/`, the saved
-online runs in `data/scrape/runs/` ([Every online run is saved](#every-online-run-is-saved)), and
-`data/spread.sqlite` built from them (`select level, policy, seed from weeks` lists the weeks). Open the database
-directly, or rebuild it and the summary from the folders without the server with `uv run db.py` and `uv run stats.py`.
-The default outputs go to `out/`, so the committed files stay as they are.
-
-GitHub refuses files over 100 MB, so once the database outgrows that, commit only the week folders and rebuild it.
+`data/` holds the team's committed scrape: the week folders in `data/scrape/<policy>/L<level>/<seed>/` and the saved
+online runs in `data/scrape/runs/` ([Every online run is saved](#every-online-run-is-saved)). Build the database and
+the summary from them, without the server, with `uv run db.py` and `uv run stats.py` (`select level, policy, seed from
+weeks` lists the weeks). Both write to `out/`, which is not committed.
 
 Policies:
 
@@ -272,6 +322,7 @@ comes from the action alone.
 ```sh
 uv run --env-file .env probe.py quote --level 8 --seed scrape-1 --share 0.05 --days 0,1   # ~20 requests
 uv run --env-file .env probe.py fee --level 8 --seed scrape-1 --limit 20       # 20 orders
+uv run --env-file .env probe.py shape --level 8 --seed scrape-1 --days 0,1     # ~42 pairs
 ```
 
 - `quote`: at a request's arrival, quotes one option at a time in copies and advances to `respondBy`. `flipRatio` is
@@ -280,7 +331,24 @@ uv run --env-file .env probe.py fee --level 8 --seed scrape-1 --limit 20       #
 - `fee`: quotes the request at `--win-ratio` (default 0.5) of the list price to win it, then posts its cars at one
   flat fee per copy and advances `--window` minutes (default 180). `flipRatio` is the lowest flat fee over the typical
   fee that a driver books within the window (never past the order's `lastPickupAt`), with who booked it, how soon,
-  the gig's views and whether it expired.
+  the gig's views and whether it expired. `atFlip` also has the booking driver's `homePlaceId`, `toPickupKm` and
+  `fromDeliveryKm`.
+- `shape`: is one gig of two cars cheaper than two gigs? A pair is a `trade_in` (one request, two cars), a
+  `round_trip` (two one-car requests on exact reverse lanes that arrive at most `--gap` minutes apart, default 180)
+  or a `chain` (the second car starts where the first ends but ends 100 km or more from the start; a control, add it
+  with `--kinds trade_in,round_trip,chain`). The first run of a seed and level scouts the week's requests into
+  `out/probe/requests-L<level>-<seed>.json`; the request stream does not depend on our actions. The probe wins both
+  orders, and at the minute the second is won bisects three gigs in copies: `single[0]` and `single[1]` (each car
+  alone) and `combined` (both cars, its fee the gig's total). `savingRatio` is (sum of single flips - combined flip)
+  over the pair's typical fee: positive means one gig is cheaper than two. `together` posts both single gigs at once at
+  their single flips and says who booked them and whether one driver took both (`sameDriver`). `returnKm` is the drive
+  from the last delivery back to the first pickup (12 km for a round trip, 100+ for a chain). The row's `ends` names
+  each treatment that did not flip, as `combined:never`. The scout holds one slot, once per seed and level; a pair
+  then costs about 39 copies and 35 seconds.
+- `shape` limits: a round trip saves the drive to the second pickup and also ends where it began; comparing
+  `savingRatio` of round trips and chains by `returnKm`, and `atFlip.fromDeliveryKm`, separates the two only in part.
+  Each flip is the cheapest driver of that gig, often a different one per treatment, and a trade-in's own extra
+  (trade-in, private address, the customer's slot) is mixed into its saving.
 - Each row also has every trial and `monotone`: whether the outcomes change once as the value rises. Two extra trials
   a little either side of the bracket (`--checks`) test it. Monotone rows say the world answers with a threshold, not a coin.
 - The parent posts no gigs and declines every other request at no cost, so each probe sees drivers who have learned
@@ -291,7 +359,8 @@ uv run --env-file .env probe.py fee --level 8 --seed scrape-1 --limit 20       #
 - A quote row's `ends` says when it did not flip inside `--range`: `true` (won at both ends), `false` (lost at both)
   or `inverted`. A fee row's `ends` is `never` (no driver even at the top fee, see `expiredAtTop`) or `always`. A
   refused action or a lost win quote gives a row with `error` instead.
-- Rows go to `out/probe/<mode>-L<level>-<seed>.jsonl`. Running the same command again skips the rows saved. A probe
+- Rows go to `out/probe/<mode>-L<level>-<seed>.jsonl`. `uv run db.py` loads them into the `probes` and `fee_probes`
+  tables (not `shape` rows yet); run it again after a probe has grown. Running the same command again skips the rows saved. A probe
   holds the parent and one copy at a time (two practice slots) and leaves `--keep-free` slots (default 2) for
   teammates. Each bisection step is a fork, an advance and a delete: about 8 to 12 steps a probe.
 
@@ -306,9 +375,9 @@ them in time.
 | 7     | -€50,442.49 | 817        | 52.3%   | no     |
 | 8     | -€72,612.51 | 949        | 45.5%   | no     |
 
-They match the handbook to the cent. `dispatch.py`, still unchanged from the starter, gives the same level 8 result.
-We measured levels 6 and 7 with the organisers' TypeScript starter, before we chose Python; the handbook says that
-both starters play alike.
+They match the handbook to the cent. The first `dispatch.py`, an unchanged copy of the starter, gave the same level 8
+result. We measured levels 6 and 7 with the organisers' TypeScript starter, before we chose Python; the handbook says
+that both starters play alike.
 
 ### Claude Code cloud environments
 
