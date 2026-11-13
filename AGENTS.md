@@ -1,6 +1,6 @@
 ## Project Configuration
 
-- **Language**: Python 3.15 for the dispatch system (`dispatch.py`), run with uv; TypeScript for code in `src/`
+- **Language**: Python 3.15 for the dispatch system (`dispatch.py`), run with uv; TypeScript for code in `src/` (the dispatch system `src/dispatch.ts`, on the vendored kit in `vendor/spread-typescript/`)
 - **Package Manager**: pnpm
 - **Runtime**: Node 22.18+, running `.ts` files directly (no build step)
 - **Tooling**: Biome (lint and format), `tsc` (type check only)
@@ -163,6 +163,8 @@ in and keep it current. Every row must be a single copy-pasteable command.
 | Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`      |
 | Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`               |
 | Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .` |
+| Play a week in TypeScript   | `pnpm dispatch --level 8 --seed spread-1`           |
+| Write a week to CSV (TS)    | `pnpm reveal-csv <world id>`                        |
 
 ## Definition of done
 

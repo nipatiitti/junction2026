@@ -7,6 +7,9 @@
     "node": ">=22.18"
   },
   "scripts": {
+    "dispatch": "node --env-file-if-exists=.env src/dispatch.ts",
+    "starter": "node --env-file-if-exists=.env vendor/spread-typescript/starter.ts",
+    "reveal-csv": "node --env-file-if-exists=.env vendor/spread-typescript/reveal-csv.ts",
     "check": "tsc --noEmit",
     "lint": "biome check",
     "format": "biome check --write",
