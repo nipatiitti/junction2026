@@ -12,11 +12,8 @@ world.json names a world that a killed scrape left behind, and the next run save
 from __future__ import annotations
 
 import argparse
-import gzip
 import json
 import random
-import re
-import shutil
 import signal
 import sys
 import threading
@@ -31,6 +28,7 @@ from spread.types import Order, PriceRequest
 
 from db import add_week, connect, load_folders
 from dispatch import WAKE_ON, Desk
+from record import safe_name, save_week, write_json
 from spread_proxy import ProxyClient, bypasses_proxy  # noqa: F401  (tests import bypasses_proxy from here)
 from stats import load_week
 
@@ -94,49 +92,6 @@ def play_desk(world: World, desk: Desk) -> None:
             desk.handle(event)
 
 
-def all_events(world: World) -> list[dict]:
-    """Every event of the world, oldest first, in pages in case the server caps an answer."""
-    events: list[dict] = []
-    while True:
-        page = world.events(after=events[-1]["seq"] if events else -1)
-        if not page:
-            return events
-        events += page
-
-
-def write_json(path: Path, data: Any) -> None:
-    if path.suffix == ".gz":
-        with gzip.open(path, "wt", encoding="utf-8") as f:
-            json.dump(data, f, separators=(",", ":"))
-    else:
-        path.write_text(json.dumps(data, indent=2) + "\n")
-
-
-def save_week(target: Path, world: World, drivers: list, meta: dict) -> dict:
-    """Writes the week to a temporary folder, then renames it, so a folder with meta.json is always complete.
-    `drivers` is the driver list from the start of the week, as a system sees it."""
-    events = all_events(world)
-    files = {
-        "reveal.json.gz": world.reveal(),
-        "snapshot.json.gz": world.snapshot(),
-        "drivers.json.gz": drivers,
-        "score.json": world.score(),
-    }
-    partial = target.with_name(target.name + ".partial")
-    shutil.rmtree(partial, ignore_errors=True)
-    partial.mkdir(parents=True)
-    with gzip.open(partial / "events.jsonl.gz", "wt", encoding="utf-8") as f:
-        for event in events:
-            f.write(json.dumps(event, separators=(",", ":")) + "\n")
-    for name, data in files.items():
-        write_json(partial / name, data)
-    meta = {**meta, "events": len(events), "score": files["score.json"]}
-    write_json(partial / "meta.json", meta)
-    shutil.rmtree(target, ignore_errors=True)
-    partial.rename(target)
-    return meta
-
-
 class Slots:
     """Creates practice worlds without taking the team's last free slots, which teammates may need."""
 
@@ -156,10 +111,6 @@ class Slots:
                         if error.status != 409:
                             raise
             STOP.wait(5)
-
-
-def safe_name(seed: str) -> str:
-    return re.sub(r"[^A-Za-z0-9._-]", "_", seed)
 
 
 def left_behind(client: Client, target: Path) -> tuple[World, list] | None:
