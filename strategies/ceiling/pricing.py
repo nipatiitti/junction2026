@@ -87,7 +87,7 @@ class CeilingPricing(PricingModel):
         """A price in cents for each option in `kinds` (every option by default): the learned price, at least the
         driver cost `cost` (cents) x (1 + risk_premium), and at most the lifted maximum. An option whose floor is
         above its maximum gets no price. Remembers the quote for its outcome. Up to level 3 every quote wins the
-        first option at its list price: it gets that price when it is in `kinds`, and nothing gets a price else."""
+        first option at its list price, so only that option gets a price, and only when it is in `kinds`."""
         wanted = None if kinds is None else set(kinds)
         if self.level <= 3:
             first = request["options"][0]

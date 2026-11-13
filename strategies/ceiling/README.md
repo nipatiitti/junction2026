@@ -130,5 +130,29 @@ the saving real or to stop counting it.
 
 ## Bench
 
-The bench of this version, against the root `dispatch.py` of `main` at `74f0de6` on `spread-1` to `spread-5` at
-level 8, is running. Its results follow in this PR.
+Level 8, seeds `spread-1` to `spread-5`, the code of commit `a29cf75` against the root `dispatch.py` of `main` at
+`74f0de6`, with `uv run python -m strategies.bench strategies/ceiling/dispatch.py dispatch.py --jobs 2`. The weeks are
+saved in `data/scrape/runs/L8/`: policy `ceiling` for this system, `dispatch` for the root one.
+
+| Seed      | Ceiling margin |    Root margin | Ceiling orders | Root orders | Ceiling on time | Root on time |
+| --------- | -------------: | -------------: | -------------: | ----------: | --------------: | -----------: |
+| spread-1  |      €9,831.09 |      €8,063.40 |            386 |         369 |           97.4% |        98.1% |
+| spread-2  |      €6,673.95 |      €6,155.98 |            323 |         353 |           98.5% |        99.2% |
+| spread-3  |      €4,312.02 |      €3,390.99 |            243 |         296 |           99.2% |        98.0% |
+| spread-4  |      €8,147.90 |      €7,982.92 |            344 |         357 |           98.0% |        96.1% |
+| spread-5  |      €5,621.42 |      €6,251.68 |            306 |         328 |           95.8% |        96.3% |
+| **Total** | **€34,586.38** | **€31,844.97** |          1,602 |       1,703 |           97.7% |        97.5% |
+
+Ceiling pricing earns €2,741.41 more in total, more on 4 of the 5 seeds, and every week of both is ranked. What the
+saved weeks show (from `out/spread.sqlite`):
+
+- It wins fewer orders (1,602 against 1,703) at about the same price: the quotes it won averaged 1.38 × the list
+  price against 1.36. Revenue per order is €88.12 against €89.48.
+- The margin comes from cost: driver fees per delivered car are €65.15 against €69.43, and late refunds and
+  penalties €1,196 against €1,428. Here a car is taken only when its driver cost plus 10% fits under the maximum.
+- The lift is used: 40% of the quotes it won were above 1.39 × the list price, through dealer trust and the outage.
+- On `spread-5` it earns €630.26 less. It took fewer orders on Thursday and Friday (113 against 128) and paid more
+  late refunds (€520 against €341).
+
+The first version of this folder, benched against the root of `main` at `ce01491`, earned €29,772.70 against
+€26,529.37 on the same seeds.
