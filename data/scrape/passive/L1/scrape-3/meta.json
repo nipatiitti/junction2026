@@ -1,0 +1,20 @@
+{
+  "seed": "scrape-3",
+  "level": 1,
+  "policy": "passive",
+  "worldId": "w1e532e0e4580a817733e",
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 2000,
+  "score": {
+    "marginCents": 0,
+    "revenueCents": 0,
+    "marginShare": 0,
+    "wonOrders": 0,
+    "onTimeShare": 1,
+    "undeliveredShare": 0,
+    "ranked": false
+  },
+  "seconds": 2.7,
+  "requests": 10
+}

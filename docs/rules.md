@@ -35,11 +35,11 @@ and a window; delivery options with deadline and list price; a typical fee
   opening hours say when the site is open. At a private address the window is
   a booked slot (starts ≥ 1.5 h after `respondBy`).
 
-| Option | Deadline |
-| --- | --- |
-| `same_day` | 20:00 the day the car is ready. Only if the request arrives by 15:00 that day and the drive can end 2 h before the deadline. |
-| `next_day` | 20:00 next business day (Friday-ready → Monday). |
-| `within_3_days` | 20:00 on the 3rd business day after ready day, not after the last Monday. |
+| Option          | Deadline                                                                                                                     |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `same_day`      | 20:00 the day the car is ready. Only if the request arrives by 15:00 that day and the drive can end 2 h before the deadline. |
+| `next_day`      | 20:00 next business day (Friday-ready → Monday).                                                                             |
+| `within_3_days` | 20:00 on the 3rd business day after ready day, not after the last Monday.                                                    |
 
 - A private delivery or trade-in carries one option only. A private delivery
   is due 30 min after its booked hour ends.
@@ -164,18 +164,18 @@ not.
 
 ## Your account
 
-| Line | Amount |
-| --- | --- |
-| Delivered order | Your quoted price (credited when the order's last car is delivered) |
-| Late ≤ 2 h | 10% refunded |
-| Late 2–24 h | 25% refunded |
-| Late > 24 h, ≤ 2 business days | 50% refunded |
-| Late > 2 business days | 100% refunded; car must still be delivered |
-| Not delivered by Wed 22:00 | No price, penalty 2 × price |
-| Driver fee | Paid when the gig is done |
-| Failed visit | Half the car's share of the gig fee, min €25 |
-| Release | See Gigs |
-| Fines, waiting | See rules for handling cars |
+| Line                           | Amount                                                              |
+| ------------------------------ | ------------------------------------------------------------------- |
+| Delivered order                | Your quoted price (credited when the order's last car is delivered) |
+| Late ≤ 2 h                     | 10% refunded                                                        |
+| Late 2–24 h                    | 25% refunded                                                        |
+| Late > 24 h, ≤ 2 business days | 50% refunded                                                        |
+| Late > 2 business days         | 100% refunded; car must still be delivered                          |
+| Not delivered by Wed 22:00     | No price, penalty 2 × price                                         |
+| Driver fee                     | Paid when the gig is done                                           |
+| Failed visit                   | Half the car's share of the gig fee, min €25                        |
+| Release                        | See Gigs                                                            |
+| Fines, waiting                 | See rules for handling cars                                         |
 
 - Failed visit causes: not ready / not paid, site closed, private seller absent
   outside slot, wrong licence, no plates. Multi-car gigs continue with the rest.
@@ -192,16 +192,16 @@ not.
 - Up to level 6: ±20% drivers vs average, competitor level ±10% around list
   price. Part of each lane's competitor price is the same in every world.
 
-| Level | Adds |
-| --- | --- |
-| 1 Posting | One car, one fee per gig. No competitor; every quote wins first option at list price (up to level 3). Cancellations. |
-| 2 Market | Fee schedules; drivers learn your fees and drop bookings. |
-| 3 Network | Multi-car gigs and direct offers (same world as level 2). |
-| 4 Quotes | Competitor; dealer chooses between your options. |
-| 5 Full | Notes, changes of plan, failed visits, handling rules, weather. |
+| Level       | Adds                                                                                                                                                                                                                                            |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 Posting   | One car, one fee per gig. No competitor; every quote wins first option at list price (up to level 3). Cancellations.                                                                                                                            |
+| 2 Market    | Fee schedules; drivers learn your fees and drop bookings.                                                                                                                                                                                       |
+| 3 Network   | Multi-car gigs and direct offers (same world as level 2).                                                                                                                                                                                       |
+| 4 Quotes    | Competitor; dealer chooses between your options.                                                                                                                                                                                                |
+| 5 Full      | Notes, changes of plan, failed visits, handling rules, weather.                                                                                                                                                                                 |
 | 6 Surprises | Unannounced: **outage** (competitor down 08:00–18:00 one working day in a town + 80 km region, dealers use a backup ~30% dearer); in some weeks **flu** (30% of planned drivers stay home a day) and **bulk order** (30–40 cars from one yard). |
-| 7 Shortage | 26–40% of average drivers; competitor 12–38% above list. All three level 6 events every week. |
-| 8 Trust | Shortage varies by town; competitor 26–54% above list; unannounced **price war** (one working day without outage, competitor −20% everywhere 08:00–18:00); **dealer trust**. |
+| 7 Shortage  | 26–40% of average drivers; competitor 12–38% above list. All three level 6 events every week.                                                                                                                                                   |
+| 8 Trust     | Shortage varies by town; competitor 26–54% above list; unannounced **price war** (one working day without outage, competitor −20% everywhere 08:00–18:00); **dealer trust**.                                                                    |
 
 - In a shortage, typical fee and list price stay at normal-week values. You can
   win more cars than can be moved; winning every car you can drops you below

@@ -1,9 +1,9 @@
 ## Project Configuration
 
-- **Language**: Python 3.15 for the dispatch system (`dispatch.py`), run with uv; TypeScript for code in `src/`
+- **Language**: Python 3.15 for the dispatch system (`dispatch.py`), run with uv; TypeScript for code in `src/` (the dispatch system `src/dispatch.ts`, on the vendored kit in `vendor/spread-typescript/`)
 - **Package Manager**: pnpm
 - **Runtime**: Node 22.18+, running `.ts` files directly (no build step)
-- **Tooling**: Biome (lint and format), `tsc` (type check only), `node --test`
+- **Tooling**: Biome (lint and format), `tsc` (type check only)
 
 ## The challenge
 
@@ -25,16 +25,19 @@ car dealers and pays freelance drivers to move the cars, for one simulated week.
 Rules for every coding agent working in this repository. They are stack-agnostic:
 the only stack-specific part is the [Commands](#commands) table.
 
-The loop: **issue → branch → build → focused tests → PR → keep it green → merged.**
-Optimise for speed. Small issues, small PRs, fast tests.
+The loop: **issue → branch → build → PR → keep it mergeable → merged.**
+Optimise for speed. Small issues, small PRs, no tests.
 
 ## 1. Start from an issue
 
 - All work starts from a GitHub issue the user hands you, so every change is
   tracked and reviewable. If asked for a feature without one, create the issue
   first, then work from it.
-- One issue = one feature, **including its documentation and its tests**. All
-  three ship in the same PR.
+- When you start on an issue, rename it so its title starts with
+  `In progress: ` (e.g. `In progress: Add login form`), so everyone can see
+  it is taken. Skip this if the title already starts with it.
+- One issue = one feature, **including its documentation**. Both ship in the
+  same PR.
 - If the issue is unclear, carry on rather than stopping to ask: waiting stalls
   the work, and the user can correct the result in review. Pick the most
   sensible interpretation, build it, and list your assumptions in the PR.
@@ -72,42 +75,35 @@ Optimise for speed. Small issues, small PRs, fast tests.
 - Check for an existing issue before creating one. A new issue contains:
   - **Feature** – what to build and why, with acceptance criteria.
   - **Docs** – what documentation must be added or changed.
-  - **Tests** – what behaviour the tests must cover.
 - Write the issue for a reader who has not seen your work: key point first,
   plain words, full sentences, and only names that exist in the code or the UI.
 
-## 4. Testing: light and fast
+## 4. Testing: not allowed
 
-Tests exist to keep development fast. A slow suite defeats that.
+**Testing is not allowed.** This overrides any default habit of writing or
+running tests.
 
-- Test the feature's behaviour: the main path plus the edge cases that matter.
-  Skip coverage targets and tests of trivial code: they cost time without
-  catching bugs.
-- Tests must be fast and isolated: no network, no real external services, no
-  sleeps, no dependence on other tests or on run order. That keeps them quick
-  and lets any one of them run alone. A feature's tests should finish in seconds.
-- Keep tests next to, or named after, the feature they cover so they can be run
-  on their own by path or by name.
-- While developing and before opening the PR, run **only the tests for the code
-  you touched**. The full suite is CI's job, not yours.
-- The project must always have a way to run a subset of the tests. Keep it in
-  the Commands table.
-- A green run has to mean the feature works. Fix the code or fix the test
-  rather than skipping, disabling or deleting a test to get there. Removing a
-  test is fine when the issue removes the behaviour it covers.
+- Do not write, add or change tests, and do not ask for them in new issues.
+- Do not run tests: no `pytest`, `node --test`, `pnpm test` or any other test
+  runner.
+- Leave existing tests and the `tests/` folder as they are.
+- Check your work by reading it, and with lint, format and type check from the
+  Commands table.
 
 ## 5. Documentation
 
 - Document the feature in the same PR: update `README.md` or the relevant page
   under `docs/`. Say what it does and how to use it — keep it short.
-- If you change how the project is run, built or tested, update the Commands
+- If you change how the project is run or built, update the Commands
   table below in the same PR.
 
 ## 6. Pull request
 
-Open the PR as soon as the feature, its docs and its focused tests are done.
-It must be **ready for review** (not a draft) and ready for the user to approve
-without further questions.
+Open the PR as a **draft** right after your first push, so the user can follow
+the work while it is in progress. When the feature and its docs are done and
+the description below is final, **move the PR from draft to open** (ready for
+review). An open PR means it is ready for the user to approve without further
+questions; never leave finished work in draft.
 
 - Title: short, imperative, under 70 characters.
 - Description: **at most 500 characters of text**, written for a reader who has
@@ -125,11 +121,16 @@ The PR is yours until it is merged or closed. Fix what comes up yourself rather
 than handing it back, so the user's only job is to approve:
 
 - Merge conflicts: merge the latest default branch into yours (a merge needs no
-  force-push), resolve, re-run the focused tests, push.
+  force-push), resolve, push.
 - Failing CI: read the failure, fix the cause, push. Repeat until green.
 - Review comments: address them and push, or reply briefly why not.
 - Keep watching until the PR is merged or closed. Ask for approval before
   merging: when the change lands is the user's decision.
+- When the PR is merged, check that its issue is closed. `Closes #<issue>` in
+  the description closes it on merge; if it is still open, close it as
+  completed, so that nobody picks up work that is already done. If the PR was
+  closed without merging, close its issue as not planned, unless a new PR
+  replaces it.
 
 ## 8. Keep going, and know when to ask
 
@@ -143,42 +144,41 @@ continue, leaves the user with a half-built feature.
   guardrail — were put there on purpose. Leave them in place, say what you
   found, and look for another way to finish.
 
-These routine steps need no approval: create a branch or worktree, commit, push
-to your own branch, open a PR, create follow-up issues, reply on your own PR,
-resolve merge conflicts, fix CI.
+These routine steps need no approval: mark the issue you start on as
+`In progress: `, create a branch or worktree, commit, push
+to your own branch, open a draft PR, move your own PR from draft to open, create
+follow-up issues, reply on your own PR, resolve merge conflicts, fix CI, close
+the issue of your own merged or closed PR.
 
 Ask for approval before these, because they are hard to undo or change what
 other people see: merging a PR, pushing to the default branch, force-pushing,
-deleting a branch, closing or editing an issue you did not create.
+deleting a branch, closing or editing any other issue you did not create
+(beyond marking the one you start on as in progress).
 
 ## Commands
 
 Stack-specific. The first PR that introduces or changes tooling must fill this
 in and keep it current. Every row must be a single copy-pasteable command.
 
-| Task                        | Command                                                       |
-| --------------------------- | ------------------------------------------------------------- |
-| Install dependencies        | `pnpm install`                                                |
-| Run one test file / dir     | `node --test src/path/to/file.test.ts`                        |
-| Run tests by name           | `node --test --test-name-pattern="<name>" "src/**/*.test.ts"` |
-| Run the full test suite     | `pnpm test`                                                   |
-| Lint / format               | `pnpm format`                                                 |
-| Lint only (no writes)       | `pnpm lint`                                                   |
-| Type check                  | `pnpm check`                                                  |
-| Install Python dependencies | `uv sync`                                                     |
-| Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`                |
-| Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                         |
-| Run one Python test file    | `uv run pytest tests/test_dispatch.py`                        |
-| Run Python tests by name    | `uv run pytest -k "<name>"`                                   |
-| Run one strategy's tests    | `uv run pytest strategies/pricing`                            |
-| Run all Python tests        | `uv run pytest`                                               |
-| Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .`           |
+| Task                        | Command                                                     |
+| --------------------------- | ----------------------------------------------------------- |
+| Install dependencies        | `pnpm install`                                              |
+| Lint / format               | `pnpm format`                                               |
+| Lint only (no writes)       | `pnpm lint`                                                 |
+| Type check                  | `pnpm check`                                                |
+| Install Python dependencies | `uv sync`                                                   |
+| Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`              |
+| Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                       |
+| Compare two versions        | `uv run python -m strategies.bench dispatch.py origin/main` |
+| Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .`         |
+| Play a week in TypeScript   | `pnpm dispatch --level 8 --seed spread-1`                   |
+| Write a week to CSV (TS)    | `pnpm reveal-csv <world id>`                                |
 
 ## Definition of done
 
 - [ ] Feature works as the issue describes
-- [ ] Focused tests added and passing
+- [ ] No tests written or run
 - [ ] Documentation updated
 - [ ] Follow-up work filed as new issues
-- [ ] PR open, ready for review, description ≤ 500 characters, `Closes #<issue>`
+- [ ] PR moved from draft to open (ready for review), description ≤ 500 characters, `Closes #<issue>`
 - [ ] No conflicts, CI green
