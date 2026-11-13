@@ -39,6 +39,8 @@ RAISES = 3
 # work the next day book a day ahead when the fee is right, before their day fills up. The fee then
 # holds until the top fee is due.
 EARLY_RAISES = (HOUR, 3 * HOUR)
+# How far each raise before the top goes, as a share of the way from the opening fee to the top fee.
+RAISE_SHARES = (1 / 3, 2 / 3)
 # The travel margin before `lastPickupAt`: an hour to see the gig, plus the trip from the drivers'
 # homes by public transport, which is slower than the road minutes. Never less than the 3 hours of
 # the deadline warning, never more than 6 hours.
@@ -121,7 +123,7 @@ def plan(now: int, gig: Gig, level: int, floor: float = 0) -> list[FeeStep]:
     steps = [(now, opening)]
     for k in range(1, RAISES + 1):
         at = now + span * k // RAISES if k == RAISES else min(now + span * k // RAISES, now + EARLY_RAISES[k - 1])
-        fee = opening + (top - opening) * k / RAISES
+        fee = opening + (top - opening) * (1 if k == RAISES else RAISE_SHARES[k - 1])
         steps.append((before_night(at, now), top if k == RAISES else min(fee, cap)))
     return valid(steps, level)
 
