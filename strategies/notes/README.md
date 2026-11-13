@@ -14,8 +14,8 @@ audience and plates of a gig. Most failed visits come from a note the gig did no
 | -------------------------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Car ready later                                          | `ready_at`       | The pickup window starts then.                                                                                   |
 | Handed over after payment (a `release` event comes then) | `released_at`    | The pickup window starts then.                                                                                   |
-| Real pickup hours                                        | `pickup_hours`   | The pickup window is one day inside them: the first open day from the start on.                                  |
-| Real delivery hours                                      | `delivery_hours` | The delivery window ends at the real closing time on its last day.                                               |
+| Real pickup hours                                        | `pickup_hours`   | The pickup window is one day inside them, ending an hour before closing: the first day with an hour left.        |
+| Real delivery hours                                      | `delivery_hours` | The delivery window ends an hour before the real closing time on its last day.                                   |
 | Tighter deadline                                         | `deadline`       | The delivery window ends then. A request whose note deadline passes before the car can be collected is declined. |
 | Manual gearbox                                           | `manual`         | The gig's audience needs a manual licence.                                                                       |
 | No plates                                                | `plates`         | The pickup goes `withPlates`.                                                                                    |
@@ -25,6 +25,8 @@ A note speaks of the first car: in a trade-in, the new car. The reveals agree: t
 note's fact. When a gig expires, the starter posts its cars again without stop windows; the pickup keeps the
 window that the note still needs from then on (`Desk.noted_pickup`). A one-day window inside real hours
 follows the driver: they plan by the stated hours, so a longer window could bring them after the real closing.
+The hour before closing covers drives that run longer than the road minutes: a site is closed from its closing
+minute on.
 
 ## Phrasings it reads
 
@@ -79,4 +81,29 @@ closing time, and its earlier delivery end as both the closing time and the dead
 
 ## Latest results
 
-RESULTS
+13 November, level 8. Agreement with the reveal's truth on won cars with a note.
+
+On `spread-4`, a week the reader was not tuned on (before three fixes it led to):
+
+| Fact            | Notes | Changed by the note | Starter agrees | Reader agrees |
+| --------------- | ----: | ------------------: | -------------: | ------------: |
+| earliest pickup |   395 |                  30 |          93.9% |         99.5% |
+| pickup hours    |   352 |                  20 |          95.5% |         99.7% |
+| delivery hours  |   375 |                  14 |          90.9% |        100.0% |
+| deadline        |   395 |                  30 |          87.8% |         99.7% |
+| manual gearbox  |   395 |                   8 |          98.0% |        100.0% |
+| no plates       |   395 |                  11 |          97.2% |        100.0% |
+| summer tyres    |   395 |                   3 |          99.2% |        100.0% |
+
+On the 17 team weeks it was tuned on (2,414 won cars with a note), the reader now agrees on every fact of every
+note; the starter agrees on 90.8% (deadline) to 98.9% (summer tyres).
+
+Failed visits (`visit_failed`) at level 8, starter against this reader:
+
+| Seed       | Starter | Reader | Margin, starter | Margin, reader |
+| ---------- | ------: | -----: | --------------: | -------------: |
+| `spread-1` |      26 |      0 |     −€72,612.51 |    −€66,127.10 |
+| `spread-2` |      32 |      1 |     −€46,907.28 |    −€44,852.60 |
+
+These two weeks ran before windows inside real hours ended an hour before closing; the one failure left was a
+driver who came at the closing minute. `spread-3` to `spread-5` are not measured yet.
