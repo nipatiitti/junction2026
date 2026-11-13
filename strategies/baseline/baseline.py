@@ -1,10 +1,11 @@
-"""The baseline: the organisers' starter, copied here, so we can measure our system against it.
+"""The baseline: the organisers' starter, rebuilt as strategies of the base class (strategies/strategy.py), so we
+can measure our system against a fixed reference.
 
-This is the kit's own starter (`spread/starter.py`, from the wheel in `vendor/`), the fixed baseline that
-README.md's "The baseline to beat" describes. The strategy is the organisers': the desk, the fees, the note reader
-and the play loop, with three mechanical changes for our lint and nothing else. The runner at the bottom is ours:
-it plays through the repository's client, so the run works in a cloud session, and it saves the week like
-`dispatch.py` does. See README.md next to this file.
+The strategy is the organisers': the quotes, the fees, the note reader and the play loop, as the kit's starter
+(`spread/starter.py`) has them. The decisions do not change: `strategies/baseline/` holds the starter's quotes, fees
+and note reader as subclasses of `Strategy`, and this file is the desk and the loop that build and feed them. The
+runner at the bottom is ours: it plays through the repository's client, so the run works in a cloud session, and it
+saves the week like `dispatch.py` does. See README.md next to this file.
 
 Run it with `uv run python strategies/baseline/baseline.py --level 8 --seed spread-1`, or bench it against our
 system with `uv run python -m strategies.bench strategies/baseline/baseline.py dispatch.py`.
@@ -13,11 +14,12 @@ system with `uv run python -m strategies.bench strategies/baseline/baseline.py d
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 import time
 from pathlib import Path
-from typing import NamedTuple
+
+# Run as a file, Python looks for modules next to it; record.py, spread_proxy.py and strategies/ are at the root.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from spread.client import Client, SpreadError, Unreachable, World
 from spread.types import (
@@ -29,14 +31,19 @@ from spread.types import (
     DeskSnapshot,
     FeeStep,
     Gig,
-    Note,
     Order,
     PostAction,
     PriceRequest,
     Score,
     StopRef,
-    TimeWindow,
 )
+
+from strategies.baseline.admission import BaselineAdmission
+from strategies.baseline.fees import BaselineFees
+from strategies.baseline.notes import BaselineNotes
+from strategies.baseline.pricing import BaselinePricing
+from strategies.baseline.retry import FIRST_TRY, Retry
+from strategies.strategy import Strategy
 
 HOUR, DAY = 60, 24 * 60
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -52,17 +59,6 @@ WAKE_ON: list[DeskEventKind] = [
 ]
 
 
-class Retry(NamedTuple):
-    """How to post a leg again after a failed visit."""
-
-    pickup_from: int = 0
-    manual_licence: bool = False
-    plates: bool = False
-
-
-FIRST_TRY = Retry()  # the default of `post`, as a singleton: a Retry never changes
-
-
 class Desk:
     """What the starter remembers, and its answer to each event. The answers wait in the outbox
     until the starter sends them, and the world applies them at the current minute."""
@@ -75,7 +71,14 @@ class Desk:
         self.leg_gigs: dict[str, dict[int, str]] = {}  # order id -> leg -> the gig that carries the leg
         self.booked: set[str] = set()  # the gigs that a driver holds now
         self.posts: dict[str, PostAction] = {}  # gig id -> the post that made it
-        self.urgent: set[str] = set()  # the orders whose deadline warning has come
+        # The starter's decisions, each a strategy of the base class (strategies/strategy.py), built from the driver
+        # list and the map the same way. `handle` feeds each one every event.
+        roster, world_map = world.roster(), world.client.map()
+        self.notes = BaselineNotes(roster, world_map, level)
+        self.admission = BaselineAdmission(roster, world_map, level)
+        self.pricing = BaselinePricing(roster, world_map, level)
+        self.fees = BaselineFees(roster, world_map, level)
+        self.strategies: list[Strategy] = [self.notes, self.admission, self.pricing, self.fees]
 
     def rejoin(self, snapshot: DeskSnapshot, history: list[DeskEvent]) -> None:
         """Rebuilds what it knows from the world, so a starter that stopped keeps its orders. Then answers
@@ -91,7 +94,9 @@ class Desk:
                     gig["id"],
                 )
         self.requests = {e["request"]["id"]: e["request"] for e in history if e["kind"] == "price_request"}
-        self.urgent = {e["orderId"] for e in history if e["kind"] == "deadline_close"}
+        for event in history:  # every strategy learns the week so far, the deadline warnings among them
+            for strategy in self.strategies:
+                strategy.observe(event)
         self.orders = {
             o["id"]: o for o in snapshot["orders"] if o["id"] in self.requests and o["status"] != "cancelled"
         }
@@ -112,6 +117,8 @@ class Desk:
             self.quote(request)
 
     def handle(self, event: DeskEvent) -> None:
+        for strategy in self.strategies:  # each learns what it needs from the event, then the desk answers it
+            strategy.observe(event)
         if event["kind"] == "price_request":
             self.quote(event["request"])
         elif event["kind"] == "order_won":
@@ -144,10 +151,8 @@ class Desk:
 
     def quote(self, request: PriceRequest) -> None:
         self.requests[request["id"]] = request
-        first = request["options"][0]
-        self.outbox.append(
-            {"type": "quote", "requestId": request["id"], "prices": {first["kind"]: first["listPriceCents"]}}
-        )
+        kinds = self.admission.options(request)
+        self.outbox.append({"type": "quote", "requestId": request["id"], "prices": self.pricing.price(request, kinds)})
 
     def win(self, order: Order) -> None:
         if order["id"] in self.requests and order["id"] not in self.orders:  # rejoin can know it already
@@ -182,7 +187,7 @@ class Desk:
         order = self.orders.get(order_id)
         if order is None:
             return
-        self.urgent.add(order_id)
+        self.fees.warned(order_id)
         self.send_post_of(order_id)
         for gig_id in self.gigs_of(order_id):
             if gig_id not in self.booked:
@@ -192,8 +197,7 @@ class Desk:
 
     def fees_for(self, order: Order, cars: int) -> list[FeeStep]:
         """The fees for some of the order's cars from now: rising, or steep once its deadline warning has come."""
-        fee = self.requests[order["id"]]["referenceFeeCents"] * cars / len(order["legs"])
-        return steep(self.now, fee, self.level) if order["id"] in self.urgent else rising(self.now, fee, self.level)
+        return self.fees.schedule(order, self.requests[order["id"]], cars, self.now)
 
     def retry(self, order_id: str, leg: int, reason: str) -> None:
         if order_id in self.orders:
@@ -211,7 +215,7 @@ class Desk:
             "experienced": any(leg["car"]["premium"] for leg in order["legs"]),
             "manualLicence": retry.manual_licence,
         }
-        stops = without_windows(stops_for(order, legs, self.requests[order["id"]]["note"], retry), self.now)
+        stops = without_windows(self.notes.stops_for(order, legs, self.requests[order["id"]]["note"], retry), self.now)
         self.outbox.append(
             {"type": "post", "stops": stops, "audience": audience, "schedule": self.fees_for(order, len(legs))}
         )
@@ -288,104 +292,6 @@ def without_windows(stops: list[StopRef], before: float) -> list[StopRef]:
     ]
 
 
-def rising(now: int, fee: float, level: int) -> list[FeeStep]:
-    """The fee at once, then 10% of it more every hour: six steps, up to 1.5 times. Level 1 takes one fee only."""
-    # int(x + 0.5) rounds halves up, as JavaScript's Math.round does, so both starters post the same fees.
-    return [
-        {"at": now + k * HOUR, "feeCents": max(1, int(fee * (1 + k / 10) + 0.5))} for k in range(1 if level == 1 else 6)
-    ]
-
-
-def steep(now: int, fee: float, level: int) -> list[FeeStep]:
-    """1.5 times the fee at once, then a quarter of it more every half hour, up to 2.5 times. Level 1 takes one fee only."""
-    return [
-        {"at": now + k * 30, "feeCents": max(1, int(fee * (1.5 + k / 4) + 0.5))} for k in range(1 if level == 1 else 5)
-    ]
-
-
-def stops_for(order: Order, legs: list[int], note: Note | None, retry: Retry) -> list[StopRef]:
-    """A pickup and a delivery for each leg. An electric car under 30% gets a charging stop.
-    A stop has its own window only when the note or the retry makes it narrower. Without
-    one, the world plans the pickup in the order's window and the delivery by the deadline."""
-    stops: list[StopRef] = []
-    for leg in legs:
-        car, pickup, delivery = order["legs"][leg]["car"], order["legs"][leg]["pickup"], order["legs"][leg]["delivery"]
-        noted = window_from_note(note, pickup["window"], "pickup")
-        start = max(noted["from"], retry.pickup_from)
-        pickup_window: TimeWindow = {"from": start, "to": max(noted["to"], start)}
-        delivery_base: TimeWindow = {
-            "from": delivery["window"]["from"],
-            "to": max(delivery["window"]["from"], order["deadline"]),
-        }
-        delivery_window = window_from_note(note, delivery_base, "delivery")
-        low_battery = car["electric"] and car["chargePercent"] is not None and car["chargePercent"] < 30
-        first: StopRef = {
-            "orderId": order["id"],
-            "leg": leg,
-            "kind": "pickup",
-            "withPlates": retry.plates,
-            "withCharging": low_battery,
-        }
-        second: StopRef = {"orderId": order["id"], "leg": leg, "kind": "delivery"}
-        stops += [narrower(first, pickup_window, pickup["window"]), narrower(second, delivery_window, delivery_base)]
-    return stops
-
-
-def narrower(stop: StopRef, window: TimeWindow, base: TimeWindow) -> StopRef:
-    return {**stop, "window": window} if window["from"] > base["from"] or window["to"] < base["to"] else stop
-
-
-# "Not before", "at the earliest" and a ready time all mean from then on; read them before BEFORE.
-# re.ASCII makes \b and \d mean what they mean in JavaScript, so both starters read a note alike.
-AFTER = re.compile(
-    r"jälkeen|alkaen|aikaisintaan|\bafter\b|\bfrom\b|earliest|not before|ei ennen|valmis|\bready\b|efter|tidigast|inte före|klar",
-    re.ASCII,
-)
-BEFORE = re.compile(r"ennen|mennessä|viim|\bbefore\b|\bby\b|latest|före|senast", re.ASCII)
-DELIVERY = re.compile(
-    r"toimit|perillä|perille|vastaanot|kohde|deliver|arrive|destination|receiv|leverera|leverans|framme|mottag",
-    re.ASCII,
-)
-CLOCK = re.compile(r"(?:klo|kl\.?)\s*(\d{1,2})(?:[.:](\d{2}))?|\b(\d{1,2})[.:](\d{2})\b", re.ASCII)
-# Opening hours as a range: "9-16", "klo 9.00-14.30", "kl 10-14".
-RANGE = re.compile(r"\b(\d{1,2})(?:[.:](\d{2}))?\s*[-–]\s*(\d{1,2})(?:[.:](\d{2}))?\b", re.ASCII)
-
-
-def window_from_note(note: Note | None, window: TimeWindow, stop: str) -> TimeWindow:
-    """Narrows a stop's window by clock times in the note, found by keywords: "nouto ennen 15.30",
-    "klo 12 jälkeen", "deliver by 19:00", "efter kl. 12", "aikaisintaan klo 13.30", "not before
-    16:00", and opening hours as a range, "arkisin 9-16". The time is on the window's own day."""
-    if not note:
-        return window
-    text = note["text"].lower()
-    if bool(DELIVERY.search(text)) != (stop == "delivery"):
-        return window
-
-    def minutes(hour: int, minute: int) -> int | None:
-        return None if hour > 24 or minute > 59 else hour * HOUR + minute
-
-    start, end = window["from"], window["to"]
-    # Opening hours hold every day: they move the window's start to the first day's opening and its end to the last day's closing.
-    for match in RANGE.finditer(text):
-        opens, closes = minutes(int(match[1]), int(match[2] or 0)), minutes(int(match[3]), int(match[4] or 0))
-        if opens is None or closes is None or opens >= closes:
-            continue
-        start = max(start, start // DAY * DAY + opens)
-        end = min(end, end // DAY * DAY + closes)
-    text = RANGE.sub(" ", text)
-    for match in CLOCK.finditer(text):
-        m = minutes(int(match[1] or match[3]), int(match[2] or match[4] or 0))
-        if m is None:
-            continue
-        time = window["from"] // DAY * DAY + m
-        around = text[max(0, match.start() - 16) : match.end() + 16]
-        if AFTER.search(around):
-            start = max(start, time)
-        elif BEFORE.search(around):
-            end = min(end, time)
-    return {"from": start, "to": end} if start <= end else window
-
-
 def play_practice(world: World, level: int) -> None:
     """Steps the world from one event that needs an answer to the next, and stops at each midnight for a report."""
     snapshot = world.snapshot()
@@ -458,14 +364,6 @@ def next_final(client: Client) -> World:
         time.sleep(10)
 
 
-def repo_modules() -> None:
-    """Puts the repository root on the path, so that `record` and `spread_proxy` import when this file runs as a
-    script from another folder, as the bench runs it."""
-    root = str(Path(__file__).resolve().parents[2])
-    if root not in sys.path:
-        sys.path.insert(0, root)
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Plays a Spread world with the organisers' starter, our baseline. Set SPREAD_URL and SPREAD_KEY first."
@@ -481,7 +379,6 @@ def main() -> None:
     )
     parser.add_argument("--final", action="store_true", help="play your copy of the final from the live stream")
     args = parser.parse_args()
-    repo_modules()
     from record import Recorder  # the repository's saving of the week, in the root of the repository
     from spread_proxy import ProxyClient  # the kit's client, through HTTPS_PROXY where there is one
 
