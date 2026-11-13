@@ -43,7 +43,9 @@ The final plays from the live event stream, a code path that practice weeks neve
 practice world: a second client moves the world's clock as the final's clock runs (`--speed 3`, three times as
 fast, takes about 12 minutes), and `--restart-at <minute>` stops the desk at that world minute and starts a new one,
 which must rebuild its books from the world, as after a crash in the final. In the final, `--final` rebuilds the
-desk after any error and reads the stream on from the last event the world has.
+desk after any error and reads the events on from the last one the world has, so an event that broke a desk is not
+read again. The desk notes each request it declines in `out/ladder-<world id>.declined`: a desk that restarts learns
+its price again from the outcomes of our real quotes only, since a decline always loses.
 
 ```sh
 uv run ladder/rehearse.py --seed spread-1 --restart-at 3600   # a restart on Wednesday at 12:00
@@ -93,9 +95,11 @@ with few drivers booked at their opening fee 37% of the time, against 84% to 96%
 | `market.py`    | The map and the driver list: road minutes, and the drivers within reach of a place              |
 
 - **One decision pass a step.** Events only update what the desk knows. After all of a step's events, `tick`
-  quotes the requests that wait, posts every car without a live gig, and reprices the gigs whose plan changed. A
-  desk that restarts in the final rebuilds its books from the world's events and snapshot, and the next tick fills
-  any gap.
+  quotes the requests that wait, posts every car without a live gig, and reprices the gigs whose plan changed. In
+  the final the desk reads the world's event log about five times a second and answers each page of new events in
+  one pass, so a burst of requests goes out in one batch of actions. A desk that restarts rebuilds its books from
+  the world's events and snapshot, and the next tick fills any gap. A post the world refuses goes again without
+  windows of our own, and after three refusals the desk stops posting that car, so a refusal never loops.
 - **Few requests.** While requests keep coming, the clock stops every 14 minutes rather than at each request or win:
   the dealer decides 15 minutes after the request, on our last quote. A level 8 week takes about 300 requests.
 - **Admission.** A request is quoted when its rung is taken, an option leaves 5 hours beyond the drive (1 hour for a
