@@ -25,3 +25,6 @@ Claude Code cloud session, where the proxy swaps the placeholder `SPREAD_KEY` fo
 must name the proxy's CA (cloud sessions set it). Without `HTTPS_PROXY` they connect straight to the server. `.npmrc`
 turns on pnpm's `shell-emulator`, so the variable works on Windows too. The `--final` WebSocket stream does not go
 through the proxy yet.
+
+The quote side of the brief's design (win probability, level learning, expected-profit pricing) is in
+`models/quote/`, with its priors in `params/quote.json`: see [its README](models/quote/README.md).
