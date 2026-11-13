@@ -33,6 +33,9 @@ Optimise for speed. Small issues, small PRs, no tests.
 - All work starts from a GitHub issue the user hands you, so every change is
   tracked and reviewable. If asked for a feature without one, create the issue
   first, then work from it.
+- When you start on an issue, rename it so its title starts with
+  `In progress: ` (e.g. `In progress: Add login form`), so everyone can see
+  it is taken. Skip this if the title already starts with it.
 - One issue = one feature, **including its documentation**. Both ship in the
   same PR.
 - If the issue is unclear, carry on rather than stopping to ask: waiting stalls
@@ -141,14 +144,16 @@ continue, leaves the user with a half-built feature.
   guardrail — were put there on purpose. Leave them in place, say what you
   found, and look for another way to finish.
 
-These routine steps need no approval: create a branch or worktree, commit, push
+These routine steps need no approval: mark the issue you start on as
+`In progress: `, create a branch or worktree, commit, push
 to your own branch, open a draft PR, move your own PR from draft to open, create
 follow-up issues, reply on your own PR, resolve merge conflicts, fix CI, close
 the issue of your own merged or closed PR.
 
 Ask for approval before these, because they are hard to undo or change what
 other people see: merging a PR, pushing to the default branch, force-pushing,
-deleting a branch, closing or editing any other issue you did not create.
+deleting a branch, closing or editing any other issue you did not create
+(beyond marking the one you start on as in progress).
 
 ## Commands
 
