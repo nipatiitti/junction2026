@@ -18,13 +18,13 @@ jury picks winners from those 10.
 
 ## Files
 
-| File | Short version of | Original |
-| --- | --- | --- |
-| [rules.md](rules.md) | The full rules | [RULES.md](https://spread.bahnexpress.com/kit/RULES.md) |
-| [handbook.md](handbook.md) | Setup, levels, kits, events, how the world works | [HANDBOOK.md](https://spread.bahnexpress.com/kit/HANDBOOK.md) |
-| [api.md](api.md) | Routes, actions, limits, errors | [API.md](https://spread.bahnexpress.com/kit/API.md), [openapi.json](https://spread.bahnexpress.com/openapi.json) |
-| [how-it-works.md](how-it-works.md) | The world in plain words, where margin comes from | [/how](https://spread.bahnexpress.com/how) |
-| [judging.md](judging.md) | Schedule, final, jury criteria, submission | [/judging](https://spread.bahnexpress.com/judging) |
+| File                               | Short version of                                  | Original                                                                                                         |
+| ---------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| [rules.md](rules.md)               | The full rules                                    | [RULES.md](https://spread.bahnexpress.com/kit/RULES.md)                                                          |
+| [handbook.md](handbook.md)         | Setup, levels, kits, events, how the world works  | [HANDBOOK.md](https://spread.bahnexpress.com/kit/HANDBOOK.md)                                                    |
+| [api.md](api.md)                   | Routes, actions, limits, errors                   | [API.md](https://spread.bahnexpress.com/kit/API.md), [openapi.json](https://spread.bahnexpress.com/openapi.json) |
+| [how-it-works.md](how-it-works.md) | The world in plain words, where margin comes from | [/how](https://spread.bahnexpress.com/how)                                                                       |
+| [judging.md](judging.md)           | Schedule, final, jury criteria, submission        | [/judging](https://spread.bahnexpress.com/judging)                                                               |
 
 Read `rules.md` first if you are writing decision logic, `api.md` if you are
 writing the client.

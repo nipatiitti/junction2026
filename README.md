@@ -81,9 +81,9 @@ them in time.
 | 7     | -€50,442.49 | 817        | 52.3%   | no     |
 | 8     | -€72,612.51 | 949        | 45.5%   | no     |
 
-We measured these with the organisers' TypeScript starter, before we chose Python. They match the handbook to the
-cent, and the handbook says that both starters play alike. The Python starter has not been run against the server
-yet.
+They match the handbook to the cent. `dispatch.py`, still unchanged from the starter, gives the same level 8 result.
+We measured levels 6 and 7 with the organisers' TypeScript starter, before we chose Python; the handbook says that
+both starters play alike.
 
 ### Claude Code cloud environments
 
