@@ -10,16 +10,16 @@ audience and plates of a gig. Most failed visits come from a note the gig did no
 
 ## The facts
 
-| Fact | Field | What `dispatch.py` does with it |
-| --- | --- | --- |
-| Car ready later | `ready_at` | The pickup window starts then. |
-| Handed over after payment (a `release` event comes then) | `released_at` | The pickup window starts then. |
-| Real pickup hours | `pickup_hours` | The pickup window is one day inside them: the first open day from the start on. |
-| Real delivery hours | `delivery_hours` | The delivery window ends at the real closing time on its last day. |
-| Tighter deadline | `deadline` | The delivery window ends then. A request whose note deadline passes before the car can be collected is declined. |
-| Manual gearbox | `manual` | The gig's audience needs a manual licence. |
-| No plates | `plates` | The pickup goes `withPlates`. |
-| Summer tyres | `summer_tyres` | The pickup window starts after any forecast snow at either end. |
+| Fact                                                     | Field            | What `dispatch.py` does with it                                                                                  |
+| -------------------------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Car ready later                                          | `ready_at`       | The pickup window starts then.                                                                                   |
+| Handed over after payment (a `release` event comes then) | `released_at`    | The pickup window starts then.                                                                                   |
+| Real pickup hours                                        | `pickup_hours`   | The pickup window is one day inside them: the first open day from the start on.                                  |
+| Real delivery hours                                      | `delivery_hours` | The delivery window ends at the real closing time on its last day.                                               |
+| Tighter deadline                                         | `deadline`       | The delivery window ends then. A request whose note deadline passes before the car can be collected is declined. |
+| Manual gearbox                                           | `manual`         | The gig's audience needs a manual licence.                                                                       |
+| No plates                                                | `plates`         | The pickup goes `withPlates`.                                                                                    |
+| Summer tyres                                             | `summer_tyres`   | The pickup window starts after any forecast snow at either end.                                                  |
 
 A note speaks of the first car: in a trade-in, the new car. The reveals agree: the second car never carries a
 note's fact. When a gig expires, the starter posts its cars again without stop windows; the pickup keeps the
