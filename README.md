@@ -157,6 +157,9 @@ must name the proxy's CA (cloud sessions set it). Without `HTTPS_PROXY` they con
 turns on pnpm's `shell-emulator`, so the variable works on Windows too. The `--final` WebSocket stream does not go
 through the proxy yet.
 
+The quote side of the brief's design (win probability, level learning, expected-profit pricing) is in
+`src/models/quote/`, with its priors in `src/params/quote.json`: see [its README](src/models/quote/README.md).
+
 ### Get the team's scraped data
 
 The team's scraped weeks (`out/scrape`) and probe rows (`out/probe`) are too big for git, so each batch goes up as
