@@ -43,12 +43,12 @@ function remove(world: World): Promise<string> {
   )
 }
 
+/** Deletes every world in play, and says what it deleted. */
+const removeAll = (): Promise<string[]> => Promise.all([...playing].map(remove))
+
 /** On Ctrl-C, deletes every world in play and exits with `message` and what was deleted. */
 export function deleteOnStop(message = 'Stopped.'): void {
-  process.once('SIGINT', () => {
-    const said = Promise.all([...playing].map(remove))
-    void said.then((lines) => exit([message, ...lines].join(' ')))
-  })
+  process.once('SIGINT', () => void removeAll().then((lines) => exit([message, ...lines].join(' '))))
 }
 
 /** Plays `run` on a new practice world of `seed`, saves the week and returns its world id and score. A week that
@@ -79,9 +79,11 @@ export function exit(message: string): never {
   process.exit(1)
 }
 
-/** Runs a script's `main`, and ends with the message and the usage on a known error. */
+/** Runs a script's `main`, and ends with the message and the usage on a known error. An error deletes the worlds
+ * still in play first, as when two weeks run side by side and one of them throws. */
 export async function runScript(main: () => Promise<void>, usage: string): Promise<void> {
-  await main().catch((error: unknown) => {
+  await main().catch(async (error: unknown) => {
+    for (const line of await removeAll()) console.error(line)
     if (error instanceof SpreadError) exit(`spread: ${error.message}`)
     if (error instanceof UsageError) exit(`${error.message}. ${usage}`)
     if (error instanceof TypeError && 'code' in error && String(error.code).startsWith('ERR_PARSE_ARGS'))
