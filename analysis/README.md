@@ -250,3 +250,49 @@ from order_facts group by 1;
 - Selection bound: `order_facts.margin_cents > 0`; delivery bound: `price_cents` and `driver_fee_cents` of `order_facts`.
 - Fee bound: `gig_facts` rows with `outcome = 'done'`, lowest `fee_ratio` by `pickup_place`, `delivery_place`, `posted_day`.
 - Quote brackets: `quote_facts.ratio` against `taken` by lane and day.
+
+## Overview report
+
+One static page with the whole picture of the scraped weeks:
+
+```sh
+uv run python -m analysis.facts    # first: the facts tables
+uv run python -m analysis.oracle   # optional: out/oracle.json, the gap bounds of section 6
+uv run python -m analysis.report   # writes out/report.html
+uv run python -m analysis.report --db data/spread.sqlite --probe out/probe --oracle out/oracle.json --out out/report.html
+```
+
+It opens the database read-only. Open `out/report.html` in a browser or share the file: it is one file with inline
+SVG, no JavaScript and no network, in light and dark, one column on a phone. Hover a point, bar or dot for its exact
+values; each chart's numbers are under "Data". Without `out/oracle.json` it calls `analysis.oracle` if that module
+exists, else section 6 shows only the account waterfall. Points with too few rows are not drawn (the line breaks)
+but stay in the data table.
+
+1. **Experiments.** Which experiment and level made or lost how much, and how many of its weeks would have been
+   ranked. Table per experiment and level; *Margin of each week*: one dot per week, filled when ranked (≥ 90% on
+   time), hollow when not, a tick at the mean.
+2. **Dealers: the win curve.** Share won against quote / list price, only on requests where we priced one option.
+   *By level*: level 8 pays well above list. *By weekday, level 8*: later days win at higher prices: dealers trust
+   us more, and the competitor raises its prices for dealers it keeps winning. *The price-war day*: on one day a
+   week the competitor quotes 20% lower (the day is a guess). *By dealer trust*: each on-time order raises what its
+   dealer accepts by 1%, up to 25; a late order halves the count.
+3. **Probe: where a quote flips.** The exact price at which a request flips from won to lost in one world, from
+   `out/probe`. Tiles: probed requests, median flip, share below list, share never won. *Flip price of the first
+   option* (histogram); *Flip by delivery option*: slower options flip lower, the dealer pays for speed; *Probe
+   against our quotes, level 8 Mondays*: the same curve from two sources.
+4. **Drivers: the booking curve.** Bookings per open daytime hour (a rate, not a share). *By fee over the typical
+   fee*; *By hours to the last pickup time, level 8*: the deadline warning comes at 3 hours, after that only a
+   higher fee finds a driver; *Share of gigs booked within a day of posting, by opening fee*: the plain reading.
+5. **Supply by town.** *Drivers at home and booked share by town, level 8*: where the drivers live in a shortage
+   world and where gigs get booked (a gig-day is one gig open on one day).
+6. **Order economics.** Per experiment: *Where the money went (mean week)*, revenue down to margin; *What a perfect
+   dispatcher keeps (mean week, upper bounds)*, margin up to the oracle by the four bounds of `analysis.oracle`,
+   with their assumptions and the brief's split; a table over all experiments.
+7. **On time.** *On-time share of each week* against the 90% minimum; *Counted orders by lateness*, with the refund
+   of each bucket; a table with counts, slack, refunds and penalties.
+
+Caveats: the win curves use only requests with one priced option (with several, each option's share reads about
+half as high); the war day is a guess from the win share, so its gap is partly by construction; probe flips are
+the first answers of a world that won nothing (no trust, no competitor reaction); booking rates use only weeks
+with an action log; supply is an average over worlds, which level 8 reshuffles; the oracle's bars are upper bounds,
+each under its stated assumptions, not forecasts.
