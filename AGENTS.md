@@ -28,10 +28,10 @@ car dealers and pays freelance drivers to move the cars, for one simulated week.
   (`tools/README.md` lists the tables). Play online only to measure a changed system, or for data that
   no saved week has.
 - **One online run at a time.** An online run is any command that plays or reads
-  worlds on the Spread server: `dispatch.py`, `pnpm dispatch`, `strategies.bench`,
+  worlds on the Spread server: `dispatch.py`, `pnpm dispatch`, `pnpm bench`, `pnpm tune`, `strategies.bench`,
   the scrape and reveal tools. Start a run only when your previous one has
-  finished: no second run in the background or in another terminal. A bench is
-  one run, whatever its `--jobs`. Every system on our key shares one rate limit,
+  finished: no second run in the background or in another terminal. A bench or a tune is
+  one run, whatever its `--jobs` or `--keys`. Every system on our key shares one rate limit,
   so parallel runs slow down the whole team.
 
 ---
@@ -209,6 +209,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Play a week in TypeScript: `pnpm dispatch --level 8 --seed spread-1`
 - Write a week to CSV (TS): `pnpm reveal-csv <world id>`
 - Compare TypeScript strategies: `pnpm bench starter --level 8 --seeds spread-1..spread-5`
+- Tune a TypeScript strategy's params: `pnpm tune <strategy> --space <space.json> --holdout spread-6..spread-10`
 - Build the facts tables: `uv run python -m analysis.facts`
 - Export the fee model priors: `uv run python -m analysis.priors_fees`
 - Margin gap report (oracle): `uv run python -m analysis.oracle`
