@@ -20,6 +20,8 @@ OPEN_EVENING = 0.10  # the drive ends after 18:00, when the trip home is dear
 OPEN_SATURDAY = 0.15  # Saturday work
 OPEN_LONG = 0.05  # a drive of 3 hours or more: a long trip home from the delivery town
 LONG_DRIVE = 3 * HOUR
+# The least opening fee, as a multiple of the typical fee, whatever the premiums add up to.
+OPEN_FLOOR = 1.0
 # The top fee, as a multiple of the typical fee, before the ceiling cuts it.
 TOP = 2.0
 # What a late car costs, as a share of its price: the refund for a car late by more than 24 hours.
@@ -93,7 +95,7 @@ def opening_multiple(gig: Gig) -> float:
         multiple += OPEN_SATURDAY
     if gig.drive_minutes >= LONG_DRIVE:
         multiple += OPEN_LONG
-    return multiple
+    return max(OPEN_FLOOR, multiple)
 
 
 def plan(now: int, gig: Gig, level: int, floor: float = 0) -> list[FeeStep]:
