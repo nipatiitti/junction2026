@@ -68,7 +68,9 @@ public rankings, so agree on it in the team first.
 - `dispatch.py` is our system. It starts as a copy of the organisers' starter, formatted with ruff.
 - `vendor/` holds the organisers' Python kit of 13 November as a wheel. uv installs it as the package `spread`: the
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
-- `tests/` holds fast tests that need no network: `uv run pytest`.
+- `strategies/` holds one folder per idea that `dispatch.py` calls into, each with its own notes and tests. The first
+  is [`strategies/pricing/`](strategies/pricing/README.md): the price of each quote, learned during the week.
+- `tests/` and `strategies/` hold fast tests that need no network: `uv run pytest`.
 
 ### The baseline to beat
 

@@ -31,6 +31,8 @@ from spread.types import (
     TimeWindow,
 )
 
+from strategies.pricing import PricingModel, places_from_map
+
 HOUR, DAY = 60, 24 * 60
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 # The events that need an answer. Views and account lines arrive with the next event that needs an answer.
@@ -69,6 +71,7 @@ class Desk:
         self.booked: set[str] = set()  # the gigs that a driver holds now
         self.posts: dict[str, PostAction] = {}  # gig id -> the post that made it
         self.urgent: set[str] = set()  # the orders whose deadline warning has come
+        self.pricing = PricingModel(level, places_from_map(world.client.map()))  # strategies/pricing
 
     def rejoin(self, snapshot: DeskSnapshot, history: list[DeskEvent]) -> None:
         """Rebuilds what it knows from the world, so a starter that stopped keeps its orders. Then answers
@@ -84,6 +87,11 @@ class Desk:
                     gig["id"],
                 )
         self.requests = {e["request"]["id"]: e["request"] for e in history if e["kind"] == "price_request"}
+        for event in history:  # the pricing learns the week again from its quotes and their outcomes
+            if event["kind"] == "price_request":
+                self.pricing.price(event["request"], event["at"])
+            else:
+                self.pricing.observe(event)
         self.urgent = {e["orderId"] for e in history if e["kind"] == "deadline_close"}
         self.orders = {
             o["id"]: o for o in snapshot["orders"] if o["id"] in self.requests and o["status"] != "cancelled"
@@ -105,6 +113,7 @@ class Desk:
             self.quote(request)
 
     def handle(self, event: DeskEvent) -> None:
+        self.pricing.observe(event)
         if event["kind"] == "price_request":
             self.quote(event["request"])
         elif event["kind"] == "order_won":
@@ -137,10 +146,8 @@ class Desk:
 
     def quote(self, request: PriceRequest) -> None:
         self.requests[request["id"]] = request
-        first = request["options"][0]
-        self.outbox.append(
-            {"type": "quote", "requestId": request["id"], "prices": {first["kind"]: first["listPriceCents"]}}
-        )
+        prices = self.pricing.price(request, self.now)
+        self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
 
     def win(self, order: Order) -> None:
         if order["id"] in self.requests and order["id"] not in self.orders:  # rejoin can know it already

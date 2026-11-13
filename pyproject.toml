@@ -16,7 +16,7 @@ package = false
 spread = { path = "vendor/spread-0.1.0-py3-none-any.whl" }
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "strategies"]
 pythonpath = ["."]
 
 [tool.ruff]
