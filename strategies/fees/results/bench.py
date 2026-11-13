@@ -99,8 +99,12 @@ def play(version: str, level: int, seed: str) -> dict:
 
     import dispatch
     from record import Recorder
+    from strategies.admission import admission
     from strategies.fees import schedule
 
+    # dispatch.py on main sets price_factor on the frozen admission Params and crashes at the first quote (#72). Until
+    # the fix (#81) is on main, let the assignment through: the same week as #81's copy of Params.
+    admission.Params.__setattr__ = object.__setattr__
     changes = VERSIONS[version]
     if changes is None:
         starter_fees(dispatch)
