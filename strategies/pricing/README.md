@@ -71,9 +71,3 @@ What the bench taught:
   wrong outage undo made a false war; hence the run-of-wins rule and no war on the outage day.
 - Margin is up about €73k on `spread-1`, and the share on time rises from 45.5% to about 80%: fewer, dearer orders.
   It is still under the 90% minimum; that is the job of admission control (#14) and fees (#15).
-
-## Tests
-
-```sh
-uv run pytest strategies/pricing
-```

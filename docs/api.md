@@ -12,24 +12,24 @@ Base URL `https://spread.bahnexpress.com`.
 
 ## Routes
 
-| Route | Body → Returns |
-| --- | --- |
-| `GET /v1/worlds` | → `{ worldId, kind: practice\|final, level, parent, season, boardRun, ended }[]` |
-| `POST /v1/worlds` | `{ level: 1-8, seed?, board? }` → 201 `{ worldId }`. `board` + `seed` → 400. |
-| `GET /v1/worlds/{id}` | → `DeskSnapshot` `{ worldId, now, endsAt, openRequests, orders, gigs, driverPositions, score }` |
-| `DELETE /v1/worlds/{id}` | → 204. Unended ranking run plays to its end first. |
-| `POST /v1/worlds/{id}/actions` | `Action[]` (1–50) → `ActionResult[]` same order |
-| `POST /v1/worlds/{id}/advance` | `{ to }` \| `{ by }` \| `{ untilEvent: Kind[], max }`, optional `actions` (1–50) → `{ results?, now, events }` |
-| `GET /v1/worlds/{id}/events?after=&limit=` | → `DeskEvent[]` with `seq > after` (default -1 = all) |
-| `GET /v1/worlds/{id}/drivers` | → `DriverProfile[]` (≤ 5 s stale while moving) |
-| `POST /v1/worlds/{id}/fork` | → 201 `{ worldId }`; 403 on ranking runs |
-| `GET /v1/worlds/{id}/score` | → `Score` |
-| `GET /v1/worlds/{id}/reveal` | → `Reveal` after end; 409 before; 403 for ranking runs |
-| `GET /v1/worlds/{id}/stream?after=` | WebSocket, one `DeskEvent` per message |
-| `GET /v1/map` | no key → `{ places: [{ id, name, lat, lon }], roads: [{ from, to, km, minutes }] }` |
-| `GET /v1/leaderboards/practice?level=` | no key → `{ level, current, previous }` (`BoardSeason`) |
-| `GET /v1/final` | → `{ worldId, startsAt (ISO), now }`; 404 before set |
-| `GET /v1/leaderboard` | no key, SSE every 2 s: `{ status: none\|scheduled\|running\|ended, now, endsAt, teams[] }` |
+| Route                                      | Body → Returns                                                                                                 |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `GET /v1/worlds`                           | → `{ worldId, kind: practice\|final, level, parent, season, boardRun, ended }[]`                               |
+| `POST /v1/worlds`                          | `{ level: 1-8, seed?, board? }` → 201 `{ worldId }`. `board` + `seed` → 400.                                   |
+| `GET /v1/worlds/{id}`                      | → `DeskSnapshot` `{ worldId, now, endsAt, openRequests, orders, gigs, driverPositions, score }`                |
+| `DELETE /v1/worlds/{id}`                   | → 204. Unended ranking run plays to its end first.                                                             |
+| `POST /v1/worlds/{id}/actions`             | `Action[]` (1–50) → `ActionResult[]` same order                                                                |
+| `POST /v1/worlds/{id}/advance`             | `{ to }` \| `{ by }` \| `{ untilEvent: Kind[], max }`, optional `actions` (1–50) → `{ results?, now, events }` |
+| `GET /v1/worlds/{id}/events?after=&limit=` | → `DeskEvent[]` with `seq > after` (default -1 = all)                                                          |
+| `GET /v1/worlds/{id}/drivers`              | → `DriverProfile[]` (≤ 5 s stale while moving)                                                                 |
+| `POST /v1/worlds/{id}/fork`                | → 201 `{ worldId }`; 403 on ranking runs                                                                       |
+| `GET /v1/worlds/{id}/score`                | → `Score`                                                                                                      |
+| `GET /v1/worlds/{id}/reveal`               | → `Reveal` after end; 409 before; 403 for ranking runs                                                         |
+| `GET /v1/worlds/{id}/stream?after=`        | WebSocket, one `DeskEvent` per message                                                                         |
+| `GET /v1/map`                              | no key → `{ places: [{ id, name, lat, lon }], roads: [{ from, to, km, minutes }] }`                            |
+| `GET /v1/leaderboards/practice?level=`     | no key → `{ level, current, previous }` (`BoardSeason`)                                                        |
+| `GET /v1/final`                            | → `{ worldId, startsAt (ISO), now }`; 404 before set                                                           |
+| `GET /v1/leaderboard`                      | no key, SSE every 2 s: `{ status: none\|scheduled\|running\|ended, now, endsAt, teams[] }`                     |
 
 `advance` applies `actions` at the current minute, then moves the clock; it
 never passes the world end. Its `events` hold everything since the previous
@@ -113,11 +113,11 @@ open streams per team.
 
 ## Limits
 
-| Bucket | Refills | Max | Cost |
-| --- | --- | --- | --- |
-| Practice | 10,000/s server-wide split among active teams, ≤ 1,000 per team; 20/s during a (test) final | 1 s of tokens | 1 per practice request of any kind (incl. create/list) |
-| Final actions | 20/s | 50 | 1 per action in a batch |
-| Final reads | 50/s | 50 | 1 per GET on the final world, `GET /v1/final`, stream opened |
+| Bucket        | Refills                                                                                     | Max           | Cost                                                         |
+| ------------- | ------------------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------ |
+| Practice      | 10,000/s server-wide split among active teams, ≤ 1,000 per team; 20/s during a (test) final | 1 s of tokens | 1 per practice request of any kind (incl. create/list)       |
+| Final actions | 20/s                                                                                        | 50            | 1 per action in a batch                                      |
+| Final reads   | 50/s                                                                                        | 50            | 1 per GET on the final world, `GET /v1/final`, stream opened |
 
 - Practice over-limit waits up to 1 s in the server, else 429 (no token
   taken). Final over-limit → 429 immediately, no token taken.
@@ -131,13 +131,13 @@ open streams per team.
 
 `{ error, field? }`.
 
-| Code | Meaning |
-| --- | --- |
-| 400 | Body/query doesn't parse; `field` e.g. `[2].prices.next_day` |
-| 401 | Missing or unknown key |
-| 403 | Not your world, route closed in the final, or fork/reveal on a ranking run |
-| 404 | No such world, or no final for this team |
-| 409 | Slot/stream limit, reveal before end, ranking run can't start |
-| 429 | Over limit; `Retry-After` in ms |
-| 502/503/504 | Server restarting (no JSON body); back within a minute, worlds resume. Retry and re-read state. |
-| 200 + `{ ok: false, reason }` | Action parsed but can't be done |
+| Code                          | Meaning                                                                                         |
+| ----------------------------- | ----------------------------------------------------------------------------------------------- |
+| 400                           | Body/query doesn't parse; `field` e.g. `[2].prices.next_day`                                    |
+| 401                           | Missing or unknown key                                                                          |
+| 403                           | Not your world, route closed in the final, or fork/reveal on a ranking run                      |
+| 404                           | No such world, or no final for this team                                                        |
+| 409                           | Slot/stream limit, reveal before end, ranking run can't start                                   |
+| 429                           | Over limit; `Retry-After` in ms                                                                 |
+| 502/503/504                   | Server restarting (no JSON body); back within a minute, worlds resume. Retry and re-read state. |
+| 200 + `{ ok: false, reason }` | Action parsed but can't be done                                                                 |

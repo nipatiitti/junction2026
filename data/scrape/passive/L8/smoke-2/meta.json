@@ -1,0 +1,20 @@
+{
+  "seed": "smoke-2",
+  "level": 8,
+  "policy": "passive",
+  "worldId": "w97d0c4af729936640d42",
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 2079,
+  "score": {
+    "marginCents": 0,
+    "revenueCents": 0,
+    "marginShare": 0,
+    "wonOrders": 0,
+    "onTimeShare": 1,
+    "undeliveredShare": 0,
+    "ranked": false
+  },
+  "seconds": 3.2,
+  "requests": 10
+}

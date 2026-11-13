@@ -10,7 +10,8 @@ import argparse
 import re
 import sys
 import time
-from typing import NamedTuple
+from collections import Counter
+from typing import Any, NamedTuple
 
 from spread.client import Client, SpreadError, Unreachable, World
 from spread.types import (
@@ -31,6 +32,8 @@ from spread.types import (
     TimeWindow,
 )
 
+from spread_proxy import ProxyClient
+from strategies.admission import Admission, Held
 from strategies.pricing import PricingModel, places_from_map
 
 HOUR, DAY = 60, 24 * 60
@@ -45,6 +48,11 @@ WAKE_ON: list[DeskEventKind] = [
     "gig_expired",
     "deadline_close",
 ]
+# While price requests keep coming, the loop does not stop for each one: the dealer decides at the request's
+# respondBy, 15 minutes after it, on the last quote. So the loop looks at least every POLL minutes instead and
+# quotes every request it finds then, together with the answers to the other events.
+WAKE_ON_BUSY: list[DeskEventKind] = [kind for kind in WAKE_ON if kind != "price_request"]
+POLL = 14  # a request that comes a minute after a stop is quoted at the latest a minute before its respondBy
 
 
 class Retry(NamedTuple):
@@ -71,7 +79,10 @@ class Desk:
         self.booked: set[str] = set()  # the gigs that a driver holds now
         self.posts: dict[str, PostAction] = {}  # gig id -> the post that made it
         self.urgent: set[str] = set()  # the orders whose deadline warning has come
-        self.pricing = PricingModel(level, places_from_map(world.client.map()))  # strategies/pricing
+        # Decides which requests to take, from the driver list and the map, loaded once (strategies/admission).
+        world_map = world.client.map()
+        self.admission = Admission(world.roster(), world_map, level)
+        self.pricing = PricingModel(level, places_from_map(world_map))  # the price of a quote (strategies/pricing)
 
     def rejoin(self, snapshot: DeskSnapshot, history: list[DeskEvent]) -> None:
         """Rebuilds what it knows from the world, so a starter that stopped keeps its orders. Then answers
@@ -87,11 +98,10 @@ class Desk:
                     gig["id"],
                 )
         self.requests = {e["request"]["id"]: e["request"] for e in history if e["kind"] == "price_request"}
-        for event in history:  # the pricing learns the week again from its quotes and their outcomes
-            if event["kind"] == "price_request":
-                self.pricing.price(event["request"], event["at"])
-            else:
-                self.pricing.observe(event)
+        # The history rebuilds dealer trust. It cannot tell the quotes admission declined from the others,
+        # so the price multiplier learns again from the level's start.
+        for event in history:
+            self.pricing.observe(event)
         self.urgent = {e["orderId"] for e in history if e["kind"] == "deadline_close"}
         self.orders = {
             o["id"]: o for o in snapshot["orders"] if o["id"] in self.requests and o["status"] != "cancelled"
@@ -109,10 +119,13 @@ class Desk:
                 ]
                 if not any(stop["leg"] == event["leg"] for gig in later for stop in gig["stops"]):
                     self.retry(order["id"], event["leg"], event["reason"])
+        for event in history:
+            self.admission.observe(event)
         for request in snapshot["openRequests"]:
             self.quote(request)
 
     def handle(self, event: DeskEvent) -> None:
+        self.admission.observe(event)
         self.pricing.observe(event)
         if event["kind"] == "price_request":
             self.quote(event["request"])
@@ -145,8 +158,23 @@ class Desk:
             self.orders[order_id]["deliveredAt"][leg] = at
 
     def quote(self, request: PriceRequest) -> None:
+        """Quotes the options that admission picks, at the price that strategies/pricing learns. A request
+        admission declines gets a price far above the list price, which loses at no cost; up to level 3
+        every quote wins, so no quote."""
         self.requests[request["id"]] = request
-        prices = self.pricing.price(request, self.now)
+        held = [
+            Held(o, bool(g := self.gigs_of(o["id"])) and all(x in self.booked for x in g)) for o in self.orders.values()
+        ]
+        # Admission weighs the margin at the price we would quote, and pricing prices the options it picks.
+        self.admission.params.price_factor = self.pricing.multiplier(request, self.now)
+        verdict = self.admission.assess(request, held, self.now)
+        if verdict.accept:
+            priced = self.pricing.price(request, self.now)
+            prices = {kind: cents for kind, cents in priced.items() if kind in verdict.options}
+        elif self.level > 3:
+            prices = {o["kind"]: 10 * o["listPriceCents"] for o in request["options"][:1]}
+        else:
+            return
         self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
 
     def win(self, order: Order) -> None:
@@ -386,21 +414,30 @@ def window_from_note(note: Note | None, window: TimeWindow, stop: str) -> TimeWi
     return {"from": start, "to": end} if start <= end else window
 
 
-def play_practice(world: World, level: int) -> None:
-    """Steps the world from one event that needs an answer to the next, and stops at each midnight for a report."""
+def play_practice(world: World, level: int) -> Counter[str]:
+    """Steps the world from one event that needs an answer to the next, and stops at each midnight for a report.
+    While price requests keep coming, it looks every POLL minutes instead of stopping at each one. Returns the
+    reason for each stop: the kind of event that stopped it, "poll", "midnight" or "end"."""
     snapshot = world.snapshot()
     desk, ends_at = Desk(world, level, snapshot["now"]), snapshot["endsAt"]
+    stops: Counter[str] = Counter()
+    busy = False  # price requests came at the last stop, so more may follow
     while desk.now < ends_at:
         day, midnight = desk.now // DAY, (desk.now // DAY + 1) * DAY
+        until, poll_at = (WAKE_ON_BUSY, desk.now + POLL) if busy else (WAKE_ON, ends_at)
         # One request a step: the advance applies the outbox, then moves the clock.
         actions, desk.outbox = desk.outbox, []
-        step = world.advance(until=WAKE_ON, max=min(ends_at, midnight), actions=actions)
+        step = world.advance(until=until, max=min(ends_at, midnight, poll_at), actions=actions)
         desk.read_results(actions, step["results"])
         desk.now = step["now"]
+        woke = next((e["kind"] for e in step["events"] if e["kind"] in until and e["at"] == desk.now), None)
+        stops[woke or ("end" if desk.now >= ends_at else "midnight" if desk.now == midnight else "poll")] += 1
+        busy = any(event["kind"] == "price_request" for event in step["events"])
         for event in step["events"]:
             desk.handle(event)
         if desk.now // DAY > day:
             report(WEEKDAYS[day % 7], world.score())
+    return stops
 
 
 def play_final(world: World) -> None:
@@ -432,6 +469,25 @@ def report(label: str, score: Score) -> None:
         f"{label:<9}  margin €{score['marginCents'] / 100:>11,.2f}  revenue €{score['revenueCents'] / 100:>11,.2f}  {orders}",
         flush=True,
     )
+
+
+def count_requests(client: Client) -> Counter[str]:
+    """Counts the client's requests from now on, by route: advance, actions, score, and so on."""
+    counts: Counter[str] = Counter()
+    call = client.call
+
+    def counted(method: str, path: str, body: Any = None, actions: int = 0) -> Any:
+        counts[path.split("?")[0].rstrip("/").rsplit("/", 1)[-1]] += 1
+        return call(method, path, body, actions)
+
+    client.call = counted  # type: ignore[method-assign]
+    return counts
+
+
+def report_requests(requests: Counter[str], stops: Counter[str]) -> None:
+    """One line for the requests of the week, and one for the reasons of its advances."""
+    print(f"Requests  {requests.total():,}: " + ", ".join(f"{route} {n:,}" for route, n in requests.most_common()))
+    print(f"Stops     {stops.total():,}: " + ", ".join(f"{reason} {n:,}" for reason, n in stops.most_common()))
 
 
 def next_final(client: Client) -> World:
@@ -474,8 +530,9 @@ def main() -> None:
     parser.add_argument("--final", action="store_true", help="play your copy of the final from the live stream")
     args = parser.parse_args()
     try:
-        client = Client()
-        score = None
+        client = ProxyClient()
+        requests = count_requests(client)
+        score, stop_reasons = None, None
         if args.final:
             world = None
             # A server restart drops every connection. The desk then rebuilds its books from the server, as after its own restart.
@@ -501,7 +558,7 @@ def main() -> None:
             )
             print(f"{name}, level {args.level}. {stops}", flush=True)
             try:
-                play_practice(world, args.level)
+                stop_reasons = play_practice(world, args.level)
             except BaseException as error:  # a world left behind holds one of the team's eight practice slots
                 try:
                     world.delete()
@@ -521,6 +578,8 @@ def main() -> None:
                 raise
         score = score or world.score()
         report("End", score)
+        if stop_reasons is not None:
+            report_requests(requests, stop_reasons)
         print(
             "Ranked."
             if score["ranked"]
