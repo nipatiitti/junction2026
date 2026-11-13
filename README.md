@@ -79,7 +79,25 @@ into distributions, offline. Together they give the data for an offline model of
 uv run --env-file .env scrape.py --policy passive --levels 4,5,6,7,8 --seeds 20   # requests only: 10 requests a week
 uv run --env-file .env scrape.py --policy explore --levels 8 --seeds 10            # random prices: dealer and driver answers
 uv run stats.py out/scrape/passive out/scrape/explore                               # writes summary.json, prints the main numbers
+uv run db.py out/scrape                                                             # loads saved weeks into out/spread.sqlite
 ```
+
+`scrape.py` also adds each week to the SQLite database `out/spread.sqlite` as it finishes (`--db` to choose another
+file, `--no-db` to skip it). `db.py` loads weeks that were saved without it; weeks already in the database are skipped.
+Query it with any SQLite tool, for example `sqlite3 out/spread.sqlite "select kind, count(*) from events group by kind"`.
+Tables, keyed by `week_id` (a row of `weeks`):
+
+| Table | One row for each |
+| --- | --- |
+| `weeks` | week: seed, level, policy, explore ranges, score, events, requests, seconds |
+| `events` | event, with `data` the event's JSON (read fields with `json_extract`); `gig_viewed` keeps only its columns |
+| `requests`, `legs`, `options` | price request; car of a request, with the reveal's truth for won orders; delivery option, with our quote and whether the dealer took it |
+| `orders`, `gigs`, `views` | won order at the end of the week; gig we posted; view of our gigs with the fee the driver saw |
+| `drivers`, `ledger`, `forecasts` | driver at the start of the week; account line; snow forecast |
+| `places`, `roads` | the map |
+
+A passive week takes about 1.7 MB in the database, and a played week about 20 MB, most of it gig views. The week
+folders hold the same data gzipped (about 0.1 MB and 2 MB), so the database can always be rebuilt from them.
 
 Policies:
 
