@@ -309,7 +309,7 @@ def replay_quotes(w: Week) -> dict:
                 for leg in [leg for leg, gig in legs.items() if gig == e["gigId"]]:
                     del legs[leg]
         elif k == "forecast":
-            desk.forecast(e)
+            desk.notes.observe(e)
     return {"admission": admission_scores(w, accepted), "pricing": pricing_scores(w, accepted)}
 
 
@@ -416,7 +416,7 @@ def replay_fees(w: Week) -> dict:
         if order is None or request is None:
             continue
         cars = dispatch.pickups(gig)
-        plan = desk.fees.schedule(order, request, cars, gig["postedAt"], w.level)
+        plan = desk.fees.schedule(order, request, cars, gig["postedAt"])
         typical = desk.fees.typical(order, request) * cars / len(order["legs"])
         fee = booking["feeCents"]
         paid_all += fee
@@ -471,7 +471,7 @@ def replay_bundling(w: Week) -> dict:
             elif k == "delivered":
                 desk.delivered(e["orderId"], e["leg"], at)
             elif k == "forecast":
-                desk.forecast(e)
+                desk.notes.observe(e)
         groups += desk.bundler.due(at, desk.unit)
     bundles = [g for g in groups if len(g) > 1]
     market, minutes, params = desk.bundler.market, desk.bundler.minutes, desk.bundler.params
