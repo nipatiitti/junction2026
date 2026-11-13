@@ -3,7 +3,7 @@
     uv run python -m analysis.priors_fees                  # out/spread.sqlite -> src/params/fees.json
     uv run python -m analysis.priors_fees --db other.sqlite --out /tmp/fees.json
 
-Reads the facts tables (analysis/README.md), so build them first: `uv run db.py && uv run python -m analysis.facts`.
+Reads the facts tables (analysis/README.md), so build them first: `uv run python -m tools.db && uv run python -m analysis.facts`.
 Level 8 only. The hazard comes from the explore weeks (random fees), the rest from dispatch.py's weeks. Every value is a ratio or
 a rate: none is keyed to a seed, a dealer, a driver or a place.
 """

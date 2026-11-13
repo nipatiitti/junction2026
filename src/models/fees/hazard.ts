@@ -1,10 +1,9 @@
 /** The booking hazard: bookings per open daytime hour of a gig, by its fee, the hours to its last pickup and
  * whether drivers have seen it (finding 8), times what the week has taught. */
+import { DAY, HOUR } from '../../time.ts'
 import { clamp, type FeeParams } from './params.ts'
 import type { FeeState } from './state.ts'
 
-export const HOUR = 60
-export const DAY = 24 * HOUR
 const WAKE = 7 * HOUR // drivers read the app from 07:00
 const SLEEP = 23 * HOUR // to 23:00
 

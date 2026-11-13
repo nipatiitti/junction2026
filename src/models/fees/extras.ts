@@ -1,6 +1,6 @@
 /** The fee extras: one learned multiplier on the typical fee for each feature of a gig (findings 9 and 10). */
 import type { Leg } from '../../../vendor/spread-typescript/types.ts'
-import { DAY } from './hazard.ts'
+import { DAY } from '../../time.ts'
 import { clamp, FEATURES, type Feature, type FeeParams } from './params.ts'
 import type { FeeState } from './state.ts'
 
