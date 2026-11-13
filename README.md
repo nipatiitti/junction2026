@@ -118,7 +118,9 @@ and `SPREAD_RECORD=0`. It writes only the folder: run `uv run db.py` to add it t
 [`ladder/`](ladder/README.md) is a second dispatch system, built from scratch and independent of `dispatch.py`. It
 takes only the rides that are easy to move on time first (one plain car between dealer sites, ready on a later day,
 a drive of up to 4 hours), and unlocks harder kinds of rides one rung at a time: notes, special cars, cars ready
-today, trade-ins, long rides. It saves its weeks like `dispatch.py`, under the policy `ladder`.
+today, long and remote rides, trade-ins. It plays rung 4 by default: on level 8, `spread-1` to `spread-5`, it made
+€34,131 to €35,749 in the five weeks, 98.4% to 98.6% on time, all ranked; the rungs above it add little and cost
+on-time share. It saves its weeks like `dispatch.py`, under the policy `ladder`.
 
 ```sh
 uv run ladder/play.py --level 8 --seed spread-1             # a practice week at the default rung
