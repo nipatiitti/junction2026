@@ -10,21 +10,22 @@ Short versions of the Spread challenge documents (rules, handbook, API, judging)
 
 ## Stack
 
-The dispatch system is Python 3.15, run with uv: `dispatch.py`, with tests in `tests/`. See
-[Spread challenge](#spread-challenge) for its commands.
+The dispatch system is Python 3.15, run with uv: `dispatch.py`. See [Spread challenge](#spread-challenge) for its
+commands.
 
 The repository is also a plain TypeScript project on Node 22.18+ (no build step: Node runs `.ts` files directly), with
-pnpm, Biome, and `node --test`. Our TypeScript dispatch system is `src/dispatch.ts`; see
-[Play a practice week in TypeScript](#play-a-practice-week-in-typescript). Tests sit next to the code as `*.test.ts`.
+pnpm and Biome. Our TypeScript dispatch system is `src/dispatch.ts`; see
+[Play a practice week in TypeScript](#play-a-practice-week-in-typescript).
 
 ```sh
 pnpm install
 pnpm check   # type check
 pnpm lint    # lint and format check, no writes
 pnpm format  # format, organise imports and apply safe lint fixes
-pnpm test    # all tests
-node --test src/path/to/file.test.ts   # one test file
 ```
+
+We do not write or run tests (see [`AGENTS.md`](AGENTS.md)): check changes by reading them, with lint, format and type
+check, and by comparing versions on practice weeks.
 
 In VS Code, install the recommended Biome extension to format on save.
 
@@ -80,12 +81,33 @@ week stays the same. On the level 8 starter week in `data/` (`smoke-1`), this cu
 about 1,390.
 
 - `dispatch.py` is our system. It starts as a copy of the organisers' starter, formatted with ruff.
-- `strategies/` holds the parts of the system, each with its tests and notes. `strategies/admission/` decides
-  which price requests to take and which option to quote. `strategies/offers/` sends gigs straight to drivers near
-  their pickup.
+- `strategies/` holds the parts of the system, each with its notes. `strategies/admission/` decides
+  which price requests to take and which option to quote, and `strategies/pricing/` the price of each quote, learned
+  during the week. [`strategies/notes/`](strategies/notes/README.md) reads dealer notes into facts (ready time, real
+  hours, deadline, gearbox, plates, tyres) that set the gigs' windows, audience and plates. `strategies/offers/` sends
+  gigs straight to drivers near their pickup.
 - `vendor/` holds the organisers' Python kit of 13 November as a wheel. uv installs it as the package `spread`: the
   API client, its types and the unchanged starter. To take a new kit version, replace the wheel and run `uv lock`.
-- `tests/` holds fast tests that need no network: `uv run pytest`.
+- `tests/` holds older tests, kept as they are but no longer run: we do not write or run tests.
+
+### Every online run is saved
+
+Each week that `dispatch.py` plays on the server is saved like a scraped week, so every online run adds to the data
+that we analyse offline. This covers practice weeks, the bench's weeks, ranking runs (`--board`) and finals (`--final`).
+When the week ends, `record.py` saves it:
+
+- its folder `data/scrape/runs/L<level>/<seed>/<world id>/`, in the format of `scrape.py` (below), with policy
+  `dispatch`. `meta.json` also says `kind` (`practice`, `board` or `final`), `version` (the git commit, `-dirty` with
+  changes) and `revealed` (ranking runs have no reveal, so their requests come from the events). The seed is `random`
+  without `--seed`, and `board` or `final` for those runs. A played week takes about 0.4 MB.
+- its rows in the SQLite database `out/spread.sqlite` (see the tables below).
+
+The run prints `Saved the week to ...` at the end. A week stopped with Ctrl-C or an error is not saved, and a failure
+while saving prints a warning and leaves the score as it is. Commit the new folders under `data/scrape/runs` with your
+PR: each world has its own folder, so they never conflict. In a new checkout, `uv run db.py` builds `out/spread.sqlite`
+from every committed week, these runs included. `SPREAD_RUNS_DIR` and `SPREAD_DB` change where the week goes, and
+`SPREAD_RECORD=0` saves nothing. The bench sets the first two, so a git version that it plays in a temporary worktree
+saves into this checkout.
 
 ### Play a practice week in TypeScript
 
@@ -104,15 +126,25 @@ pnpm dispatch --final                     # play our copy of a test final or of 
 The scripts read `.env` when it exists, and otherwise the variables already set. To take a new kit version, download
 `$SPREAD_URL/kit/spread-typescript.tar.gz` and replace the files in `vendor/spread-typescript/`.
 
-### Scrape weeks for an offline model
+### Offline data and scraping more weeks
 
-`scrape.py` plays practice weeks on many seeds at once and saves each week's raw data. `stats.py` turns saved weeks
-into distributions, offline. Together they give the data for an offline model of the server.
+The data for an offline model of the server is committed in `data/`, so by default the analysis needs no server and
+no key. `stats.py` turns saved weeks into distributions and `db.py` loads them into SQLite. Without folders, both read
+the team's committed weeks in `data/scrape`:
+
+```sh
+uv run stats.py   # reads data/scrape, writes out/summary.json, prints the main numbers
+uv run db.py      # loads data/scrape into out/spread.sqlite
+```
+
+`data/spread.sqlite` is the scraped weeks already loaded, ready to query. It does not grow with the saved online runs
+(a played week takes about 4 MB there, and GitHub refuses files over 100 MB), so for those run `uv run db.py` and
+query `out/spread.sqlite`. Only to add scraped weeks, play them on the server with `scrape.py`, which saves each week's raw data under `out/scrape`, and then pass those folders to the two scripts:
 
 ```sh
 uv run --env-file .env scrape.py --policy passive --levels 4,5,6,7,8 --seeds 20   # requests only: 10 requests a week
 uv run --env-file .env scrape.py --policy explore --levels 8 --seeds 10            # random prices: dealer and driver answers
-uv run stats.py out/scrape/passive out/scrape/explore                               # writes summary.json, prints the main numbers
+uv run stats.py out/scrape/passive out/scrape/explore                               # writes summary.json into out/scrape/passive
 uv run db.py out/scrape                                                             # loads saved weeks into out/spread.sqlite
 ```
 
@@ -123,24 +155,24 @@ Tables, keyed by `week_id` (a row of `weeks`):
 
 | Table                            | One row for each                                                                                                                        |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `weeks`                          | week: seed, level, policy, explore ranges, score, events, requests, seconds                                                             |
+| `weeks`                          | week: seed, level, policy, explore ranges, score, events, requests, seconds; `settings` holds the other options and the git commit      |
 | `events`                         | event, with `data` the event's JSON (read fields with `json_extract`); `gig_viewed` keeps only its columns                              |
 | `requests`, `legs`, `options`    | price request; car of a request, with the reveal's truth for won orders; delivery option, with our quote and whether the dealer took it |
 | `orders`, `gigs`, `views`        | won order at the end of the week; gig we posted; view of our gigs with the fee the driver saw                                           |
 | `drivers`, `ledger`, `forecasts` | driver at the start of the week; account line; snow forecast                                                                            |
 | `places`, `roads`                | the map                                                                                                                                 |
+| `actions`                        | action the scrape sent (quote, post, reprice, offer, withdraw), with its minute, its world answer and its JSON in `data`                |
+| `rosters`                        | driver at each midnight and at the end of the week: rating, completed gigs and drops (they count only our gigs)                         |
+| `positions`                      | sample of where one of our drivers was, with `--sample-every`                                                                           |
 
 A passive week takes about 1.7 MB in the database, and a played week about 20 MB, most of it gig views. The week
 folders hold the same data gzipped (about 0.1 MB and 2 MB), so the database can always be rebuilt from them.
 
-`data/` holds the team's committed scrape: the week folders in `data/scrape/<policy>/L<level>/<seed>/`, and
+`data/` holds the team's committed scrape: the week folders in `data/scrape/<policy>/L<level>/<seed>/`, the saved
+online runs in `data/scrape/runs/` ([Every online run is saved](#every-online-run-is-saved)), and
 `data/spread.sqlite` built from them (`select level, policy, seed from weeks` lists the weeks). Open the database
-directly, or rebuild it and the summary from the folders without the server:
-
-```sh
-uv run db.py data/scrape --db out/spread.sqlite
-uv run stats.py data/scrape --out out/summary.json
-```
+directly, or rebuild it and the summary from the folders without the server with `uv run db.py` and `uv run stats.py`.
+The default outputs go to `out/`, so the committed files stay as they are.
 
 GitHub refuses files over 100 MB, so once the database outgrows that, commit only the week folders and rebuild it.
 
@@ -150,17 +182,47 @@ Policies:
 - `starter` plays with the `Desk` of `dispatch.py`.
 - `explore` plays like `starter`, but quotes every option at a random multiple of its list price (`--quote-range`,
   default 0.7 to 1.8) and pays each order's gigs a random multiple of the starter's fees (`--fee-range`, default 0.6
-  to 1.6). The same seed draws the same multiples.
+  to 1.6). The same seed draws the same multiples. Its other options:
+  - `--quote-share 0.3` quotes only that share of the requests and declines the rest (10 times the list price), so
+    the week does not win more cars than drivers can move. Lateness would lower the dealers' prices and skew the data.
+  - `--fee-shape` is one shape for the whole week, because drivers learn our fees: `rising` (the starter's, the
+    default), `flat` (the opening fee only), or `slow` (a straight rise from the opening fee to `--fee-cap` times the
+    typical fee, default 2.5, ending 3 hours before the order's `lastPickupAt`). After a deadline warning every shape
+    goes steep, as the starter does.
+  - `--offers 2` sends each order's first gig, in the minute it is posted, as a direct offer to up to that many drivers (at most 3) who live within
+    30 road km of the pickup and fit the gig's audience, each at a random multiple of the typical fee
+    (`--offer-range`, default 0.4 to 1.6). The answers are `offer_answered` events. From level 3.
+- `--sample-every 120`, with `starter` or `explore`, reads the positions of our drivers every 120 minutes. It is off
+  by default: it reads the whole snapshot each time, about 1 MB late in the week.
+- `--tag <name>` names an experiment: its weeks go to `out/scrape/<policy>-<name>` and form their own group in
+  `summary.json`. Give each set of options its own tag, or the second run skips the seeds as saved before.
 
 Seeds are `<--seed-prefix>-<n>`, default `scrape-1` and up. Each week goes to `out/scrape/<policy>/L<level>/<seed>/`
 (`out/` is not committed): `events.jsonl.gz` (every event), `reveal.json.gz`, `snapshot.json.gz` (orders and gigs at
-the end), `drivers.json.gz` (the driver list at the start), `score.json` and `meta.json`. A saved week is skipped, so
+the end), `drivers.json.gz` (the driver list at the start), `score.json` and `meta.json` (every option and the git
+commit). It also saves what the server keeps no record of: `actions.jsonl.gz` (each action with its minute and answer:
+the reveal keeps only the last quote, and the snapshot only each gig's last fee schedule), `rosters.jsonl.gz` (the
+driver list at each midnight and at the end: its completed gigs and drops count only our gigs, so it shows our drivers'
+record, not who works) and, with `--sample-every`, `positions.jsonl.gz`. A week that a killed
+scrape left behind is saved without these three files (`"recorded": false` in its meta). A saved week is skipped, so
 running the same command again resumes. Ctrl-C, and a kill such as `timeout` or a stopped session (SIGTERM, SIGHUP),
 deletes the worlds in play, so they free the team's practice slots. A week's folder holds `world.json` while its world
 is in play: after a harder kill, the next run deletes that world and plays the week again, or saves it if it ended. `--workers` weeks run at once (default 4), and the scraper always leaves
 `--keep-free` practice slots (default 2) for teammates. A week with a policy that acts takes about 2,000 requests: a
 few minutes at 175 ms a request through a Claude Code cloud proxy. The scraper's client goes through `HTTPS_PROXY`
-when one is set, so there the proxy adds the team key and `SPREAD_KEY` can be a placeholder.
+when one is set (see [Claude Code cloud environments](#claude-code-cloud-environments)).
+
+Which scrape answers which question of `SPREAD_AGENT_BRIEF.md`:
+
+| Question                                                        | Scrape                                                                                    |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Requests, dealers, roster and shortage by town                  | `--policy passive --levels 6,7,8`                                                         |
+| Win model by lane and day, price war, option choice             | `--policy explore --tag win --quote-share 0.3 --quote-range 0.8,2.0`                      |
+| Dealer ceiling when the competitor is down (level 6 outage)     | `--policy explore --tag ceiling --levels 6 --quote-share 0.3 --quote-range 1.0,2.5`       |
+| How low drivers go; booking hazard by fee and lead time         | `--policy explore --tag slow --fee-shape slow --fee-range 0.3,1.0` and `--fee-shape flat` |
+| Per-driver answers at a known fee                               | `--policy explore --tag offers --offers 3`                                                |
+| Do gigs that end near the driver's home fill cheaper            | any played week: `delivered` events and the driver's home, or `--sample-every`            |
+| Thresholds or probabilities; the exact price where a quote wins | not a scrape: it needs a fork of one world at one minute                                  |
 
 `summary.json` has one entry per level and policy (`L8/explore`) and a catalogue of every event kind:
 
@@ -197,8 +259,15 @@ Variables belong to one cloud environment. Every session that starts in that env
 that works on this repository needs both variables in its settings:
 
 - `SPREAD_URL=https://spread.bahnexpress.com`
-- `SPREAD_KEY`, the real team key. The Python client connects straight to the server, so a placeholder with a network
-  secret does not work.
+- `SPREAD_KEY`, the team key, or a placeholder when the environment has the key as a network secret for
+  `spread.bahnexpress.com`.
+
+How the key reaches the server: `dispatch.py`, `scrape.py` and the bench create their client with `ProxyClient` from
+`spread_proxy.py`. When `HTTPS_PROXY` is set, as in a cloud session, it tunnels each request through that proxy and
+trusts the CA in `SSL_CERT_FILE`; the proxy swaps the placeholder for the real key. Without `HTTPS_PROXY`, or for a host
+in `NO_PROXY`, it connects straight to the server, as the kit's client does. The vendored kit is unchanged. The live
+event stream of `dispatch.py --final` still connects straight to the server, so play a final where `SPREAD_KEY` holds
+the real key.
 
 ## Working in parallel
 

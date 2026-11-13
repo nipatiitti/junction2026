@@ -11,7 +11,19 @@ How to carry out that workflow with Claude Code's tools:
 - Testing is not allowed: do not write, change or run tests (no `pytest`,
   `node --test` or `pnpm test`), even where Claude Code's defaults would.
 
+- One online run at a time (see `AGENTS.md`): run `dispatch.py`, `pnpm dispatch`
+  or the bench in the foreground, or with `run_in_background` only when no other
+  run is going, and wait for its result before you start the next one.
+- Pull and rebase from main often (see `AGENTS.md`): run
+  `git pull --rebase origin main` before you start, before each push and when
+  main has moved. On a branch you have already pushed, use
+  `git pull --no-rebase origin main` instead, so no force-push is needed.
+
 - Issues and pull requests go through the GitHub tools.
+- Query the saved weeks before you play online: run `uv run db.py`, then read
+  `out/spread.sqlite` with Python's `sqlite3` module (`uv run python -c ...`); the `sqlite3`
+  command is not installed in cloud sessions. After you play online, `git add data/scrape/runs`
+  and commit the saved weeks with your PR.
 - Mark the issue as started with `issue_write`, `method: "update"` and the new
   `title` (`In progress: <original title>`), before you create the branch.
 - Open the PR with `create_pull_request` and `draft: true`. When the feature

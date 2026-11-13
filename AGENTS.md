@@ -17,6 +17,22 @@ car dealers and pays freelance drivers to move the cars, for one simulated week.
   Compare two versions of the system on the same seeds.
 - Ask for approval before you play a ranking run (`--board`) or a final (`--final`). Each
   ranking world can be played once, and its score stays on the public rankings.
+- Every online run is saved. When `dispatch.py` finishes a week on the server (a practice week,
+  the bench's weeks, a ranking run or a final), `record.py` saves it to
+  `data/scrape/runs/L<level>/<seed>/<world id>/` and to the database `out/spread.sqlite`.
+  Commit the new folders under `data/scrape/runs` in your PR, so the team keeps the data; each
+  world has its own folder, so they never conflict. Keep the saving on, and make any new script
+  that plays online save its weeks with `record.Recorder` too.
+- Run against the saved data, not online. Before you play a week to answer a question, build the
+  database from every committed week with `uv run db.py` and query `out/spread.sqlite`
+  (`README.md` lists the tables). Play online only to measure a changed system, or for data that
+  no saved week has.
+- **One online run at a time.** An online run is any command that plays or reads
+  worlds on the Spread server: `dispatch.py`, `pnpm dispatch`, `strategies.bench`,
+  the scrape and reveal tools. Start a run only when your previous one has
+  finished: no second run in the background or in another terminal. A bench is
+  one run, whatever its `--jobs`. Every system on our key shares one rate limit,
+  so parallel runs slow down the whole team.
 
 ---
 
@@ -61,6 +77,17 @@ Optimise for speed. Small issues, small PRs, no tests.
   (`feat`, `fix`, `docs`, `chore`). If your environment assigns you a branch
   name, use that one instead.
 - Commits: small, imperative subject line, reference the issue (`Add login form (#12)`).
+- Pull and rebase from the default branch often: before you start, before each
+  push, and whenever it has moved. Others merge all the time, and an early
+  rebase keeps conflicts small:
+
+  ```bash
+  git pull --rebase origin <default-branch>
+  ```
+
+  Rebase only commits you have not pushed yet. Once a branch is pushed, merge
+  the default branch into it instead (`git pull --no-rebase origin
+  <default-branch>`), because a rebased branch needs a force-push.
 - Remove the worktree once the PR is merged or closed.
 
 ## 3. Stay in scope
@@ -169,7 +196,9 @@ in and keep it current. Every row must be a single copy-pasteable command.
 | Install Python dependencies | `uv sync`                                                   |
 | Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`              |
 | Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                       |
+| Measure the note reader     | `uv run python -m strategies.notes.check reveal-<world id>` |
 | Compare two versions        | `uv run python -m strategies.bench dispatch.py origin/main` |
+| Build the saved-weeks DB    | `uv run db.py`                                              |
 | Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .`         |
 | Play a week in TypeScript   | `pnpm dispatch --level 8 --seed spread-1`                   |
 | Write a week to CSV (TS)    | `pnpm reveal-csv <world id>`                                |

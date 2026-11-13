@@ -39,6 +39,10 @@ Run `git fetch origin` first so that `origin/main` is current. A version runs wi
 A version must print `Practice world <id>, level <level>.` on its first line, as `dispatch.py` and the organisers'
 starter do. The bench reads the world id from it, and reads the score from the server when the week ends.
 
+Every week that the bench plays is saved to `data/scrape/runs/` and `out/spread.sqlite` of this checkout, also for a
+git version played in a temporary worktree, as long as that version's `dispatch.py` saves its weeks (`record.py`). See
+"Every online run is saved" in the main README.
+
 ## The table
 
 One line for each seed and version, then the totals of each version, then how the first version compares with each
