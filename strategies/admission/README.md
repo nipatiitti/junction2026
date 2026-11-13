@@ -65,4 +65,17 @@ gig suits them, so it says little about capacity.
 
 Seeds `spread-1` to `spread-5`, level 8. The starter is `dispatch.py` on `main`.
 
-BENCH_TABLE
+| Seed | Starter margin | Starter orders | Starter on time | Admission margin | Admission orders | Admission on time |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| spread-1 | -€72,612.51 | 949 | 45.5% | -€94.87 | 339 | 95.9% |
+| spread-2 | -€46,907.28 | 785 | 55.9% | €291.92 | 335 | 97.0% |
+| spread-3 | -€55,436.36 | 735 | 60.0% | -€198.53 | 303 | 96.7% |
+| spread-4 | -€98,182.67 | 930 | 44.2% | -€285.29 | 306 | 97.1% |
+| spread-5 | -€61,640.24 | 819 | 57.6% | -€535.81 | 315 | 94.6% |
+| **Total** | **-€334,779.06** | 4,218 | 0 of 5 ranked | **-€822.58** | 1,598 | 5 of 5 ranked |
+
+Every week is now ranked. The margin is near zero because we still quote the list price, which only just pays the
+drivers in a shortage: on the starter's spread-1 week, the orders delivered on time cost 1.02 times their price in
+driver fees. The competitor quotes 26% to 54% above the list price at level 8, so the pricing logic (#13) can raise
+`price_factor` and add its margin to `expected_cost`. With higher prices, admission takes more requests, because
+the profit check is the filter that declines most of them now.
