@@ -142,14 +142,17 @@ deleting a branch, closing or editing an issue you did not create.
 Stack-specific. The first PR that introduces or changes tooling must fill this
 in and keep it current. Every row must be a single copy-pasteable command.
 
-| Task                     | Command |
-| ------------------------ | ------- |
-| Install dependencies     | _TBD_   |
-| Run the app              | _TBD_   |
-| Run one test file / dir  | _TBD_   |
-| Run tests by name        | _TBD_   |
-| Run the full test suite  | _TBD_   |
-| Lint / format            | _TBD_   |
+| Task                        | Command                                                       |
+| --------------------------- | ------------------------------------------------------------- |
+| Install dependencies        | `pnpm install`                                                |
+| Run the app                 | `pnpm dev`                                                    |
+| Run one test file / dir     | `node --test src/lib/server/db/schema.test.ts`                |
+| Run tests by name           | `node --test --test-name-pattern="<name>" "src/**/*.test.ts"` |
+| Run the full test suite     | `pnpm test`                                                   |
+| Lint / format               | `pnpm format`                                                 |
+| Lint only (no writes)       | `pnpm lint`                                                   |
+| Type check                  | `pnpm check`                                                  |
+| Push schema to the database | `pnpm db:push`                                                |
 
 ## Definition of done
 
