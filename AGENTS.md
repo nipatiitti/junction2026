@@ -187,21 +187,22 @@ deleting a branch, closing or editing any other issue you did not create
 Stack-specific. The first PR that introduces or changes tooling must fill this
 in and keep it current. Every row must be a single copy-pasteable command.
 
-| Task                        | Command                                                     |
-| --------------------------- | ----------------------------------------------------------- |
-| Install dependencies        | `pnpm install`                                              |
-| Lint / format               | `pnpm format`                                               |
-| Lint only (no writes)       | `pnpm lint`                                                 |
-| Type check                  | `pnpm check`                                                |
-| Install Python dependencies | `uv sync`                                                   |
-| Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`              |
-| Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                       |
-| Measure the note reader     | `uv run python -m strategies.notes.check reveal-<world id>` |
-| Compare two versions        | `uv run python -m strategies.bench dispatch.py origin/main` |
-| Build the saved-weeks DB    | `uv run db.py`                                              |
-| Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .`         |
-| Play a week in TypeScript   | `pnpm dispatch --level 8 --seed spread-1`                   |
-| Write a week to CSV (TS)    | `pnpm reveal-csv <world id>`                                |
+| Task                         | Command                                                           |
+| ---------------------------- | ----------------------------------------------------------------- |
+| Install dependencies         | `pnpm install`                                                    |
+| Lint / format                | `pnpm format`                                                     |
+| Lint only (no writes)        | `pnpm lint`                                                       |
+| Type check                   | `pnpm check`                                                      |
+| Install Python dependencies  | `uv sync`                                                         |
+| Play a Spread practice week  | `uv run dispatch.py --level 8 --seed spread-1`                    |
+| Play a week, ceiling pricing | `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1` |
+| Write an ended week to CSV   | `uv run spread-reveal-csv <world id>`                             |
+| Measure the note reader      | `uv run python -m strategies.notes.check reveal-<world id>`       |
+| Compare two versions         | `uv run python -m strategies.bench dispatch.py origin/main`       |
+| Build the saved-weeks DB     | `uv run db.py`                                                    |
+| Lint / format Python         | `uv run ruff check --fix . && uv run ruff format .`               |
+| Play a week in TypeScript    | `pnpm dispatch --level 8 --seed spread-1`                         |
+| Write a week to CSV (TS)     | `pnpm reveal-csv <world id>`                                      |
 
 ## Definition of done
 

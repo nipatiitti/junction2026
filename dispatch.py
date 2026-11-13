@@ -188,32 +188,27 @@ class Desk:
             self.orders[order_id]["deliveredAt"][leg] = at
 
     def quote(self, request: PriceRequest) -> None:
-        """Quotes the option that admission picks, at the price that strategies/pricing sets: as high as we
-        still win, at most our maximum, and at least the driver cost plus its risk premium. A request that
-        admission declines, or whose driver cost and premium are above the maximum, gets a price far above
-        the list price, which loses at no cost; up to level 3 every quote wins, so no quote."""
+        """Quotes the options that admission picks, at the price that strategies/pricing learns. A request
+        admission declines gets a price far above the list price, which loses at no cost; up to level 3
+        every quote wins, so no quote."""
         self.requests[request["id"]] = request
         held = [
             Held(o, bool(g := self.gigs_of(o["id"])) and all(x in self.booked for x in g)) for o in self.orders.values()
         ]
-        # Admission takes the request only when the driver cost plus the risk premium fits under the highest
-        # price we would quote. Its Params are frozen, so it gets a copy with that price and margin.
-        self.admission.params = replace(
-            self.admission.params,
-            price_factor=self.pricing.ceiling(request, self.now),
-            min_margin=1 - 1 / (1 + self.pricing.p.risk_premium),
-        )
+        # Admission weighs the margin at the price we would quote, and pricing prices the options it picks.
+        # Params is frozen, so swap in a copy with the new factor.
+        self.admission.params = replace(self.admission.params, price_factor=self.pricing.multiplier(request, self.now))
         verdict = self.admission.assess(request, held, self.now)
         facts = self.facts_of(request["id"])
         # The note's deadline passes before the car can be collected (strategies/notes): decline.
         hopeless = facts.deadline is not None and facts.deadline <= (facts.earliest_pickup or request["arrivedAt"])
-        prices: dict[str, int] = {}
         if verdict.accept and not hopeless:
-            prices = self.pricing.price(request, self.now, verdict.expected_cost, verdict.options)
-        if not prices:
-            if self.level <= 3:
-                return
+            priced = self.pricing.price(request, self.now)
+            prices = {kind: cents for kind, cents in priced.items() if kind in verdict.options}
+        elif self.level > 3:
             prices = {o["kind"]: 10 * o["listPriceCents"] for o in request["options"][:1]}
+        else:
+            return
         self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
 
     def win(self, order: Order) -> None:

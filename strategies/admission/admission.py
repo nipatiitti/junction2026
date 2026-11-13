@@ -15,7 +15,6 @@ from typing import Any, NamedTuple
 
 HOUR, DAY = 60, 24 * 60
 SATURDAY = 5
-BIG = 10**6  # road minutes between two places the map does not join
 
 
 @dataclass(frozen=True)
@@ -35,15 +34,6 @@ class Params:
     cost_base_normal: float = 1.0  # the same up to level 6, where most gigs book at the typical fee
     price_factor: float = 1.0  # the price we quote over the list price; the pricing logic (#13) raises it
     min_margin: float = 0.0  # decline when the expected cost leaves less than this share of the price
-    # A return leg: one of our transports ends within `chain_minutes` of the car, its driver gets there at
-    # most `chain_wait` before the car is ready, and drives the car back to within `chain_back` of where
-    # that transport started, `chain_spare` before the deadline of the option we quote. The car then costs
-    # `chain_cost` of the usual estimate, and takes half a place in the area's capacity.
-    chain_minutes: int = 30
-    chain_wait: int = 2 * HOUR
-    chain_back: int = 60
-    chain_spare: int = HOUR
-    chain_cost: float = 0.85
 
 
 class Held(NamedTuple):
@@ -105,8 +95,6 @@ class Admission:
         self.closes: dict[str, float] = defaultdict(float)  # pickup place -> deadline warnings
         self.won: dict[str, int] = defaultdict(int)  # pickup place -> orders won
         self.pending: dict[str, tuple[int, str, int, float]] = {}  # request id -> (respondBy, pickup, day, weight)
-        # order id -> (request id, its respondBy): the request whose return leg rides on that order's transport
-        self.claims: dict[str, tuple[str, int]] = {}
 
     # --- the driver supply ---------------------------------------------------------------------------------
 
@@ -227,51 +215,22 @@ class Admission:
                 total += weight
         return total
 
-    def chain(self, request: dict, held: Iterable[Held], now: int, deadline: int | None = None) -> str | None:
-        """A return leg: one of our transports ends near where the request's car waits, its driver gets there
-        in time to collect the car and deliver it by `deadline` (by default the request's earliest), and the
-        car goes back towards where that transport started. That driver can take the car back, so it costs
-        less and needs no new driver. Returns the transport's order id, or None. A transport that a driver
-        already holds comes first, each one carries one return leg, and only a premium transport, whose
-        driver is experienced, carries a premium car."""
-        p = self.params
-        first = request["legs"][0]["pickup"]
-        window = first["window"]
-        end = request["legs"][-1]["delivery"]["placeId"]  # where the driver finishes with the request's cars
-        due = (min(o["deadline"] for o in request["options"]) if deadline is None else deadline) - p.chain_spare
-        drive = self.drive_minutes(request["legs"])
-        premium = any(leg["car"]["premium"] for leg in request["legs"])
-        for h in sorted(held, key=lambda h: not h.booked):
-            order = h.order
-            if order["deliveredAt"][-1] is not None or self.claimed(order["id"], now):
+    def pairs(self, request: dict, held: Iterable[Held]) -> bool:
+        """A return leg: the request's car waits where one of our held cars arrives, on the same day. The
+        driver who brings that car can take this one back, so it costs less and needs no new driver."""
+        leg = request["legs"][0]
+        place, day = leg["pickup"]["placeId"], leg["pickup"]["window"]["from"] // DAY
+        for h in held:
+            if all(t is not None for t in h.order["deliveredAt"]):
                 continue
-            if premium and not any(leg["car"]["premium"] for leg in order["legs"]):
-                continue
-            start = order["legs"][0]["pickup"]  # where the transport's driver set out, near their home
-            stop = order["legs"][-1]["delivery"]["placeId"]  # where they will be free
-            reach = self.minutes.get((stop, first["placeId"]), BIG)
-            if reach > p.chain_minutes or self.minutes.get((end, start["placeId"]), BIG) > p.chain_back:
-                continue
-            there = max(now, start["window"]["from"]) + self.drive_minutes(order["legs"]) + reach
-            collect = max(there, window["from"])
-            if collect - there <= p.chain_wait and collect <= window["to"] and collect + drive <= due:
-                return order["id"]
-        return None
+            for other in h.order["legs"]:
+                if other["delivery"]["placeId"] == place and other["pickup"]["window"]["from"] // DAY == day:
+                    return True
+        return False
 
-    def claimed(self, order_id: str, now: int) -> bool:
-        """The order's transport already carries the return leg of a request we quoted and wait to hear on,
-        or of an order we won and have not delivered."""
-        claim = self.claims.get(order_id)
-        return claim is not None and (claim[1] >= now or claim[0] in self.orders)
-
-    def expected_cost(self, request: dict, held: Iterable[Held] = (), now: int | None = None) -> int:
+    def expected_cost(self, request: dict, held: Iterable[Held] = ()) -> int:
         """What we expect to pay drivers: the typical fee, scaled by the supply at both ends, the hour,
         private addresses, the note and a return leg."""
-        now = request["arrivedAt"] if now is None else now
-        return self.cost(request, self.chain(request, held, now) is not None)
-
-    def cost(self, request: dict, chained: bool) -> int:
-        """The expected cost, with `chained` when the car is a return leg of one of our transports."""
         p = self.params
         leg = request["legs"][0]
         pickup, delivery = leg["pickup"]["placeId"], request["legs"][-1]["delivery"]["placeId"]
@@ -288,8 +247,8 @@ class Admission:
             cost *= 1.1  # private address work, and a slot to keep
         if risky_note(request.get("note")):
             cost *= 1.05
-        if chained:
-            cost *= p.chain_cost
+        if self.pairs(request, held):
+            cost *= 0.85
         return int(cost + 0.5)
 
     def option_slack(self, request: dict, option: dict, now: int) -> int:
@@ -308,28 +267,26 @@ class Admission:
         premium = any(leg["car"]["premium"] for leg in request["legs"])
         supply = self.supply(pickup, "experienced" if premium else "all") / self.stress(pickup)
         squeeze = self.tightening(self.on_time_share(held, now))
-        min_slack = p.min_slack / max(squeeze, 0.5)
-        usable = [o for o in request["options"] if self.option_slack(request, o, now) >= min_slack]
-        comfortable = [o for o in usable if self.option_slack(request, o, now) >= p.comfortable_slack / squeeze]
-        option = comfortable[0] if comfortable else usable[-1] if usable else None
-        chained = self.chain(request, held, now, option["deadline"] if option else None)
+        paired = self.pairs(request, held)
 
         capacity = max(p.min_capacity, p.capacity_per_driver * supply) * squeeze
         load = self.load(pickup, day, held)
-        weight = 0.5 if chained is not None else 1.0
+        weight = 0.5 if paired else 1.0
         if load + weight > capacity:
             return Verdict(False, [], 0, -1.0, f"area full: {load:.1f} waiting of {capacity:.1f}")
 
-        cost = self.cost(request, chained is not None)
-        if option is None:
+        cost = self.expected_cost(request, held)
+        min_slack = p.min_slack / max(squeeze, 0.5)
+        usable = [o for o in request["options"] if self.option_slack(request, o, now) >= min_slack]
+        if not usable:
             return Verdict(False, [], cost, -1.0, "no option leaves time for the drive")
+        comfortable = [o for o in usable if self.option_slack(request, o, now) >= p.comfortable_slack / squeeze]
+        option = comfortable[0] if comfortable else usable[-1]
         price = option["listPriceCents"] * p.price_factor
         margin = (price - cost) / price
         if margin < p.min_margin:
             return Verdict(False, [], cost, margin, f"cost {cost / 100:.0f} over price {price / 100:.0f}")
         self.pending[request["id"]] = (request["respondBy"], pickup, day, weight)
-        if chained is not None:
-            self.claims[chained] = (request["id"], request["respondBy"])
         return Verdict(True, [option["kind"]], cost, margin, "ok")
 
 
