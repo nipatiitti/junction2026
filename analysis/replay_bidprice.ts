@@ -9,6 +9,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { gunzipSync } from 'node:zlib'
+import { canServe } from '../src/ops/index.ts'
 import { requestFeeGig } from '../src/strategies/bidprice/fees.ts'
 import { bidprice } from '../src/strategies/bidprice/index.ts'
 import type { BidPriceParams } from '../src/strategies/bidprice/params.ts'
@@ -47,6 +48,7 @@ type Probe = {
   observe(event: DeskEvent, books: Books): void
   sent(action: Action, result: ActionResult, books: Books): void
   quote(request: PriceRequest, books: Books): Prices | null
+  tick(books: Books): Action[]
   gig(need: GigNeed, books: Books): GigPlan | GigPlan[]
   summary(): string
   quotes: unknown
@@ -133,13 +135,20 @@ function play(dir: string): void {
   const params = { ...bidprice.defaults, ...overrides }
   const strategy = bidprice.build(setup, params) as unknown as Probe
   const restarted = bidprice.build(setup, params) as unknown as Probe
+  // A third copy runs the tick, and hears its own reprices back as sent, as the desk would tell it.
+  const ticker = bidprice.build(setup, params) as unknown as Probe
+  let nextTick = 0
 
   const requests = new Map<string, PriceRequest>()
   const orders = new Map<string, Order>()
   const posts = new Map<string, PostAction>()
   const urgent = new Set<string>()
+  const finished = new Set<string>() // gigs delivered, expired or cancelled
+  const booked = new Set<string>()
   const gigsOf = (orderId: string) =>
-    [...posts].filter(([, post]) => post.stops.some((stop) => stop.orderId === orderId)).map(([id]) => id)
+    [...posts]
+      .filter(([id, post]) => !finished.has(id) && post.stops.some((stop) => stop.orderId === orderId))
+      .map(([id]) => id)
   const books: Books = {
     now: 0,
     endsAt: snapshot.endsAt,
@@ -147,7 +156,7 @@ function play(dir: string): void {
     orders,
     posts,
     legGigs: new Map(),
-    booked: new Set(),
+    booked,
     urgent,
     gigsOf,
   }
@@ -159,7 +168,7 @@ function play(dir: string): void {
     told.add(gig.id)
     const post: PostAction = { type: 'post', stops: gig.stops, audience: gig.audience, schedule: gig.schedule }
     posts.set(gig.id, post)
-    for (const s of [strategy, restarted]) timed('sent', () => sendPost(s, post, gig))
+    for (const s of [strategy, restarted, ticker]) timed('sent', () => sendPost(s, post, gig))
   }
 
   const gigOf = (need: GigNeed, what: string) => {
@@ -193,7 +202,29 @@ function play(dir: string): void {
     const named =
       'gigId' in event ? [event.gigId] : event.kind === 'order_cancelled' ? event.gigs.map((g) => g.gigId) : []
     for (const gig of untold) if (gig.postedAt < event.at || named.includes(gig.id)) tell(gig)
-    for (const s of [strategy, restarted]) timed('observe', () => observe(s, event))
+    for (const s of [strategy, restarted, ticker]) timed('observe', () => observe(s, event))
+    if (event.kind === 'gig_booked') booked.add(event.gigId)
+    if (event.kind === 'gig_dropped' || event.kind === 'no_show') booked.delete(event.gigId)
+    if (event.kind === 'delivered' || event.kind === 'gig_expired') finished.add(event.gigId)
+    if (event.kind === 'order_cancelled') for (const g of event.gigs) finished.add(g.gigId)
+    if (event.at >= nextTick) {
+      nextTick = event.at + 30
+      const actions = timed('tick', () => ticker.tick(books)) ?? []
+      stat('tick: reprices a tick').add(actions.length)
+      for (const action of actions) {
+        if (action.type !== 'reprice') continue
+        count('tick: reprices')
+        const steps = action.schedule
+        if (steps.length === 0 || steps.length > 48) count('tick: bad step count')
+        if (steps.some((step, i) => i > 0 && step.feeCents < steps[i - 1]!.feeCents)) count('tick: falling')
+        if ((steps[0]?.at ?? 0) < event.at) count('tick: starts in the past')
+        const post = posts.get(action.gigId)
+        const order = post && orders.get(post.stops[0]!.orderId)
+        const typical = order && requests.get(order.id)?.referenceFeeCents
+        if (typical) stat('tick: reprice top / typical').add((steps.at(-1)?.feeCents ?? 0) / typical)
+        ticker.sent(action, { ok: true, id: action.gigId }, books)
+      }
+    }
 
     if (event.kind === 'price_request') {
       const { request } = event
@@ -203,12 +234,14 @@ function play(dir: string): void {
       const costs = strategy.costs(request, event.at)
       for (const option of request.options) {
         const c = costs[option.kind]
-        if (c === undefined) count(`option ${option.kind}: cannot serve`)
+        if (c === undefined) count(`option ${option.kind}: not offered`)
+        else if (canServe(request, option, event.at, { map, level: 8 }).slack < 9 * 60)
+          count(`option ${option.kind}: offered under 9 h of slack (the slowest servable)`)
         else stat(`${option.kind}: c / typical`).add(c / request.referenceFeeCents)
         count(`option ${option.kind}: offered`)
       }
       if (!prices) {
-        count(Object.keys(costs).length === 0 ? 'declined: cannot serve any option' : 'declined: no value')
+        count(Object.keys(costs).length === 0 ? 'declined: no option offered' : 'declined: no value')
         continue
       }
       count('quoted')
@@ -228,7 +261,7 @@ function play(dir: string): void {
         if (price === undefined) continue
         stat(`${option.kind}: quote / list`).add(price / option.listPriceCents)
         const c = costs[option.kind]
-        if (c === undefined) count('priced an option it cannot serve')
+        if (c === undefined) count('priced an option it does not offer')
         else if (price < c) count('priced under cost')
         else stat(`${option.kind}: margin over c / typical`).add((price - c) / request.referenceFeeCents)
       }
