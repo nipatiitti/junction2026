@@ -4,6 +4,19 @@
 - **Package Manager**: pnpm
 - **Add-ons**: experimental, ai-tools, drizzle, sveltekit-adapter, tailwindcss, playwright
 
+## The challenge
+
+We are building a dispatch system for Spread, Bahn's Junction 2026 challenge: it quotes
+car dealers and pays freelance drivers to move the cars, for one simulated week.
+
+- Before you work on anything under `spread/`, read `docs/spread/HANDBOOK.md`. `RULES.md`
+  and `API.md` next to it are the full references. `README.md` has the setup, the dates
+  and the baseline to beat.
+- Practice weeks are free and repeatable: the same seed and level give the same week.
+  Compare two versions of the system on the same seeds.
+- Ask for approval before you play a ranking run (`--board`) or a final (`--final`). Each
+  ranking world can be played once, and its score stays on the public rankings.
+
 ---
 
 # Agent workflow
@@ -153,6 +166,8 @@ in and keep it current. Every row must be a single copy-pasteable command.
 | Lint only (no writes)       | `pnpm lint`                                                   |
 | Type check                  | `pnpm check`                                                  |
 | Push schema to the database | `pnpm db:push`                                                |
+| Play a Spread practice week | `pnpm spread --level 8 --seed spread-1`                       |
+| Write an ended week to CSV  | `pnpm spread:reveal <world id>`                               |
 
 ## Definition of done
 
