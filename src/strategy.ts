@@ -86,8 +86,14 @@ export abstract class Strategy<P extends Params = Params> {
   /** The answer to a price request: a price for each option offered, or null to decline. */
   abstract quote(request: PriceRequest, books: Books): Prices | null
 
-  /** The gig for some legs of an order. */
-  abstract gig(need: GigNeed, books: Books): GigPlan
+  /** The gig for some legs of an order, or several gigs that carry them between them (a trade-in over the 12-hour
+   * limit goes as one gig per car). For an urgent reprice only the first plan's schedule counts. */
+  abstract gig(need: GigNeed, books: Books): GigPlan | GigPlan[]
+
+  /** An action that the world accepted, with the id it gave (a post's gig id) and the minute it took effect: the
+   * strategy's own posts, reprices and withdrawals, and the ones the harness sent for it. After a restart the harness
+   * tells it each gig of the snapshot again, as a post at the minute it was posted, between the past events. */
+  accepted(_action: Action, _id: string, _at: number, _books: Books): void {}
 
   /** Any actions, every `every` minutes: reprice, withdraw, direct offers, combined gigs. The harness keeps the
    * books of the posts and withdrawals it sends. */
