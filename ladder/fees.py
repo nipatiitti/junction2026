@@ -55,6 +55,13 @@ class Opening:
         lowest = math.log(OPENING.get(rung, 1.0) * FLOOR_SHARE)
         self.log[rung] = min(math.log(HIGHEST), max(lowest, self.log[rung] + by))
 
+    def state(self) -> dict[str, float]:
+        return {str(rung): log for rung, log in self.log.items()}
+
+    def load(self, state: dict[str, float]) -> None:
+        for rung, log in state.items():
+            self.log[int(rung)] = float(log)
+
     def summary(self) -> str:
         return "Opening fees: " + ", ".join(f"rung {r} {self.multiple(r):.2f}" for r in sorted(OPENING))
 
@@ -77,9 +84,13 @@ def warned(now: int, fee: float, level: int, floor: int = 0) -> list[FeeStep]:
     return tidy(steep(now, fee, WARNING, WARNING_RAISE, WARNING_EVERY, WARNING_TOP), now, level, floor)
 
 
-def late(now: int, fee: float, level: int, floor: int = 0) -> list[FeeStep]:
-    """The schedule of a car that can no longer be on time: high at once, rising every hour to the top."""
-    return tidy(steep(now, fee, LATE, LATE_RAISE, LATE_EVERY, LATE_TOP), now, level, floor)
+def late(now: int, fee: float, level: int, floor: int = 0, price: float = 0) -> list[FeeStep]:
+    """The schedule of a car that can no longer be on time: high at once, rising every hour to the top, which is
+    LATE_TOP times the typical fee or twice the price of the gig's cars, whichever is more: a car never delivered
+    costs twice its price, so any fee under that is worth paying."""
+    top = max(LATE_TOP, 2 * price / fee if fee else 0)
+    raise_by = max(LATE_RAISE, (top - LATE) / (MAX_STEPS - 1))  # reach the top within 48 steps
+    return tidy(steep(now, fee, LATE, raise_by, LATE_EVERY, top), now, level, floor)
 
 
 def steep(start: int, fee: float, multiple: float, raise_by: float, every: int, top: float) -> list[tuple[int, int]]:

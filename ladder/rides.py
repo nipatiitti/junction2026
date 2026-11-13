@@ -59,6 +59,7 @@ class Ride:
     premium: bool
     charging: bool  # an electric car needs a charging stop
     private: bool  # a stop at a private address
+    private_delivery: bool  # the last car is delivered at a private address, in its booked hour
     note: bool
     bulk: bool  # one of a dealer group's cars from one yard (batchId)
 
@@ -129,6 +130,7 @@ def classify(request: PriceRequest, market: Market, facts: NoteFacts) -> Ride:
         premium=premium,
         charging=charging,
         private=private,
+        private_delivery=last["delivery"]["privateAddress"],
         note=note,
         bulk=request["batchId"] is not None,
     )
