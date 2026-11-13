@@ -14,20 +14,23 @@ from spread.types import FeeStep
 HOUR, DAY = 60, 24 * 60
 
 # The opening fee, as a multiple of the typical fee: OPEN_BASE, plus a premium for each thing that makes
-# the work dearer for a driver than the typical fee assumes.
-OPEN_BASE = 1.0
-OPEN_SCARCE = 0.30  # at a pickup with no drivers within reach, against the world's median place
-OPEN_EVENING = 0.10  # the drive ends after 18:00, when the trip home is dear
-OPEN_SATURDAY = 0.15  # Saturday work
-OPEN_LONG = 0.05  # a drive of 3 hours or more: a long trip home from the delivery town
+# the work dearer for a driver than the typical fee assumes. With admission control, two thirds of the gigs
+# book at their opening fee, and the premiums bought no more of them: they are off (see README.md).
+# Opening under the typical fee costs less, and the first raise reaches the typical fee within the hour.
+OPEN_BASE = 0.9
+OPEN_SCARCE = 0.0  # at a pickup with no drivers within reach, against the world's median place
+OPEN_EVENING = 0.0  # the drive ends after 18:00, when the trip home is dear
+OPEN_SATURDAY = 0.0  # Saturday work
+OPEN_LONG = 0.0  # a drive of 3 hours or more: a long trip home from the delivery town
 LONG_DRIVE = 3 * HOUR
 # The least opening fee, as a multiple of the typical fee, whatever the premiums add up to.
-OPEN_FLOOR = 1.0
-# The top fee, as a multiple of the typical fee, before the ceiling cuts it.
-TOP = 2.0
-# What a late car costs, as a share of its price: the refund for a car late by more than 24 hours.
-# The ceiling of the top fee is the price plus this, so an on-time car never costs more than a late one.
-LATE_SHARE = 0.5
+OPEN_FLOOR = 0.9
+# The top fee, as a multiple of the typical fee, before the ceiling cuts it: the top of the starter's steep fees.
+TOP = 2.5
+# What a late car costs, as a share of its price: the whole price, the refund for a car late by more than two
+# business days. The ceiling of the top fee is the price plus this, so an on-time car never costs more than a
+# late one.
+LATE_SHARE = 1.0
 # A car that is late already: a day after its last pickup it steps up to this multiple of the typical
 # fee, as the starter's steep fees did, under a ceiling of twice its price: a car late by more than two
 # business days costs its whole price, and a car never delivered twice its price on top.
@@ -40,14 +43,16 @@ RAISES = 3
 # work the next day book a day ahead when the fee is right, before their day fills up. The fee then
 # holds until the top fee is due.
 EARLY_RAISES = (HOUR, 3 * HOUR)
-# How far each raise before the top goes, as a share of the way from the opening fee to the top fee.
-RAISE_SHARES = (1 / 3, 2 / 3)
+# How far each raise before the top goes, as a share of the way from the opening fee to the top fee: small,
+# about as far as the starter's hourly raises (1.06 and 1.38 times the typical fee), so few gigs book dear.
+RAISE_SHARES = (0.1, 0.3)
 # The travel margin before `lastPickupAt`: an hour to see the gig, plus the trip from the drivers'
-# homes by public transport, which is slower than the road minutes. Never less than the 3 hours of
-# the deadline warning, never more than 6 hours.
+# homes by public transport, which is slower than the road minutes. Never less than 6 hours, never more
+# than 8: most late cars had drivers who wanted them at the top fee but could no longer reach the pickup
+# in its window, so the top comes early in the pickup day, while their day still has room.
 SEE = HOUR
 TRANSIT = 1.5
-MARGIN_MIN, MARGIN_MAX = 3 * HOUR, 6 * HOUR
+MARGIN_MIN, MARGIN_MAX = 6 * HOUR, 8 * HOUR
 # Drivers rarely look at the app at night: a raise due then comes at 22:00 the evening before.
 NIGHT_FROM, NIGHT_TO, EVENING = 23 * HOUR, 7 * HOUR, 22 * HOUR
 # After a drop: the driver who gave the gig back books again only for more. With less than this left
