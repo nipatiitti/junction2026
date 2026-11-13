@@ -25,17 +25,20 @@ now)` returns a price for each option, and `observe(event)` takes `order_won`, `
 
 ## The price war (level 8)
 
-Eighteen losses in the last twenty quotes of one day, between 08:00 and 18:00, on at least six pickup places, is the
-price war. At a 50% win target a run like that comes by chance on about one day in twenty; in the war we lose nearly
-every quote, so it shows within about an hour. The model then undoes what those losses taught, and until 18:00 quotes `0.8 × m` (the competitor's 20% cut).
-Those quotes teach nothing. The next day it quotes `m` again. `Params(war_cut=None)` declines during the war instead.
+The learner follows the competitor down within about ten losses, so a war never shows as a long run of losses. It
+shows as a fall: the world multiplier drops 15% below its level at the day's first outcome, with losses on at least
+six pickup places. Until 18:00 the multiplier keeps following the war (our price drops with the competitor's), and
+place and dealer offsets stop learning. At 18:00 the multiplier returns to the day's opening level.
+`Params(war_decline=True)` declines during the war instead. A war on Monday has no earlier level to fall from: it is
+followed but not flagged. There is no war on the outage day, and one war a week.
 
 ## The outage (levels 6–8)
 
-A region is a town and the places within 80 km of it, from the world map. Six wins in a row in one region on one day,
-with a win share more than 20 points above the rest of the day, is the outage there. Until 18:00 the requests that
-touch the region get `1.2 × m` (dealers there pay about 30% more). Three losses among the last six boosted quotes end
-the boost early.
+A region is a town and the places within 80 km of it, from the world map, and a request belongs to the region of its
+pickup place. Fourteen wins in a region's last fifteen outcomes of a day, once the world has 100 outcomes, is the
+outage there (one a week). What the region's wins taught today is undone, so they no longer lift prices everywhere
+else. Until 18:00 its requests start at `1.2 × m` (dealers there pay about 30% more), and that boost learns from
+their outcomes.
 
 ## Dealer trust (level 8)
 
@@ -47,7 +50,27 @@ multiplied by `1 + count / 100`.
 
 Level 8, seeds `spread-1` to `spread-5`, margin in euros and the share of orders on time.
 
-BENCH_TABLE
+Level 8, margin in euros, orders won and the share on time. The list price row is the unchanged starter. The
+versions are the stages of this branch; **the final version has not been benched yet**: the team's eight practice
+slots were full.
+
+| Version                                                      | `spread-1`              | `spread-2`             |
+| ------------------------------------------------------------ | ----------------------- | ---------------------- |
+| List price (starter)                                         | −72,612.51 · 949 · 45.5% | not run                |
+| Learner, war flagged on a 9-of-10 loss run (fired every day) | −217.23 · 531 · 78.2%    | −2,089.58 · 448 · 79.0% |
+| Learner, war on 18-of-20 losses (never fired)                | +1,282.22 · 499 · 81.6%  | not run                |
+| Learner, war as a 15% fall, outage by region-vs-rest test    | +797.44 · 516 · 76.2%    | −7,683.61 · 520 · 76.5% |
+
+What the bench taught:
+
+- On `spread-1` the war is on Monday: our quotes averaged 1.27 × list that day against about 1.6 the rest of the
+  week, and won about half. The learner followed it with no war logic at all.
+- On `spread-1` the outage is Wednesday around Helsinki: requests from within 80 km of it won 58%, the rest 33%,
+  because the capital's wins lifted the world multiplier. Hence the undo when the outage is flagged.
+- The region-vs-rest outage test fired on most days (some regions win more until their offsets catch up), and the
+  wrong outage undo made a false war; hence the run-of-wins rule and no war on the outage day.
+- Margin is up about €73k on `spread-1`, and the share on time rises from 45.5% to about 80%: fewer, dearer orders.
+  It is still under the 90% minimum; that is the job of admission control (#14) and fees (#15).
 
 ## Tests
 
