@@ -20,7 +20,7 @@ import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from db import connect
+from tools.db import connect
 
 VERSION = 1  # bump on any column or definition change: the next run rebuilds every week
 DAY = 1440

@@ -3,20 +3,30 @@
 A gig with several cars is a chain: pickup, delivery, then the next car's pickup, and so on. One driver drives
 it, so the chain saves the trip home after one car and the trip out to the next. Bundling holds new orders for
 a short time when more cars of the same batch are coming, then builds chains from the orders it holds. It needs
-no network: it reads the map, the driver list (through `strategies.fees.Market`) and the units the desk gives it.
-See README.md next to this file.
+no network: it reads the map, the driver list (through `strategies.fees.Market`), the price requests and the units
+the desk gives it. See README.md next to this file.
 """
 
 from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from itertools import pairwise
 
-from spread.types import Audience, OpeningHours, PriceRequest, StopRef, TimeWindow
+from spread.types import (
+    Audience,
+    DeskEvent,
+    DriverProfile,
+    OpeningHours,
+    PriceRequest,
+    StopRef,
+    TimeWindow,
+    WorldMap,
+)
 
 from strategies.fees import Gig, Market
+from strategies.strategy import Minutes, Strategy
 
 HOUR, DAY = 60, 24 * 60
 RULE_MINUTES = 12 * HOUR  # a gig with more than one car may plan at most this much driving (RULES.md)
@@ -61,9 +71,6 @@ class Unit:
     @property
     def cars(self) -> int:
         return sum(1 for stop in self.stops if stop["kind"] == "pickup")
-
-
-Minutes = dict[tuple[str, str], int]
 
 
 def chain_minutes(group: list[Unit], minutes: Minutes) -> int:
@@ -242,21 +249,29 @@ class Held:
     until: int
 
 
-@dataclass
-class Bundler:
-    """Holds new orders for a short time and turns them into chains. Feed it every price request with
-    `request`, every new order with `hold`, and call `due` at each step for the groups to post."""
+class Bundler(Strategy[Params]):
+    """Holds new orders for a short time and turns them into chains. Feed it every event with `observe`, which
+    learns the batches from the price requests, every new order with `hold`, and call `due` at each step for the
+    groups to post."""
 
-    market: Market
-    params: Params = field(default_factory=Params)
-
-    def __post_init__(self) -> None:
-        self.minutes: Minutes = self.market.road
+    def __init__(
+        self, roster: list[DriverProfile], world_map: WorldMap, level: int = 8, params: Params | None = None
+    ) -> None:
+        super().__init__(roster, world_map, level, params or Params())
+        self.market = Market(world_map, roster)
         self.pool: dict[str, Held] = {}
         self.batches: dict[str, list[tuple[int, int]]] = {}  # batch id -> (arrivedAt, respondBy) of its requests
         self.counts: Counter[str] = Counter()  # orders, bundles, cars in bundles, and what the desk reports
 
+    def observe(self, event: DeskEvent) -> None:
+        """Learns from one event of the week: a price request's batch, and a cancelled order leaves the pool."""
+        if event["kind"] == "price_request":
+            self.request(event["request"])
+        elif event["kind"] == "order_cancelled":
+            self.forget(event["orderId"])
+
     def request(self, request: PriceRequest) -> None:
+        """Remembers when a request of a batch arrived and when its dealer answers."""
         batch = request.get("batchId")
         if batch:
             self.batches.setdefault(batch, []).append((request["arrivedAt"], request["respondBy"]))

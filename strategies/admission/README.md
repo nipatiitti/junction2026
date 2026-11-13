@@ -22,8 +22,6 @@ feeds every event to `Admission.observe`, and asks `Admission.assess(request, he
 A declined request gets a quote at ten times the list price, which loses at no cost. Up to level 3 every quote
 wins, so there a declined request gets no quote.
 
-The scoring needs no network, so it is tested offline on a hand-made map and roster.
-
 ## The score
 
 For a request whose first car waits at place `P` on day `D`:
@@ -35,11 +33,15 @@ For a request whose first car waits at place `P` on day `D`:
 2. **Load we already hold.** The orders that still wait for a driver, picked up within 60 road minutes of `P`
    on day `D`, plus the requests we have just quoted to take there and not heard back on. A return leg
    counts as half a car.
-3. **Capacity.** `max(1, 0.10 × supply) × tightening`. When load + this car is over it, we decline.
+3. **Capacity.** `max(1, 0.10 × supply) × tightening` (0.30 at level 1, where the fee ladder leaves gigs
+   unbooked for hours on purpose). When load + this car is over it, we decline.
 4. **Time.** For each option, the slack is its deadline less the ready time (at least an hour from now) and the
    drive. Options with less than 5 hours of slack are out. We quote the earliest option with 9 hours of slack,
-   else the one with the most. Both limits widen as admission tightens.
-5. **Expected cost.** The typical fee × 1.15 (levels 7–8; 1.0 below), × `1 + 1.2 × exp(-supply at P / 15)`,
+   else the one with the most. Both limits widen as admission tightens. At level 1 a quote always wins the
+   request's first option, whichever option it prices (a probe on a practice world showed it), so there we
+   judge only the first option: we take it when it has the 5 hours of slack, and decline otherwise.
+5. **Expected cost.** The typical fee × 1.15 (levels 7–8; 0.8 at level 1, where gigs open at half the typical fee
+   and rise only while no driver books them; 1.0 otherwise), × `1 + 1.2 × exp(-supply at P / 15)`,
    × `1 + 0.5 × exp(-supply at the delivery / 15)`, × 1.15 for an evening pickup, × 1.15 on a weekend,
    × 1.1 for a private address, × 1.05 for a note that adds risk, × 0.85 for a return leg.
 6. **Profit.** We decline when the expected cost is above the price we quote: the list price × `price_factor`

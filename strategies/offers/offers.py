@@ -8,8 +8,12 @@ from __future__ import annotations
 
 import re
 from collections import Counter, defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import NamedTuple
+
+from spread.types import DeskEvent, DriverProfile, WorldMap
+
+from strategies.strategy import Strategy
 
 HOUR, DAY = 60, 24 * 60
 OFFER_MINUTES = 10  # an offer is open this long; the answer comes inside it (yes) or after it (no, unread)
@@ -48,17 +52,13 @@ class Position(NamedTuple):
     at: int
 
 
-@dataclass
-class Offers:
+class Offers(Strategy[Params]):
     """Chooses direct offers. Feed it the gigs we post with `register` and every event with `observe`."""
 
-    roster: list[dict]
-    world_map: dict
-    level: int = 8
-    params: Params = field(default_factory=Params)
-
-    def __post_init__(self) -> None:
-        self.minutes = {(r["from"], r["to"]): r["minutes"] for r in self.world_map["roads"]}
+    def __init__(
+        self, roster: list[DriverProfile], world_map: WorldMap, level: int = 8, params: Params | None = None
+    ) -> None:
+        super().__init__(roster, world_map, level, params or Params())
         self.drivers = {d["id"]: d for d in self.roster}
         self.gigs: dict[str, GigInfo] = {}
         self.open: set[str] = set()  # gigs that no driver holds now
@@ -105,7 +105,8 @@ class Offers:
         """A gig past its deadline warning: from now on, also ask drivers who live near its pickup."""
         self.rescuing.add(gig_id)
 
-    def observe(self, event: dict) -> None:
+    def observe(self, event: DeskEvent) -> None:
+        """Learns from one event of the week: who booked, dropped or delivered our gigs, and the offers' answers."""
         kind, at = event["kind"], event["at"]
         gig_id = event.get("gigId")
         seen = kind in ("gig_viewed", "gig_booked", "offer_answered") and event.get("answer") != "expired"

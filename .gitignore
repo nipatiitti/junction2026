@@ -16,7 +16,6 @@ Thumbs.db
 # Python
 .venv
 __pycache__
-.pytest_cache
 .ruff_cache
 
 # Spread reveals written by spread-reveal-csv
