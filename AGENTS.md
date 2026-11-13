@@ -196,6 +196,7 @@ in and keep it current. Every row must be a single copy-pasteable command.
 | Install Python dependencies | `uv sync`                                                   |
 | Play a Spread practice week | `uv run dispatch.py --level 8 --seed spread-1`              |
 | Write an ended week to CSV  | `uv run spread-reveal-csv <world id>`                       |
+| Measure the note reader     | `uv run python -m strategies.notes.check reveal-<world id>` |
 | Compare two versions        | `uv run python -m strategies.bench dispatch.py origin/main` |
 | Build the saved-weeks DB    | `uv run db.py`                                              |
 | Lint / format Python        | `uv run ruff check --fix . && uv run ruff format .`         |
