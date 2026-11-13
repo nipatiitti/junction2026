@@ -177,5 +177,7 @@ With these defaults the ratchet system makes less than the root system on every 
   minutes) was sent to Vaasa. Its fee stayed priced from the request's typical fee of €12.03 and reached only twice the
   price (€59.08), so no driver took it and it was never delivered. The root system has the same gap (#94).
 
-Next: plan fees from the trip after a change of destination, then bench the variables that the weeks point at: a
-higher `max_markup` (0.55), raises from the deadline warning (`LATE_FROM` −180) and a cheaper opening fee.
+Since then the system plans fees from the trip after a change of destination, plays with bundling, and its parts are
+`Strategy` subclasses. On main of 13 November evening, `spread-1` played to its end at €5,173.02, 422 orders, 90.5% on
+time and none undelivered (ranked). Next: bench the variables that the weeks point at: a higher `max_markup` (0.55),
+raises from the deadline warning (`LATE_FROM` −180) and a cheaper opening fee.
