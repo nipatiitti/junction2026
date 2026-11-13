@@ -16,12 +16,12 @@ now)` returns a price for each option, and `observe(event)` takes `order_won`, `
   have seen enough. Offsets stay within ±25%, and `m` within 0.9 to 2.0.
 - The starting multiplier is about the middle of the level's range:
 
-| Level | Start `m` | Why                                                      |
-| ----- | --------- | -------------------------------------------------------- |
-| 1–3   | 1.00      | Every quote wins the first option at its list price: fixed |
+| Level | Start `m` | Why                                                          |
+| ----- | --------- | ------------------------------------------------------------ |
+| 1–3   | 1.00      | Every quote wins the first option at its list price: fixed   |
 | 4–6   | 1.00      | The competitor is from 10% below to 10% above the list price |
-| 7     | 1.25      | The competitor is 12% to 38% above the list price        |
-| 8     | 1.35      | The competitor is 26% to 54% above the list price        |
+| 7     | 1.25      | The competitor is 12% to 38% above the list price            |
+| 8     | 1.35      | The competitor is 26% to 54% above the list price            |
 
 ## The price war (level 8)
 
@@ -54,11 +54,11 @@ Level 8, margin in euros, orders won and the share on time. The list price row i
 versions are the stages of this branch; **the final version has not been benched yet**: the team's eight practice
 slots were full.
 
-| Version                                                      | `spread-1`              | `spread-2`             |
-| ------------------------------------------------------------ | ----------------------- | ---------------------- |
-| List price (starter)                                         | −72,612.51 · 949 · 45.5% | not run                |
+| Version                                                      | `spread-1`               | `spread-2`              |
+| ------------------------------------------------------------ | ------------------------ | ----------------------- |
+| List price (starter)                                         | −72,612.51 · 949 · 45.5% | not run                 |
 | Learner, war flagged on a 9-of-10 loss run (fired every day) | −217.23 · 531 · 78.2%    | −2,089.58 · 448 · 79.0% |
-| Learner, war on 18-of-20 losses (never fired)                | +1,282.22 · 499 · 81.6%  | not run                |
+| Learner, war on 18-of-20 losses (never fired)                | +1,282.22 · 499 · 81.6%  | not run                 |
 | Learner, war as a 15% fall, outage by region-vs-rest test    | +797.44 · 516 · 76.2%    | −7,683.61 · 520 · 76.5% |
 
 What the bench taught:
