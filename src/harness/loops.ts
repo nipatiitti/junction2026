@@ -16,6 +16,9 @@ const WAKE_ON: DeskEventKind[] = [
   'deadline_close',
 ]
 
+/** A way to play a desk to the end of its world. `after` is the last event the desk has seen. */
+export type Loop = (world: World, desk: Desk, after: number) => Promise<void>
+
 /** Steps the world from one event that needs an answer to the next, and stops at each midnight for a report and
  * when the strategy's tick is due. */
 export async function playPractice(world: World, desk: Desk): Promise<void> {
@@ -34,8 +37,9 @@ export async function playPractice(world: World, desk: Desk): Promise<void> {
   }
 }
 
-/** Answers events as they come, after `desk.rejoin`. After a second without an event, it reads the clock. */
+/** Answers events as they come. After a second without an event, it reads the clock. */
 export async function playLive(world: World, desk: Desk, after: number): Promise<void> {
+  if (desk.now >= desk.endsAt) return
   await desk.send()
   for await (const event of world.stream({ after, idleMs: 1000 })) {
     const day = Math.floor(desk.now / DAY)
