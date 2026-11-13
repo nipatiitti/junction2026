@@ -25,6 +25,14 @@ TOP = 2.0
 # What a late car costs, as a share of its price: the refund for a car late by more than 24 hours.
 # The ceiling of the top fee is the price plus this, so an on-time car never costs more than a late one.
 LATE_SHARE = 0.5
+# What a car never delivered costs, as a share of its price: no price, and a penalty of twice the price.
+# No fee on time goes above the price plus this: past it, leaving the car costs less than delivering it.
+PENALTY = 2.0
+# The typical fee of a trip from its road minutes, for a car the dealer sends to another place: the
+# request's typical fee is for the trip it asked for. Fitted on the saved level-8 weeks (12 seeds): a
+# single car's typical fee is about this, and a trade-in's about that of its first car's trip.
+TRIP_BASE = 1603  # cents
+TRIP_PER_MINUTE = 38.65  # cents a road minute, €23.19 an hour
 # A car that is late already: a day after its last pickup it steps up to this multiple of the typical
 # fee, as the starter's steep fees did, under a ceiling of twice its price: a car late by more than two
 # business days costs its whole price, and a car never delivered twice its price on top.
@@ -63,7 +71,7 @@ LADDER_MIN_SPAN = 3 * HOUR  # with less time than this before the top fee is due
 class Gig:
     """What a schedule is planned from, for the cars of one gig."""
 
-    typical: float  # the typical fee for the gig's cars, in cents
+    typical: float  # the typical fee for the gig's cars, for the trip they make now, in cents
     price: float  # the order's price for the gig's cars, in cents
     last_pickup_at: int  # the order's `lastPickupAt`
     starts_at: int  # the earliest pickup: the later of now and the car's ready time
@@ -77,17 +85,25 @@ def margin(gig: Gig) -> int:
     return round(min(MARGIN_MAX, max(MARGIN_MIN, SEE + TRANSIT * gig.travel_minutes)))
 
 
+def trip_fee(minutes: int) -> float:
+    """The typical fee of a trip of these road minutes, in cents."""
+    return TRIP_BASE + TRIP_PER_MINUTE * minutes
+
+
 def ceiling(gig: Gig, at: int | None = None) -> float:
-    """The highest fee of a step due `at`: the price, plus what being late would cost. From a day after
-    the last pickup, being later costs the whole price, so the ceiling is twice the price."""
+    """The highest fee of a step due `at`: what the car is worth before the top, plus what being late
+    would cost, but never more than leaving the car would cost. From a day after the last pickup, being
+    later costs the whole price, so the ceiling is twice the price, unless the fee is above it already."""
     if at is not None and at >= gig.last_pickup_at + DAY:
-        return gig.price * 2
-    return gig.price * (1 + LATE_SHARE)
+        return gig.price * PENALTY
+    return min(worth(gig) + gig.price * LATE_SHARE, gig.price * (1 + PENALTY))
 
 
 def worth(gig: Gig) -> float:
-    """The highest fee of a step before the top: the price, at which the order still breaks even."""
-    return gig.price
+    """The highest fee of a step before the top: the price, at which the order still breaks even. A car
+    whose trip costs more than its price, after the dealer sent it farther, may reach the trip's typical
+    fee instead: a late car costs that much too, and leaving it costs more."""
+    return min(max(gig.price, gig.typical), gig.price * (1 + PENALTY))
 
 
 def opening_multiple(gig: Gig) -> float:

@@ -8,11 +8,11 @@ for the top.
 `dispatch.py` calls it from `Desk.fees_for`, which every post, repost and reprice uses, and from
 `Desk.dropped`, after `gig_dropped`.
 
-| File          | What it holds                                                                   |
-| ------------- | ------------------------------------------------------------------------------- |
-| `schedule.py` | The schedule: pure functions of a gig's facts and the time, with every constant |
-| `market.py`   | Where the drivers live, from the map and the driver list                        |
-| `__init__.py` | `FeePlanner`: turns an order and its request into a gig's facts                 |
+| File          | What it holds                                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `schedule.py` | The schedule: pure functions of a gig's facts and the time, with every constant                                     |
+| `market.py`   | Where the drivers live, from the map and the driver list                                                            |
+| `__init__.py` | `FeePlanner`: turns an order and its request into a gig's facts, with the typical fee of the trip the cars make now |
 
 ## How a schedule is built
 
@@ -36,10 +36,14 @@ for the top.
    the starter's hourly ones, give drivers less reason to wait for the next one.
 4. **Ceiling.** No step before the top goes above the order's price for the gig's cars, so the order
    still breaks even. The top fee may reach the price plus half of it, the refund for a car late by more
-   than 24 hours: an on-time car never costs more than a late one.
+   than 24 hours: an on-time car never costs more than a late one. When the trip's typical fee is above
+   the price, after a change of destination (below), the typical fee takes the price's place in both
+   rules. No fee on time goes above three times the price: a car never delivered loses its price and
+   pays twice the price, so past that, leaving the car costs less than delivering it.
 5. **A late car.** When `lastPickupAt` has passed, the schedule is the top fee at once. A day after
    `lastPickupAt` it rises to 2.5 times the typical fee, under a ceiling of twice the price. Later, the
-   refund is the whole price, and a car never delivered costs twice its price on top.
+   refund is the whole price, and a car never delivered costs twice its price on top. A top fee above
+   twice the price, for a car sent farther, stays: fees never fall.
 6. **Drops.** After `gig_dropped`, a gig with less than 6 hours left before its top fee is repriced. It
    opens at least 15% above the fee that the driver dropped: that fee only just paid them, and they
    book again only for more. With more time left, the schedule in the app stays.
@@ -63,14 +67,57 @@ cheapest driver needs. `ladder` in `schedule.py` plans the fees a gig goes throu
 
 The ladder stops when a driver books the gig, or the gig expires, is withdrawn or is cancelled.
 
+## A change of destination
+
+When a dealer sends a car to another place (`order_changed`), the world sends it there, and the driver
+is paid for the trip they make. The order's legs then go to the new place, while the request's keep the
+old one, and its `referenceFeeCents` is the typical fee of the old trip. The price stays the same.
+
+`FeePlanner.typical` compares the two. When a car's pickup or delivery place has changed, the typical
+fee is that of the new trip: €16.03 plus €23.19 an hour of road minutes from the pickup to the new place,
+for the first car of the order. That line is fitted on the single-car requests of the saved level-8 weeks,
+one week per seed (12 seeds); a trade-in's typical fee is about that of its first car's trip. Against the
+mean typical fee of the new lane in the saved weeks, it is 5% off at the median on the 212 saved changes
+of destination, where the request's own fee scaled by the road minutes is 28% off: the request's noise
+says nothing about the new lane. Every schedule of the order then follows the new trip: posts, reposts,
+reprices, drops and bundles.
+
+A car sent farther often costs more than its price: the new trip's typical fee is above the price for 27
+of the 40 cars sent farther on 12 seeds. The ceilings then follow the typical fee (rule 4), up to three
+times the price. On those seeds, replayed with `FeePlanner` at the minute of the change:
+
+| Cars sent            | Opening fee, before → now | Top fee, before → now | Top at the typical fee or more |
+| -------------------- | ------------------------- | --------------------- | ------------------------------ |
+| Farther (40 changes) | 0.50 → 0.99               | 0.86 → 1.33           | 40% → 80%                      |
+| Nearer (35 changes)  | 2.17 → 1.30               | 3.81 → 1.94           | 100% → 100%                    |
+
+Fees are medians over the new lane's mean typical fee. Turku to Raisio (8 road minutes, typical fee €12.03,
+price €30.15) sent to Vaasa now tops at €90.45, three times its price, against €24.06 before; the lane's
+typical fee is €105. A car whose new trip needs more than three times its price can still stay
+undelivered, on purpose: 8 of the 40 cars sent farther.
+
+On the bench (`uv run python -m strategies.bench dispatch.py origin/main`, level 8, `spread-1` to
+`spread-5`), the orders whose destination changed:
+
+| Sent    | Version       | Orders | On time | Late | Never delivered | Their net |
+| ------- | ------------- | ------ | ------- | ---- | --------------- | --------- |
+| Farther | `origin/main` | 23     | 15      | 6    | 2               | −€221     |
+| Farther | this change   | 22     | 19      | 3    | 0               | −€131     |
+| Nearer  | `origin/main` | 17     | 17      | 0    | 0               | €656      |
+| Nearer  | this change   | 18     | 18      | 0    | 0               | €978      |
+
+The three late cars were booked before the change: the world sends the booked driver to the new place,
+and no fee of ours can move them. Over the whole weeks, the margin rose by €909 (higher on 3 of 5 seeds),
+the on-time share from 96.9% to 97.1%, and no order was left undelivered, against 2.
+
 ## Inputs
 
-| Input                               | From                                                        |
-| ----------------------------------- | ----------------------------------------------------------- |
-| Typical fee and price, for the cars | The request's `referenceFeeCents`, the order's `priceCents` |
-| `lastPickupAt`, ready time          | The order: its first car that is not delivered yet          |
-| Drive minutes                       | The map's road minutes from the pickup to the delivery      |
-| Scarcity and travel time of drivers | The driver list's home towns and the map, read once         |
+| Input                               | From                                                                                          |
+| ----------------------------------- | --------------------------------------------------------------------------------------------- |
+| Typical fee and price, for the cars | The request's `referenceFeeCents`, or the new trip's after a change; the order's `priceCents` |
+| `lastPickupAt`, ready time          | The order: its first car that is not delivered yet                                            |
+| Drive minutes                       | The map's road minutes from the pickup to the delivery                                        |
+| Scarcity and travel time of drivers | The driver list's home towns and the map, read once                                           |
 
 All the constants are at the top of `schedule.py` and `market.py`.
 
