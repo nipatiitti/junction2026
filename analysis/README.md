@@ -3,8 +3,8 @@
 ## What it is
 
 Derived tables in the scrape database, so that a question about the world is one SQL query. They are built from
-the raw tables of `db.py` (see the main README) and live in the same file, beside the `probes` and
-`fee_probes` tables of `db.py` that hold the probe rows:
+the raw tables of `db.py` (see the main README) and live in the same file, beside the `probes`,
+`fee_probes` and `shape_probes` tables of `db.py` that hold the probe rows:
 
 ```sh
 uv run python -m analysis.facts                          # build the weeks that have no facts yet (out/spread.sqlite)
@@ -258,6 +258,18 @@ join quote_facts q on q.week_id = w.id and q.request_id = p.request_id and q.opt
                   and q.list_price_cents = p.list_price_cents
 where p.level = 8 and p.flip_ratio is not null and p.monotone = 1 and q.quoted = 1 and q.options_quoted = 1
 group by 1;
+```
+
+`shape_probes` has one row per pair that `probe.py shape` probed: each car's single flip (`single0_flip_cents`,
+`single1_flip_cents`), the flip of both cars as one gig (`combined_flip_cents`), and `saving_ratio` = (sum of the
+single flips − combined flip) / the pair's typical fee.
+
+```sql
+-- 12. How much does one combined gig save, by pair kind?
+select kind, count(*) as pairs, round(avg(saving_ratio), 3) as mean_saving_ratio,
+       round(avg(combined_over_sum), 3) as combined_over_sum, sum(same_driver) as same_driver
+from shape_probes where error is null and monotone = 1
+group by kind;
 ```
 
 ## For the hindsight oracle (#66)

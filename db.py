@@ -2,7 +2,7 @@
 
     uv run db.py                                 # the team's committed weeks in data/scrape into out/spread.sqlite
     uv run db.py out/scrape                      # every saved week under out/scrape into out/spread.sqlite
-    uv run db.py out/scrape out/probe            # the saved weeks and the probe rows
+    uv run db.py out/scrape out/probe            # the saved weeks and the probe rows (quote, fee, shape)
     sqlite3 out/spread.sqlite "select kind, count(*) from events group by kind"
 
 A week already in the database is skipped. A probe file is loaded again when its size or mtime has changed.
@@ -107,6 +107,17 @@ create table if not exists fee_probes (
   bracket_high_cents int, ends text, monotone int, error text, expired_at_top int, booked_driver_id text,
   booked_minutes int, booked_views int, booked_expired int, trials text, file text,
   primary key (level, seed, order_id)
+);
+-- One row per probed pair of requests (probe.py shape): each car's single flip, the flip of both as one gig, the
+-- saving, and who booked at each flip. A trade-in has one order id; its two cars are lanes 0 and 1.
+create table if not exists shape_probes (
+  level int, seed text, pair_id text, kind text, order_ids text, day int, hour int, probed_at int, gap_minutes int,
+  pickup_place_0 text, delivery_place_0 text, pickup_place_1 text, delivery_place_1 text, pair_reference_cents int,
+  window_minutes int, single0_flip_cents real, single1_flip_cents real, combined_flip_cents real,
+  sum_single_flip_cents real, saving_cents real, saving_ratio real, combined_over_sum real, same_driver int,
+  single0_driver_id text, single0_home text, single1_driver_id text, single1_home text, combined_driver_id text,
+  combined_home text, ends text, monotone int, error text, trials text, file text,
+  primary key (level, seed, pair_id)
 );
 create index if not exists events_kind on events (kind, week_id);
 create index if not exists legs_lane on legs (pickup_place, delivery_place);
@@ -416,7 +427,7 @@ def load_folders(db: sqlite3.Connection, roots: list[Path]) -> tuple[int, int]:
     return added, skipped
 
 
-PROBE_FILE = re.compile(r"(quote|fee)-L(\d+)-(.+)\.jsonl$")
+PROBE_FILE = re.compile(r"(quote|fee|shape)-L(\d+)-(.+)\.jsonl$")
 
 
 def as_int(value) -> int | None:
@@ -481,6 +492,54 @@ def probe_row(mode: str, level: int, seed: str, row: dict, key: str) -> tuple:
     )
 
 
+def shape_row(level: int, seed: str, row: dict, key: str) -> tuple:
+    """One row of shape_probes. A missing field (a pair that ended in an error) becomes null."""
+    lanes = (row.get("lanes") or []) + [[None, None]] * 2
+    treatments = [*(row.get("single") or [None, None]), row.get("combined")]
+    flips, drivers = [], []
+    for found in treatments:
+        found = found or {}
+        booked = found.get("atFlip") or {}
+        flips.append(found.get("flipCents"))
+        drivers += [booked.get("driverId"), booked.get("homePlaceId")]
+    together = row.get("together") or {}
+    return (
+        level,
+        seed,
+        row["pairId"],
+        row.get("kind"),
+        dump(row.get("orderIds")),
+        row.get("day"),
+        row.get("hour"),
+        row.get("probedAt"),
+        row.get("gapMinutes"),
+        *lanes[0],
+        *lanes[1],
+        row.get("pairReferenceCents"),
+        row.get("windowMinutes"),
+        *flips,
+        row.get("sumSingleFlipCents"),
+        row.get("savingCents"),
+        row.get("savingRatio"),
+        row.get("combinedOverSum"),
+        as_int(together.get("sameDriver")),
+        *drivers,
+        row.get("ends"),
+        as_int(row.get("monotone")),
+        row.get("error"),
+        dump({name: (t or {}).get("trials") for name, t in zip(("single0", "single1", "combined"), treatments)}),
+        key,
+    )
+
+
+# The table of each probe mode and the fields a row needs. The scout's requests-L<level>-<seed>.json cache is skipped.
+PROBE_TABLES = {
+    "quote": ("probes", ("requestId", "option")),
+    "fee": ("fee_probes", ("orderId",)),
+    "shape": ("shape_probes", ("pairId",)),
+}
+
+
 def load_probes(db: sqlite3.Connection, roots: list[Path]) -> tuple[int, int]:
     """Loads every probe file under the folders. Returns (loaded, unchanged).
 
@@ -499,7 +558,7 @@ def load_probes(db: sqlite3.Connection, roots: list[Path]) -> tuple[int, int]:
             if known == (stat.st_size, stat.st_mtime_ns):
                 unchanged += 1
                 continue
-            table, fields = ("probes", ("requestId", "option")) if mode == "quote" else ("fee_probes", ("orderId",))
+            table, fields = PROBE_TABLES[mode]
             rows, bad = [], 0
             for line in path.read_text().splitlines():
                 if not line.strip():
@@ -511,7 +570,9 @@ def load_probes(db: sqlite3.Connection, roots: list[Path]) -> tuple[int, int]:
                 if not isinstance(row, dict) or any(row.get(f) is None for f in fields):
                     bad += 1
                     continue
-                rows.append(probe_row(mode, level, seed, row, key))
+                rows.append(
+                    shape_row(level, seed, row, key) if mode == "shape" else probe_row(mode, level, seed, row, key)
+                )
             with db:
                 db.execute(f"delete from {table} where file = ?", (key,))
                 if rows:
@@ -543,8 +604,10 @@ def main(argv: list[str] | None = None) -> None:
     print(f"{added} weeks added, {skipped} already there; {args.db} holds {weeks} weeks")
     q = db.execute("select count(*) from probes").fetchone()[0]
     f = db.execute("select count(*) from fee_probes").fetchone()[0]
+    s = db.execute("select count(*) from shape_probes").fetchone()[0]
     print(
-        f"{loaded} probe files loaded, {unchanged} unchanged; {args.db} holds {q} quote probe rows and {f} fee probe rows"
+        f"{loaded} probe files loaded, {unchanged} unchanged; {args.db} holds {q} quote probe rows, "
+        f"{f} fee probe rows and {s} shape probe rows"
     )
 
 
