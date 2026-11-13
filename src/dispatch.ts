@@ -3,7 +3,7 @@
 import { parseArgs } from 'node:util'
 import { Client, SpreadError, type World } from '../vendor/spread-typescript/spread.ts'
 import { type Run, runOf, UsageError } from './harness/params.ts'
-import { playFinalWeek, playPracticeWeek, reachable } from './harness/week.ts'
+import { playFinalWeek, playPracticeWeek, reachable, tryBuild } from './harness/week.ts'
 
 const USAGE =
   'Usage: pnpm dispatch [--strategy <name>] [--params <file>] [--set key=value] [--level 1-8] [--seed <text>] [--board] [--final]. Set SPREAD_URL and SPREAD_KEY first.'
@@ -37,11 +37,14 @@ async function playFinal(client: Client, run: Run): Promise<void> {
   const world = await reachable(() => nextFinal(client))
   console.log(`Final world ${world.id}.`)
   const worlds = await reachable(() => client.worlds())
-  await playFinalWeek(world, run, worlds.find((summary) => summary.worldId === world.id)?.level ?? 8)
+  const level = worlds.find((summary) => summary.worldId === world.id)?.level ?? 8
+  await reachable(() => tryBuild(client, run, level, world)) // a strategy that does not build stops here, not mid-week
+  await playFinalWeek(world, run, level)
 }
 
 /** Plays a practice week, or a ranking run with `board`. Ctrl-C or an error deletes a practice world. */
 async function playPractice(client: Client, run: Run, level: number, seed: string | undefined, board: boolean) {
+  if (board) await tryBuild(client, run, level) // before the ranking run exists: it counts once created
   const world = await client.create(level as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8, { seed, board })
   // A ranking run that a team deletes plays to its end without the team's system, and counts.
   const name = `${board ? 'Ranking run' : 'Practice world'} ${world.id}`
