@@ -46,6 +46,7 @@ import {
   Strategy,
   type StrategyKind,
 } from '../../strategy.ts'
+import { loadChains } from './chains.ts'
 import { bestPrice, Demand } from './demand.ts'
 import { awake, BOOK_AHEAD, fast, feeAt, planBy, SHORT, stepped } from './fees.ts'
 import { tableSteps } from './feetable.ts'
@@ -113,6 +114,9 @@ export const DEFAULTS = {
    * markup: the best price keeps at least this share of itself over the cost it is chosen over. Until 15 November
    * it was 0.28 and did the work of the charge below as well: no price under 1.39 × cost. */
   noise: 0.11,
+  /** A lost request's quoted options share one world, day, dealer and route. True averages their contributions to
+   * those effects instead of training them once per option; each option effect still learns separately. */
+  sharedOutcome: false,
   /** What one more order costs the rest of the week's orders, in higher fees and late cars, added to the cost
    * that the price is chosen over: a request whose best price is under (cost + charge) ÷ (1 − `noise`) is not
    * worth its place. The charge is (`tax` + `taxLoad` × the orders per driver that the week is heading for) × the
@@ -154,6 +158,32 @@ export const DEFAULTS = {
   /** A chain that no driver took this many waking hours after its post is taken apart: 51% of the chains book
    * within the hour, and one still open then books 24% of the time. 0 waits until `chainLast`. */
   chainPatience: 1,
+  /** A car may be in this many chains that no driver took before it stays a single gig: a failed chain costs its
+   * cars 0.01 × typical (1.04 against 1.03, 15 server weeks). A later chain needs a car that no driver has seen,
+   * so it is never the same chain again. With the chain model, 3 made €212 a week more than 2 over 20 server seeds
+   * and 5 made €193 less than 3 over ten; without the model 2 lost. */
+  chainTries: 3,
+  /** How much a chain's chance to book counts when two chains want the same car (chains.ts, `bookChance`): the
+   * best chain saves the most × its chance to this power. 0 ranks by the saving alone. */
+  chainFit: 0,
+  /** A chain's fees × what the chain is worth to a driver (chains.ts): 1 opens it at `open` × that worth. */
+  chainOpen: 1,
+  /** 1 draws each chain's fee level from 0.78, 0.88, 1 and 1.12 × `chainOpen` by its cars' orders: an experiment
+   * that measures how a chain's fee moves its chance to book. 0 is off. */
+  chainSpread: 0,
+  /** Price and rank the chains by the chain model (chains.ts, chain.json): each chain gets the fee level from
+   * 0.85 to 1.3 that earns the most over its cars as single gigs, by its chance to book at that level, the best
+   * chain earns the most a car, and a chain that earns nothing is not posted. With `chainTries` 3 on 20 server
+   * seeds: +€1,126 a week, 71% of the chains book where 53% did, and 197 cars a week ride in them where 117 did. */
+  chainModel: true,
+  /** With the model: × what a chain's cars are taken to pay as single gigs (0.94 on the Monday, 0.99 after). Over
+   * 1 the model pays chains more, so more of them book. */
+  chainAlone: 1,
+  /** Direct offers of an open chain to the drivers who viewed it and did not book, at this × the fee in the app
+   * (planner.ts). 0 sends none. `chainOfferSpread` 1 draws each chain's offer level from 1, 1.15 and 1.3: an
+   * experiment that measures what such offers do. */
+  chainOffers: 0,
+  chainOfferSpread: 0,
   /** Thompson sampling on the win model (demand.ts, `sampled`): each quote is the best price for one draw of the
    * effects (the world, the day, the dealer, the places, the option) from what the week has taught of them, not
    * for their means, so the first quotes of a week and of a new day spread over more prices and find the level
@@ -264,6 +294,9 @@ class Lean extends Strategy<LeanParams> {
     this.planner = new Planner(params, setup.map, params.chains && setup.level >= 3, {
       context: () => this.context(),
       troubled: (orderId) => this.retries.has(`${orderId} 0`),
+      homes: this.homes,
+      load: () => this.tally.bookings / (setup.roster.length || MEDIAN_DRIVERS),
+      model: params.chainModel ? loadChains() : undefined,
     })
   }
 
@@ -423,6 +456,22 @@ class Lean extends Strategy<LeanParams> {
     }
     if (!quoted || !request) return
     const { prices, offset } = quoted
+    if (this.params.sharedOutcome && won === null) {
+      const outcomes = request.options.flatMap((option) => {
+        const cents = prices[option.kind]
+        if (cents === undefined) return []
+        return [
+          {
+            keys: this.demand.keys(request, option.kind),
+            offset,
+            multiple: cents / option.listPriceCents,
+            won: false,
+          },
+        ]
+      })
+      this.demand.learnShared(outcomes)
+      return
+    }
     for (const option of request.options) {
       const cents = prices[option.kind]
       if (cents === undefined || (won && option.kind !== won)) continue
@@ -549,6 +598,12 @@ class Lean extends Strategy<LeanParams> {
   override observe(event: DeskEvent, books: Books): void {
     this.rollout?.observe(event, books)
     switch (event.kind) {
+      case 'gig_viewed':
+        this.planner.viewed(event.gigId, event.driverId, event.at)
+        break
+      case 'offer_answered':
+        if (event.answer === 'accepted') this.planner.took(event.gigId)
+        break
       case 'price_request':
         this.tally.requests++
         this.demand.dawn(Math.floor(event.at / DAY))

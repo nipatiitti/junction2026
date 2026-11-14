@@ -455,6 +455,88 @@ What the 15 saved weeks of the defaults (these ten and five ranking runs) say of
   minutes 77%.
 - **A chain books at once or not at all.** Half of the bookings come within 4 minutes and 90% within 37.
 
+### Three tries to book more chains (#351)
+
+Each played on the same ten seeds, against the saved weeks of the defaults (mean margin a week, all weeks ranked):
+
+| Variant                                            | Margin  | Against the defaults | Orders | Chains posted, booked | Cars in booked chains |
+| -------------------------------------------------- | ------- | -------------------- | ------ | --------------------- | --------------------- |
+| Defaults                                           | €16,875 |                      | 440    | 94, 52%               | 120                   |
+| `chainFit` 1                                       | €16,971 | +€96 ± 343, 6 of 10  | 446    | 96, 56%               | 130                   |
+| `chainTries` 2                                     | €16,644 | −€230 ± 282, 3 of 10 | 443    | 132, 44%              | 142                   |
+| `chainPatience` 0.67                               | €16,578 | −€297 ± 155, 2 of 10 | 440    | 94, 53%               | 123                   |
+| `chainFit` 1, `chainTries` 2, `chainPatience` 0.67 | €17,028 | +€153 ± 351, 7 of 10 | 452    | 134, 47%              | 149                   |
+
+- **None is a measured gain** without the chain model below (`chainFit` 0, `chainPatience` 1); with it,
+  `chainTries` 3 is the default.
+- **`chainFit`** ranks two chains that want the same car by saving × chance to book (`bookChance` in `chains.ts`,
+  from the drivers who can do the chain as a round from home). 4 points more chains book and 10 more cars ride in
+  them.
+- **`chainTries`** lets a car of a failed chain join one more chain. 22 more cars ride in chains, but the second
+  chains book less often, and the fees over all orders do not fall (0.963 × typical against 0.960).
+- **The three together** put 29 more cars in chains (149 against 120) with 11 more orders; that should be worth
+  about €500 and measures as +€153 ± 351. It needs more seeds to say.
+
+### The chain model: a fee for each chain by its chance to book (#351)
+
+**The fee decides whether a chain books.** Ten server weeks drew each chain's fee level by its cars' orders
+(`chainSpread` 1, 898 chains): at 0.78 × the chain's fee 12% booked, at 0.88 × 31%, at 1 × 46% and at 1.12 × 66%.
+With chains off, the cars that could ride in one pay 0.94 × typical as single gigs when won on the Monday and
+0.99 × from Tuesday to Thursday (ten server weeks), so a chain at 0.75 × that books is worth more than one at
+0.68 × that does not. Today's level is right on the Monday (73% book) and too low after it (38%).
+
+**Which chains book is known ahead.** `uv run --no-project --python 3.13 --with scikit-learn python -m
+analysis.chain_model` fits the chance that a chain books within an hour on every chain that the saved weeks posted
+(26,151 chains of 295 weeks). On seeds it did not see, the fifth of the chains it rates lowest books 12% of the
+time and the fifth it rates highest 88%. What counts most: the fee for each hour of driving, long chains late in
+the week (the bookings so far per driver × the hours), the trip from the last delivery to the first pickup, the
+drivers who live near the last delivery or can do the chain as a round from home, cars that no driver has seen,
+and the Monday. The weights are in `chain.json`; `score` in `chains.ts` computes the same features.
+
+**What `chainModel` does.** Each path gets the fee level from 0.85 to 1.3 that earns the most: its chance to book
+at that level × (what its cars pay alone − the chain's fee) − (1 − the chance) × what a failed chain costs them
+(0.05 × typical). The best chain earns the most a car, and a path that earns nothing is not posted.
+`chainTries` 3 lets the cars of a chain that no driver took join two more chains.
+
+On the server, against the defaults with the weekend rule (mean margin a week, every week ranked):
+
+| Variant                                         | `supply-1` to `-10` | `supply-11` to `-20` | Both    |
+| ----------------------------------------------- | ------------------- | -------------------- | ------- |
+| Every chain at 1.12 × (`chainOpen`)             | +€307 ± 278         |                      |         |
+| `chainModel`                                    | +€581 ± 400         |                      |         |
+| `chainModel`, `chainTries` 2                    | +€914 ± 429         | +€1,242 ± 366        | +€1,078 |
+| `chainModel`, `chainTries` 3 (**the defaults**) | +€872 ± 463         | +€1,379 ± 355        | +€1,126 |
+| … and `chainAlone` 1.06                         | +€1,263 ± 450       | +€986 ± 414          | +€1,125 |
+| … and `pickLead` 12, `holdHours` 3              | +€982 ± 307         | +€1,479 ± 304        | +€1,231 |
+
+With the defaults 71% of the chains book where 53% did, 197 cars a week ride in them where 117 did, at 0.71 ×
+typical where they paid 0.68 ×, and the week wins 27 more orders at the same on-time share (96.1% against 96.2%).
+
+Each setting was then pushed one step past where it paid, on `supply-1` to `supply-10` over `chainModel` with
+`chainTries` 3 (+€872): `chainAlone` 1.06 +€1,263, 1.12 +€665, 1.18 +€621; `holdHours` 3 +€1,055, 4 +€577;
+`pickLead` 12 +€1,057, 6 +€985; `chainPatience` 1.5 +€943; `chainTries` 5 +€679; `minSaving` 0.05 +€780. On 20
+seeds the settings of the last two rows are level with the defaults, so the defaults change the fewest params.
+
+**Direct offers of an open chain do not pay** (`chainOfferSpread` 1, ten server weeks, 2,436 offers to drivers who
+viewed a chain and did not book it). Drivers who read the offer took it 2.7% of the time at the app's fee, 8.4% at
+1.15 × and 16.2% at 1.3 ×, so an offer over the app's fee does find drivers. But the chains they booked paid 0.79,
+0.85 and 0.97 × their cars' typical fees, where the cars alone pay 0.99 ×, and the week made €372 less than
+without offers. `chainOffers` stays 0.
+
+### Premium cars at a lower cost factor (#351)
+
+`premium` multiplies a premium car's cost by 3, so `lean` wins none of the 49 premium requests a week. Lower
+factors on `supply-1` to `supply-10`, over the chain defaults above (mean a week, every week ranked):
+
+| `premium` | Margin against 3 | Premium orders | Their fee × typical | Late  | Their margin |
+| --------- | ---------------- | -------------- | ------------------- | ----- | ------------ |
+| 2         | −€184 ± 270      | 0.4            | 0.89                | 0%    | €29 a week   |
+| 1.5       | −€132 ± 451      | 3.4            | 1.03                | 5.9%  | €204 a week  |
+| 1         | −€364 ± 433      | 15.2           | 1.09                | 13.2% | €496 a week  |
+
+The premium orders earn €33 to €60 each, but the week does not earn more with them: at 1 they are late four times
+as often as the other orders, and the week wins only 5 orders more in all. `premium` stays 3.
+
 ## No raises over the weekend (15 November, #347)
 
 Cars due on the last Monday were booked at 0.84 to 0.91 × typical on the Friday and the Saturday (46 a week), 2 a
@@ -472,11 +554,93 @@ orders, so the difference is fees and refunds alone:
 +€624 ± 130 a week, ahead on 10 of 10 seeds (+€172 to +€1,375), with 0.3 points fewer orders on time. The `rest`
 false week of `supply-1` is the saved week of the old schedule to the cent.
 
+## Shared demand outcomes (14 November, experimental)
+
+`sharedOutcome` changes only losses with several quoted options. The old code updates the world, day, dealer, pickup
+and delivery effects once per option, so one lost request can count several times. With `sharedOutcome=true`, every
+option's contribution is calculated from the same pre-outcome state. Each delivery-option effect still learns alone;
+each shared effect receives the mean of the option contributions once. Wins and the `false` control are unchanged.
+The default is false: the server check below is encouraging, not conclusive enough to change it.
+
+The first 40 paired simulator seeds (`lean-so-screen-1..40`) were used to explore the change. Shared learning alone
+gained €426.35 (SE €156.81, paired 95% CI +€109.17 to +€743.53). Adding `costLevel=1` gained €485.18 over the control
+(SE €182.15, CI +€116.74 to +€853.62); its increment over shared learning alone was only €58.83 ± €140.35. These are
+selection results, not independent proof. The combined candidate was then frozen, including its SHA-256 hashes, before
+40 new seeds (`lean-so-validate-1..40`) were played. The hashes were unchanged afterward.
+
+| Frozen validation, 40 fresh paired simulator seeds | Control    | Candidate  |
+| -------------------------------------------------- | ---------- | ---------- |
+| Mean margin                                        | €17,694.01 | €18,243.68 |
+| Mean orders                                        | 449.0      | 420.2      |
+| Mean on time                                       | 96.36%     | 96.53%     |
+| Ranked                                             | 40 of 40   | 40 of 40   |
+
+The paired candidate-minus-control gain was **€549.67 a week**, SD €776.66, SE €122.80, t(39) 4.476 and 95% CI
+**+€301.29 to +€798.06**. It was ahead on 28 of 40 seeds, with a median gain of €588.67; a 10% winsorized mean was
+€517.26, so the result is not just one large seed. No candidate week became unranked. This is simulator evidence only;
+its CI does not establish that the true gain exceeds €500.
+
+Every benchmark used a new `SPREAD_JOURNAL_DIR`; reusing one contaminates a restarted simulator because its world ids
+repeat and the harness journals append by world id. Two identical configurations in a fresh directory produced the
+same score to the cent before these comparisons. The validation seeds map to 39 distinct recorded request/driver packs
+(one pack occurs twice), with independent hidden draws and quote decisions per named seed. Raw bench output:
+[`shared-outcome-screen.csv`](shared-outcome-screen.csv) and
+[`shared-outcome-validation.csv`](shared-outcome-validation.csv).
+
+### Server check on 15 fresh seeds (14 November, issue #357)
+
+Three arms played 15 new random server seeds each, level 8, one paired run at a time. The 45 weeks used `f1804809`
+with only the two TypeScript source changes; #347's weekend schedule and #351's chain model were merged into this
+branch afterward. These are therefore measurements on the pre-#347, pre-#351 base, not a replay of the final merge,
+and should be repeated on it before the parameter is enabled.
+
+| 15 paired server seeds | Control (`sharedOutcome=false`) | Shared only | Shared, `costLevel=1` |
+| ---------------------- | ------------------------------- | ----------- | --------------------- |
+| Mean margin            | €13,010.05                      | €13,457.10  | €13,173.53            |
+| Margin SD              | €3,404.08                       | €3,366.07   | €3,414.27             |
+| Mean orders            | 390.2                           | 370.7       | 359.7                 |
+| Mean on time           | 96.33%                          | 96.72%      | 96.50%                |
+| Ranked                 | 14 of 15                        | 15 of 15    | 14 of 15              |
+
+| Paired difference       | Mean ± SD              | SE      | 95% Student-t CI        | Ahead |
+| ----------------------- | ---------------------- | ------- | ----------------------- | ----- |
+| Shared − control        | **+€447.06 ± €825.33** | €213.10 | **−€10.00 to +€904.11** | 10/15 |
+| `costLevel=1` − control | +€163.48 ± €706.46     | €182.41 | −€227.74 to +€554.71    | 10/15 |
+| `costLevel=1` − shared  | −€283.57 ± €725.16     | €187.24 | −€685.15 to +€118.01    | 5/15  |
+
+Shared learning alone has the same sign as the simulator result but is not conclusive on 15 pairs: t(14) 2.098, with a
+median paired gain of €212.57 and per-seed differences from −€967.65 to +€2,227.75. None of its weeks became unranked;
+the control was unranked once where shared learning was ranked (its on-time share was 93.26% against 88.68%). There is
+no support here for also raising `costLevel` from 0.98 to 1. Do not change the defaults on this evidence alone. Raw
+bench output is [`shared-outcome-server-15.csv`](shared-outcome-server-15.csv); every week is under
+`data/scrape/runs/L8/so15-<seed>/<world id>`.
+
+The exact server comparison can be repeated with a fresh journal directory and recording enabled:
+
+```sh
+journal=$(mktemp -d)
+SPREAD_JOURNAL_DIR="$journal" \
+  pnpm bench lean:sharedOutcome=false lean:sharedOutcome=true lean:sharedOutcome=true,costLevel=1 \
+  --level 8 --jobs 3 --csv out/lean-so-15.csv \
+  --seeds so15-7b0c78dd,so15-65faabd4,so15-9ca165e4,so15-0dc06b05,so15-126df8b9,so15-61ebfa24,so15-ecb8752d,so15-8c6518e8,so15-63f8e141,so15-3d85f5d0,so15-a13b2a16,so15-7554c2e4,so15-7a3a06f0,so15-59edee08,so15-1ccfc1c6
+```
+
+The frozen candidate can be replayed offline against its unchanged control:
+
+```sh
+journal=$(mktemp -d)
+pnpm sim --port 8787  # in another terminal
+SPREAD_URL=http://localhost:8787 SPREAD_KEY=sim SPREAD_RECORD=0 SPREAD_JOURNAL_DIR="$journal" \
+  pnpm bench lean:sharedOutcome=false lean:sharedOutcome=true,costLevel=1 \
+  --level 8 --seeds lean-so-validate-1..lean-so-validate-40 --jobs 12
+```
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
 `early` 0.8, `rest` true, `lateWithin` 60, `lateOpen` 1.25, `urgentOpen` 1.15, `urgentStep` 0.125, `urgentEvery` 15, `urgentTop` 2,
 `lateFrom` 1.1, `lateStep` 0.05, `lateEvery` 30, `lateTop` 1.7, `feeRatio` 0.84, `lateCost` 1, `premium` 3,
 `privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 0.98, `minHours` 4, `noise` 0.11,
-`tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
-`pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1.
+`sharedOutcome` false, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
+`pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1, `chainTries` 3, `chainFit` 0,
+`chainModel` true, `chainAlone` 1, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0.

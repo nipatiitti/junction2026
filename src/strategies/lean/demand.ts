@@ -38,6 +38,10 @@ type Effect = { mean: number; variance: number }
  * doubt about it (the request's own noise, widened by what the effects have not learned yet). */
 export type Belief = { mu: number; scale: number; variance: number }
 
+export type QuoteOutcome = { keys: string[]; offset: number; multiple: number; won: boolean }
+
+type Contribution = { mean: number; variance: number; count: number }
+
 export class Demand {
   private readonly effects = new Map<string, Effect>()
   private readonly base: number
@@ -112,6 +116,48 @@ export class Demand {
       const effect = this.effect(key)
       effect.mean += effect.variance * gradient * gain * damp
       effect.variance = Math.max(LEAST_DOUBT, effect.variance - effect.variance * effect.variance * curve * gain)
+    }
+  }
+
+  /** Learns a lost request's quoted options without counting their shared evidence more than once. All observations
+   * use the state before the request. The option effect learns separately; each shared effect gets the mean of the
+   * options' contributions, so the answer does not depend on their order. */
+  learnShared(outcomes: readonly QuoteOutcome[]): void {
+    const shared = new Map<string, Contribution>()
+    const options: { key: string; mean: number; variance: number }[] = []
+    for (const { keys, offset, multiple, won } of outcomes) {
+      const optionKey = keys.at(-1)
+      if (!(multiple > 0) || !Number.isFinite(multiple) || optionKey === undefined) continue
+      const belief = this.belief(keys, offset)
+      const p = Demand.chance(belief, multiple)
+      const gradient = ((won ? 1 : 0) - p) / belief.scale
+      const curve = (p * (1 - p)) / (belief.scale * belief.scale)
+      const gain = 1 / (1 + belief.variance * curve)
+      const step = Math.abs(belief.variance * gradient * gain)
+      const damp = step > MAX_STEP ? MAX_STEP / step : 1
+      for (const key of keys) {
+        const effect = this.effect(key)
+        const mean = effect.variance * gradient * gain * damp
+        const variance = -effect.variance * effect.variance * curve * gain
+        if (key === optionKey) options.push({ key, mean, variance })
+        else {
+          const contribution = shared.get(key) ?? { mean: 0, variance: 0, count: 0 }
+          contribution.mean += mean
+          contribution.variance += variance
+          contribution.count++
+          shared.set(key, contribution)
+        }
+      }
+    }
+    for (const [key, contribution] of shared) {
+      const effect = this.effect(key)
+      effect.mean += contribution.mean / contribution.count
+      effect.variance = Math.max(LEAST_DOUBT, effect.variance + contribution.variance / contribution.count)
+    }
+    for (const { key, mean, variance } of options) {
+      const effect = this.effect(key)
+      effect.mean += mean
+      effect.variance = Math.max(LEAST_DOUBT, effect.variance + variance)
     }
   }
 
