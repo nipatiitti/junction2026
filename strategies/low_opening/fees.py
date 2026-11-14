@@ -27,7 +27,7 @@ from strategies.slack_fees.fees import PATIENT_SPAN
 class Params:
     """The low opening of a patient gig's first post."""
 
-    low: float = 0.7  # the opening fee over the typical fee (the plan opens at 0.9)
+    low: float = 0.8  # the opening fee over the typical fee (the plan opens at 0.9); 0.7 lost more (README.md)
     ramp: int = 30  # minutes from the post until the fee reaches the plan's opening fee
 
 
