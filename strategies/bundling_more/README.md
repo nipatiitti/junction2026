@@ -26,7 +26,7 @@ Bundling works but hardly fires: at level 8, **829 of ~12,500 paid cars** go in 
 within noise of main. Bundled cars cost **€38–54 each against €79.6 for a single**, so every car moved into a chain is
 worth €25–40.
 
-The bundling README says why it is rare: *"without the wait, a week has only 2 to 5 [bundles]"*, because only the
+The bundling README says why it is rare: _"without the wait, a week has only 2 to 5 [bundles]"_, because only the
 orders of a batch wait for a chain. Here:
 
 - **every order waits** (`hold`, 60 minutes), not only a batch's — a non-batch order goes when its hold is over,

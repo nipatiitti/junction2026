@@ -19,7 +19,7 @@ import type {
 } from '../../../vendor/spread-typescript/types.ts'
 import { DAY } from '../../time.ts'
 import { featureList } from './extras.ts'
-import { priorHazard, slicesOf } from './hazard.ts'
+import { bandOf, priorHazard, slicesOf } from './hazard.ts'
 import { clamp, type FeeParams } from './params.ts'
 import { basisOf, costOf, type FeeGig, feeAt } from './plan.ts'
 import { type FeeState, type FollowedGig, newFeeState } from './state.ts'
@@ -70,6 +70,9 @@ export function learn(state: FeeState, event: FeeEvent | { kind: string }, param
       })
       break
     case 'deadline_close':
+      // The hours its gigs stayed open without a driver count now, not only when they close.
+      for (const gig of Object.values(state.gigs))
+        if (gig.orderIds.includes(e.orderId)) accrue(gig, e.at, state, params)
       warned(e.orderId, state, params)
       break
     case 'ledger':
@@ -129,8 +132,11 @@ function accrue(gig: FollowedGig, until: number, state: FeeState, params: FeePar
   for (const slice of slicesOf(gig.since, until, gig.lastPickupAt, gig.seen ? null : gig.postedAt, params)) {
     const fee = feeAt(gig.schedule, slice.at) / gig.basisCents
     const exposure = slice.hours * slice.clock
-    state.hazard.fresh.expected += slice.fresh * exposure * priorHazard(fee, slice.lead, false, params)
-    state.hazard.seen.expected += (1 - slice.fresh) * exposure * priorHazard(fee, slice.lead, true, params)
+    const band = bandOf(slice.lead, params)
+    const fresh = state.hazard.fresh[band]
+    const seen = state.hazard.seen[band]
+    if (fresh) fresh.expected += slice.fresh * exposure * priorHazard(fee, slice.lead, false, params)
+    if (seen) seen.expected += (1 - slice.fresh) * exposure * priorHazard(fee, slice.lead, true, params)
   }
   gig.since = until
 }
@@ -143,7 +149,8 @@ function close(gig: FollowedGig, at: number, state: FeeState, params: FeeParams)
 function booked(gig: FollowedGig, at: number, feeCents: number, state: FeeState, params: FeeParams): void {
   const fresh = !gig.seen && (slicesOf(at, at + 1, gig.lastPickupAt, gig.postedAt, params)[0]?.fresh ?? 0) > 0
   close(gig, at, state, params)
-  state.hazard[fresh ? 'fresh' : 'seen'].booked++
+  const tally = state.hazard[fresh ? 'fresh' : 'seen'][bandOf(gig.lastPickupAt - at, params)]
+  if (tally) tally.booked++
   state.bookings++
   state.warned = state.warned.filter((id) => !gig.orderIds.includes(id))
 

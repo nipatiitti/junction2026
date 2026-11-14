@@ -4,10 +4,10 @@ A folder that builds on the shared strategies, the way [`../baseline/`](../basel
 [`../price_ladder/`](../price_ladder/README.md) do: its own copy of the dispatcher and subclasses of the ladder and
 its shadow admission, so the root `dispatch.py` and `strategies/price_ladder` stay as they are. Issue #153.
 
-| File           | What it holds                                                                                    |
-| -------------- | ------------------------------------------------------------------------------------------------ |
-| `dispatch.py`  | A copy of the root `dispatch.py` that quotes and admits with the two strategies below             |
-| `pricing.py`   | `UrgencyPricing`: the ladder of `strategies/price_ladder`, with each option priced by its kind    |
+| File           | What it holds                                                                                           |
+| -------------- | ------------------------------------------------------------------------------------------------------- |
+| `dispatch.py`  | A copy of the root `dispatch.py` that quotes and admits with the two strategies below                   |
+| `pricing.py`   | `UrgencyPricing`: the ladder of `strategies/price_ladder`, with each option priced by its kind          |
 | `admission.py` | `UrgencyAdmission`: the shadow admission of `strategies/price_ladder`, checking the kind-adjusted price |
 
 ## Run it

@@ -24,7 +24,7 @@ export type FollowedGig = {
 
 export type FeeState = {
   gigs: Record<string, FollowedGig>
-  hazard: { fresh: Tally; seen: Tally }
+  hazard: { fresh: Tally[]; seen: Tally[] } // one tally for each band of hours to the last pickup
   extras: Record<Feature, number>
   logRatio: number // running mean of log(fee paid / fee expected) over every booking
   lambda: Record<string, number> // `${region}/${day}`, and `${region}` for its latest day
@@ -42,7 +42,7 @@ export function newFeeState(params: FeeParams): FeeState {
   const start = (name: Feature) => (params.flags.measuredExtras ? extras[name].measured : extras[name].start)
   return {
     gigs: {},
-    hazard: { fresh: { booked: 0, expected: 0 }, seen: { booked: 0, expected: 0 } },
+    hazard: { fresh: tallies(params), seen: tallies(params) },
     extras: Object.fromEntries(FEATURES.map((name) => [name, start(name)])) as Record<Feature, number>,
     logRatio: 0,
     lambda: {},
@@ -55,3 +55,5 @@ export function newFeeState(params: FeeParams): FeeState {
     warned: [],
   }
 }
+
+const tallies = (params: FeeParams): Tally[] => params.priors.hazard.leadHours.map(() => ({ booked: 0, expected: 0 }))

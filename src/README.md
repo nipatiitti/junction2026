@@ -137,3 +137,6 @@ with its priors in `params/fees.json`: see [its README](models/fees/README.md).
 
 `dispatch.py`'s order handling (note reader, gig shape, admission's time rules, retries) is in `ops/` as pure
 functions: see [its README](ops/README.md).
+
+The `bidprice` strategy (`strategies/bidprice/`) joins the three: it quotes at the expected cost of moving the car and
+posts each gig with the fee schedule from the same function. See [its README](strategies/bidprice/README.md).
