@@ -8,6 +8,11 @@ not deletion or a definitive verdict. Replay only with changed code and a stated
 
 | System | Mean margin | Orders | On time | Ranked | Seeds | Shelved in round |
 | ------ | ----------: | -----: | ------- | -----: | ----: | ---------------- |
+| `combined-fees` | €10,832.40 | 299 | 96.5% | 100% | 6 | 2 |
+| `hazard-admission` | €10,065.08 | 334 | 97.5% | 100% | 6 | 2 |
+| `low-opening` | €9,516.46 | 315 | 98.2% | 100% | 6 | 2 |
+| `slack-fees` | €9,361.97 | 316 | 98.6% | 100% | 6 | 2 |
+| `tight-margin` | €9,232.11 | 305 | 98.6% | 100% | 6 | 2 |
 | `adaptive-fees` | €8,170.57 | 316 | 98.4% | 100% | 2 | 1 |
 | `scarcity-cost` | €7,944.05 | 292 | 98.8% | 100% | 2 | 1 |
 | `option-menu` | €7,761.10 | 302 | 99.2% | 100% | 2 | 1 |
