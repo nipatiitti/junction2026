@@ -2,8 +2,10 @@
 import type { StrategyKind } from '../strategy.ts'
 import { bidprice } from './bidprice/index.ts'
 import { starter } from './starter/index.ts'
+import { thompson } from './thompson/index.ts'
 
 export const STRATEGIES: Record<string, StrategyKind> = {
   starter,
   bidprice,
+  thompson,
 }
