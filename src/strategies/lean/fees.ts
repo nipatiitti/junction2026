@@ -73,9 +73,16 @@ export function stepped(
   jitter = 0,
   seed = '',
   spread = false,
+  early = 0,
 ): FeeStep[] {
   const random = rng(seed)
   const points: [number, number][] = [[now, Math.max(open, floor)]]
+  // A gig for a later day shows `early` × typical for its first hour: the cheapest driver for tomorrow needs less
+  // than the opening fee, and takes about that long to see it.
+  if (early > 0 && early < open && Math.floor(lastPickup / DAY) > Math.floor(now / DAY) && floor < early * typical) {
+    points[0] = [now, early]
+    points.push([now + EARLY, open])
+  }
   const plan = planBy(now, lastPickup)
   const time = Math.min(awake(now, plan), PLAN_AHEAD)
   const from = later(now, awake(now, plan) - time)
@@ -112,6 +119,9 @@ export function planBy(now: number, lastPickup: number): number {
   if (lastPickup % DAY >= 16 * HOUR) return lastPickup - 5 * HOUR
   return awake(now, evening) >= HOUR ? evening : lastPickup - 3 * HOUR
 }
+
+/** With `early`: the minutes a gig shows its early fee. */
+const EARLY = 60
 
 /** A small seeded generator (mulberry32 over a string hash): the same numbers for the same seed, so a strategy
  * rebuilt in the final draws the same schedule. */
