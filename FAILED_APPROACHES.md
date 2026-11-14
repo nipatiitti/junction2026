@@ -32,6 +32,36 @@ Control: **`all_in` mean margin €12,335.26/week** across the same six seeds. T
 | Admission `cost_base` 1.15 → 1.05 | Assume drivers will cost less and increase order volume | Root **€31,844.97** vs cost variant **€26,952.34** over five seeds: **−€4,892.63**, plus worse on-time. Combining it with relaxed capacity also lost margin (**−€4,644.85**). | Higher volume from an underpriced expected driver cost is not the same thing as profitable volume. Don't lower the buffer to gain orders. |
 | Waiting for a bundle generally (`bundling_more`, `bundling_cheaper`) | Better driver economics by composing cars together | Earlier variants stayed within noise of their base system despite starving of candidates later. Recent `chain_opt` variants have not shown that merely optimising insertion rescues them. | Blanket/non-urgent waiting remains unproven; it does not rescue a weaker admission or pricing policy. Test one small trigger at a time. |
 
+## A separate learned baseline per dealer (#309)
+
+```text
+all_in dealer baseline: shared win-price           €74,011.54 across 6 seeds, 1,893 orders, 98.1% on time
+dealer-specific baseline: separate per dealer      €67,725.12 across 6 seeds, 1,987 orders, 97.7% on time
+```
+
+| Measured result (same six `tour-r1`/`tour-r2` seeds) | `all_in` | Dealer-specific |
+| --- | ---: | ---: |
+| Mean margin/week | **€12,335.26** | **€11,287.52** |
+| Delivered/accepted orders (score) | 1,893 | 1,987 |
+| Won / genuine lost / rejected request share | 30.8% / 38.0% / 31.2% | 32.3% / 36.8% / 30.9% |
+| Mean accepted quote / list | 1.466 | 1.425 |
+| Driver fee per delivered car | €64.71 | €65.64 |
+| Late refunds | €1,695.14 | €2,460.00 |
+| Ranked | **6 of 6** | **6 of 6** |
+
+This **lost €6,286.42 (8.5%)**, with half of the loss dominated by two of the six seeds. It won more orders, but at
+**−12.8% margin per order**. Late refunds also rose 45%. The separate dealer histories are smaller and less stable
+than the global one; the extra orders do not compensate the smaller quote per order and increased total driver cost.
+
+This is **not a recommendation to avoid learning a per-dealer price model**: only this specific split, which adds a
+separate learned baseline without improving the recommendation or capacity estimate, failed to show benefit. Do not
+repeat it without a way to share evidence between dealers or use distinct dealer-level features.
+
+Evidence, deliberately uncommitted: `/home/juha/repos/junction2026/out/dealer-specific-prototype/results.csv`,
+`report.md`, `dealer-price-and-outcomes.png`, and `/tmp/opencode/analyze_dealer_loss.py`.
+The prototype itself was `strategies/dealer_specific/`.
+Issue #309 has the per-dealer experiment; no ranking or final weeks were played.
+
 ## Do not over-read this
 
 These results **do not say "chains don't work."** The `all_in` bundle-fee selection was evaluated separately and was
