@@ -1,4 +1,4 @@
-/** The seed bench of the TypeScript system: plays each strategy on each seed at one level, one week after another,
+/** The seed bench of the TypeScript system: plays each strategy on each seed at one level, `--jobs` weeks at once (1 by default),
  * saves every week, and prints a table and a CSV. It never plays a ranking run or a final. README.md has the options. */
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -9,7 +9,7 @@ import { deleteOnStop, parseLevel, parseSeeds, playOnNewWorld, runScript, stamp 
 import { euros, percent } from './harness/report.ts'
 
 const USAGE =
-  'Usage: pnpm bench [<strategy>[:<key>=<value>|<file.json>,...] ...] [--level 1-8] [--seeds spread-1..spread-5] [--key-env <NAME>] [--csv <file>]. Set SPREAD_URL and SPREAD_KEY first.'
+  'Usage: pnpm bench [<strategy>[:<key>=<value>|<file.json>,...] ...] [--level 1-8] [--seeds spread-1..spread-5] [--jobs 1-8] [--key-env <NAME>] [--csv <file>]. Set SPREAD_URL and SPREAD_KEY first.'
 
 type Result = { label: string; seed: string; worldId: string; score: Score }
 
@@ -96,6 +96,7 @@ async function main(): Promise<void> {
     options: {
       level: { type: 'string', default: '8' },
       seeds: { type: 'string', default: 'spread-1..spread-5' },
+      jobs: { type: 'string', default: '1' },
       'key-env': { type: 'string' },
       csv: { type: 'string' },
     },
@@ -110,14 +111,28 @@ async function main(): Promise<void> {
   const client = new Client({ key: keyEnv ? process.env[keyEnv] : undefined })
 
   deleteOnStop()
-  console.log(`Playing ${labels.length * seeds.length} practice weeks at level ${level}, one after another.`)
+  const jobs = Number(args.jobs)
+  if (!Number.isInteger(jobs) || jobs < 1 || jobs > 8) throw new UsageError('--jobs must be 1 to 8')
+  console.log(`Playing ${labels.length * seeds.length} practice weeks at level ${level}, ${jobs} at once.`)
   const results: Result[] = []
-  try {
-    for (const seed of seeds)
-      for (const [label, run] of runs) {
+  // The weeks in order, taken by `jobs` workers: each plays one world at a time, so at most `jobs` practice slots
+  // are held. A week that throws stops the others from starting a new one.
+  const weeks = seeds.flatMap((seed) => runs.map(([label, run]) => ({ seed, label, run })))
+  let failed = false
+  const worker = async (): Promise<void> => {
+    for (let week = weeks.shift(); week && !failed; week = weeks.shift()) {
+      const { seed, label, run } = week
+      try {
         const { worldId, score } = await playOnNewWorld(client, run, level, seed, label)
         results.push({ label, seed, worldId, score })
+      } catch (error) {
+        failed = true
+        throw error
       }
+    }
+  }
+  try {
+    await Promise.all(Array.from({ length: jobs }, worker))
   } finally {
     // A week that throws keeps the table of the weeks before it; the error comes after.
     if (results.length > 0) writeResults(results, labels, level, args.csv)

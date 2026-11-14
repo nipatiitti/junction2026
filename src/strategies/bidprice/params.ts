@@ -30,12 +30,29 @@ export type BidPriceParams = {
   /** A late order halves the dealer's trust: its lateness cost is scaled by 1 + lateTrust × the dealer's share of the
    * requests, over the same for an average dealer. 0 turns it off. */
   lateTrust: number
+  /** Trust protection (trust.ts), off at 0: a late order also costs the trust its halving loses at that dealer for
+   * the rest of the week, times this. It scales the late weight of the order's gigs (at most `trustGuardMax`), and
+   * adds the request's predicted late share times the loss to the cost of its quote. */
+  trustGuard: number
+  trustGuardMax: number
+  /** The focus of the trust bonus (`trustValue` over 0): only a dealer with at least `trustMinShare` of the requests
+   * so far, only while its count is under `trustUntil`, and only for the requests `trustLagHours` after the win. */
+  trustMinShare: number
+  trustUntil: number
+  trustLagHours: number
   /** Learn this week's cost of each kind of order over the prior of src/params/cost.json; the prior weighs
    * `costPseudo` gigs (orders, three times as many for the late cost). */
   costLearn: boolean
   costPseudo: number
   /** Multiplies the cost `c` of every quote, for the bench and the tuner; 1 is the calibrated cost. */
   costScale: number
+  /** Late-risk rule (src/params/late.json, from analysis/late_risk.py): drop an option whose predicted late share
+   * (slack bucket x drivers near the pickup x evening win) is at or above `lateRiskMax`, and add the expected late
+   * cost `p x lateRiskCents` to the cost of the rest. */
+  lateRisk: boolean
+  lateRiskMax: number
+  /** What a late order costs over an on-time one, in cents, for the expected late cost; 0 adds nothing. */
+  lateRiskCents: number
   /** The learning rate of `mu`, and the late share that it aims at. */
   etaMu: number
   lateTarget: number
@@ -64,6 +81,29 @@ export type BidPriceParams = {
   climbStep: number
   climbTop: number
   repriceMax: number
+  /** See `ontime.ts`: push open gigs to `onTimeFee` × typical from `onTimeLeadHours` before the last pickup. */
+  onTimeOps: boolean
+  onTimeLeadHours: number
+  onTimeFee: number
+  /** See `unseen.ts`: leave out a request whose leg is `unseenLegKm`+ km and whose pickup has fewer than `unseenMin`
+   * roster drivers within `unseenKm`. */
+  unseenRule: boolean
+  unseenKm: number
+  unseenMin: number
+  unseenLegKm: number
+  /** Round trips (pairs.ts): post two one-car orders as one gig when B's pickup is within `pairKm` of A's delivery
+   * and B's delivery within `pairKm` of A's pickup (any delivery with `pairChains`), with `pairSlackHours` to spare,
+   * at `pairOpen` × the two schedules (a chain that is no round trip at `pairChainOpen` ×); split back
+   * `pairGiveUpHours` before the first pickup must start. */
+  pairs: boolean
+  pairChains: boolean
+  pairChainOpen: number
+  pairKm: number
+  pairSlackHours: number
+  pairOpen: number
+  pairGiveUpHours: number
+  /** The quote side of `pairs`: a request that would pair with an open order of ours costs this share less. */
+  pairCostCut: number
 }
 
 export const DEFAULTS: BidPriceParams = {
@@ -81,9 +121,17 @@ export const DEFAULTS: BidPriceParams = {
   // discount pushed prices under cost. The win model still follows each dealer's trust (`trust`).
   trustValue: 0,
   lateTrust: 5,
+  trustGuard: 0,
+  trustGuardMax: 4,
+  trustMinShare: 0,
+  trustUntil: 25,
+  trustLagHours: 0,
   costLearn: true,
   costPseudo: 10,
   costScale: 1,
+  lateRisk: false,
+  lateRiskMax: 0.4,
+  lateRiskCents: 0,
   hazardFit: true,
   etaMu: 0.02,
   lateTarget: 0.05,
@@ -103,6 +151,21 @@ export const DEFAULTS: BidPriceParams = {
   climbStep: 0.1,
   climbTop: 3,
   repriceMax: 10,
+  onTimeOps: false,
+  onTimeLeadHours: 14,
+  onTimeFee: 2,
+  unseenRule: false,
+  unseenKm: 30,
+  unseenMin: 10,
+  unseenLegKm: 400,
+  pairs: false,
+  pairChains: false,
+  pairChainOpen: 0.92,
+  pairKm: 25,
+  pairSlackHours: 3,
+  pairOpen: 0.85,
+  pairGiveUpHours: 6,
+  pairCostCut: 0,
 }
 
 /** The quote models' params from the strategy's. */
@@ -118,6 +181,9 @@ export function quoteParamsOf(p: BidPriceParams): QuoteParams {
     },
     minValueCents: p.minValueCents,
     trustValue: p.trustValue,
+    trustMinShare: p.trustMinShare,
+    trustUntil: p.trustUntil,
+    trustLagHours: p.trustLagHours,
   })
 }
 

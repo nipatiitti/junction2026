@@ -513,6 +513,9 @@ prints the URL, and Ctrl-C stops it. `--port` picks the port (default 8000); if 
 one and prints that. The server serves only the page as it was built; run the command again for new data.
 `--no-serve` writes the file and exits.
 
+To read the results without a build, [`snapshots/`](snapshots/) holds the committed files of one run in a folder named
+by its date: this page, the offline replay's page and CSV, and the oracle's JSON.
+
 It opens the database read-only. `out/report.html` is one file with inline SVG, no JavaScript and no network, in
 light and dark, one column on a phone, so it can also be opened or shared as a file. Without `out/oracle.json` it
 calls `analysis.oracle` if that module exists, else section 5 shows only the account waterfall.
@@ -637,11 +640,11 @@ uv run python -m analysis.quotas --db other.sqlite --out /tmp/quotas.sqlite
 It builds only the weeks the target does not hold yet, so a rerun after new runs adds those and stops. One row per
 delivery option keeps an option's list price and our quote together, so a request with two options has two rows.
 
-| Table          | One row for each                                                                                                                                                                                                     |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Table          | One row for each                                                                                                                                                                                                                                                                                                            |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `quota`        | delivery option of a request in a played world: the request's ids, dealer, arrival and respond-by times, day and hour, legs, total km and minutes, lane (leg 0), car flags and charge, note language, and the option's rank, kind, deadline and list price; then the same world's quote, ratio, declined, taken and outcome |
-| `world_stream` | world: its number of requests and `stream_hash`                                                                                                                                                                       |
-| `seed_stream`  | level and seed: worlds, distinct streams, the range of requests per world, and `consistent`                                                                                                                          |
+| `world_stream` | world: its number of requests and `stream_hash`                                                                                                                                                                                                                                                                             |
+| `seed_stream`  | level and seed: worlds, distinct streams, the range of requests per world, and `consistent`                                                                                                                                                                                                                                 |
 
 A quota is the demand side only. `stream_hash` covers the incoming fields alone (ids, dealer, times, legs, note, and
 each option's kind, deadline and list price) and never our quotes or the outcomes, so two worlds of a seed hash the

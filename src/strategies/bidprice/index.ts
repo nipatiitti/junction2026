@@ -8,6 +8,8 @@
  *   the fee extras and mu. All state is a function of `observe` and `sent`, so a rebuild from the event log and the
  *   journal of sent actions holds the same quotes, pending answers and costs.
  * README.md next to this file has the data flow and the params. */
+
+import { appendFileSync } from 'node:fs'
 import type {
   Action,
   ActionResult,
@@ -35,11 +37,13 @@ import {
   createQuoteState,
   dealerWeight,
   driversNear,
+  inWar,
   type Option,
   observe as observeQuotes,
   type QuoteParams,
   type QuoteState,
   recordQuote,
+  trustBonus,
 } from '../../models/quote/index.ts'
 import { type Context, canServe, driveMinutes, type GigShape, gigShape, HOUR } from '../../ops/index.ts'
 import {
@@ -73,13 +77,18 @@ import {
   unbooked,
 } from './cost.ts'
 import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees.ts'
+import { lateRiskOf, newLateRisk } from './late.ts'
 import { legsOf, WeekLog } from './log.ts'
+import { pushed, pushFee } from './ontime.ts'
+import { ordersOf, Pairs, scaled, sharesOf, splitEvent, sumSchedules, TWIN } from './pairs.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
+import { trustLossShare } from './trust.ts'
+import { keepSeen, newUnseen } from './unseen.ts'
 
 /** A quote at this many times the list price or more is a decline. */
 const DECLINED = 5
 
-class BidPrice extends Strategy<BidPriceParams> {
+export class BidPrice extends Strategy<BidPriceParams> {
   override readonly every = 30
   readonly quoteParams: QuoteParams
   readonly feeParams: FeeParams
@@ -89,9 +98,23 @@ class BidPrice extends Strategy<BidPriceParams> {
   readonly cost: CostState
   readonly learning: CostLearning
   readonly log = new WeekLog()
+  readonly lateRisk: ReturnType<typeof newLateRisk>
+  readonly unseen: ReturnType<typeof newUnseen>
+  readonly pairs: Pairs | null
+  /** Each pair gig of ours with its first order's share of the fee, so the learners split its fee across its cars. */
+  readonly twins = new Map<string, number>()
+  /** The pair cut of the request being quoted (1 without `pairs`). */
+  private pairCut = 1
   /** The latest minute an event or action has told, for the summary. */
   private now = 0
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
+  /** `trustGuard`: the gigs planned with a late weight above the plain one, the sum of their guard factors, and the
+   * highest. */
+  readonly guard = { gigs: 0, sum: 0, top: 1 }
+  /** The quotes whose prices counted a trust bonus (`trustValue` over 0). */
+  private bonusQuotes = 0
+  /** Why each request got no quote, and how many options each admission rule left out of the quotes. */
+  readonly declines: Record<string, number> = {}
 
   constructor(setup: Setup, params: BidPriceParams) {
     super(setup, params)
@@ -101,30 +124,110 @@ class BidPrice extends Strategy<BidPriceParams> {
     this.fees = newFeeState(this.feeParams)
     this.cost = newCostState(this.costPrior)
     this.learning = { learn: params.costLearn, pseudoGigs: params.costPseudo }
+    this.lateRisk = newLateRisk(setup.roster, setup.map)
+    this.unseen = newUnseen(setup.roster, setup.map, params.unseenKm)
+    this.pairs = params.pairs ? new Pairs(setup, params) : null
   }
 
-  observe(event: DeskEvent): void {
+  observe(event: DeskEvent, books?: Books): void {
+    if (books) this.pairs?.observe(event, books)
     this.now = Math.max(this.now, event.at)
-    this.log.observe(event)
+    const events = splitEvent(event, this.twins)
+    for (const e of events) this.log.observe(e)
     observeQuotes(this.quotes, event, this.quoteParams)
-    learn(this.fees, event, this.feeParams)
-    this.learnCost(event)
-    this.count(event)
+    for (const e of events) {
+      learn(this.fees, e, this.feeParams)
+      this.learnCost(e)
+      this.count(e)
+    }
   }
 
   /** What the desk sent for us, as sent, and the world's answer: the quotes the quote learner waits on, and our gigs
    * for the fee learner. */
   sent(action: Action, result: ActionResult, books: Books): void {
+    this.pairs?.sent(action, result, books)
     if (!result.ok) return
     if (action.type === 'quote') this.quoted(action.requestId, action.prices)
-    const event = this.feeEventOf(action, result.id, books.now)
-    if (event) learn(this.fees, event, this.feeParams)
+    for (const event of this.feeEventsOf(action, result.id, books.now)) learn(this.fees, event, this.feeParams)
   }
 
   /** Design 1: each option we offer at the price that maximises (p − c) × W(p); a decline when none pays. */
   quote(request: PriceRequest, books: Books): Prices | null {
+    this.pairCut = this.pairs ? this.pairs.costFactor(request, books) : 1
     const decision = this.decide(request, books.now)
+    if (!decision.decline && trustBonus(request, this.quotes, this.quoteParams, books.now, 1) > 0) this.bonusQuotes++
+    this.audit(request, books.now, decision)
     return decision.decline ? null : decision.prices
+  }
+
+  /** The decline log: the reason a request got no quote (or `quoted`), and each option an admission rule left out.
+   * With `BIDPRICE_DECLINE_LOG` set, one JSON line per request in that file. */
+  audit(request: PriceRequest, now: number, decision: ReturnType<BidPrice['decide']>): void {
+    const context = this.context()
+    const options = this.setup.level <= 3 ? request.options.slice(0, 1) : request.options
+    const verdicts = options.map((option) => ({ option, ...canServe(request, option, now, context) }))
+    const served = verdicts.filter((v) => v.ok)
+    const risky = served.filter(
+      (v) => this.params.lateRisk && this.riskOf(request, v.option, now) >= this.params.lateRiskMax,
+    )
+    const offered: string[] = this.offered(request, now).map((o) => o.kind)
+    const dropped = (kind: string) => {
+      if (!verdicts.find((v) => v.option.kind === kind)?.ok) return 'serve'
+      if (risky.some((v) => v.option.kind === kind)) return 'lateRisk'
+      return offered.includes(kind) ? null : 'comfort'
+    }
+    const optionDrops = Object.fromEntries(
+      options.flatMap((o) => {
+        const why = dropped(o.kind)
+        return why ? [[o.kind, why]] : []
+      }),
+    )
+    for (const why of Object.values(optionDrops)) this.bump(`opt-${why}`)
+    let reason = 'quoted'
+    if (decision.decline) {
+      if (served.length === 0) {
+        const why = verdicts.map((v) => v.reason)
+        reason = why.some((r) => r.includes('h needed'))
+          ? 'serve-slack'
+          : why.some((r) => r.includes('note'))
+            ? 'serve-note'
+            : why.some((r) => r.includes('read'))
+              ? 'serve-unread'
+              : 'serve-deadline'
+      } else if (offered.length === 0) reason = 'lateRisk'
+      else if (inWar(this.quotes, now, this.quoteParams)) reason = 'war'
+      else {
+        const loose = bestQuote(
+          request,
+          this.costs(request, now),
+          this.quotes,
+          { ...this.quoteParams, minValueCents: -1e18 },
+          now,
+        )
+        reason = loose.decline ? 'underCost' : 'minValue'
+      }
+    }
+    this.bump(reason)
+    const file = process.env.BIDPRICE_DECLINE_LOG
+    if (file) {
+      const costs = this.costs(request, now)
+      const line = {
+        id: request.id,
+        at: now,
+        reason,
+        optionDrops,
+        offered,
+        costs,
+        value: decision.valueCents,
+        win: decision.winProb,
+        prices: decision.decline ? null : decision.prices,
+      }
+      appendFileSync(file, `${JSON.stringify(line)}\n`)
+    }
+  }
+
+  private bump(reason: string): void {
+    this.declines[reason] = (this.declines[reason] ?? 0) + 1
   }
 
   decide(request: PriceRequest, now: number) {
@@ -143,7 +246,23 @@ class BidPrice extends Strategy<BidPriceParams> {
    * times `mu` and the dealer's late weight. */
   costOf(request: PriceRequest, option: DeliveryOption, now: number): number {
     const { fee, late } = this.costParts(request, option, now)
-    return (fee + late) * this.params.costScale
+    const risk = this.params.lateRisk ? this.riskOf(request, option, now) * this.params.lateRiskCents : 0
+    return ((fee + late) * this.params.costScale + risk + this.guardCost(request, option, now)) * this.pairCut
+  }
+
+  /** `trustGuard`: the trust a late order would lose at this dealer, in cents of this option's price, times the late
+   * share the late-risk table predicts for it. A request that is likely late at a dealer with trust to lose is
+   * priced up or declined; one that is safe costs almost nothing more. */
+  guardCost(request: PriceRequest, option: DeliveryOption, now: number): number {
+    if (this.params.trustGuard <= 0) return 0
+    const loss = trustLossShare(this.quotes, request.dealerId, now, this.quoteParams)
+    const price = option.listPriceCents * this.quoteParams.startLevel
+    return this.params.trustGuard * loss * price * this.riskOf(request, option, now)
+  }
+
+  /** The late share the late-risk table predicts for this option if we win it now. */
+  riskOf(request: PriceRequest, option: DeliveryOption, now: number): number {
+    return lateRiskOf(this.lateRisk, request, option, now, this.setup.map)
   }
 
   /** The two parts of `costOf`, in cents. */
@@ -155,7 +274,7 @@ class BidPrice extends Strategy<BidPriceParams> {
     const lateness = lateRatio(this.cost, this.learning, now) * muOf(this.fees, this.feeParams)
     return {
       fee: request.referenceFeeCents * prior.fee * feeRatio(this.cost, kind.band, this.learning, now),
-      late: price * prior.late * lateness * this.lateWeight(request.dealerId),
+      late: price * prior.late * lateness * this.shareWeight(request.dealerId),
     }
   }
 
@@ -163,10 +282,12 @@ class BidPrice extends Strategy<BidPriceParams> {
    * the slowest one we can serve. Up to level 3 every quote wins the first option, so only that one counts. */
   offered(request: PriceRequest, now: number): DeliveryOption[] {
     const context = this.context()
-    const options = this.setup.level <= 3 ? request.options.slice(0, 1) : request.options
+    const all = this.setup.level <= 3 ? request.options.slice(0, 1) : request.options
+    const options = this.params.unseenRule ? keepSeen(this.unseen, request, all, this.params) : all
     const served = options
       .map((option) => ({ option, ...canServe(request, option, now, context) }))
       .filter((verdict) => verdict.ok)
+      .filter((verdict) => !this.params.lateRisk || this.riskOf(request, verdict.option, now) < this.params.lateRiskMax)
     if (this.params.comfortHours <= 0) return served.map((verdict) => verdict.option)
     const comfortable = served.filter((v) => v.slack >= (this.params.comfortHours * HOUR) / (context.tightening ?? 1))
     return (comfortable.length > 0 ? comfortable : served.slice(-1)).map((verdict) => verdict.option)
@@ -181,6 +302,14 @@ class BidPrice extends Strategy<BidPriceParams> {
         ? [previous]
         : gigShape(order, legs, this.log.factsOf(order.id), this.log.retryOf(order.id, legs), books.now, this.context())
     if (shapes.length === 0) throw new Error('cannot read the order') // the harness posts the starter's gig
+    if (need.why === 'urgent' && previous && ordersOf(previous).length >= 2) {
+      // A pair stays a pair: the sum of its orders' schedules (the tick splits it next).
+      const list = ordersOf(previous).flatMap((id) => {
+        const o = books.orders.get(id)
+        return o ? [this.schedule(o, previous.stops, previous.audience.experienced, books)] : []
+      })
+      return [{ ...previous, schedule: sumSchedules(list, books.now, 1, this.setup.level) }]
+    }
     return shapes.map(({ stops, audience }) => ({
       stops,
       audience,
@@ -197,17 +326,34 @@ class BidPrice extends Strategy<BidPriceParams> {
     return higher(schedule, urgentRamp(books.now, gig.typicalCents, this.params), this.setup.level)
   }
 
+  /** The `onTimeOps` push fee for an open gig, or 0. */
+  onTimePush(order: Order, gig: { legs: number[]; schedule: FeeStep[] }, _books: Books, now: number): number {
+    const feeGig = this.orderGig(order, gig.legs, false, now)
+    return feeGig ? pushFee(feeGig, feeAt(gig.schedule, now), now, this.params) : 0
+  }
+
   /** Reprices our open gigs that no driver holds and the schedule no longer serves: one dropped since its schedule
    * was set, at once; one whose schedule ended `staleHours` ago, climbing. Not after the deadline warning, which has
    * its own schedule. At most `repriceMax`, the nearest last pickup first, so quotes never wait behind them. */
   tick(books: Books): Action[] {
+    const stale = (gigId: string) => {
+      const gig = this.log.gigs.get(gigId)
+      return (
+        !!gig && (gig.dropped || (gig.schedule.at(-1)?.at ?? books.now) + this.params.staleHours * HOUR <= books.now)
+      )
+    }
+    return [...this.repriceTick(books), ...(this.pairs?.tick(books, stale) ?? [])]
+  }
+
+  private repriceTick(books: Books): Action[] {
     const now = books.now
     const due = [...this.log.gigs].flatMap(([gigId, gig]) => {
       const order = books.orders.get(gig.orderId)
-      if (!order || books.urgent.has(order.id) || books.booked.has(gigId)) return []
+      if (!order || books.urgent.has(order.id) || books.booked.has(gigId) || this.twins.has(gigId)) return []
       if (!books.gigsOf(order.id).includes(gigId)) return []
       const ended = (gig.schedule.at(-1)?.at ?? now) + this.params.staleHours * HOUR <= now
-      return gig.dropped || ended ? [{ gigId, gig, order }] : []
+      const push = this.params.onTimeOps && this.onTimePush(order, gig, books, now) > 0
+      return gig.dropped || ended || push ? [{ gigId, gig, order }] : []
     })
     due.sort((a, b) => a.order.lastPickupAt - b.order.lastPickupAt)
     return due.slice(0, this.params.repriceMax).flatMap(({ gigId, gig, order }) => {
@@ -217,7 +363,7 @@ class BidPrice extends Strategy<BidPriceParams> {
       const { level } = this.setup
       // The brief's way: the fee function again, for a gig drivers have seen, with the time left, never under the
       // fee in the app. Without the solver, the ramp from now above the dropped fee, or a climb.
-      const schedule = this.params.feeSolver
+      const base = this.params.feeSolver
         ? higher(this.plan(feeGig, now).schedule, [{ at: now, feeCents: fee }], level)
         : gig.dropped
           ? higher(
@@ -226,6 +372,8 @@ class BidPrice extends Strategy<BidPriceParams> {
               level,
             )
           : climb(fee, now, feeGig, this.params, level)
+      const target = pushFee(feeGig, fee, now, this.params)
+      const schedule = target > 0 ? pushed(base, feeGig, target, now, this.params, level) : base
       return schedule.length > 0 && (schedule.at(-1)?.feeCents ?? 0) > fee
         ? [{ type: 'reprice' as const, gigId, schedule }]
         : []
@@ -244,6 +392,20 @@ class BidPrice extends Strategy<BidPriceParams> {
       booked > 0
         ? `fees paid ${(paidOverTypical / booked).toFixed(2)} × typical over ${booked} bookings`
         : 'no fee paid',
+      `declines ${Object.entries(this.declines)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => `${k} ${v}`)
+        .join(' ')}`,
+      ...(this.params.unseenRule
+        ? [`unseen removed ${this.unseen.removed.options} options of ${this.unseen.removed.quotes} requests`]
+        : []),
+      ...(this.pairs ? [this.pairs.summary()] : []),
+      ...(this.params.trustGuard > 0
+        ? [
+            `trust guard on ${this.guard.gigs} gigs, late weight × ${(this.guard.sum / Math.max(1, this.guard.gigs)).toFixed(2)} mean, × ${this.guard.top.toFixed(2)} top`,
+          ]
+        : []),
+      ...(this.quoteParams.trustValue > 0 ? [`trust bonus on ${this.bonusQuotes} quotes`] : []),
     ].join(', ')
   }
 
@@ -303,9 +465,18 @@ class BidPrice extends Strategy<BidPriceParams> {
 
   /** A late order halves the dealer's trust, so lateness weighs more for a dealer who sends more of the requests:
    * 1 + `lateTrust` × its share, over the same for an average dealer. */
-  private lateWeight(dealer: string): number {
+  private shareWeight(dealer: string): number {
     const k = this.params.lateTrust
     return (1 + k * dealerWeight(this.quotes, dealer, this.quoteParams)) / (1 + k / this.quoteParams.dealers)
+  }
+
+  /** `trustGuard`: what a late order of this dealer costs over its refunds, as a factor on them: 1 plus the trust
+   * its halving loses (a share of the order's price) over the refunds' share of the price, at most `trustGuardMax`. */
+  private guardWeight(dealer: string, now: number): number {
+    if (this.params.trustGuard <= 0) return 1
+    const loss = trustLossShare(this.quotes, dealer, now, this.quoteParams)
+    const refunds = Math.max(0.05, this.feeParams.priors.late.costShare)
+    return Math.min(this.params.trustGuardMax, 1 + (this.params.trustGuard * loss) / refunds)
   }
 
   /** The fee models' view of some cars of an order posted at `at`, from the log alone, so a post and its replay
@@ -314,7 +485,8 @@ class BidPrice extends Strategy<BidPriceParams> {
     const request = this.log.requests.get(order.id)
     if (!request) return null
     const seen = this.log.seen(order.id, legs)
-    return orderFeeGig(order, request, legs, experienced, at, seen, this.lateWeight(order.dealerId), this.setup)
+    const weight = this.shareWeight(order.dealerId) * this.guardWeight(order.dealerId, at)
+    return orderFeeGig(order, request, legs, experienced, at, seen, weight, this.setup)
   }
 
   /** A quote sent: the quote learner waits for its answer. A decline teaches nothing, and is not counted. */
@@ -326,8 +498,35 @@ class BidPrice extends Strategy<BidPriceParams> {
     if (real) this.tally.quoted++
   }
 
-  /** The fee learner's event for a gig action of ours, with the `FeeGig` that planned it. */
-  private feeEventOf(action: Action, gigId: string, at: number): FeeEvent | null {
+  /** The fee learner's events for a gig action of ours, with the `FeeGig` that planned it; a pair's as its two
+   * orders' shares. */
+  private feeEventsOf(action: Action, gigId: string, at: number): FeeEvent[] {
+    const id = action.type === 'post' ? gigId : action.type === 'quote' ? '' : action.gigId
+    const share = this.twins.get(id)
+    if (action.type === 'post' && this.pairs) {
+      const shares = sharesOf(action.stops, (o) => this.log.requests.get(o)?.referenceFeeCents ?? 0)
+      if (shares) {
+        this.twins.set(gigId, shares[0]!.share)
+        return shares.flatMap(({ orderId, share }, i) => {
+          const part = { ...action, schedule: scaled(action.schedule, share) }
+          return this.feeEventOf(part, i === 0 ? gigId : gigId + TWIN, at, orderId) ?? []
+        })
+      }
+    }
+    if (share === undefined || action.type === 'post')
+      return [this.feeEventOf(action, gigId, at)].flatMap((e) => e ?? [])
+    const parts =
+      action.type === 'reprice'
+        ? [
+            { ...action, schedule: scaled(action.schedule, share) },
+            { ...action, gigId: id + TWIN, schedule: scaled(action.schedule, 1 - share) },
+          ]
+        : [action, { ...action, gigId: id + TWIN }]
+    return parts.flatMap((part) => this.feeEventOf(part as Action, gigId, at) ?? [])
+  }
+
+  /** The fee learner's event for a gig action of ours (for `orderId`'s cars of a post), with its `FeeGig`. */
+  private feeEventOf(action: Action, gigId: string, at: number, orderId?: string): FeeEvent | null {
     if (action.type === 'reprice') {
       this.log.reprice(action.gigId, action.schedule)
       repriced(this.cost, action.gigId, action.schedule)
@@ -338,10 +537,16 @@ class BidPrice extends Strategy<BidPriceParams> {
       return { kind: 'gig_withdrawn', at, gigId: action.gigId }
     }
     if (action.type !== 'post') return null
-    const order = this.log.orders.get(action.stops[0]?.orderId ?? '')
+    const order = this.log.orders.get(orderId ?? action.stops[0]?.orderId ?? '')
     if (!order) return null
     const legs = legsOf(action.stops, order.id)
     const gig = this.orderGig(order, legs, action.audience.experienced, at)
+    const guard = this.guardWeight(order.dealerId, at)
+    if (guard > 1) {
+      this.guard.gigs++
+      this.guard.sum += guard
+      this.guard.top = Math.max(this.guard.top, guard)
+    }
     this.log.post(gigId, order.id, legs, action.schedule)
     posted(this.cost, gigId, order.id, legs.length, action.schedule)
     if (!gig) return null

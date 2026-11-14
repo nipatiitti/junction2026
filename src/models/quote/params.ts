@@ -62,6 +62,12 @@ export type QuoteParams = QuotePriors & {
   minValueCents: number
   /** Scales the value of the trust that a win adds; 0 turns it off. */
   trustValue: number
+  /** The trust bonus goes only to a dealer with at least this share of the requests so far (0: every dealer), */
+  trustMinShare: number
+  /** only while the dealer's count is under this, */
+  trustUntil: number
+  /** and counts only the requests that come this many hours after the win: an order counts when it is delivered. */
+  trustLagHours: number
   /** A decline quotes this multiple of the list price, which loses at no cost. */
   declineFactor: number
   /** The price grid, as price / list, and its step in log. */
@@ -82,6 +88,9 @@ const KNOBS = {
   warDrop: 0.15,
   minValueCents: 200,
   trustValue: 1,
+  trustMinShare: 0,
+  trustUntil: 25,
+  trustLagHours: 0,
   declineFactor: 10,
   gridFrom: 0.8,
   gridTo: 2.2,
