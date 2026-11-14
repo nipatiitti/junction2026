@@ -660,6 +660,83 @@ typical and then at 1.09 ×, but over all bookings that is 0.955 × learned agai
 cannot ride in a chain is priced by places whose bookings are half chains: the 16 a week with under 22 hours of
 lead pay 1.17 × typical and earn €26 an order against €38, which is €200 a week at most.
 
+## Five decision algorithms (tried and removed, 15 November, #354)
+
+Five well-known decision algorithms were tried in place of `lean`'s fixed rules, each as a param. None was a
+measured gain, so none is in the code: it is on the branch of the closed PR #355. The results stay here, so that
+nobody plays them again.
+
+**What the saved weeks said first** (157 `lean` weeks of 15 seeds, level 8, mean €16,269 at 96.5% on time):
+
+- Volume is at a flat top: within a seed, 40 orders more or fewer cost €400 to €700 a week, and 80 about €900.
+- Early orders cost the later ones more: each Monday order per driver raised the fee ratio of Tuesday and Wednesday
+  by 1.28 and their late share by 0.44, where `taxLoad` assumes 0.355 all week.
+- One week of 157 was under 90% on time and eight under 93%.
+- 59% of the single gigs booked after a raise, and 20% at 1.31 to 2 × typical.
+- The win share of Monday morning's quotes differs by 0.17 between weeks, and Tuesday's by 0.07.
+
+**What was tried** (the names are the params they had):
+
+- **`value`**: dynamic programming for the quote. The `taxLoad` charge gave way to `value` × the charge of a value
+  table: what one more order takes from the rest of the week, read by the minute of the week, the orders won so far
+  per driver and the late share so far. Crowding made an order dear on Monday (about €25 for a mean order) and
+  cheap on Friday (€4 to €6); the 90% rule charged an order for what it adds to the risk of an unranked week. At 1
+  its mean equalled the `taxLoad` charge.
+- **`feeTable`**: dynamic programming for the fee. A single gig's opening fee and planned raises came from a
+  program over (share of the planning time, fee shown) for six classes of gig, with a charge on a booking above the
+  opening fee for teaching drivers to wait. The table opened at 0.8 to 1.15 × typical, held for two thirds of the
+  planning time and then raised two to four times.
+- **`pace`**: pacing. A controller held a plan from the 40 best saved weeks (0.52 orders per driver, in day shares
+  of 23%, 25%, 19%, 20% and 13%), lowered the planned volume when bookings paid more than planned or over 4% of the
+  orders were late, and moved the charge between 0.5 and 2 × the plan's as the wins ran ahead of the plan or behind
+  it. 1 was its own gain.
+- **`sample`**: Thompson sampling. Each quote was the best price for one draw of the win model's effects, × `sample`
+  of each effect's standard deviation, seeded by the request id.
+- **`rollout`**: lookahead in the offline simulator. Before Monday and on the evenings of Monday to Wednesday it
+  played `lean` on the 8 recorded simulator weeks most like the live one with the charge × 1, 1.5 and 2.5, and kept
+  the scale in force unless another earned €500 a week more, clearly and over 92% on time.
+
+**Server, the same ten random seeds for all** (`dp-a22ce2`, `dp-0742db`, `dp-ab2341`, `dp-57e1da`, `dp-42b22f`,
+`dp-1f571c`, `dp-b49cf6`, `dp-c384ef`, `dp-8038fe`, `dp-200005`; level 8; every week ranked; ± is one standard
+error of the paired difference):
+
+Before the chain model (#351), against the defaults of that time:
+
+| Setting      | Margin a week | Against the defaults | Seeds ahead | Orders | On time | Lowest week |
+| ------------ | ------------: | -------------------: | ----------: | -----: | ------: | ----------: |
+| defaults     |       €16,449 |                      |             |    418 |   96.5% |       94.1% |
+| `value=1`    |       €16,970 |          +€521 ± 343 |     8 of 10 |    425 |   95.3% |       91.1% |
+| `pace=1`     |       €16,575 |          +€127 ± 293 |     6 of 10 |    416 |   96.7% |       94.3% |
+| `value=1.5`  |       €16,367 |           −€82 ± 429 |     3 of 10 |    377 |   95.6% |       90.7% |
+| `pace=2`     |       €16,246 |          −€202 ± 403 |     5 of 10 |    405 |   96.7% |       95.4% |
+| `rollout=1`  |       €16,144 |          −€305 ± 403 |     2 of 10 |    385 |   97.1% |       95.2% |
+| `sample=1`   |       €15,842 |          −€607 ± 271 |     2 of 10 |    438 |   96.2% |       94.3% |
+| `sample=0.5` |       €15,740 |          −€708 ± 365 |     3 of 10 |    419 |   96.4% |       94.1% |
+
+With the chain model, against the defaults of that hour (`sharedOutcome` was still false, #360):
+
+| Setting         | Margin a week | Against the defaults | Seeds ahead | Orders | On time | Lowest week |
+| --------------- | ------------: | -------------------: | ----------: | -----: | ------: | ----------: |
+| defaults        |       €17,669 |                      |             |    447 |   96.6% |       94.4% |
+| `value=1`       |       €17,919 |          +€251 ± 457 |     5 of 10 |    445 |   95.6% |       91.3% |
+| `pace=1`        |       €17,718 |           +€50 ± 280 |     5 of 10 |    442 |   96.6% |       94.7% |
+| `feeTable=true` |       €15,610 |        −€2,058 ± 292 |     0 of 10 |    430 |   95.7% |       91.8% |
+
+- **The value table** was the only one ahead, and with the chain model its gain is inside the noise, while it costs
+  a point of on-time share both times and its worst weeks come near 90%. It is fitted on weeks played before the
+  chain model, and those weeks vary the volume in one direction only, so it cannot tell many orders on one day from
+  many orders so far.
+- **The fee table** loses on every seed: it opens higher and raises late, pays more a gig and wins fewer orders.
+  The saved gigs all raise at the same shares of their planning time, so the fit could not tell a raise from the
+  hour.
+- **Pacing** changes nothing, and **sampling** loses: at 1 it wins 20 more orders at lower prices, at 0.5 the same
+  orders for less.
+- **The rollout** kept the charge in four weeks, which are then the defaults' weeks, and raised it in six, which
+  lost 33 orders a week on average: the simulator favours fewer orders than the server does.
+
+Every week of both rounds is in [`decision-algorithms-server.csv`](decision-algorithms-server.csv), and saved under
+`data/scrape/runs/L8/dp-*`.
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
