@@ -30,18 +30,22 @@ const FRIDAY = 4
  * its gig was given back by a driver (such cars stay single). */
 export type Host = { context(): Context; troubled(orderId: string, gigId?: string): boolean }
 
+/** A chain in the app, as its post action and the world's answer tell it. */
+type Posted = { orders: string[]; startBy: number; typical: number; at: number }
+
 const pickups = (stops: readonly StopRef[]): StopRef[] => stops.filter((stop) => stop.kind === 'pickup')
 const keyOf = (stops: readonly StopRef[]): string => stops.map((s) => `${s.orderId}/${s.leg}/${s.kind}`).join(' ')
 
 export class Planner {
-  /** The chains decided: the key of their stops -> the chain; and, once posted, gig id -> the chain and its minute. */
-  private readonly planned = new Map<string, Chain>()
-  private readonly posted = new Map<string, { chain: Chain; at: number }>()
+  /** The chains in the app: gig id -> its cars' orders, its last start, its fee unit and the minute of its post.
+   * All of it is read from the post action and its answer (`sent`), so a rebuild from the journal has it too. */
+  private readonly posted = new Map<string, Posted>()
+  /** The key of a posted chain's stops -> what the chain is worth to its driver, in cents. */
+  private readonly units = new Map<string, number>()
   /** The orders that were in a chain no driver took: they stay single. */
   private readonly single = new Set<string>()
-  /** Order id -> the minute it first waited for a partner; and the orders whose wait is over. */
-  private readonly heldSince = new Map<string, number>()
-  private readonly released = new Set<string>()
+  /** Order id -> the minute it was won: its wait for a partner counts from there. */
+  private readonly wonAt = new Map<string, number>()
   private readonly tally = { posted: 0, cars: 0, booked: 0, bookedCars: 0, ratios: 0, undone: 0 }
 
   private readonly p: PlannerParams
@@ -63,28 +67,25 @@ export class Planner {
     const p = this.p
     const now = books.now
     const actions: Action[] = []
-    for (const [gigId, { chain, at }] of this.posted) {
-      const live = chain.cars.some((car) => books.gigsOf(car.orderId).includes(gigId))
+    for (const [gigId, { orders, startBy, at }] of this.posted) {
+      const live = orders.some((orderId) => books.gigsOf(orderId).includes(gigId))
       if (!live) this.posted.delete(gigId)
       const patient = !(p.chainPatience > 0) || awake(at, now) < p.chainPatience * HOUR // hours drivers could see it
       // With `spread`, its cars go back to single gigs while drivers still plan the day of its last start.
-      const planned = !p.spread || awake(now, planBy(now, chain.startBy)) >= p.chainLast * HOUR
-      if (!live || books.booked.has(gigId) || (patient && planned && now < chain.startBy - p.chainHours * HOUR))
-        continue
-      for (const car of chain.cars) this.single.add(car.orderId)
-      this.posted.delete(gigId)
-      this.tally.undone++
-      actions.push({ type: 'withdraw', gigId }) // the harness posts each car again, as a single gig
+      const planned = !p.spread || awake(now, planBy(now, startBy)) >= p.chainLast * HOUR
+      if (!live || books.booked.has(gigId) || (patient && planned && now < startBy - p.chainHours * HOUR)) continue
+      // The harness posts each car again, as a single gig. `sent` marks the cars once the world has taken the gig out.
+      actions.push({ type: 'withdraw', gigId })
     }
     const found = findChains(this.openCars(books), this.map, now, p)
     const timely = found.filter((c) => c.startBy - now >= (p.chainHours + 3) * HOUR)
     for (const chain of timely.filter((c) => this.likely(c, now)).slice(0, 5)) {
       // The first pickup ends at the chain's last start: a driver who starts later misses a later car's window.
+      // `sent` reads the last start back from this window.
       const stops = chain.cars.flatMap((car) => car.stops)
-      const first = stops[0]
-      if (p.spread && first && !first.window && chain.startBy > chain.cars[0]!.ready)
-        stops[0] = { ...first, window: { from: chain.cars[0]!.ready, to: chain.startBy } }
-      this.planned.set(keyOf(stops), chain)
+      const [first, lead] = [stops[0], chain.cars[0]]
+      if (first && lead && chain.startBy > lead.ready)
+        stops[0] = { ...first, window: { from: lead.ready, to: chain.startBy } }
       for (const car of chain.cars) if (car.gigId) actions.push({ type: 'withdraw', gigId: car.gigId })
       actions.push({
         type: 'post',
@@ -106,46 +107,69 @@ export class Planner {
   /** A new car that may join a chain waits `holdHours` for a partner, while it has time to spare after the wait:
    * half of the single gigs book within half an hour, before a partner can arrive. */
   hold(need: GigNeed, books: Books): boolean {
-    const { order } = need
+    if (need.why !== 'won' && need.why !== 'lost') return false
+    return this.waits(need.order, books)
+  }
+
+  /** Whether a car without a gig waits for a partner now. It depends only on the order, the minute it was won and
+   * the clock, so a strategy rebuilt mid-week decides as the one before it. */
+  private waits(order: Order, books: Books): boolean {
     const p = this.p
     if (!this.on || !(p.holdHours > 0)) return false
-    if ((need.why !== 'won' && need.why !== 'lost') || this.released.has(order.id)) return false
     if (!this.chainable(order, books) || books.gigsOf(order.id).length > 0) return false
-    const since = this.heldSince.get(order.id) ?? books.now
-    this.heldSince.set(order.id, since)
+    const since = this.wonAt.get(order.id) ?? books.now
     // With `spread`, only while drivers have 5 waking hours left to plan it after the wait.
     const planned = !p.spread || awake(books.now, planBy(books.now, order.lastPickupAt)) >= (p.holdHours + 5) * HOUR
     // Only while a chain with this car could still be posted after the wait.
     const pickable =
       Math.floor(books.now / DAY) < FRIDAY && books.now < order.lastPickupAt - PICK_LEAD - p.holdHours * HOUR
-    const holds = planned && pickable && books.now < since + p.holdHours * HOUR
-    if (!holds) this.released.add(order.id)
-    return holds
+    return planned && pickable && books.now < since + p.holdHours * HOUR
+  }
+
+  /** An order was won at the minute `at`. */
+  won(orderId: string, at: number): void {
+    this.wonAt.set(orderId, at)
   }
 
   /** What a posted chain is worth to its driver, in cents: the unit of its fee schedule. Undefined for other gigs. */
   typical(stops: readonly StopRef[]): number | undefined {
-    return this.planned.get(keyOf(stops))?.typical
+    return this.units.get(keyOf(stops))
   }
 
-  /** The world's answer to a post: a chain that it refuses leaves its cars to single gigs. */
+  /** The world's answer to a chain's post or withdrawal. A chain that it refuses, or that we took out, leaves its
+   * cars to single gigs for good. */
   sent(action: Action, result: ActionResult, books: Books): void {
-    const chain = action.type === 'post' ? this.planned.get(keyOf(action.stops)) : undefined
-    if (!chain) return
-    if (!result.ok) for (const car of chain.cars) this.single.add(car.orderId)
-    else {
-      this.posted.set(result.id, { chain, at: books.now })
-      this.tally.posted++
-      this.tally.cars += chain.cars.length
+    if (action.type === 'withdraw') {
+      const chain = this.posted.get(action.gigId)
+      if (!chain || !result.ok) return
+      for (const orderId of chain.orders) this.single.add(orderId)
+      this.posted.delete(action.gigId)
+      this.tally.undone++
+      return
     }
+    if (action.type !== 'post') return
+    const orders = [...new Set(pickups(action.stops).map((stop) => stop.orderId))]
+    if (orders.length < 2) return
+    if (!result.ok) {
+      for (const orderId of orders) this.single.add(orderId)
+      return
+    }
+    // The opening fee is `open` × the chain's worth, and the first pickup's window ends at its last start.
+    const typical = (action.schedule[0]?.feeCents ?? 0) / this.p.open
+    const lastPickups = orders.map((orderId) => books.orders.get(orderId)?.lastPickupAt ?? Infinity)
+    const startBy = action.stops[0]?.window?.to ?? Math.min(...lastPickups)
+    this.posted.set(result.id, { orders, startBy, typical, at: books.now })
+    this.units.set(keyOf(action.stops), typical)
+    this.tally.posted++
+    this.tally.cars += orders.length
   }
 
   /** A driver booked a gig at `ratio` × its cars' typical fees. */
   booked(gigId: string, ratio: number): void {
-    const chain = this.posted.get(gigId)?.chain
+    const chain = this.posted.get(gigId)
     if (!chain) return
     this.tally.booked++
-    this.tally.bookedCars += chain.cars.length
+    this.tally.bookedCars += chain.orders.length
     this.tally.ratios += ratio
   }
 
@@ -179,7 +203,7 @@ export class Planner {
       const request = books.requests.get(order.id)
       const [gigId, ...more] = books.gigsOf(order.id)
       if (!leg || !request || more.length > 0 || !this.chainable(order, books)) continue
-      if (!gigId && !(this.heldSince.has(order.id) && !this.released.has(order.id))) continue
+      if (!gigId && !this.waits(order, books)) continue
       if (gigId && (books.booked.has(gigId) || this.host.troubled(order.id, gigId))) continue
       const post = gigId
         ? books.posts.get(gigId)

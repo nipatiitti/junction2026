@@ -128,6 +128,8 @@ class Lean extends Strategy<LeanParams> {
   /** Place id -> the drivers who live there; day -> the orders won on it. */
   private readonly homes = new Map<string, number>()
   private readonly wonOn = new Map<number, number>()
+  /** Our orders as their events told them: the books of a rebuilt week hold them as they are at the rebuild. */
+  private readonly orders = new Map<string, Order>()
   /** Our quotes that wait for the dealer: request id -> prices. */
   private readonly pending = new Map<string, Prices>()
   /** Gig id -> the schedule in the app. */
@@ -137,7 +139,7 @@ class Lean extends Strategy<LeanParams> {
   private readonly bookedAt = new Map<string, number>()
   /** "<order id> <leg>" -> what the car's setbacks taught. */
   private readonly retries = new Map<string, Retry>()
-  /** Order id -> the fee that its last gig showed when its window ended. */
+  /** Order id -> the fee that its last gig showed when its window ended, × that gig's fee unit. */
   private readonly floors = new Map<string, number>()
   private readonly forecasts: Snowfall[] = []
   /** Dealer id -> its delivered orders, in order; and the orders with a refund. */
@@ -261,10 +263,15 @@ class Lean extends Strategy<LeanParams> {
   }
 
   /** A quote won (with the option the dealer took) or lost: the demand learns. */
-  private outcome(requestId: string, won: OptionKind | null, books: Books): void {
+  private outcome(requestId: string, won: OptionKind | null, at: number, books: Books): void {
     const prices = this.pending.get(requestId)
     const request = books.requests.get(requestId)
     this.pending.delete(requestId)
+    if (won) {
+      this.tally.won++
+      const day = Math.floor(at / DAY)
+      this.wonOn.set(day, (this.wonOn.get(day) ?? 0) + 1)
+    }
     if (!prices || !request) return
     const offset = this.trustOffset(request.dealerId)
     for (const option of request.options) {
@@ -273,11 +280,6 @@ class Lean extends Strategy<LeanParams> {
       const multiple = cents / option.listPriceCents
       this.demand.learn(this.demand.keys(request, option.kind), offset, multiple, won !== null)
       if (won) this.tally.multiples += multiple
-    }
-    if (won) {
-      this.tally.won++
-      const day = Math.floor(books.now / DAY)
-      this.wonOn.set(day, (this.wonOn.get(day) ?? 0) + 1)
     }
   }
 
@@ -292,8 +294,9 @@ class Lean extends Strategy<LeanParams> {
     if (need.why === 'urgent' && previous) {
       const gigId = books.gigsOf(order.id).find((id) => books.posts.get(id) === previous)
       // A gig that a driver gave back starts again from the fee that booked it, not from the fee of the hours since.
-      const shown = gigId ? (this.dropped.get(gigId) ?? feeAt(this.schedules.get(gigId) ?? previous.schedule, now)) : 0
-      const schedule = this.fees(order, typical(previous.stops), now, shown, true)
+      const cents = gigId ? (this.dropped.get(gigId) ?? feeAt(this.schedules.get(gigId) ?? previous.schedule, now)) : 0
+      const unit = typical(previous.stops)
+      const schedule = this.fees(order, unit, now, cents / unit, true)
       return [{ stops: previous.stops, audience: previous.audience, schedule }]
     }
     const facts = readNote(request.note, request.arrivedAt)
@@ -307,11 +310,11 @@ class Lean extends Strategy<LeanParams> {
     }))
   }
 
-  /** The schedule of a gig from now, never under `floor` cents: the stepped one while there is time to book, the
-   * fast one when the last pickup is near, and a calmer one for a car that is late already. */
-  private fees(order: Order, typical: number, now: number, floor: number, warned = false): FeeStep[] {
+  /** The schedule of a gig from now, never under `shown` × `typical` (the fee the car showed before): the stepped
+   * one while there is time to book, the fast one when the last pickup is near, and a calmer one for a car that is
+   * late already. */
+  private fees(order: Order, typical: number, now: number, shown: number, warned = false): FeeStep[] {
     const p = this.params
-    const shown = floor / typical
     if (now > order.lastPickupAt) return fast(now, typical, Math.max(shown, 1.1), 0.05, 30, p.lateTop)
     if (warned || awake(now, order.lastPickupAt - BOOK_AHEAD) < SHORT)
       return fast(now, typical, Math.max(shown + 0.05, 1.15), 0.12, 15, Math.max(p.urgentTop, shown + 0.05))
@@ -333,25 +336,28 @@ class Lean extends Strategy<LeanParams> {
       }))
   }
 
-  private setback(orderId: string, leg: number, reason: Setback, books: Books): void {
-    const order = books.orders.get(orderId)
+  private setback(orderId: string, leg: number, reason: Setback, at: number, books: Books): void {
+    const order = this.orders.get(orderId)
     if (!order) return
     const key = `${orderId} ${leg}`
-    this.retries.set(key, retryAfter(reason, order, books.requests.get(orderId), leg, books.now, this.retries.get(key)))
+    this.retries.set(key, retryAfter(reason, order, books.requests.get(orderId), leg, at, this.retries.get(key)))
   }
 
   /** A gig that a driver gave back shows the fee of the hours it was held. It takes a new schedule from the fee
-   * that booked it. */
+   * that booked it. The entry goes when the world has the new schedule (`sent`), so a rebuilt week has the same
+   * entries; a car past its deadline warning gets its schedule from `gig`. */
   tick(books: Books): Action[] {
     const actions: Action[] = []
     for (const [gigId, fee] of this.dropped) {
-      this.dropped.delete(gigId)
       const post = books.posts.get(gigId)
       const order = post && books.orders.get(post.stops[0]?.orderId ?? '')
-      const request = order && books.requests.get(order.id)
-      if (!post || !order || !request || books.booked.has(gigId) || !books.gigsOf(order.id).includes(gigId)) continue
-      const schedule = this.fees(order, this.typicalOf(post.stops, books), books.now, fee)
-      if (schedule.length > 0) actions.push({ type: 'reprice', gigId, schedule })
+      const open = order && !books.booked.has(gigId) && books.gigsOf(order.id).includes(gigId)
+      if (!post || !order || !open || books.urgent.has(order.id)) {
+        this.dropped.delete(gigId)
+        continue
+      }
+      const unit = this.typicalOf(post.stops, books)
+      actions.push({ type: 'reprice', gigId, schedule: this.fees(order, unit, books.now, fee / unit) })
     }
     return [...actions, ...this.planner.actions(books)]
   }
@@ -366,7 +372,7 @@ class Lean extends Strategy<LeanParams> {
     for (const stop of pickups(stops)) {
       const request = books.requests.get(stop.orderId)
       if (request)
-        sum += request.referenceFeeCents / (books.orders.get(stop.orderId)?.legs.length ?? request.legs.length)
+        sum += request.referenceFeeCents / (this.orders.get(stop.orderId)?.legs.length ?? request.legs.length)
     }
     return sum
   }
@@ -385,10 +391,15 @@ class Lean extends Strategy<LeanParams> {
         this.demand.dawn(Math.floor(event.at / DAY))
         break
       case 'order_won':
-        this.outcome(event.order.id, event.order.option, books)
+        this.orders.set(event.order.id, event.order)
+        this.planner.won(event.order.id, event.at)
+        this.outcome(event.order.id, event.order.option, event.at, books)
+        break
+      case 'order_changed':
+        this.orders.set(event.order.id, event.order)
         break
       case 'order_lost':
-        this.outcome(event.requestId, null, books)
+        this.outcome(event.requestId, null, event.at, books)
         break
       case 'gig_booked': {
         this.dropped.delete(event.gigId)
@@ -399,7 +410,7 @@ class Lean extends Strategy<LeanParams> {
         this.planner.booked(event.gigId, event.feeCents / singles)
         const ratio = clamp(event.feeCents / singles, 0.3, 2.5)
         for (const stop of pickups(post.stops)) {
-          const order = books.orders.get(stop.orderId)
+          const order = this.orders.get(stop.orderId)
           const leg = order?.legs[stop.leg]
           if (!order || !leg) continue
           const today = order.lastPickupAt < (Math.floor(event.at / DAY) + 1) * DAY
@@ -414,14 +425,15 @@ class Lean extends Strategy<LeanParams> {
         this.dropped.set(event.gigId, this.bookedAt.get(event.gigId) ?? 0)
         break
       case 'visit_failed':
-        this.setback(event.orderId, event.leg, event.reason, books)
+        this.setback(event.orderId, event.leg, event.reason, event.at, books)
         break
       case 'gig_expired': {
         const post = books.posts.get(event.gigId)
         this.planner.expired(event.gigId, post?.stops ?? [])
+        const shown = feeAt(this.schedules.get(event.gigId) ?? post?.schedule ?? [], event.at)
         for (const stop of pickups(post?.stops ?? [])) {
-          this.setback(stop.orderId, stop.leg, 'expired', books)
-          this.floors.set(stop.orderId, feeAt(this.schedules.get(event.gigId) ?? post?.schedule ?? [], event.at))
+          this.setback(stop.orderId, stop.leg, 'expired', event.at, books)
+          this.floors.set(stop.orderId, shown / this.typicalOf(post?.stops ?? [], books))
         }
         break
       }
@@ -449,7 +461,10 @@ class Lean extends Strategy<LeanParams> {
       this.pending.set(action.requestId, action.prices)
       this.tally.quoted++
     } else if (action.type === 'post') this.schedules.set(result.id, action.schedule)
-    else if (action.type === 'reprice') this.schedules.set(action.gigId, action.schedule)
+    else if (action.type === 'reprice') {
+      this.schedules.set(action.gigId, action.schedule)
+      this.dropped.delete(action.gigId)
+    }
   }
 
   override summary(): string {
