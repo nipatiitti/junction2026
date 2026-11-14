@@ -99,3 +99,7 @@ served option over `lateRiskMax`), `war` (the war-day rule), `minValue` (best va
 `underCost` (no price on the grid covers the cost); `opt-<rule>` counts the options each rule left out of a quote.
 Set `BIDPRICE_DECLINE_LOG=<file>` to append one JSON line per request (id, minute, reason, options left out, costs,
 value, win chance, prices).
+
+**Outage** (`outage`, off by default; `outage.ts`): per candidate centre town, the surprise of our answers since 08:00 on requests picked up within 80 km (won minus the chance the model gave).
+A region past `outageProbeZ` (2) gets probe quotes, past `outageZ` (3) is out until 18:00: its requests are priced on the win curve shifted up by `outageLift` (1.25), and those answers stay out of the win model.
+No outage on the day the war is seen, no war followed on the outage day; the summary line counts the day, centre, hour, lifted quotes and their wins.
