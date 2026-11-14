@@ -12,7 +12,16 @@ import type {
   Order,
   PriceRequest,
 } from '../../../vendor/spread-typescript/spread.ts'
-import { type FeeGig, featuresOf, fewDriversNear } from '../../models/fees/index.ts'
+import {
+  type FeeGig,
+  type FeeParams,
+  type FeeState,
+  featuresOf,
+  fewDriversNear,
+  learn,
+  newFeeState,
+  planFees,
+} from '../../models/fees/index.ts'
 import { feeAt } from '../../models/fees/plan.ts'
 import { driversNear } from '../../models/quote/index.ts'
 import { type Context, canServe, DAY, driveMinutes, type GigShape, gigShape, HOUR } from '../../ops/index.ts'
@@ -28,6 +37,7 @@ import {
 } from '../../strategy.ts'
 import { climb, higher, orderFeeGig, ramp, urgentRamp } from '../bidprice/fees.ts'
 import { legsOf, WeekLog } from '../bidprice/log.ts'
+import { DEFAULTS as BIDPRICE, feeParamsOf } from '../bidprice/params.ts'
 
 export type OptionKind = DeliveryOption['kind']
 
@@ -43,6 +53,16 @@ export const BASE_DEFAULTS = {
   riskWeight: 0.5,
   /** While braked: prices × this; 0 declines the option. */
   brakeMarkup: 0,
+  /** Plan fees with bidprice's fee solver and learned booking hazard (src/models/fees/); false: the ramp below. The
+   * solver opens at `feeFloor` × the expected fee and reaches `topRatio` × typical `topLeadHours` before the last
+   * pickup; `feeExtras`, `hazardFit`, `onTime`, `etaMu` and `lateTarget` pass through to the fee model as in bidprice. */
+  feeSolver: true,
+  feeFloor: BIDPRICE.feeFloor,
+  feeExtras: BIDPRICE.feeExtras,
+  hazardFit: BIDPRICE.hazardFit,
+  onTime: BIDPRICE.onTime,
+  etaMu: BIDPRICE.etaMu,
+  lateTarget: BIDPRICE.lateTarget,
   /** The fee ramp: `openFee` × typical, up to `topFee` × typical `topLeadHours` before the last pickup. */
   openFee: 0.9,
   topFee: 2.5,
@@ -57,8 +77,12 @@ export const BASE_DEFAULTS = {
   climbStep: 0.1,
   climbTop: 3,
   repriceMax: 10,
-  /** Expected driver cost = typical fee × `costFactor` × feature multipliers; never quote under cost × `minMargin`. */
+  /** Expected driver cost = typical fee × `costFactor` × feature multipliers; never quote under cost × `minMargin`.
+   * With the solver, `solverCostFactor` instead, learned towards the fees paid over typical this week, the prior
+   * weighing `costPseudo` bookings. */
   costFactor: 1.3,
+  solverCostFactor: 1.15,
+  costPseudo: 10,
   minMargin: 1.1,
   /** Seeds `ctx.random`. */
   seed: 1,
@@ -135,18 +159,30 @@ export abstract class PricedStrategy<P extends BaseParams = BaseParams> extends 
   private readonly done = new Set<string>()
   private readonly lateOrders = new Set<string>()
   private readonly brakes = { load: 0, late: 0, maxLoad: 0, quoted: 0, won: 0 }
+  /** Bookings of our gigs and the fees paid over typical, summed: the learned cost and the summary. */
+  private readonly paid = { booked: 0, overTypical: 0 }
+  readonly feeParams: FeeParams
+  readonly fees: FeeState
 
   constructor(setup: Setup, params: P) {
     super(setup, params)
     this.near = driversNear(setup.roster, setup.map)
+    this.feeParams = feeParamsOf({ ...BIDPRICE, ...pick(params) }, setup.level)
+    this.fees = newFeeState(this.feeParams)
   }
 
   /** The price of one servable option, as a multiple of its list price; null declines that option. */
   abstract price(ctx: PriceCtx): number | null
 
-  /** The fee schedule of a gig: bidprice's ramp by default. */
+  /** The fee schedule of a gig: the fee solver's with `feeSolver`, else bidprice's ramp. */
   feePlan(ctx: FeeCtx): FeeStep[] {
-    return ramp(ctx.gig, ctx.now, this.params, this.setup.level)
+    return this.planOf(ctx.gig, ctx.now)
+  }
+
+  /** The schedule for a gig from now: the solver's, or the ramp. */
+  planOf(gig: FeeGig, now: number): FeeStep[] {
+    if (this.params.feeSolver) return planFees(gig, now, this.fees, this.feeParams).schedule
+    return ramp(gig, now, this.params, this.setup.level)
   }
 
   onOutcome(_outcome: Outcome, _won: boolean): void {}
@@ -158,6 +194,16 @@ export abstract class PricedStrategy<P extends BaseParams = BaseParams> extends 
   observe(event: DeskEvent): void {
     this.settle(event.at)
     this.log.observe(event)
+    learn(this.fees, event, this.feeParams)
+    if (event.kind === 'gig_booked') {
+      const gig = this.log.gigs.get(event.gigId)
+      const typical = gig && this.log.requests.get(gig.orderId)?.referenceFeeCents
+      const order = gig && this.log.orders.get(gig.orderId)
+      if (gig && typical && order) {
+        this.paid.booked++
+        this.paid.overTypical += event.feeCents / ((typical * gig.legs.length) / order.legs.length)
+      }
+    }
     if (event.kind === 'price_request') {
       const d = event.request.dealerId
       this.t.requests.set(d, (this.t.requests.get(d) ?? 0) + 1)
@@ -189,13 +235,33 @@ export abstract class PricedStrategy<P extends BaseParams = BaseParams> extends 
         this.pending.set(request.id, { request, prices: action.prices })
         this.brakes.quoted++
       }
-    } else if (action.type === 'reprice') this.log.reprice(action.gigId, action.schedule)
-    else if (action.type === 'post') {
-      const orderId = action.stops[0]?.orderId ?? ''
-      if (this.log.orders.has(orderId))
-        this.log.post(result.id, orderId, legsOf(action.stops, orderId), action.schedule)
+    } else if (action.type === 'reprice') {
+      this.log.reprice(action.gigId, action.schedule)
+      learn(
+        this.fees,
+        { kind: 'gig_repriced', at: books.now, gigId: action.gigId, schedule: action.schedule },
+        this.feeParams,
+      )
+    } else if (action.type === 'withdraw') {
+      learn(this.fees, { kind: 'gig_withdrawn', at: books.now, gigId: action.gigId }, this.feeParams)
+    } else if (action.type === 'post') {
+      const order = this.log.orders.get(action.stops[0]?.orderId ?? '')
+      if (!order) return
+      const legs = legsOf(action.stops, order.id)
+      const gig = this.feeGig(order, legs, action.audience.experienced, books.now)
+      this.log.post(result.id, order.id, legs, action.schedule)
+      if (gig) {
+        const event = {
+          kind: 'gig_posted' as const,
+          at: books.now,
+          gigId: result.id,
+          orderIds: [order.id],
+          gig,
+          schedule: action.schedule,
+        }
+        learn(this.fees, event, this.feeParams)
+      }
     }
-    void books
   }
 
   quote(request: PriceRequest, books: Books): Prices | null {
@@ -256,9 +322,12 @@ export abstract class PricedStrategy<P extends BaseParams = BaseParams> extends 
       const feeGig = this.feeGig(order, gig.legs, books.posts.get(gigId)?.audience.experienced ?? false, now)
       if (!feeGig) return []
       const fee = feeAt(gig.schedule, now)
-      const schedule = gig.dropped
-        ? higher(ramp(feeGig, now, p, level), [{ at: now, feeCents: fee + p.dropStep * feeGig.typicalCents }], level)
-        : climb(fee, now, feeGig, p, level)
+      // With the solver, bidprice's way: the solver again from now, never under the fee in the app.
+      const schedule = p.feeSolver
+        ? higher(this.planOf(feeGig, now), [{ at: now, feeCents: fee }], level)
+        : gig.dropped
+          ? higher(ramp(feeGig, now, p, level), [{ at: now, feeCents: fee + p.dropStep * feeGig.typicalCents }], level)
+          : climb(fee, now, feeGig, p, level)
       return schedule.length > 0 && (schedule.at(-1)?.feeCents ?? 0) > fee
         ? [{ type: 'reprice' as const, gigId, schedule }]
         : []
@@ -268,13 +337,24 @@ export abstract class PricedStrategy<P extends BaseParams = BaseParams> extends 
 
   summary(): string {
     const b = this.brakes
-    return `base: quoted ${b.quoted}, won ${b.won}, braked options ${b.load} by load (max ${b.maxLoad.toFixed(1)}) and ${b.late} by lateness, late ${this.t.late} of ${this.t.delivered} delivered`
+    const { booked, overTypical } = this.paid
+    const fees =
+      booked > 0 ? `fees paid ${(overTypical / booked).toFixed(2)} × typical over ${booked} bookings` : 'no fee paid'
+    return `base: quoted ${b.quoted}, won ${b.won}, braked options ${b.load} by load (max ${b.maxLoad.toFixed(1)}) and ${b.late} by lateness, late ${this.t.late} of ${this.t.delivered} delivered, ${fees}, cost factor ${this.costFactor().toFixed(2)}`
   }
 
-  /** Expected driver cost of an option, in cents: typical fee × `costFactor` × simple feature multipliers. */
+  /** Fees over typical: `costFactor` on the ramp; with the solver, `solverCostFactor` learned towards what this
+   * week's bookings paid over typical. */
+  costFactor(): number {
+    const p = this.params
+    if (!p.feeSolver) return p.costFactor
+    return (this.paid.overTypical + p.costPseudo * p.solverCostFactor) / (this.paid.booked + p.costPseudo)
+  }
+
+  /** Expected driver cost of an option, in cents: typical fee × `costFactor()` × simple feature multipliers. */
   costOf(request: PriceRequest, option: DeliveryOption, now: number): number {
     const f = featuresOf(request.legs, option.deadline, now, this.fewNear(request))
-    let m = this.params.costFactor
+    let m = this.costFactor()
     if (f.premium) m *= 1.1
     if (f.privatePickup || f.privateDelivery) m *= 1.1
     if (f.fewDriversNear) m *= 1.2
@@ -393,6 +473,12 @@ export function priced<P extends Params>(
   Kind: new (setup: Setup, params: BaseParams & P) => PricedStrategy<BaseParams & P>,
 ): StrategyKind<BaseParams & P> {
   return { defaults: withBase(own), build: (setup, params) => new Kind(setup, params) }
+}
+
+/** The base params that bidprice's `feeParamsOf` reads. */
+function pick(p: BaseParams) {
+  const { feeSolver, feeExtras, hazardFit, onTime, etaMu, lateTarget, feeFloor, topRatio, topLeadHours } = p
+  return { feeSolver, feeExtras, hazardFit, onTime, etaMu, lateTarget, feeFloor, topRatio, topLeadHours }
 }
 
 /** A small seeded generator (mulberry32 over a string hash). */
