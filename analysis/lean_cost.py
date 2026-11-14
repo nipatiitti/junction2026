@@ -19,6 +19,7 @@ from pathlib import Path
 import numpy as np
 
 DAY = 1440
+LEVEL = 0.92
 MODELS = ["src/strategies/lean/order.json", "strategies/lean/order.json"]
 
 
@@ -151,7 +152,9 @@ def main() -> None:
         for key in ("premium", "open_gigs"):
             weights[key] = old["cost"][key] * y.mean() / old["meanCost"]
         old["cost"] = {key: round(float(weights[key]), 4) for key in old["cost"]}
-        old["meanCost"] = round(float(y.mean()), 4)
+        # The mean order costs LEVEL of what the week's bookings pay, as with the weights before: at 1 every quote
+        # rose 5% and 29 orders a week were lost for the same margin (server, five seeds).
+        old["meanCost"] = round(float(y.mean()) / LEVEL, 4)
         for path in MODELS:
             Path(path).write_text(json.dumps(old, indent=2) + "\n")
 
