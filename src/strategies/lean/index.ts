@@ -67,6 +67,9 @@ export const DEFAULTS = {
   /** Instead of the climb: hold `open` × typical and raise only 24, 16, 10 and 6 hours before the last pickup (to
    * 1.05, 1.25, 1.55 and 2 × typical). */
   stepped: false,
+  /** With `stepped`: 1 moves each gig's raises by up to 1.5 hours either way and their size by 5%, drawn from the
+   * order id, so that drivers cannot time a second look; 0 keeps the table. */
+  jitter: 1,
   /** Each delivery must arrive this share of its drive (20 minutes at least) before its deadline: a driver plans by
    * the road minutes, and real drives run longer. 0 leaves the deadline as the window. */
   buffer: 0,
@@ -302,7 +305,7 @@ class Lean extends Strategy<LeanParams> {
     const bookBy = order.lastPickupAt - BOOK_AHEAD
     if (warned || awake(Math.max(now, from), bookBy) < SHORT)
       return fast(now, typical, Math.max(shown + 0.05, 1.15), 0.12, 15, Math.max(p.urgentTop, shown + 0.05))
-    if (p.stepped) return stepped(now, typical, order.lastPickupAt, p.open, shown)
+    if (p.stepped) return stepped(now, typical, order.lastPickupAt, p.open, shown, p.jitter, order.id)
     return slow(now, typical, bookBy, p, from, shown, p.urgentTop)
   }
 
