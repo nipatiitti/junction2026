@@ -9,13 +9,13 @@ leaders do not get. [`AGENTS.md`](AGENTS.md) has the rest of the online rules, o
 Every model in `strategies/` and the root `dispatch.py`, one practice week each, level 8, seed `spread-1`, played by
 `strategies.bench` on 2026-11-14. The leading five by margin, with the root beside them as the week's reference:
 
-| # | model                         | margin    | vs `dispatch.py` | on time |
-| - | ----------------------------- | --------- | ---------------- | ------- |
-| 1 | `strategies/ceiling`          | €9,831.09 | +€1,767.69       | 97.4%   |
-| 2 | `strategies/scarcity_cost`    | €8,884.43 | +€821.03         | 98.6%   |
-| 3 | `dispatch.py` (the reference) | €8,063.40 | —                | 98.1%   |
-| 4 | `strategies/delivery_urgency` | €7,124.50 | −€938.90         | 97.7%   |
-| 5 | `strategies/price_ladder`     | €6,200.04 | −€1,863.36       | 97.3%   |
+| #   | model                         | margin    | vs `dispatch.py` | on time |
+| --- | ----------------------------- | --------- | ---------------- | ------- |
+| 1   | `strategies/ceiling`          | €9,831.09 | +€1,767.69       | 97.4%   |
+| 2   | `strategies/scarcity_cost`    | €8,884.43 | +€821.03         | 98.6%   |
+| 3   | `dispatch.py` (the reference) | €8,063.40 | —                | 98.1%   |
+| 4   | `strategies/delivery_urgency` | €7,124.50 | −€938.90         | 97.7%   |
+| 5   | `strategies/price_ladder`     | €6,200.04 | −€1,863.36       | 97.3%   |
 
 `strategies/scarcity_urgency` is new and has not been played, so it is not on the list yet; run it with the leaders
 rather than instead of them.

@@ -1,0 +1,48 @@
+{
+  "seed": "spread-2",
+  "level": 8,
+  "policy": "ts-bidprice",
+  "kind": "practice",
+  "worldId": "w0731494e09efc29f5dad",
+  "version": "28c5071288243ca6d8b2541c6efd7c1b0d6ee7ef",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 25023,
+  "score": {
+    "marginCents": 279491,
+    "revenueCents": 4273787,
+    "marginShare": 0.06539656749388774,
+    "wonOrders": 444,
+    "onTimeShare": 0.8986486486486487,
+    "undeliveredShare": 0.0022522522522522522,
+    "ranked": false
+  },
+  "seconds": 65.9,
+  "settings": {
+    "strategy": "bidprice",
+    "params": {
+      "pricing": "profit",
+      "trust": true,
+      "ladder": true,
+      "lane": true,
+      "war": "follow",
+      "feeSolver": true,
+      "feeExtras": true,
+      "capacity": true,
+      "onTime": true,
+      "cold": false,
+      "minValueCents": 200,
+      "trustValue": 1,
+      "lateTrust": 5,
+      "etaLambda": 0.1,
+      "etaMu": 0.02,
+      "lateTarget": 0.05,
+      "feeFloor": 1,
+      "topRatio": 1.5,
+      "topLeadHours": 8,
+      "urgentTop": 2.5
+    }
+  }
+}

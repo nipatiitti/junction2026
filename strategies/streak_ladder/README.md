@@ -4,10 +4,10 @@ The price ladder of [`../price_ladder/`](../price_ladder/README.md) with a step 
 wins and losses. Everything else is the price-ladder system: the same admission (`ShadowAdmission`, reused from
 `strategies/price_ladder`), the same price war, outage and dealer trust, and the same desk loop. Issue #177.
 
-| File          | What it holds                                                                          |
-| ------------- | -------------------------------------------------------------------------------------- |
-| `dispatch.py` | A copy of the price-ladder `dispatch.py` that quotes with `StreakLadderPricing`        |
-| `pricing.py`  | `StreakLadderPricing`: the price ladder whose step scales with the run of outcomes     |
+| File          | What it holds                                                                      |
+| ------------- | ---------------------------------------------------------------------------------- |
+| `dispatch.py` | A copy of the price-ladder `dispatch.py` that quotes with `StreakLadderPricing`    |
+| `pricing.py`  | `StreakLadderPricing`: the price ladder whose step scales with the run of outcomes |
 
 ## Run it
 
@@ -44,12 +44,12 @@ ladder's unequal steps (1% up, 3% down) settle near 75%. So this one quotes high
 ladder, and it finds the market faster after a sudden change, because a change shows up as a run of the same outcome.
 Tune `streak_step` up for a coarser, faster ladder and down for a finer one.
 
-| Variable      | File         | Default | What it does                                                       |
-| ------------- | ------------ | ------- | ------------------------------------------------------------------ |
-| `streak_step` | `pricing.py` | 0.02    | Log step per consecutive outcome; the run multiplies it            |
-| `streak_cap`  | `pricing.py` | 5       | A run stops growing the step past this many wins or losses         |
-| `floor`       | `pricing.py` | 1.0     | The lowest multiple of the list price the ladder quotes            |
-| `ceiling`     | `pricing.py` | 1.5     | The highest                                                        |
-| `start`       | `pricing.py` | 1.5     | Where the ladder starts, at the top of its range                   |
+| Variable      | File         | Default | What it does                                               |
+| ------------- | ------------ | ------- | ---------------------------------------------------------- |
+| `streak_step` | `pricing.py` | 0.02    | Log step per consecutive outcome; the run multiplies it    |
+| `streak_cap`  | `pricing.py` | 5       | A run stops growing the step past this many wins or losses |
+| `floor`       | `pricing.py` | 1.0     | The lowest multiple of the list price the ladder quotes    |
+| `ceiling`     | `pricing.py` | 1.5     | The highest                                                |
+| `start`       | `pricing.py` | 1.5     | Where the ladder starts, at the top of its range           |
 
 `win_step` and `loss_step` of the price ladder are inherited but unused: the streak step replaces them.

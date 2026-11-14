@@ -4,11 +4,11 @@ The [baseline](../baseline/README.md) with two changes, to work on the share of 
 fixed quote multiple, and driver fees in tiers by who may drive the car. Admission, the note reader, the retry, the
 desk and the play loop are the baseline's own code, imported and not copied.
 
-| File                | What it holds                                                                             |
-| ------------------- | ----------------------------------------------------------------------------------------- |
-| `baseline_tiers.py` | The runner: the baseline's desk, with the two strategies below, and the practice loop     |
-| `pricing.py`        | `FixedMultiplePricing`: 1.2 × the list price of each quoted option                        |
-| `fees.py`           | `TierFees`: the fee of each gig, by its tier and the clock                                |
+| File                | What it holds                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------- |
+| `baseline_tiers.py` | The runner: the baseline's desk, with the two strategies below, and the practice loop |
+| `pricing.py`        | `FixedMultiplePricing`: 1.2 × the list price of each quoted option                    |
+| `fees.py`           | `TierFees`: the fee of each gig, by its tier and the clock                            |
 
 ## The quotes
 

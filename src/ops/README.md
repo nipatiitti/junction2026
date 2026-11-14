@@ -69,10 +69,12 @@ visit (RULES.md, "Rules for handling cars" and "Your account"):
 
 - **Pickup window** from the note's ready or release time, from a retry's `pickupFrom`, and after any forecast snow
   at either end for a car on summer tyres. With the note's real pickup hours, one day inside them, ending an hour
-  (`MARGIN`) before closing: the driver plans by the stated hours. A private seller's slot never extends, so a
-  window outside it is left out.
+  (`MARGIN`) before closing: the driver plans by the stated hours. A window that starts after the stated one ended
+  (a retry) stays open at least a day, so a driver can book it. A private seller's slot never extends: a window
+  outside it is left out, and one that runs past it ends with it.
 - **Delivery window** ends at the note's deadline, and an hour before the real closing time on its last day. When
-  the pickup cannot start before it ends, the car is late whatever: the order's own window applies.
+  `now` (or the pickup window's start) plus the drive cannot meet it, the car is late whatever: the order's own
+  window applies.
 - A stop gets its own window only when it is narrower than the order's, and none that has ended by `now`, so the
   world never refuses the post.
 - `withPlates` when the note says the car has none or a visit failed on plates; `withCharging` for an electric car
