@@ -2,6 +2,7 @@
 
 | File                                     | What it is                                                                                |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [FAILED_APPROACHES.md](../FAILED_APPROACHES.md) | Experiments that looked cheaper or faster and did not pay off. Read it before repeating them. |
 | [spread/HANDBOOK.md](spread/HANDBOOK.md) | The organisers' handbook: the world, the levels, the events. Read it first.               |
 | [spread/RULES.md](spread/RULES.md)       | The organisers' full rules. Where documents differ, the rules are correct.                |
 | [spread/API.md](spread/API.md)           | The organisers' API reference: every route, event and limit.                              |
