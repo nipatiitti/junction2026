@@ -76,6 +76,26 @@ function curtainTexture() {
 }
 
 export default {
+  /** A low drone, an eerie music box, a boom on "It was us." */
+  sounds() {
+    const melody = [
+      [81, 0],
+      [84, 0.35],
+      [83, 0.7],
+      [79, 1.05],
+      [76, 1.4],
+      [77, 1.75],
+      [76, 2.1],
+      [72, 2.45],
+    ]
+    return [
+      { at: 0, sound: 'drone', length: 3.4, note: 33, gain: 0.2 },
+      ...melody.map(([note, at]) => ({ at, sound: 'musicBox', note, gain: 0.22, wet: 0.6 })),
+      { at: 2.15, sound: 'boom', gain: 0.7 },
+      { at: 1.35, voice: 'end-remember' },
+      { at: 2.15, voice: 'end-us' },
+    ]
+  },
   build(segment) {
     const lines = segment.lines
     const rand = rng(51)

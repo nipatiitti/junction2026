@@ -13,6 +13,19 @@ const LENGTH = 220
 const COUNT = 320
 
 export default {
+  /** A whoosh and a slam for the number, ticks while the line types, a riser into the next scene. */
+  sounds(segment) {
+    const level = segment.level ?? 1
+    const cues = [
+      { at: 0, sound: 'whoosh', length: 0.3, from: 400, to: 4000, gain: 0.4 },
+      { at: 0.06, sound: 'boom', gain: 0.55 + level * 0.08, length: 0.9 },
+    ]
+    for (let i = 0; i < segment.small.length; i += 2) cues.push({ at: 0.25 + i * 0.022, sound: 'tap', gain: 0.07 })
+    cues.push({ at: Math.max(0, segment.duration - 0.6), sound: 'riser', length: 0.6, gain: 0.12 + level * 0.04 })
+    if (level === 4)
+      cues.push({ at: segment.duration - 0.25, sound: 'whoosh', length: 0.25, from: 2000, to: 8000, gain: 0.5 })
+    return cues
+  },
   build(segment) {
     const level = segment.level ?? 1
     const rand = rng(100 + level)

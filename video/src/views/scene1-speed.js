@@ -21,6 +21,27 @@ const clock = (t) => slowmo(t, ...SLOW)
 const carAt = (u) => 120 * (u - 3.5) // x of the car at story time u; it passes x = 0 as the slow motion starts
 
 export default {
+  /** Typing, the tag landing, the engine, the slow-motion drone, the sonic boom, the wind. Voices are optional. */
+  sounds() {
+    const cues = []
+    for (let at = 0.3; at < 2.2; at += 0.11) cues.push({ at, sound: 'tap', gain: 0.09 })
+    cues.push(
+      { at: 2.0, sound: 'whoosh', length: 0.25, from: 2000, to: 300, gain: 0.25 },
+      { at: 2.25, sound: 'boom', gain: 0.8 },
+      { at: 2.3, sound: 'ding', gain: 0.2, wet: 0.3 },
+      { at: 2.8, sound: 'engine', length: 0.7, from: 60, to: 240, gain: 0.3 },
+      { at: 3.1, sound: 'whoosh', length: 0.35, from: 300, to: 5000, gain: 0.45 },
+      { at: 3.45, sound: 'drone', length: 1.5, note: 29, gain: 0.25 },
+      { at: 3.45, sound: 'slide', length: 1.4, from: 220, to: 70, gain: 0.12 },
+      { at: 4.95, sound: 'sonicBoom', gain: 0.9, wet: 0.4 },
+      { at: 5.0, sound: 'whoosh', length: 0.6, from: 5000, to: 300, gain: 0.35 },
+      { at: 5.0, sound: 'engine', length: 0.6, from: 240, to: 120, gain: 0.25 },
+      { at: 6.55, sound: 'whoosh', length: 0.8, from: 200, to: 600, gain: 0.12 },
+      { at: 3.7, voice: 'scene1-speed' },
+      { at: 6.6, voice: 'scene1-whisper' },
+    )
+    return cues
+  },
   build(segment) {
     const lines = segment.lines
     const rand = rng(11)

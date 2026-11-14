@@ -1,15 +1,22 @@
 import * as THREE from 'three'
+import { renderMix } from './audio/mix.js'
+import { cueSheet, voiceNames } from './audio/score.js'
 import { exportMp4 } from './export.js'
 import { drawHeader, drawSafeAreas } from './kit/text.js'
 import { FPS, HEADER, HEIGHT, SEGMENTS, WIDTH } from './timeline.js'
 import { VIEWS } from './views/index.js'
 
-// The player: builds each view when it is first needed, draws any time of the video, plays, seeks and exports.
-// The view and the time live in the address (#view=scene1&t=3.200), so a reload comes back to the same frame.
+// The player: builds each view when it is first needed, draws any time of the video, plays it with its sound,
+// seeks and exports. The view and the time live in the address (#view=scene1&t=3.200), so a reload comes back to
+// the same frame. The sound of the whole video is rendered once when the page loads (see audio/), and the same
+// sound plays in the preview and goes into the MP4.
 
 const $ = (id) => document.getElementById(id)
 const out = $('out')
 const g = out.getContext('2d')
+const status = (text) => {
+  $('status').textContent = text
+}
 
 const glCanvas = document.createElement('canvas')
 const renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true, preserveDrawingBuffer: true })
@@ -57,6 +64,61 @@ function range() {
   return [segment.start, segment.start + segment.duration]
 }
 
+// Sound: the mix of the whole video, and the source that plays it from the current time.
+let mix = null
+let audio = null
+let sound = null
+
+async function prepareSound() {
+  status('sound: rendering…')
+  const cues = cueSheet(segments)
+  const files = await fetch('/voices')
+    .then((response) => response.json())
+    .catch(() => [])
+  const voices = new Map()
+  for (const name of voiceNames(cues)) {
+    const file = files.find((f) => f.replace(/\.[^.]+$/, '') === name)
+    if (file) voices.set(name, await fetch(`audio/voice/${file}`).then((response) => response.arrayBuffer()))
+  }
+  mix = await renderMix(cues, total, { voices })
+  status(voices.size ? `sound ready · ${voices.size} voice lines` : 'sound ready')
+  if (state.playing) startSound()
+  return mix
+}
+
+function stopSound() {
+  sound?.source.stop()
+  sound = null
+}
+
+function startSound() {
+  stopSound()
+  if (!mix || !state.playing || $('mute').checked) return
+  if (!audio) {
+    audio = new AudioContext()
+    audio.onstatechange = () => {
+      if (audio.state === 'running' && state.playing) startSound()
+    }
+  }
+  if (audio.state !== 'running') {
+    audio.resume()
+    return
+  }
+  const source = audio.createBufferSource()
+  source.buffer = mix
+  source.connect(audio.destination)
+  const at = audio.currentTime + 0.03
+  source.start(at, Math.min(state.time, mix.duration))
+  sound = { source, at, from: state.time }
+}
+
+function setPlaying(playing) {
+  state.playing = playing
+  dirty = true
+  if (playing) startSound()
+  else stopSound()
+}
+
 // In the address, t is the time within the selected view (as in the beats of each scene file).
 function readHash() {
   const params = new URLSearchParams(location.hash.slice(1))
@@ -77,10 +139,11 @@ function seek(time) {
   const [a, b] = range()
   state.time = Math.min(Math.max(time, a), b - 1 / FPS)
   dirty = true
+  if (state.playing) startSound()
 }
 
 const step = (frames) => {
-  state.playing = false
+  setPlaying(false)
   seek((Math.round(state.time * FPS) + frames) / FPS)
 }
 
@@ -103,12 +166,14 @@ function tick(now) {
   const [a, b] = range()
   if (state.time < a || state.time >= b) seek(a)
   if (state.playing) {
-    state.time += dt
+    // follow the sound's clock while it plays, so picture and sound stay together
+    if (sound && audio.state === 'running') state.time = sound.from + Math.max(0, audio.currentTime - sound.at)
+    else state.time += dt
     if (state.time >= b) {
-      if ($('loop').checked) state.time = a
+      if ($('loop').checked) seek(a)
       else {
         state.time = b - 1 / FPS
-        state.playing = false
+        setPlaying(false)
       }
     }
   }
@@ -134,58 +199,68 @@ $('view').onchange = (e) => {
   state.view = e.target.value
   seek(range()[0])
 }
-$('play').onclick = () => {
-  state.playing = !state.playing
-  dirty = true
-}
+$('play').onclick = () => setPlaying(!state.playing)
 $('restart').onclick = () => seek(range()[0])
 $('back').onclick = () => step(-1)
 $('fwd').onclick = () => step(1)
 $('scrub').oninput = (e) => {
-  state.playing = false
+  setPlaying(false)
   seek(Number(e.target.value))
 }
 $('safe').onchange = () => {
   dirty = true
 }
+$('mute').onchange = () => {
+  if (state.playing) startSound()
+}
 addEventListener('keydown', (e) => {
   if (e.target.tagName === 'SELECT') return
   if (e.code === 'Space') {
     e.preventDefault()
-    state.playing = !state.playing
-    dirty = true
+    setPlaying(!state.playing)
   } else if (e.code === 'ArrowRight') step(e.shiftKey ? FPS : 1)
   else if (e.code === 'ArrowLeft') step(e.shiftKey ? -FPS : -1)
   else if (e.code === 'Home') seek(range()[0])
 })
 
-$('render').onclick = async () => {
-  if (exporting) return
+/** Renders a view (or 'all') with its sound to an MP4 in Downloads, or in video/out/ with saveTo 'out'. */
+async function render(id, { saveTo } = {}) {
+  if (exporting) return null
   exporting = true
-  state.playing = false
+  setPlaying(false)
+  if (id !== state.view) {
+    state.view = id
+    $('view').value = id
+  }
   const [a, b] = range()
+  let file = null
   try {
-    const file = await exportMp4({
+    status('waiting for the sound…')
+    const audioMix = await soundReady
+    file = await exportMp4({
       canvas: out,
       from: a,
       to: b,
       fps: FPS,
       draw: (time) => draw(time, { guides: false }),
-      name: `${state.view}.mp4`,
-      onProgress: (k) => {
-        $('status').textContent = `rendering ${Math.round(k * 100)} %`
-      },
+      audio: audioMix,
+      name: `joke-video-${id}.mp4`,
+      saveTo,
+      onProgress: (k) => status(`rendering ${Math.round(k * 100)} %`),
     })
-    $('status').textContent = `saved ${file}`
+    status(`saved ${file}`)
   } catch (error) {
     console.error(error)
-    $('status').textContent = `export failed: ${error.message}`
+    status(`export failed: ${error.message}`)
   }
   exporting = false
   dirty = true
   last = performance.now()
   requestAnimationFrame(tick)
+  return file
 }
+
+$('render').onclick = () => render(state.view)
 
 // Reload when serve.ts says a file changed; the address keeps the view and the time.
 new EventSource('/events').onmessage = (e) => {
@@ -194,19 +269,30 @@ new EventSource('/events').onmessage = (e) => {
   location.reload()
 }
 
-// For checks from the console: player.frame('scene2', 3.2) draws that frame of that view, without the guides.
-window.player = {
-  segments,
-  frame: (id, t) => draw((segments.find((s) => s.id === id)?.start ?? 0) + t, { guides: false }),
-}
-
 // A pasted or edited address jumps to its view and time (the player's own updates do not fire this).
 addEventListener('hashchange', () => {
   readHash()
   $('view').value = state.view
   dirty = true
+  if (state.playing) startSound()
+  else stopSound()
 })
 
 readHash()
 fillMenu()
+const soundReady = prepareSound().catch((error) => {
+  console.error(error)
+  status(`sound failed: ${error.message}`)
+  return null
+})
+
+// For checks from the console: player.frame('scene2', 3.2) draws that frame of that view, without the guides;
+// await player.sound() gives the rendered mix; await player.render('card1', { saveTo: 'out' }) renders to video/out/.
+window.player = {
+  segments,
+  frame: (id, t) => draw((segments.find((s) => s.id === id)?.start ?? 0) + t, { guides: false }),
+  sound: () => soundReady,
+  render,
+}
+
 requestAnimationFrame(tick)

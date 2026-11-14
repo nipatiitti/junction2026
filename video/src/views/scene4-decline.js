@@ -124,6 +124,38 @@ function twinkle(g, x, y, size, alpha) {
 }
 
 export default {
+  /** Dings, the buttons, the aura drone, the sonic boom, the rocket whistle, space, the star, the panic taps. */
+  sounds() {
+    return [
+      { at: 0.3, sound: 'ding', gain: 0.25, notes: [88, 93] },
+      { at: 0.33, sound: 'ding', gain: 0.18, notes: [86, 91] },
+      { at: 0.36, sound: 'ding', gain: 0.15, notes: [84, 89] },
+      { at: 1.0, sound: 'tap', gain: 0.15 },
+      { at: 1.0, sound: 'ding', gain: 0.12, notes: [96] },
+      { at: 2.45, sound: 'tap', gain: 0.18 },
+      { at: 2.47, sound: 'slide', from: 400, to: 150, length: 0.25, gain: 0.12 },
+      { at: 2.75, sound: 'twinkle', gain: 0.12 },
+      { at: 2.9, sound: 'drone', length: 1.45, note: 33, gain: 0.3 },
+      { at: 3.6, sound: 'riser', length: 0.7, gain: 0.22 },
+      { at: PASS - 0.15, sound: 'whoosh', length: 0.2, from: 1000, to: 8000, gain: 0.5 },
+      { at: PASS, sound: 'sonicBoom', gain: 1, wet: 0.4 },
+      { at: LAUNCH, sound: 'slide', from: 300, to: 2400, length: 1.5, gain: 0.14 },
+      { at: 5.95, sound: 'whoosh', length: 0.3, from: 400, to: 6000, gain: 0.35 },
+      { at: 6.0, sound: 'pad', notes: [41, 48, 53, 56], length: 2.2, gain: 0.12, cutoff: 1400, wet: 0.5 },
+      { at: 6.05, sound: 'slide', from: 900, to: 180, length: 1.2, gain: 0.12 },
+      { at: 7.0, sound: 'boom', gain: 0.7 },
+      { at: STAR, sound: 'twinkle', gain: 0.22, wet: 0.5 },
+      { at: 8.0, sound: 'whoosh', length: 0.5, from: 200, to: 900, gain: 0.12 },
+      ...PRESSES.flatMap((at) => [
+        { at, sound: 'tap', gain: 0.2 },
+        { at: at + 0.02, sound: 'ding', gain: 0.12, notes: [93] },
+      ]),
+      { at: 1.0, voice: 'scene4-accepted' },
+      { at: 3.2, voice: 'scene4-nah' },
+      { at: 6.05, voice: 'scene4-scream' },
+      { at: PRESSES[0], voice: 'scene4-panic' },
+    ]
+  },
   build(segment) {
     const lines = segment.lines
     const rand = rng(41)

@@ -169,6 +169,43 @@ function splat(g, a) {
 }
 
 export default {
+  /** The phone, the €6.70 boom, the engine and the drift, the snow, COOKED, chewing, the tiny violin. */
+  sounds(segment) {
+    const cues = [{ at: 0.45, sound: 'ding', gain: 0.18, notes: [84, 88] }]
+    segment.lines.rides.forEach((_, i) => {
+      cues.push({ at: 0.55 + i * 0.22, sound: 'tap', gain: 0.12 })
+    })
+    cues.push(
+      { at: OURS, sound: 'boom', gain: 0.85 },
+      { at: OURS, sound: 'kaching', gain: 0.25 },
+      { at: 4.4, sound: 'engine', length: 1.2, from: 70, to: 260, gain: 0.3 },
+      { at: 4.5, sound: 'whoosh', length: 0.6, from: 300, to: 4000, gain: 0.35 },
+      { at: 4.95, sound: 'screech', length: 0.7, gain: 0.22 },
+      { at: WAVE, sound: 'whoosh', length: 0.4, from: 600, to: 200, gain: 0.4 },
+      { at: 5.2, sound: 'splat', gain: 0.6 },
+      { at: POP, sound: 'kaching', gain: 0.2 },
+      { at: POP, sound: 'splat', gain: 0.3 },
+      { at: 5.9, sound: 'boom', gain: 0.75 },
+      {
+        at: 8.3,
+        sound: 'violin',
+        gain: 0.16,
+        wet: 0.4,
+        notes: [
+          [76, 0, 0.25],
+          [74, 0.25, 0.25],
+          [72, 0.5, 0.5],
+        ],
+      },
+      { at: 8.4, sound: 'whoosh', length: 0.35, from: 3000, to: 300, gain: 0.4 },
+      { at: 8.45, sound: 'splat', gain: 0.35 },
+      { at: 1.5, voice: 'scene3-bro' },
+      { at: 3.25, voice: 'scene3-sixseven' },
+      { at: 7.75, voice: 'scene3-chews' },
+    )
+    for (let at = 7.75; at < 8.3; at += 0.13) cues.push({ at, sound: 'tap', gain: 0.08 })
+    return cues
+  },
   build(segment) {
     const lines = segment.lines
     const rand = rng(31)
