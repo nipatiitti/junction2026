@@ -448,3 +448,25 @@ Conclusion: recall's €5,000-10,000 a week over plain bidprice comes from knowi
 that part is noise from one world to the next: it does not generalise. On unseen worlds we are a €10-11k system.
 The ranking leaders make €16-17k there with 430-480 orders at 96-99% on time, against our 200-320 orders; we quote
 only 48-64% of requests. The open question is how they serve 40% more orders on time, not how they price.
+
+## Decline audit of plain bidprice on spread-8 (1,033 requests; merged: decline log, `war: follow` in `board.json`)
+
+| Reason for no quote | Requests | Others' margin per request per week | Verdict |
+| --- | --- | --- | --- |
+| quoted | 663 | €12.01 | |
+| expected value under `minValueCents` | 199 | €3.49 (about €700 a week at most) | small |
+| `lateRisk` | 61 | €2.60, 14.8% late | right |
+| `canServe` (slack too short) | 43 | nobody won them | right |
+| war-day rule | 38 | €9.85, 2.9% late | wrong: now follows the war day |
+| no price covers cost | 29 | −€0.30 | right |
+
+Lost quotes: of 341 lost requests, 155 were won by another system; our price was a median 8.3% above the highest
+price it got accepted (same_day 10.5%). Win rate by day: Mon 46%, Tue 38%, Wed 54%, Thu 41% (war), Fri 58%.
+
+| Week | Margin | Orders | On time |
+| --- | --- | --- | --- |
+| spread-8, `war: follow` | €12,300 (+€85) | 328 | 97.6% |
+| spread-6, `war: follow` | €8,064 (+€61) | 209 | 96.7% |
+
+Reading: no single large leak. The volume gap to the leaders is not in admission; it is price level (about 8% high
+where we lose) and what volume costs us in drivers and lateness.
