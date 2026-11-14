@@ -125,8 +125,8 @@
     "bulk_yard": {
       "file": "strategies/bulk_yard/dispatch.py",
       "fingerprint": "48d7989296360ce6",
-      "world_id": "w081bd044f72c73f9f92d",
-      "played_at": "2026-11-14T12:29:38+0200",
+      "world_id": "wb050e51848219b040fd3",
+      "played_at": "2026-11-14T16:04:14+0000",
       "score": {
         "marginCents": 1178444,
         "revenueCents": 3149761,
@@ -395,8 +395,8 @@
     "herd_competitor": {
       "file": "strategies/herd_competitor/dispatch.py",
       "fingerprint": "9151882c1434b583",
-      "world_id": "wf396e1fe2af8133f44e6",
-      "played_at": "2026-11-14T12:35:33+0200",
+      "world_id": "wed7756e8af0f533089aa",
+      "played_at": "2026-11-14T16:04:12+0000",
       "score": {
         "marginCents": 1188336,
         "revenueCents": 3106721,
