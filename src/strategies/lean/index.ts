@@ -68,6 +68,9 @@ export const DEFAULTS = {
   jitter: 1,
   /** The fee a gig for a later day shows in its first waking hour, × typical; 0 opens at `open`. */
   early: 0.8,
+  /** A gig whose last pickup is on the Monday after the weekend raises on that Monday from 06:00, not over the
+   * weekend, when 2 drivers a week book (fees.ts, `rested`); false spreads the raises over the weekend as before. */
+  rest: true,
   /** A gig posted with under `lateWithin` waking minutes left to plan it opens at `lateOpen` × typical and climbs
    * as an urgent one does: 5 such cars a week opened at 2 × typical and were booked within 3 minutes. */
   lateWithin: 60,
@@ -431,6 +434,7 @@ class Lean extends Strategy<LeanParams> {
       ],
       top: p.urgentTop,
       jitter: p.jitter,
+      rest: p.rest,
     })
   }
 
