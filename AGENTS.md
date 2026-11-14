@@ -15,7 +15,7 @@ car dealers and pays freelance drivers to move the cars, for one simulated week.
   `README.md` has the setup and the dates.
 - **Never run online unless the user explicitly asks.** By default, do not play or read worlds
   on the Spread server. This covers every command that plays or reads worlds: `dispatch.py`,
-  `pnpm dispatch`, `pnpm bench`, `pnpm tune`, `strategies.bench`, the scrape and reveal tools,
+  `pnpm dispatch`, `pnpm bench`, `pnpm tune`, `strategies.bench`, `strategies.tournament`, the scrape and reveal tools,
   and any direct call to the API. Work from the saved weeks under `data/scrape/runs/` and
   `out/spread.sqlite` instead. Only an explicit request in the current conversation lifts this.
 - Practice weeks are free and repeatable: the same seed and level give the same week.
@@ -34,8 +34,8 @@ car dealers and pays freelance drivers to move the cars, for one simulated week.
   no saved week has.
 - **One online run at a time.** An online run is any command that plays or reads
   worlds on the Spread server: `dispatch.py`, `pnpm dispatch`, `pnpm bench`, `pnpm tune`, `strategies.bench`,
-  the scrape and reveal tools. Start a run only when your previous one has
-  finished: no second run in the background or in another terminal. A bench or a tune is
+  `strategies.tournament`, the scrape and reveal tools. Start a run only when your previous one has
+  finished: no second run in the background or in another terminal. A bench, a tune or a tournament is
   one run, whatever its `--jobs` or `--keys`. Every system on our key shares one rate limit,
   so parallel runs slow down the whole team.
 
@@ -228,10 +228,15 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the option-menu week: `uv run strategies/option_menu/dispatch.py --level 8 --seed spread-1`
 - Play the slack-fees week: `uv run strategies/slack_fees/dispatch.py --level 8 --seed spread-1`
 - Play the tempo week: `uv run strategies/tempo/dispatch.py --level 8 --seed spread-1`
+- Play the max-margin week: `uv run strategies/max_margin/dispatch.py --level 8 --seed spread-1`
+- Play the tight-margin week: `uv run strategies/tight_margin/dispatch.py --level 8 --seed spread-1`
 - Play the low-opening week: `uv run strategies/low_opening/dispatch.py --level 8 --seed spread-1`
 - Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
 - Measure the note reader: `uv run python -m strategies.notes.check reveal-<world id>`
 - Compare two versions: `uv run python -m strategies.bench dispatch.py origin/main`
+- Play a mix of the changes built on ceiling: `uv run strategies/tournament/mix.py --layers slack_fees,tempo --level 8 --seed spread-1`
+- See what a tournament would play (plays nothing): `uv run python -m strategies.tournament --plan`
+- Play the tournament of ceiling's layers: `uv run python -m strategies.tournament --seeds spread-1..spread-3`
 - Play the active models on fresh seeds until stopped: `uv run python -m tools.sweep`
 - Build the saved-weeks DB: `uv run python -m tools.db`
 - Lint / format Python: `uv run ruff check --fix . && uv run ruff format .`
