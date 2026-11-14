@@ -49,6 +49,7 @@ import {
 import { bestPrice, Demand } from './demand.ts'
 import { awake, BOOK_AHEAD, fast, feeAt, planBy, SHORT, stepped } from './fees.ts'
 import { loadOrders, type OrderModel, outlook } from './outlook.ts'
+import { Pacer } from './pace.ts'
 import { Planner } from './planner.ts'
 import { Supply } from './supply.ts'
 
@@ -156,6 +157,12 @@ export const DEFAULTS = {
    * sooner. The draw is this × each effect's standard deviation: 0 is off, 1 a full draw. Seeded by the request
    * id, so a rebuilt week quotes the same. */
   sample: 0,
+  /** Pacing (pace.ts): above 0, the charge of `taxLoad` is no longer taken at the load that the week is heading
+   * for. A controller holds a plan of the orders per driver won by each hour of the week (0.52 over the week, less
+   * in a world whose bookings pay more than planned or that runs late), and the charge rises when the week is ahead
+   * of it and falls when it is behind, between 0.5 and 2 × the plan's. 1 is the controller's own gain, other values
+   * scale it; 0 is off. */
+  pace: 0,
 }
 export type LeanParams = typeof DEFAULTS
 
@@ -198,6 +205,7 @@ class Lean extends Strategy<LeanParams> {
   private readonly demand: Demand
   private readonly planner: Planner
   private readonly supply: Supply
+  private readonly pacer: Pacer
   private readonly outlooks: OrderModel | undefined
   /** Place id -> the drivers who live there; day -> the orders won on it. */
   private readonly homes = new Map<string, number>()
@@ -227,6 +235,7 @@ class Lean extends Strategy<LeanParams> {
   constructor(setup: Setup, params: LeanParams) {
     super(setup, params)
     this.supply = new Supply(params.feeRatio)
+    this.pacer = new Pacer(setup.roster.length || MEDIAN_DRIVERS, params.pace)
     this.outlooks = setup.level >= 7 ? loadOrders() : undefined
     for (const d of setup.roster) this.homes.set(d.homePlaceId, (this.homes.get(d.homePlaceId) ?? 0) + 1)
     this.demand = new Demand(setup.level, params.noise, params.middle)
@@ -246,7 +255,8 @@ class Lean extends Strategy<LeanParams> {
     const options = this.setup.level <= 3 ? request.options.slice(0, 1) : request.options
     const quotes: [OptionKind, number][] = []
     const open = this.openGigs(books)
-    const tax = this.params.tax + this.params.taxLoad * this.load()
+    const load = this.params.pace > 0 ? this.pacer.load(now, lateShare) : this.load()
+    const tax = this.params.tax + this.params.taxLoad * load
     for (const option of options) {
       if (!canServe(request, option, now, context).ok) continue
       if (this.setup.level <= 3) return { [option.kind]: option.listPriceCents }
@@ -381,6 +391,7 @@ class Lean extends Strategy<LeanParams> {
     this.pending.delete(requestId)
     if (won) {
       this.tally.won++
+      this.pacer.won()
       const day = Math.floor(at / DAY)
       this.wonOn.set(day, (this.wonOn.get(day) ?? 0) + 1)
     }
@@ -552,6 +563,7 @@ class Lean extends Strategy<LeanParams> {
         }
         this.tally.bookings++
         this.tally.ratios += ratio
+        this.pacer.booked(ratio)
         break
       }
       case 'gig_dropped':
@@ -607,7 +619,7 @@ class Lean extends Strategy<LeanParams> {
     const share = t.requests > 0 ? (100 * t.won) / t.requests : 0
     const multiple = t.won > 0 ? t.multiples / t.won : 0
     const paid = t.bookings > 0 ? t.ratios / t.bookings : 0
-    return `lean: won ${t.won} of ${t.requests} requests (${share.toFixed(1)}%) at ${multiple.toFixed(2)} × list, ${t.bookings} bookings at ${paid.toFixed(2)} × typical, ${this.late.size} late of ${this.done} done. ${this.planner.summary()}`
+    return `lean: won ${t.won} of ${t.requests} requests (${share.toFixed(1)}%) at ${multiple.toFixed(2)} × list, ${t.bookings} bookings at ${paid.toFixed(2)} × typical, ${this.late.size} late of ${this.done} done. ${this.planner.summary()}${this.params.pace > 0 ? ` ${this.pacer.summary()}` : ''}`
   }
 
   private context(tightening = 1): Context {
