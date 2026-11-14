@@ -154,6 +154,11 @@ export const DEFAULTS = {
   /** How much a chain's chance to book counts when two chains want the same car (chains.ts, `bookChance`): the
    * best chain saves the most × its chance to this power. 0 ranks by the saving alone. */
   chainFit: 0,
+  /** A chain's fees × what the chain is worth to a driver (chains.ts): 1 opens it at `open` × that worth. */
+  chainOpen: 1,
+  /** 1 draws each chain's fee level from 0.78, 0.88, 1 and 1.12 × `chainOpen` by its cars' orders: an experiment
+   * that measures how a chain's fee moves its chance to book. 0 is off. */
+  chainSpread: 0,
 }
 export type LeanParams = typeof DEFAULTS
 

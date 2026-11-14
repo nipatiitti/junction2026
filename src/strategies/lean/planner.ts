@@ -14,6 +14,8 @@ export type PlannerParams = ChainParams & {
   holdHours: number
   chainPatience: number
   chainTries: number
+  chainOpen: number
+  chainSpread: number
   pickLead: number
   chainLast: number
 }
@@ -27,6 +29,14 @@ const FRIDAY = 4
 /** Whether a chain whose first last pickup is `collectBy` is of that kind when posted at the minute `at`. */
 const postable = (collectBy: number, at: number, pickLead: number): boolean =>
   Math.floor(at / DAY) < FRIDAY && collectBy - at >= pickLead * HOUR
+/** The fee levels of a chain that `chainSpread` draws from, × `chainOpen`. */
+const LEVELS = [0.78, 0.88, 1, 1.12]
+/** A number from 0 to 1 that depends only on the text (FNV-1a), so the same chain draws the same level. */
+export function draw(text: string): number {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193) >>> 0
+  return hash / 2 ** 32
+}
 /** The most chains posted in one tick. */
 const MAX_POSTS = 5
 
@@ -99,10 +109,18 @@ export class Planner {
         type: 'post',
         stops,
         audience: { experienced: false, manualLicence: chain.cars.some((car) => car.audience.manualLicence) },
-        schedule: slow(now, chain.typical, chain.startBy - BOOK_AHEAD, p.open),
+        schedule: slow(now, chain.typical * this.level(chain), chain.startBy - BOOK_AHEAD, p.open),
       })
     }
     return actions
+  }
+
+  /** What a chain's fees are × its worth to a driver: `chainOpen`, and with `chainSpread` one of `LEVELS` drawn
+   * from its cars' orders, which measures how the fee moves the chance to book. */
+  private level(chain: Chain): number {
+    const key = chain.cars.map((car) => car.orderId).join(' ')
+    const drawn = this.p.chainSpread > 0 ? (LEVELS[Math.floor(draw(key) * LEVELS.length)] ?? 1) : 1
+    return this.p.chainOpen * drawn
   }
 
   /** Whether a chain is of the kind that books (see `postable`). */
