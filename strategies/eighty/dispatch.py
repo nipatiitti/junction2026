@@ -85,5 +85,27 @@ class Desk(headroom.Desk):
 root.Desk = Desk
 root.Recorder = Recorder
 
+class Tee:
+    """Writes what the week prints to the terminal and to a log file too."""
+
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, text: str) -> int:
+        for stream in self.streams:
+            stream.write(text)
+            stream.flush()
+        return len(text)
+
+    def flush(self) -> None:
+        for stream in self.streams:
+            stream.flush()
+
+
 if __name__ == "__main__":
+    # EIGHTY_LOG names a folder: the week's output, the strategies' summaries included, goes to <tag>-<seed>.log too.
+    if folder := os.environ.get("EIGHTY_LOG"):
+        seed = sys.argv[sys.argv.index("--seed") + 1] if "--seed" in sys.argv else "random"
+        Path(folder).mkdir(parents=True, exist_ok=True)
+        sys.stdout = Tee(sys.stdout, (Path(folder) / f"{TAG or 'eighty'}-{seed}.log").open("w"))
     root.main()
