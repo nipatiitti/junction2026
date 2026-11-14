@@ -30,27 +30,36 @@ and lowered, and gives the week's mean balance.
 
 ## What the weeks show
 
-Played on the fresh seeds `nov-1` to `nov-5`, level 8, on 2026-11-14, against the saved `all_in` weeks of the same
+Played on the fresh seeds `nov-1` to `nov-9`, level 8, on 2026-11-14, against the saved `all_in` weeks of the same
 seeds (the all-in system has not changed since they were played, and its `spread-1` week repeats to the cent).
-`radar_broker` is the surge both ways; `lift_only` is the same surge with `surge_down = 0`, so it never cuts a price:
+`radar_broker` is the surge both ways; `lift_only` is the same surge with `surge_down = 0`, so it never cuts a price.
+The surge both ways was played on the first five seeds only:
 
-| Seed      | `all_in` | `radar_broker` | Difference | `lift_only` | Difference | On time (all in / radar / lift) |
-| --------- | -------- | -------------- | ---------- | ----------- | ---------- | ------------------------------- |
-| `nov-1`   | €14,093  | €13,460        | −633       | €14,243     | +150       | 97.7% / 97.7% / 98.0%           |
-| `nov-2`   | €19,376  | €17,664        | −1,712     | €18,530     | −846       | 95.3% / 97.0% / 96.1%           |
-| `nov-3`   | €12,538  | €12,664        | +126       | €13,017     | +479       | 96.3% / 97.6% / 97.3%           |
-| `nov-4`   | €15,852  | €14,732        | −1,120     | €14,238     | −1,614     | 99.7% / 98.8% / 99.1%           |
-| `nov-5`   | €11,511  | €11,556        | +45        | €12,462     | +951       | 94.9% / 94.9% / 96.8%           |
-| Mean week | €14,674  | €14,015        | −659       | €14,498     | −176       |                                 |
+| Seed           | `all_in` | `radar_broker` | Difference | `lift_only` | Difference | On time (all in / radar / lift) |
+| -------------- | -------- | -------------- | ---------- | ----------- | ---------- | ------------------------------- |
+| `nov-1`        | €14,093  | €13,460        | −633       | €14,243     | +150       | 97.7% / 97.7% / 98.0%           |
+| `nov-2`        | €19,376  | €17,664        | −1,712     | €18,530     | −846       | 95.3% / 97.0% / 96.1%           |
+| `nov-3`        | €12,538  | €12,664        | +126       | €13,017     | +479       | 96.3% / 97.6% / 97.3%           |
+| `nov-4`        | €15,852  | €14,732        | −1,120     | €14,238     | −1,614     | 99.7% / 98.8% / 99.1%           |
+| `nov-5`        | €11,511  | €11,556        | +45        | €12,462     | +951       | 94.9% / 94.9% / 96.8%           |
+| `nov-6`        | €16,988  |                |            | €16,678     | −310       | 98.7% / — / 98.6%               |
+| `nov-7`        | €10,007  |                |            | €9,495      | −512       | 96.5% / — / 97.8%               |
+| `nov-8`        | €16,743  |                |            | €15,258     | −1,485     | 97.7% / — / 97.6%               |
+| `nov-9`        | €14,797  |                |            | €14,238     | −559       | 96.7% / — / 96.3%               |
+| Mean of 1 to 5 | €14,674  | €14,015        | −659       | €14,498     | −176       |                                 |
+| Mean of 1 to 9 | €14,656  |                |            | €14,240     | −416       |                                 |
 
-Every week of both is ranked, and both win about as many orders as all-in (1,718 and 1,724 against 1,721).
+Every week of both is ranked, and both win about as many orders as all-in.
 
 - **The surge both ways** loses €659 a week and is ahead on 2 of the 5 seeds.
-- **Lift only** loses €176 a week and is ahead on 3 of the 5. The standard error of that mean difference is 465, so
-  it is within what chance gives: five seeds cannot tell it from all-in. It makes €483 a week more than the surge
-  both ways, which points at the cut where our drivers will be free as the part that gave margin away.
+- **Lift only** loses €416 a week over the nine seeds and is ahead on 3 of them; it is behind on all four of
+  `nov-6` to `nov-9`. The standard error of that mean difference is 284, so the loss is 1.5 standard errors: not
+  certain, but nothing in the weeks points to a gain. On the first five seeds it made €483 a week more than the surge
+  both ways, so the cut where our drivers will be free gave the most margin away.
 
-Play `all_in`, not these systems, until a variant beats it over more seeds.
+Neither beats `all_in`. A price that follows our own backlog does not pay here, perhaps because the headroom pricing
+already learns each lane's price from its wins and losses, and the fee schedules and direct offers already move our
+drivers to the work. Play `all_in`, not these systems.
 
 ## The idea
 
