@@ -29,6 +29,32 @@ the city and dealer ladders, `max_margin`, `tight_margin`, `low_opening`) have n
 them with the leaders rather than instead of them. Play at most four weeks at once (`--jobs 4`): the team shares eight
 slots.
 
+## On fresh seeds (issue #279)
+
+The `spread-*` seeds flatter systems fitted or tuned on them, and ranking worlds and the final are secret seeds. So
+every system was also played on seeds nobody had played before, `nov-1` to `nov-10`, level 8, on 2026-11-14. The mean
+over `nov-1` to `nov-8`, the seeds every system below finished (all weeks ranked):
+
+| #   | model                   | mean week | lowest week | ahead of `headroom` |
+| --- | ----------------------- | --------- | ----------- | ------------------- |
+| 1   | `strategies/all_in`     | €14,639   | €10,008     | 7 of 8              |
+| 2   | `strategies/flu_guard`  | €14,118   | €9,539      | 7 of 8              |
+| 3   | `strategies/lane_prior` | €14,087   | €9,918      | 6 of 8              |
+| 4   | `strategies/soft_top`   | €14,069   | €9,539      | 7 of 8              |
+| 5   | `eighty` (PR #275)      | €14,058   | €9,638      | 3 of 8              |
+| —   | `strategies/headroom`   | €13,640   | €9,751      | —                   |
+
+`all_in` is ahead of `lane_prior` on 7 of 9 shared seeds (+€535 a week) and of `soft_top` on 6 of 9 (+€576). Then
+`bulk_yard` €13,801, `snow_aware` €13,789, `contextual_mix` €13,666, `learned_notes` €13,640 (the same weeks as
+`headroom`), `same_day` €13,612, `outage_harvest` €13,587, `ifs` €13,449, `slack_budget` €13,433, `town_open`
+€13,366, `offer_probe` €13,359, `war_sweep` €12,916.
+
+The first screen, every system on `nov-1` and `nov-2`: the headroom family led at €15,200-15,900 a week; then the
+TypeScript `bidprice` with `trust-guard.json` €13,062, `tight_margin` €12,308, `hazard_admission` €11,932, the root
+`dispatch.py` €11,461, and the ceiling family and the ladders at €6,000-€10,000. `bidprice` with `board.json` was
+unranked on `nov-2` (89.7% on time); `ratchet` was at 90.0%. The TypeScript weeks were played through a small wrapper
+that runs `node src/dispatch.ts --strategy bidprice --params <file>` for the bench.
+
 ## What the numbers are
 
 Margin is the score: the week's gross margin in game euros; a model is ranked only when at least 90% of its orders
