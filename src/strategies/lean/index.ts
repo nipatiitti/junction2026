@@ -115,8 +115,10 @@ export const DEFAULTS = {
    * it was 0.28 and did the work of the charge below as well: no price under 1.39 × cost. */
   noise: 0.11,
   /** A lost request's quoted options share one world, day, dealer and route. True averages their contributions to
-   * those effects instead of training them once per option; each option effect still learns separately. */
-  sharedOutcome: false,
+   * those effects instead of training them once per option; each option effect still learns separately. 63% of
+   * the requests have several options, so a loss counted two or three times where a win counts once. 35 server
+   * seeds: about +€366 ± 147 a week, with 5% fewer orders at a price 2 to 3% higher. */
+  sharedOutcome: true,
   /** What one more order costs the rest of the week's orders, in higher fees and late cars, added to the cost
    * that the price is chosen over: a request whose best price is under (cost + charge) ÷ (1 − `noise`) is not
    * worth its place. The charge is (`tax` + `taxLoad` × the orders per driver that the week is heading for) × the

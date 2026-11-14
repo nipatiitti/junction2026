@@ -560,7 +560,7 @@ false week of `supply-1` is the saved week of the old schedule to the cent.
 and delivery effects once per option, so one lost request can count several times. With `sharedOutcome=true`, every
 option's contribution is calculated from the same pre-outcome state. Each delivery-option effect still learns alone;
 each shared effect receives the mean of the option contributions once. Wins and the `false` control are unchanged.
-The default is false: the server check below is encouraging, not conclusive enough to change it.
+The default was false until the check on today's defaults at the end of this section.
 
 The first 40 paired simulator seeds (`lean-so-screen-1..40`) were used to explore the change. Shared learning alone
 gained €426.35 (SE €156.81, paired 95% CI +€109.17 to +€743.53). Adding `costLevel=1` gained €485.18 over the control
@@ -635,6 +635,31 @@ SPREAD_URL=http://localhost:8787 SPREAD_KEY=sim SPREAD_RECORD=0 SPREAD_JOURNAL_D
   --level 8 --seeds lean-so-validate-1..lean-so-validate-40 --jobs 12
 ```
 
+### Shared outcomes on today's defaults (15 November, #360)
+
+The server check above was on the code before the weekend rule and the chain model. On today's defaults,
+`supply-1` to `supply-20` (level 8, mean a week, every week ranked):
+
+| 20 paired server seeds | `sharedOutcome` false | true (**default**) |
+| ---------------------- | --------------------- | ------------------ |
+| Mean margin            | €17,189               | €17,494            |
+| Mean orders            | 453                   | 431                |
+| Price × list           | 1.450                 | 1.488              |
+| Fee × typical          | 0.916                 | 0.918              |
+| Late orders            | 4.8%                  | 4.4%               |
+| Margin an order        | €39.1                 | €41.8              |
+| Lowest week on time    | 92.5%                 | 91.2%              |
+
++€305 ± 203 a week, ahead on 13 of 20. With the 15 seeds above (+€447 ± 213) that is about +€366 ± 147 over 35
+seeds, so `sharedOutcome` is now true. The gain is the price: 22 fewer orders at 2.6% more, won less on Monday
+to Wednesday (40%, 47% and 41% of the requests against 44%, 51% and 44%) and as much after.
+
+Two biases of the same kind on the cost side were checked on those 20 weeks and are too small to act on. The
+supply learns from every booking, also one that the driver gives back: 30 gigs a week are booked twice, at 0.88 ×
+typical and then at 1.09 ×, but over all bookings that is 0.955 × learned against 0.961 × paid. And a car that
+cannot ride in a chain is priced by places whose bookings are half chains: the 16 a week with under 22 hours of
+lead pay 1.17 × typical and earn €26 an order against €38, which is €200 a week at most.
+
 ## Five decision algorithms, all off (15 November, #354)
 
 Five well-known decision algorithms were tried in place of `lean`'s fixed rules, each as a param that is off by
@@ -692,7 +717,7 @@ Before the chain model (#351), against the defaults of that time:
 | `sample=1`   |       €15,842 |          −€607 ± 271 |     2 of 10 |    438 |   96.2% |       94.3% |
 | `sample=0.5` |       €15,740 |          −€708 ± 365 |     3 of 10 |    419 |   96.4% |       94.1% |
 
-With the chain model, against today's defaults:
+With the chain model, against the defaults of that hour (`sharedOutcome` was still false, #360):
 
 | Setting         | Margin a week | Against the defaults | Seeds ahead | Orders | On time | Lowest week |
 | --------------- | ------------: | -------------------: | ----------: | -----: | ------: | ----------: |
@@ -722,7 +747,7 @@ Every week of both rounds is in [`decision-algorithms-server.csv`](decision-algo
 `early` 0.8, `rest` true, `lateWithin` 60, `lateOpen` 1.25, `urgentOpen` 1.15, `urgentStep` 0.125, `urgentEvery` 15, `urgentTop` 2,
 `lateFrom` 1.1, `lateStep` 0.05, `lateEvery` 30, `lateTop` 1.7, `feeRatio` 0.84, `lateCost` 1, `premium` 3,
 `privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 0.98, `minHours` 4, `noise` 0.11,
-`sharedOutcome` false, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
+`sharedOutcome` true, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
 `pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1, `chainTries` 3, `chainFit` 0,
 `chainModel` true, `chainAlone` 1, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0,
 `sample` 0, `pace` 0, `value` 0, `rollout` 0, `rolloutPlan` '', `feeTable` false.
