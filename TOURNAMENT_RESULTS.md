@@ -495,3 +495,28 @@ Reading after the second batch: minValueCents=60 helps in both pairings (+€822
 `war: decline`); 20 is too low. The war-day rule flips sign between the pairings (−€462, then +€245), so it is
 inside the noise of a four-seed mean, about ±€400. `board.json` is now minValueCents=60 with `war: follow`
 (the best measured combination, €10,724). Ranking anything smaller than about €400 needs more seeds.
+
+## Round 4: mechanics from the organisers' documents that bidprice did not use
+
+A read of HANDBOOK.md, RULES.md and API.md against our code listed 15 unused or misused mechanics. Four were
+built, each behind a flag (default off), and played on the four untested seeds against `board.json`
+(spread-6 €7,996, spread-7 €11,266, spread-8 €12,996, spread-10 €10,637; mean €10,724). None is merged.
+
+| Mechanic (flag) | spread-6 | spread-7 | spread-8 | spread-10 | Mean | Verdict | Worktree |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Hold the first post to the day before pickup (`postTiming`) | €8,459 | €9,994 | €11,734 | €9,566 (90.2%) | €9,938 | loss (−€786) | agent-acb1a14448cfaaed9 |
+| Cost from drivers near pickup and delivery plus our own orders (`geoCost`) | €9,865 | €6,575 (85.7%, unranked) | €10,290 | €7,389 (88.9%, unranked) | €8,530 | loss: the chain discount fired on 900 of 1,033 requests | agent-abb3d2c797b952017 |
+| the same without the chain discount (`geoChain=0`) | €9,704 | €8,215 (87.9%, unranked) | €12,710 | €9,937 | €10,141 | loss; still a broad price cut | |
+| Outage detection (`outage`) | €8,238 | €11,035 | €12,754 | €11,498 | €10,881 | +€157, inside noise; fires correctly (spread-8: Helsinki, Wednesday 10:46, 57 of 109 lifted quotes won) | agent-a7819198e3188a746 |
+| Charging only over 200 km, release late drivers (`chargeOver200`, `driverLate`) | €8,062 | €10,446 | €12,556 | €11,669 | €10,683 | −€41, noise; `driver_late` happens once in nine weeks | agent-a4c263850d3503cff |
+
+Readings:
+- The outage is real and keyed on the pickup place (spread-4: win rate at 1.4+ × list 94% inside the region against
+  39% outside), but only 10-36 requests fall in it, so it is worth a few hundred euros at most.
+- `geoCost` reached the leaders' volume (416-495 orders) at €16-26 an order with late weeks: volume alone is not
+  their edge, they hold price while winning more. Cheaper prices paid on the thin world (spread-6 +€1,700 at 96.5%
+  on time) and broke the busy one (spread-7).
+- Trust check: our count matches the rules (orders, on-time only, halved on a late one, cap 25).
+
+Not built from the review's list: fewer and later fee raises, offers to our own working drivers, re-quoting before
+the response deadline, the bulk order from one yard, flu and snow days, a per-dealer value of speed.
