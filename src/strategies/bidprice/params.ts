@@ -81,6 +81,17 @@ export type BidPriceParams = {
   unseenKm: number
   unseenMin: number
   unseenLegKm: number
+  /** Round trips (pairs.ts): post two one-car orders as one gig when B's pickup is within `pairKm` of A's delivery
+   * and B's delivery within `pairKm` of A's pickup (any delivery with `pairChains`), with `pairSlackHours` to spare,
+   * at `pairOpen` × the two schedules; split back `pairGiveUpHours` before the first pickup must start. */
+  pairs: boolean
+  pairChains: boolean
+  pairKm: number
+  pairSlackHours: number
+  pairOpen: number
+  pairGiveUpHours: number
+  /** The quote side of `pairs`: a request that would pair with an open order of ours costs this share less. */
+  pairCostCut: number
 }
 
 export const DEFAULTS: BidPriceParams = {
@@ -130,6 +141,13 @@ export const DEFAULTS: BidPriceParams = {
   unseenKm: 30,
   unseenMin: 10,
   unseenLegKm: 400,
+  pairs: false,
+  pairChains: false,
+  pairKm: 25,
+  pairSlackHours: 3,
+  pairOpen: 0.85,
+  pairGiveUpHours: 6,
+  pairCostCut: 0,
 }
 
 /** The quote models' params from the strategy's. */
