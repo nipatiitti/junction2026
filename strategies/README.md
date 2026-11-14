@@ -12,7 +12,7 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`offers/`](offers/README.md)       | `Offers`       | Direct offers to drivers near a gig's pickup                    |
 | [`bundling/`](bundling/README.md)   | `Bundler`      | Which orders' cars go together in one gig                       |
 
-Ten folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Sixteen folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                                              |
@@ -28,6 +28,11 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`delivery_urgency/`](delivery_urgency/README.md) | `UrgencyPricing`, `UrgencyAdmission`   | The ladder's quote priced by the delivery option's kind                                 |
 | [`scarcity_urgency/`](scarcity_urgency/README.md) | `ScarcityUrgencyAdmission`             | The town's scarcity and the urgency quote in one folder                                 |
 | [`scarcity_ceiling/`](scarcity_ceiling/README.md) | `ChainScarcityAdmission`               | The ceiling's quote over the scarcity-priced admission                                  |
+| [`dawn_fees/`](dawn_fees/README.md)               | `DawnFeePlanner`                       | Ceiling, with fees held low overnight and a ladder from 06:00 on the last morning       |
+| [`lead_cost/`](lead_cost/README.md)               | `LeadCostAdmission`                    | Dawn fees, with the driver cost by lead time and the option of the most margin          |
+| [`headroom/`](headroom/README.md)                 | `HeadroomPricing`                      | Lead cost, with a price maximum that moves with the wins and losses at it               |
+| [`lane_prior/`](lane_prior/README.md)             | `PriorPricing`                         | Headroom, with each delivery place's price offset from the saved weeks                  |
+| [`town_open/`](town_open/README.md)               | `TownOpening`, `TownFeePlanner`        | Lane prior, with the opening fee of each pickup town learned from its bookings          |
 
 [`bench/`](bench/README.md) is not a strategy either: it compares versions of `dispatch.py` on the same seeds.
 
