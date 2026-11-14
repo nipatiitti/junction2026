@@ -4,8 +4,9 @@ lose a quote and up when we win one, with a step that grows with the run of cons
 It builds on the ladder of strategies/price_ladder (#126), which builds on the adaptive quoting of
 strategies/pricing (#13): the same price war, outage and dealer trust, but a different step. The price ladder moves by
 a fixed share after every outcome, so it reacts at the same speed whether it is one quote out of step or ten. Here the
-step is `clamp(streak, -streak_cap, streak_cap) x streak_step`, so a run of the same outcome moves the price further
-and the ladder finds the market faster after a sudden change. No network: `price` takes a request and returns a price
+step is `clamp(streak, -streak_cap, streak_cap)` times a share that differs by outcome: `win_rate` up on a win and
+`loss_rate` down on a loss, so a run of the same outcome moves the price further and the ladder finds the market faster
+after a sudden change. No network: `price` takes a request and returns a price
 for each option, and `observe` takes the `order_won`, `order_lost` and `ledger` events. README.md next to this file has
 the step and its bench.
 """
@@ -24,9 +25,10 @@ from strategies.pricing.model import DAY, Outcome, in_hours
 
 @dataclass(frozen=True)
 class Params(LadderParams):
-    """The streak ladder's knobs: the price-ladder range and war, plus the streak-scaled step."""
+    """The streak ladder's knobs: the price-ladder range and war, plus the two streak-scaled step shares."""
 
-    streak_step: float = 0.02  # log step per consecutive outcome: the first win moves it, the second twice as far
+    win_rate: float = 0.009  # share per consecutive win: the first win moves the price, the second twice as far
+    loss_rate: float = 0.02  # share per consecutive loss, which moves the price further than a win
     streak_cap: int = 5  # a run of wins or losses stops growing the step past this many
 
 
@@ -35,9 +37,10 @@ class StreakLadderPricing(LadderPricing):
 
     One position on the list price for the whole week, as in strategies/price_ladder, inside [`floor`, `ceiling`] and
     starting at the top of its range. A win raises it and a loss lowers it, but the step is
-    `clamp(streak, -streak_cap, streak_cap) x streak_step`, where `streak` is the current run of consecutive wins
-    (positive) or losses (negative): the first step is `streak_step`, the second in a row twice that, up to the cap. A
-    change of direction resets the run to one. The price war, the outage and dealer trust work as in the parent.
+    `clamp(streak, -streak_cap, streak_cap)` times a share, where `streak` is the current run of consecutive wins
+    (positive) or losses (negative): the first win moves the price `win_rate`, the second in a row twice that, up to
+    the cap, and a loss lowers it `loss_rate` a step, further than a win of the same run. A change of direction resets
+    the run to one. The price war, the outage and dealer trust work as in the parent.
     """
 
     params: Params
@@ -63,14 +66,17 @@ class StreakLadderPricing(LadderPricing):
 
     def outcome(self, request_id: str, won: bool) -> None:
         """The ladder's step after an outcome: down on a loss, up on a win, in logs so that the price moves by a share
-        of itself, with the step scaled by the run of consecutive outcomes. No offsets: one shared position for the
-        whole week, as in the price ladder."""
+        of itself. The share differs by outcome, so a loss moves the price further than a win, and the step is scaled
+        by the run of consecutive outcomes. No offsets: one shared position for the whole week, as in the price
+        ladder."""
         quote = self.quotes.pop(request_id, None)
         if quote is None:
             return
         if won:
             self.won += 1
-        step = self.bump(won) * self.params.streak_step
+        run = abs(self.bump(won))  # the run, capped at streak_cap
+        share = math.log(1 + self.params.win_rate) if won else math.log(1 - self.params.loss_rate)
+        step = run * share
         day = quote.at // DAY
         if quote.outage:  # the outage boost keeps learning from the error, as in the adaptive model
             error = (1.0 if won else 0.0) - self.params.target_win
