@@ -24,7 +24,26 @@ uv run python -m strategies.bench strategies/radar_broker/dispatch.py strategies
 ```
 
 Its weeks are saved with the policy `radar-broker`. The `Radar` line at the end of a week counts the quotes surged up
-and lowered, and gives the week's mean balance. No online measurement was done for this version.
+and lowered, and gives the week's mean balance.
+
+## What the weeks show
+
+Played on the fresh seeds `nov-1` to `nov-5`, level 8, on 2026-11-14, against the saved `all_in` weeks of the same
+seeds (the all-in system has not changed since they were played, and its `spread-1` week repeats to the cent):
+
+| Seed      | `all_in` | `radar_broker` | Difference | Orders (all in / radar) | On time (all in / radar) |
+| --------- | -------- | -------------- | ---------- | ----------------------- | ------------------------ |
+| `nov-1`   | €14,093  | €13,460        | −633       | 350 / 348               | 97.7% / 97.7%            |
+| `nov-2`   | €19,376  | €17,664        | −1,712     | 364 / 364               | 95.3% / 97.0%            |
+| `nov-3`   | €12,538  | €12,664        | +126       | 323 / 329               | 96.3% / 97.6%            |
+| `nov-4`   | €15,852  | €14,732        | −1,120     | 329 / 323               | 99.7% / 98.8%            |
+| `nov-5`   | €11,511  | €11,556        | +45        | 355 / 354               | 94.9% / 94.9%            |
+| Mean week | €14,674  | €14,015        | −659       |                         |                          |
+
+With these defaults the surge loses €659 a week and is ahead on 2 of the 5 seeds. All its weeks are ranked. It wins
+about as many orders as all-in, so it moves price without choosing better cars: the cut where our drivers will be free
+gives away margin, and the lift where work piles up loses cars that all-in moved at a profit. Play `all_in`, not this
+system, until a variant beats it.
 
 ## The idea
 
@@ -74,4 +93,4 @@ surge only sets what we ask for it. Up to level 3 every quote wins at the list p
 | `surge_down`    | 0.05    | The largest cut, in logs                                                         |
 | `center_weight` | 0.02    | The weight of each quote in the week's mean balance                              |
 
-The defaults are a first guess, not tuned. A bench against `all_in` on the same seeds says whether the surge pays.
+The defaults are a first guess, not tuned; the weeks above show they do not pay.
