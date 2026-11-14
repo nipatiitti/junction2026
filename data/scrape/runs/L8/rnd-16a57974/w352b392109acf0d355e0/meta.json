@@ -1,0 +1,53 @@
+{
+  "seed": "rnd-16a57974",
+  "level": 8,
+  "policy": "ts-lean",
+  "kind": "practice",
+  "worldId": "w352b392109acf0d355e0",
+  "version": "c5c2fcc903642941fa048473dc21fce5e0c4d798",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 16932,
+  "score": {
+    "marginCents": 1430991,
+    "revenueCents": 3256461,
+    "marginShare": 0.4394313335857546,
+    "wonOrders": 405,
+    "onTimeShare": 0.9827160493827161,
+    "undeliveredShare": 0.0024691358024691358,
+    "ranked": true
+  },
+  "seconds": 108.5,
+  "settings": {
+    "strategy": "lean",
+    "params": {
+      "open": 0.88,
+      "jitter": 1,
+      "spread": true,
+      "lateOpen": 1.25,
+      "early": 0.8,
+      "feeRatio": 0.84,
+      "lateCost": 1,
+      "premium": 3,
+      "privatePickup": 0.25,
+      "privateDelivery": 0.25,
+      "overhead": 0.06,
+      "minHours": 4,
+      "minMargin": 1.05,
+      "noise": 0.28,
+      "trust": 0.7,
+      "lateHard": 0.05,
+      "urgentTop": 2,
+      "lateTop": 1.7,
+      "chains": true,
+      "maxHop": 60,
+      "maxCars": 4,
+      "minSaving": 0.15,
+      "chainLast": 3,
+      "holdHours": 2,
+      "chainPatience": 1
+    }
+  }
+}
