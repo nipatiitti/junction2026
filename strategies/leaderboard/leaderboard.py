@@ -252,6 +252,7 @@ h1 { font-size:22px; margin:0 0 4px; } p.sub { color:var(--text-2); margin:0 0 1
 .legend { display:flex; flex-wrap:wrap; gap:16px; color:var(--text-2); font-size:13px; margin:0 0 12px; }
 .legend span { display:inline-flex; align-items:center; gap:6px; }
 .sw { width:14px; height:10px; border-radius:2px; display:inline-block; }
+.hatch { background:repeating-linear-gradient(45deg, var(--unranked) 0 2px, transparent 2px 4px); }
 .chart { overflow-x:auto; } svg { display:block; width:100%; height:auto; min-width:560px; }
 svg text { fill:var(--text-2); font-size:12px; } svg .name { fill:var(--text); }
 svg .val { fill:var(--text-2); font-variant-numeric:tabular-nums; }
@@ -281,12 +282,17 @@ def chart_html(chart_rows: list[dict], level: int, seed: str) -> str:
     """A self-contained page: a horizontal bar chart of every strategy's margin, and the table under it."""
     bar_h, gap, top, name_w, value_w, width = 18, 4, 24, 200, 96, 1000
     plot_w = width - name_w - value_w - 16
-    low = min([0, *(row["margin"] for row in chart_rows)])
-    high = max([1, *(row["margin"] for row in chart_rows)])
+    # The axis spans the ranked weeks: an unranked week's loss (the starter loses €72k) would squash every other bar.
+    # A loss beyond the axis is drawn to its left edge, cut, and labelled with its full value.
+    counted = [row["margin"] for row in chart_rows if row["ranked"]] or [row["margin"] for row in chart_rows]
+    high = max([1, *counted])
+    low = min([0, *counted])
+    if any(row["margin"] < low for row in chart_rows):
+        low = min(low, -high // 4)  # room for the cut bars
     span = high - low or 1
 
     def x(cents: int) -> float:
-        return name_w + (cents - low) / span * plot_w
+        return name_w + (max(cents, low) - low) / span * plot_w
 
     zero = x(0)
     height = top + len(chart_rows) * (bar_h + gap) + 8
@@ -316,8 +322,9 @@ def chart_html(chart_rows: list[dict], level: int, seed: str) -> str:
             path = f"M{x1:.1f},{y} H{x0 + r:.1f} Q{x0:.1f},{y} {x0:.1f},{y + r} V{y + bar_h - r} "
             path += f"Q{x0:.1f},{y + bar_h} {x0 + r:.1f},{y + bar_h} H{x1:.1f} Z"
             vx, anchor = x1 + 6, "start"
-            if x0 - 6 > name_w + 60:
-                vx, anchor = x0 - 6, "end"
+            if row["margin"] < low:  # cut at the axis' edge: a zigzag shows the bar goes on
+                path = f"M{x1:.1f},{y} H{x0:.1f} L{x0 + 5:.1f},{y + bar_h / 4:.1f} L{x0:.1f},{y + bar_h / 2:.1f} "
+                path += f"L{x0 + 5:.1f},{y + bar_h * 0.75:.1f} L{x0:.1f},{y + bar_h} H{x1:.1f} Z"
         note = "" if row["ranked"] else " · unranked"
         note += " · code changed since" if row["stale"] else ""
         tip = (
@@ -364,15 +371,14 @@ def chart_html(chart_rows: list[dict], level: int, seed: str) -> str:
 <p class="sub">{sub} Made {time.strftime("%Y-%m-%d %H:%M")}.</p>
 <div class="legend">
 <span><i class="sw" style="background:var(--ranked)"></i>Ranked (90%+ on time)</span>
-<span><svg width="14" height="10" style="min-width:0"><rect width="14" height="10" rx="2" fill="url(#hatch)"/></svg>
-Unranked: the week does not count</span>
+<span><i class="sw hatch"></i>Unranked: the week does not count</span>
 <span><i class="sw" style="background:var(--ref)"></i>Root dispatch.py, the reference</span>
 <span><i class="sw" style="border:1px dashed var(--text-2)"></i>Code changed since it was played</span>
 </div>
 <div class="chart">{svg}</div>
 <details open><summary>Table</summary>
-<table><thead><tr><th>#</th><th>Strategy</th><th>Margin</th><th>Orders</th><th>On time</th><th>Ranked</th>
-<th>Code</th><th>World</th></tr></thead><tbody>{table_rows}</tbody></table></details>
+<div class="chart"><table><thead><tr><th>#</th><th>Strategy</th><th>Margin</th><th>Orders</th><th>On time</th><th>Ranked</th>
+<th>Code</th><th>World</th></tr></thead><tbody>{table_rows}</tbody></table></div></details>
 </main><div id="tip"></div><script>{TIP_SCRIPT}</script></body></html>
 """
 
