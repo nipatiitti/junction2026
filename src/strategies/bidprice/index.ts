@@ -79,7 +79,7 @@ import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './par
 /** A quote at this many times the list price or more is a decline. */
 const DECLINED = 5
 
-class BidPrice extends Strategy<BidPriceParams> {
+export class BidPrice extends Strategy<BidPriceParams> {
   override readonly every = 30
   readonly quoteParams: QuoteParams
   readonly feeParams: FeeParams

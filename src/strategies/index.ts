@@ -2,6 +2,7 @@
 import type { StrategyKind } from '../strategy.ts'
 import { bidprice } from './bidprice/index.ts'
 import { flat } from './flat/index.ts'
+import { recall } from './recall/index.ts'
 import { starter } from './starter/index.ts'
 
 import { squeeze } from './squeeze/index.ts'
@@ -24,4 +25,5 @@ export const STRATEGIES: Record<string, StrategyKind> = {
   groundhog,
   gambit,
   menu,
+  recall,
 }
