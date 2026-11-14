@@ -69,6 +69,42 @@ The prototype itself was `strategies/dealer_specific/`.
 Issue #309 has the per-dealer experiment; no ranking or final weeks were played.
 
 
+## Learning a falling price faster in `lean` (#331)
+
+`lean`'s win share falls on some days: 15–27% of Friday's requests on four of the six `tour` seeds, and 17% on one
+Tuesday, against about 40% on most other days. The idea was that its win model learns a lower market too slowly, so two changes to
+`demand.ts` (and `demand.py`) were tried, each off by default:
+
+- **`downGain`**: after a lost quote, the price estimate moves down this many times further than a win moves it up.
+- **`dayDoubt`**: a new day's price level starts with this many times its prior doubt, so it is learned from that
+  day's first quotes instead of the day before.
+
+Offline simulator, 40 seeds (`nov-1` to `nov-10`, `spread-1` to `spread-22`, the first eight `sweep-*` packs), each
+variant paired against the defaults on the same seed. Control: **€18,869 a week**, 403 orders, 97.5% on time, 30.0% of
+Friday's requests won. Every week ranked.
+
+| Variant         | Margin vs default | Standard error | Ahead on | Orders | On time | Friday won |
+| --------------- | ----------------: | -------------: | -------: | -----: | ------: | ---------: |
+| `downGain` 1.25 |             −€371 |           €122 | 10 of 40 |    421 |   97.2% |      30.7% |
+| `downGain` 1.5  |             −€631 |           €185 | 13 of 40 |    434 |   97.1% |      31.5% |
+| `downGain` 2    |             −€976 |           €168 |  6 of 40 |    454 |   97.2% |      32.7% |
+| `downGain` 3    |           −€1,605 |           €187 |  3 of 40 |    479 |   97.0% |      34.7% |
+| `dayDoubt` 2    |             −€208 |           €124 | 18 of 40 |    403 |   97.3% |      29.8% |
+| `dayDoubt` 4    |             −€145 |           €140 | 18 of 40 |    404 |   97.3% |      29.9% |
+
+- **`downGain` does what it was meant to, and loses for it.** It wins 18 to 76 more orders a week and more of Friday,
+  but the lower prices also go to every order it would have won anyway, so the margin falls in step with the setting.
+  The gaps are 3 to 9 standard errors, where the simulator picks the server's winner 90–100% of the time.
+- **`dayDoubt` does nothing measurable**, and does not lift Friday: the day's level was not learned too slowly.
+- So the low days are not a pricing mistake to correct by bidding lower sooner. This agrees with bidding lower for a
+  dealer's trust (−€800 to −€1,100) and `target` 0.45 in `src/strategies/lean/README.md`: more orders at a lower price
+  do not pay.
+
+Neither was played on the server (no variant was ahead), and both were removed from the code. Issue #331 has the
+table; the weeks were simulator weeks in a scratch folder and are not kept.
+
+
+
 
 ## Do not over-read this
 
