@@ -123,6 +123,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`adaptive_fees/`](adaptive_fees/README.md)       | `AdaptiveFees`                         | Cheaper fees while the running on-time share is above 95%, normal fees below it          |
 | [`hazard_admission/`](hazard_admission/README.md) | `LeadCostAdmission`                    | The root system with admission's driver cost fitted by lead time                         |
 | [`ifs/`](ifs/README.md)                           | `IfRules`, `IfFees`                    | Plain if rules with every number in one file, and a search that plays for better ones    |
+| [`simply_jack/`](simply_jack/README.md)           | `Desk`                                 | The simplest system: one price rule and one fee rule, improved one small step at a time  |
 
 [`bench/`](bench/README.md) is not a strategy either: it compares versions of `dispatch.py` on the same seeds.
 [`tournament/`](tournament/README.md) plays the ceiling system with several of the folders built on it at once, and
