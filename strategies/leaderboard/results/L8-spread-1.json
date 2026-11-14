@@ -605,8 +605,8 @@
     "pair_first": {
       "file": "strategies/pair_first/dispatch.py",
       "fingerprint": "3d34865f4b8432f2",
-      "world_id": "wa19fed5a7d45a684edb8",
-      "played_at": "2026-11-14T12:38:50+0200",
+      "world_id": "wd262132576dfea5ea154",
+      "played_at": "2026-11-14T16:01:42+0000",
       "score": {
         "marginCents": 1229201,
         "revenueCents": 3385818,
