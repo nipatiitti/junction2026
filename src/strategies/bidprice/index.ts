@@ -76,6 +76,7 @@ import {
 } from './cost.ts'
 import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees.ts'
 import { lateRiskOf, newLateRisk } from './late.ts'
+import { Pairs } from './pairs.ts'
 import { legsOf, WeekLog } from './log.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
 
@@ -93,6 +94,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   readonly learning: CostLearning
   readonly log = new WeekLog()
   readonly lateRisk: ReturnType<typeof newLateRisk>
+  readonly pairs: Pairs | null
   /** The latest minute an event or action has told, for the summary. */
   private now = 0
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
@@ -108,9 +110,11 @@ export class BidPrice extends Strategy<BidPriceParams> {
     this.cost = newCostState(this.costPrior)
     this.learning = { learn: params.costLearn, pseudoGigs: params.costPseudo }
     this.lateRisk = newLateRisk(setup.roster, setup.map)
+    this.pairs = params.pairs ? new Pairs(setup, params) : null
   }
 
-  observe(event: DeskEvent): void {
+  observe(event: DeskEvent, books?: Books): void {
+    if (books) this.pairs?.observe(event, books)
     this.now = Math.max(this.now, event.at)
     this.log.observe(event)
     observeQuotes(this.quotes, event, this.quoteParams)
@@ -122,6 +126,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   /** What the desk sent for us, as sent, and the world's answer: the quotes the quote learner waits on, and our gigs
    * for the fee learner. */
   sent(action: Action, result: ActionResult, books: Books): void {
+    this.pairs?.sent(action, result, books)
     if (!result.ok) return
     if (action.type === 'quote') this.quoted(action.requestId, action.prices)
     const event = this.feeEventOf(action, result.id, books.now)
@@ -286,6 +291,10 @@ export class BidPrice extends Strategy<BidPriceParams> {
    * was set, at once; one whose schedule ended `staleHours` ago, climbing. Not after the deadline warning, which has
    * its own schedule. At most `repriceMax`, the nearest last pickup first, so quotes never wait behind them. */
   tick(books: Books): Action[] {
+    return [...this.repriceTick(books), ...(this.pairs?.tick(books) ?? [])]
+  }
+
+  private repriceTick(books: Books): Action[] {
     const now = books.now
     const due = [...this.log.gigs].flatMap(([gigId, gig]) => {
       const order = books.orders.get(gig.orderId)
@@ -333,6 +342,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([k, v]) => `${k} ${v}`)
         .join(' ')}`,
+      ...(this.pairs ? [this.pairs.summary()] : []),
     ].join(', ')
   }
 
