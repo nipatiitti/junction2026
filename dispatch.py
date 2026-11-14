@@ -6,6 +6,8 @@ run it, and docs/spread/HANDBOOK.md what the world does.
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import sys
 import time
 from collections import Counter
@@ -95,6 +97,9 @@ class Desk:
         roster, world_map = world.roster(), world.client.map()
         self.notes = NoteReader(roster, world_map, level)  # what each note says, and the snow (strategies/notes)
         self.admission = Admission(roster, world_map, level)  # which requests to take (strategies/admission)
+        overrides = os.environ.get("SPREAD_ADMISSION_PARAMS")  # a scenario (strategies/admission_scenarios)
+        if overrides:  # JSON naming the Params fields to change; every other field stays the root system's
+            self.admission.params = replace(self.admission.params, **json.loads(overrides))
         self.pricing = PricingModel(roster, world_map, level)  # the price of a quote (strategies/pricing)
         self.fees = FeePlanner(roster, world_map, level)  # plans each gig's fee schedule (strategies/fees)
         self.offers = Offers(roster, world_map, level)  # sends gigs to drivers near their pickup (strategies/offers)
