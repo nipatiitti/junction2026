@@ -228,6 +228,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the option-menu week: `uv run strategies/option_menu/dispatch.py --level 8 --seed spread-1`
 - Play the slack-fees week: `uv run strategies/slack_fees/dispatch.py --level 8 --seed spread-1`
 - Play the tempo week: `uv run strategies/tempo/dispatch.py --level 8 --seed spread-1`
+- Play the max-margin week: `uv run strategies/max_margin/dispatch.py --level 8 --seed spread-1`
 - Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
 - Measure the note reader: `uv run python -m strategies.notes.check reveal-<world id>`
 - Compare two versions: `uv run python -m strategies.bench dispatch.py origin/main`
