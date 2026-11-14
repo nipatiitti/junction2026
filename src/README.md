@@ -178,3 +178,22 @@ Base params (defaults): `comfortHours` 9, `maxOpenPerDay` 18, `pendingWeight` 0.
 `climbTop` 3, `repriceMax` 10, `costFactor` 1.3, `costPseudo` 0, `minMargin` 1.1, `seed` 1.
 `flat` on spread-1 (level 8): with the solver 319 orders, 95.6% on time, EUR 9,199, fees 1.16 × typical; with the
 ramp (`feeSolver=false`, `topLeadHours` 8, `topRatio` 1.5) 315 orders, 95.9% on time, EUR 7,251, fees 1.23 × typical.
+
+## Switch params inside a week (`phased`)
+
+`src/strategies/phased/` is `bidprice` with one set of params until `phaseHour` (hours from Monday 00:00) and another
+from then on: its own params first, then the params of the JSON file `phaseFile` merged over them. A practice world is
+deterministic, so the week is the same as the first params' week up to the switch, and the two differ only by what
+happens after it: a fork of that week without copying a world. Both phases hear every event and every action sent.
+
+```sh
+D=src/strategies/bidprice
+pnpm bench phased:$D/board.json,phaseFile=$D/trust-guard.json,phaseHour=48 --level 8 --seeds spread-6 --jobs 6
+uv run python -m analysis.phases   # each saved week's margin by the orders won before and after hour 48
+```
+
+`analysis/phases.py` reads the saved `bidprice` and `phased` weeks, and prints for each config the margin, orders and
+late orders of the orders won before and after a split hour (`--split`, 48), and the trust of the top dealers at the
+split. A gig that carries two orders pays one fee that names no order, so the split of a `pairs` week is not exact;
+its total is.
+
