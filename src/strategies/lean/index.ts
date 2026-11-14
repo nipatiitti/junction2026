@@ -76,9 +76,12 @@ export const DEFAULTS = {
    * at 1.55 × typical, and a morning pickup gets its raises when drivers have planned their day. It also ends a
    * hold or a chain that would run into the last planning hours. */
   spread: true,
-  /** A premium car's cost × this, and what a private address adds × typical. */
+  /** A premium car's cost × this, and what a private pickup and a private delivery add × typical. */
   premium: 3,
-  privateAddress: 0.25,
+  privatePickup: 0.25,
+  privateDelivery: 0.25,
+  /** The fee a gig for a later day shows in its first hour, × typical; 0 opens at `open`. */
+  early: 0,
   /** What a booking costs × typical before this week's bookings say: the measured median with the climb's steps. */
   feeRatio: 0.84,
   /** Learn what a booking costs by pickup place, delivery place and whether the car goes today (supply.ts), not
@@ -219,7 +222,8 @@ class Lean extends Strategy<LeanParams> {
     const today = lastPickup < (Math.floor(now / DAY) + 1) * DAY
     const learned = this.supply.ratio(this.supply.keys(leg?.pickup.placeId, leg?.delivery.placeId, today))
     let ratio = (this.params.supply ? learned : this.feeRatio) + this.params.overhead
-    if (f.privatePickup || f.privateDelivery) ratio += this.params.privateAddress
+    if (f.privatePickup) ratio += this.params.privatePickup
+    else if (f.privateDelivery) ratio += this.params.privateDelivery
     if (f.tradeIn) ratio += 0.05
     if (f.weekendDelivery) ratio += 0.05
     if (facts.deadline !== null || facts.pickupHours !== null || facts.deliveryHours !== null) ratio += 0.03
@@ -328,7 +332,7 @@ class Lean extends Strategy<LeanParams> {
     if (now > order.lastPickupAt) return fast(now, typical, Math.max(shown, 1.1), 0.05, 30, p.lateTop)
     if (warned || awake(now, order.lastPickupAt - BOOK_AHEAD) < SHORT)
       return fast(now, typical, Math.max(shown + 0.05, 1.15), 0.12, 15, Math.max(p.urgentTop, shown + 0.05))
-    return stepped(now, typical, order.lastPickupAt, p.open, shown, p.jitter, order.id, p.spread)
+    return stepped(now, typical, order.lastPickupAt, p.open, shown, p.jitter, order.id, p.spread, p.early)
   }
 
   private retryOf(orderId: string, legs: readonly number[]): Retry {
