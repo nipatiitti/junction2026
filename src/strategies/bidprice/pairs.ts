@@ -22,7 +22,54 @@ import type { BidPriceParams } from './params.ts'
 type PairParams = Pick<BidPriceParams, 'pairChains' | 'pairKm' | 'pairOpen' | 'pairSlackHours' | 'pairGiveUpHours'>
 
 /** The orders a post carries. */
-const ordersOf = (post: Pick<PostAction, 'stops'>): string[] => [...new Set(post.stops.map((stop) => stop.orderId))]
+export const ordersOf = (post: Pick<PostAction, 'stops'>): string[] => [
+  ...new Set(post.stops.map((stop) => stop.orderId)),
+]
+
+/** The learners' id of a pair's second order: its share of the gig lives under the gig's id with this suffix. */
+export const TWIN = '#pair'
+
+/** Each order of a gig of several orders with its share of the fee, by typical fees; null for one order. */
+export function sharesOf(
+  stops: PostAction['stops'],
+  typical: (orderId: string) => number,
+): { orderId: string; share: number }[] | null {
+  const ids = ordersOf({ stops })
+  if (ids.length !== 2) return null
+  const fees = ids.map((id) => Math.max(1, typical(id)))
+  const total = fees[0]! + fees[1]!
+  return ids.map((orderId, i) => ({ orderId, share: fees[i]! / total }))
+}
+
+export const scaled = (schedule: FeeStep[], k: number): FeeStep[] =>
+  schedule.map((step) => ({ at: step.at, feeCents: Math.round(step.feeCents * k) }))
+
+/** A gig event of a pair as the two orders' shares: the first under the gig's id, the second under its twin. */
+export function splitEvent(event: DeskEvent, twins: Map<string, number>): DeskEvent[] {
+  const gigId = 'gigId' in event ? event.gigId : undefined
+  const share = gigId === undefined ? undefined : twins.get(gigId)
+  if (gigId === undefined || share === undefined) return [event]
+  const part = (k: number, id: string) =>
+    ({ ...event, gigId: id, ...('feeCents' in event ? { feeCents: Math.round(event.feeCents * k) } : {}) }) as DeskEvent
+  return [part(share, gigId), part(1 - share, gigId + TWIN)]
+}
+
+/** `k` × the sum of the schedules from now on, never falling. */
+export function sumSchedules(list: FeeStep[][], now: number, k: number, level: number): FeeStep[] {
+  const times = [
+    now,
+    ...list
+      .flat()
+      .map((step) => step.at)
+      .filter((at) => at > now),
+  ].sort((x, y) => x - y)
+  const steps: FeeStep[] = []
+  for (const at of [...new Set(times)]) {
+    const feeCents = Math.round(k * list.reduce((sum, s) => sum + feeAt(s, at), 0))
+    if (feeCents > (steps.at(-1)?.feeCents ?? 0)) steps.push({ at: Math.round(at), feeCents })
+  }
+  return level === 1 ? steps.slice(-1) : steps.slice(0, 48)
+}
 
 export class Pairs {
   readonly tally = { found: 0, posted: 0, booked: 0, split: 0, pairedPaid: 0, pairedTypical: 0 }
@@ -55,7 +102,7 @@ export class Pairs {
   }
 
   /** The tick's withdrawals of pairs that no longer pay their risk, then the new pairs. */
-  tick(books: Books): Action[] {
+  tick(books: Books, stale: (gigId: string) => boolean = () => false): Action[] {
     const actions: Action[] = []
     const now = books.now
     const singles: { order: Order; gigId: string; post: PostAction }[] = []
@@ -71,7 +118,7 @@ export class Pairs {
       if (ids.length >= 2) {
         const [a, b] = ids.map((id) => books.orders.get(id))
         const urgent = ids.some((id) => books.urgent.has(id))
-        if (!a || !b || urgent || now >= this.latestStart(a, b) - this.params.pairGiveUpHours * HOUR)
+        if (!a || !b || urgent || stale(gigId) || now >= this.latestStart(a, b) - this.params.pairGiveUpHours * HOUR)
           actions.push({ type: 'withdraw', gigId })
         continue
       }
@@ -151,12 +198,6 @@ export class Pairs {
 
   /** `pairOpen` × the sum of the two schedules from now on, never falling. */
   private schedule(a: FeeStep[], b: FeeStep[], now: number): FeeStep[] {
-    const times = [now, ...[...a, ...b].map((step) => step.at).filter((at) => at > now)].sort((x, y) => x - y)
-    const steps: FeeStep[] = []
-    for (const at of [...new Set(times)]) {
-      const feeCents = Math.round(this.params.pairOpen * (feeAt(a, at) + feeAt(b, at)))
-      if (feeCents > (steps.at(-1)?.feeCents ?? 0)) steps.push({ at: Math.round(at), feeCents })
-    }
-    return this.setup.level === 1 ? steps.slice(-1) : steps.slice(0, 48)
+    return sumSchedules([a, b], now, this.params.pairOpen, this.setup.level)
   }
 }
