@@ -15,7 +15,7 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`lead_cost/`](lead_cost/README.md) | `LeadCostAdmission` | Which requests to take, by lead time, for `headroom` and up     |
 | [`lane_fee/`](lane_fee/README.md)   | `LaneFee`           | A lane's typical fee without one request's noise, for the same  |
 
-Twenty-nine folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Thirty-five folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                                              |
@@ -32,6 +32,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`ratchet/`](ratchet/README.md)                   | `RatchetPricing`, `TrustAdmission`, …  | A price ratchet per dealer and flat fees priced by risk                                 |
 | [`ceiling/`](ceiling/README.md)                   | `CeilingPricing`, `ChainAdmission`     | Prices just under a maximum, over the driver cost, with timed return legs               |
 | [`delivery_urgency/`](delivery_urgency/README.md) | `UrgencyPricing`, `UrgencyAdmission`   | The ladder's quote priced by the delivery option's kind                                 |
+| [`special_premium/`](special_premium/README.md)   | `SpecialPricing`, `SpecialAdmission`   | Urgency plus a compounding +5% per special requirement, on the quote and the driver fee |
 | [`scarcity_urgency/`](scarcity_urgency/README.md) | `ScarcityUrgencyAdmission`             | The town's scarcity and the urgency quote in one folder                                 |
 | [`scarcity_ceiling/`](scarcity_ceiling/README.md) | `ChainScarcityAdmission`               | The ceiling's quote over the scarcity-priced admission                                  |
 | [`profit_max/`](profit_max/README.md)             | `ProfitPricing`                        | Ceiling, quoting the price with the most expected margin on a win curve                 |
@@ -49,6 +50,11 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`town_open/`](town_open/README.md)               | `TownOpening`, `TownFeePlanner`        | Headroom, with the opening fee of each pickup town learned from its bookings            |
 | [`same_day/`](same_day/README.md)                 | `SameDayAdmission`                     | Headroom, quoting the fastest option that still pays                                    |
 | [`soft_top/`](soft_top/README.md)                 | `SoftTopPlanner`                       | Headroom, with a top fee of twice the lane fee, not 2.5 times                           |
+| [`opening_offers/`](opening_offers/README.md)     | `OpeningOffers`                        | Direct offers to nearby homes from a gig's first post, at the chain-offer fee           |
+| [`home_return/`](home_return/README.md)           | `HomeReturnFees`                       | A discounted fee where many drivers live at the delivery town                           |
+| [`adaptive_fees/`](adaptive_fees/README.md)       | `AdaptiveFees`                         | Cheaper fees while the running on-time share is above 95%, normal fees below it         |
+| [`hazard_admission/`](hazard_admission/README.md) | `LeadCostAdmission`                    | The root system with admission's driver cost fitted by lead time                        |
+| [`ifs/`](ifs/README.md)                           | `IfRules`, `IfFees`                    | Plain if rules with every number in one file, and a search that plays for better ones   |
 
 [`bench/`](bench/README.md) is not a strategy either: it compares versions of `dispatch.py` on the same seeds.
 [`tournament/`](tournament/README.md) plays the ceiling system with several of the folders built on it at once, and
