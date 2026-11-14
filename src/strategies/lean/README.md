@@ -56,7 +56,9 @@ delivery to the first pickup, so a loop pays no trip home. A chain is posted whe
 cars' typical fees: on the strategy's tick the cars' own gigs are withdrawn and one gig carries them. A chain that no
 driver took `chainHours` (5) before its last start is withdrawn, and its cars go back to single gigs for good.
 
-`holdHours` (0, off) lets a new car wait for a partner before it is posted alone; it is built and not yet played.
+`holdHours` (0, off) lets a new car wait for a partner before it is posted alone, `chainPatience` takes a chain apart
+that no driver took after so many waking hours, and `chainBid` plans the chain before the bid; the batches below
+played them.
 
 ## 4. The service (`src/ops`)
 
@@ -147,6 +149,36 @@ Hypotheses, in the order to play them:
    our single gigs book within 24 minutes, before a partner arrives, and 99% get a partner within a day.
 5. **A price maximum** (`priceCap`) to stop teaching the competitor to undercut the dealers we win most; our Friday
    wins fall to 15% of the requests.
+
+### What the first plays of these showed
+
+Each batch is five fresh random seeds, with the baseline on the same seeds (level 8, mean margin a week).
+
+| Batch | Variant                                                            |  Margin | Orders | On time | Unranked |
+| ----- | ------------------------------------------------------------------ | ------: | -----: | ------- | -------: |
+| 1     | baseline                                                           | €10,789 |    212 | 96–98%  |        0 |
+| 1     | volume: `target` 0.45, `feeBrake` 0, `openGigs` 120, `holdHours` 1 | €11,388 |    359 | 92–98%  |        0 |
+| 1     | every modifier above                                               |  €9,689 |    323 | 84–95%  |        1 |
+| 1     | both                                                               |  €9,903 |    416 | 82–95%  |        2 |
+| 2     | baseline                                                           |  €9,691 |    203 | 93–98%  |        0 |
+| 2     | `holdHours` 1, `openGigs` 120                                      |  €9,675 |    200 | 93–100% |        0 |
+| 2     | that, `pairDiscount` 0.25, `pairCharge` 0.3                        |  €9,627 |    290 | 88–98%  |        1 |
+| 2     | that, `chainPatience` 6                                            |  €9,863 |    287 | 90–98%  |        0 |
+
+- **Volume is ours to set, and it is worth little without cheap drivers.** 70% more orders made €598 more: the margin
+  an order fell from €51 to €32, because every price fell (1.56 to 1.46 × list) and single gigs cost 1.16 × typical.
+- **A car in a chain is the order that scales.** With `holdHours` 1, 55 to 117 cars a week ride in chains at 0.72 ×
+  their typical fees and earn €42 to €49 each, 1.4% to 3.4% late.
+- **A chain that comes apart is the leak.** Its cars book 30 hours after the win at 1.40 × typical and earn €8 to
+  €11; `chainPatience` 6 lifts that to €27 and halves their late share.
+- **`pairDiscount` leaks.** "An open car within half an hour" is true for most requests, so 161 single cars a week
+  were sold at the chain price (1.45 × list) and earned €32 against €50. `chainBid` gives the chain price only to a
+  request with a feasible chain among the cars we hold, each of which backs one bid at a time.
+- **The modifiers as a set lose on `lean`.** `priceCap` caps the price that our capacity charge raises to hold volume,
+  so the week takes more than it can move; `leadCost` prices a car ready tomorrow at 1.03 × typical, and big orders
+  earned €35 against €69. Each needs its own batch.
+
+The defaults are unchanged: every param of this section is off.
 
 ## Params
 
