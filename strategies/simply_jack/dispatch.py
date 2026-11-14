@@ -47,7 +47,7 @@ HOUR, DAY = 60, 24 * 60
 # Jack's numbers. Change one, play a week, and keep it if the margin goes up.
 PRICE = 1.55  # each dealer's price starts at the list price times this: the competitor asks 26% to 54% more
 LADDER_UP = 0.02  # a won request raises its dealer's price by this share
-LADDER_DOWN = 0.015  # a lost one lowers it by this share
+LADDER_DOWN = 0.01  # a lost one lowers it by this share
 TRUST_DAYS = 1  # Monday: a win adds LADDER_DOWN and a loss takes LADDER_UP, to win most requests
 WAR_WINDOW, WAR_PRICE = 15, 0.85  # at most one win in this many quotes is the price war: quote this much less
 WARN_STEP = 0.02  # each car warned in the last 24 hours (no driver 3 hours before its last pickup) adds this
@@ -58,7 +58,7 @@ MAX_FEE_LIST = 1.16  # decline when the typical fee is more than this times the 
 FEE_OPEN = 1.0  # post a gig at the typical fee times this
 FEE_TOP = 1.5  # and raise it to the typical fee times this
 FEE_STEPS = 6  # in this many even steps, the opening fee included
-TOP_BEFORE = 2 * HOUR  # the top fee is reached this long before the car's last pickup
+TOP_BEFORE = 3 * HOUR  # the top fee is reached this long before the car's last pickup
 DAWN = 6 * HOUR  # a gig with a morning to wait for holds its opening fee until this hour of its last morning
 
 NUMBERS = {
