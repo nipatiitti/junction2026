@@ -22,4 +22,14 @@ Params: bidprice's (defaults from `../bidprice/tuned-16.json`) plus `memory` tru
 0.96, `outShade` 0.95, `minMargin` 0.05, `rescue` true, `matchMin` 3, `matchShare` 0.8. The summary line counts the
 quotes raised, lowered, dropped, untouched, not in memory and rescued.
 
+## Late memory
+
+`node src/strategies/recall/learn-late.ts <seed>` writes `late-<seed>.json`: for each request id and option we won in
+the saved weeks, the share of weeks it was late or never delivered, its mean refund/penalty, its mean margin (ledger
+sum for the order) and the number of weeks. It prints how repeatable lateness is and the late share by option, slack,
+pickup town, hour and dealer. On spread-1 and spread-4 about 45% of late orders fall on requests late in at least half
+their weeks, and those requests lose money on average, so recall declines them: with `lateMemory` (default true) an
+option late in at least `lateShareMax` (0.5) of at least `lateMinWeeks` (3) weeks, or with a negative mean margin over
+them, is dropped from the quote; a request left with no option is declined. The summary line counts both.
+
 `pnpm bench recall --level 8 --seeds spread-1`: EUR 14,301 (486 orders, 94.0% on time) against bidprice's 11,833.
