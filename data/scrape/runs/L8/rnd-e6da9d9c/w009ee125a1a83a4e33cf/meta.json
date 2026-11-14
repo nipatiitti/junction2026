@@ -1,0 +1,48 @@
+{
+  "seed": "rnd-e6da9d9c",
+  "level": 8,
+  "policy": "ts-lean",
+  "kind": "practice",
+  "worldId": "w009ee125a1a83a4e33cf",
+  "version": "550ff473a658bbf7e98ba1664accaf2b46842ea5",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 16426,
+  "score": {
+    "marginCents": 1719115,
+    "revenueCents": 3829119,
+    "marginShare": 0.4489583635295743,
+    "wonOrders": 258,
+    "onTimeShare": 0.9186046511627907,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 381.4,
+  "settings": {
+    "strategy": "lean",
+    "params": {
+      "target": 0.3,
+      "capacity": 0.4,
+      "gain": 0.02,
+      "flatShare": 0,
+      "flatEuros": 60,
+      "open": 0.88,
+      "climbTo": 0.88,
+      "buffer": 0,
+      "premium": 1.5,
+      "privateAddress": 0.08,
+      "feeRatio": 0.84,
+      "overhead": 0.06,
+      "minHours": 4,
+      "minMargin": 1.05,
+      "trust": 0.7,
+      "lateSoft": 0.04,
+      "lateHard": 0.05,
+      "openGigs": 40,
+      "urgentTop": 2,
+      "lateTop": 1.7
+    }
+  }
+}

@@ -270,8 +270,10 @@ def split_ref(spec: str) -> tuple[str, str]:
 
 
 def command(version: Version, seed: str, level: int) -> list[str]:
-    """The command that plays one practice week. Never a ranking run or a final: those need the team's approval."""
-    return [sys.executable, str(version.file), "--level", str(level), "--seed", seed, *version.args]
+    """The command that plays one practice week: a .py file with this Python, a .ts file with Node. Never a ranking
+    run or a final: those need the team's approval."""
+    start = ["node", str(version.file)] if version.file.suffix == ".ts" else [sys.executable, str(version.file)]
+    return [*start, "--level", str(level), "--seed", seed, *version.args]
 
 
 def git(*args: str, cwd: Path | None = None) -> str:
@@ -383,7 +385,13 @@ class Bench:
                 text=True,
                 # Every version saves its week into this checkout's data/scrape/runs and database (record.py), also
                 # one checked out into a temporary worktree.
-                env={**os.environ, "PYTHONUNBUFFERED": "1", "SPREAD_RUNS_DIR": str(RUNS), "SPREAD_DB": str(DATABASE)},
+                env={
+                    **os.environ,
+                    "PYTHONUNBUFFERED": "1",
+                    "NODE_USE_ENV_PROXY": "1",  # a .ts version's fetch goes through HTTPS_PROXY, as pnpm dispatch does
+                    "SPREAD_RUNS_DIR": str(RUNS),
+                    "SPREAD_DB": str(DATABASE),
+                },
             )
             self.running.add(child)
         world_id, output = None, deque(maxlen=20)
