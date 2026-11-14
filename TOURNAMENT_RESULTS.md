@@ -654,3 +654,35 @@ Readings:
 
 Reading: opening lower raises what we pay. Gigs that miss the first step age and book after raises. About 1.05 ×
 typical is near the floor for single-car gigs with this schedule; only round trips book under it (0.83-0.87 ×).
+
+## Round 9: trust protection, a focused trust discount and chain gigs (#222): built, not played yet
+
+Measured on 12 saved `ts-bidprice` weeks of spread-6, 7, 8 and 10 (three a seed), before building:
+
+- Requests are concentrated: the top dealer sends 25–33% of a week's requests, the top five 55–66%, of 38–40 dealers.
+- The top dealer's count reaches 25 on Tuesday or Wednesday and is then halved 2–12 times a week (for example 25, 25,
+  9 on spread-6; 16, 12, 24, 9, 14 on spread-8). The second dealer is halved 0–6 times.
+- Deliveries land a median 24–28 hours after the win for every option (`within_3_days` a median 78 hours before its
+  deadline), so the option does not decide when trust arrives. Favouring fast options to earn trust sooner was
+  dropped; the lag went into the bonus as `trustLagHours`.
+- `board.json` has `lateTrust: 0`: a late order was priced at its refund alone.
+
+Built behind flags of `bidprice`, all off by default (`src/strategies/bidprice/README.md` has the details):
+
+| Config (over `board.json`) | Idea |
+| --- | --- |
+| `trust-guard.json` | a late order also costs the trust its halving loses at that dealer (`trustGuard` 1) |
+| `trust-focus.json` | the trust bonus only for dealers with 4% of the requests, under a count of 12, for requests a day later |
+| `chains.json` | `pairs` with `pairChains`: chains at 0.92 × the two schedules, round trips first |
+| `trust-both.json` | the two trust ideas |
+| `volume-all.json` | all three |
+
+Offline, a halving at a dealer with 30% of the requests and a count of 25 on Wednesday loses about 91 points over the
+rest of the week, 0.75 of an order's price: a late weight of 2.7 against a refund of 0.43 of the price.
+
+Not played: no online run was allowed in the session that built them. The bench, one run of 24 weeks (baseline
+`board.json` €10,724 on these seeds):
+
+```sh
+pnpm bench bidprice:src/strategies/bidprice/board.json bidprice:src/strategies/bidprice/trust-guard.json bidprice:src/strategies/bidprice/trust-focus.json bidprice:src/strategies/bidprice/chains.json bidprice:src/strategies/bidprice/trust-both.json bidprice:src/strategies/bidprice/volume-all.json --level 8 --seeds spread-6,spread-7,spread-8,spread-10
+```

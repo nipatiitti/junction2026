@@ -8,6 +8,8 @@
  *   the fee extras and mu. All state is a function of `observe` and `sent`, so a rebuild from the event log and the
  *   journal of sent actions holds the same quotes, pending answers and costs.
  * README.md next to this file has the data flow and the params. */
+
+import { appendFileSync } from 'node:fs'
 import type {
   Action,
   ActionResult,
@@ -41,8 +43,8 @@ import {
   type QuoteParams,
   type QuoteState,
   recordQuote,
+  trustBonus,
 } from '../../models/quote/index.ts'
-import { appendFileSync } from 'node:fs'
 import { type Context, canServe, driveMinutes, type GigShape, gigShape, HOUR } from '../../ops/index.ts'
 import {
   type Books,
@@ -76,11 +78,12 @@ import {
 } from './cost.ts'
 import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees.ts'
 import { lateRiskOf, newLateRisk } from './late.ts'
-import { keepSeen, newUnseen } from './unseen.ts'
+import { legsOf, WeekLog } from './log.ts'
 import { pushed, pushFee } from './ontime.ts'
 import { ordersOf, Pairs, scaled, sharesOf, splitEvent, sumSchedules, TWIN } from './pairs.ts'
-import { legsOf, WeekLog } from './log.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
+import { trustLossShare } from './trust.ts'
+import { keepSeen, newUnseen } from './unseen.ts'
 
 /** A quote at this many times the list price or more is a decline. */
 const DECLINED = 5
@@ -105,6 +108,11 @@ export class BidPrice extends Strategy<BidPriceParams> {
   /** The latest minute an event or action has told, for the summary. */
   private now = 0
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
+  /** `trustGuard`: the gigs planned with a late weight above the plain one, the sum of their guard factors, and the
+   * highest. */
+  readonly guard = { gigs: 0, sum: 0, top: 1 }
+  /** The quotes whose prices counted a trust bonus (`trustValue` over 0). */
+  private bonusQuotes = 0
   /** Why each request got no quote, and how many options each admission rule left out of the quotes. */
   readonly declines: Record<string, number> = {}
 
@@ -147,6 +155,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   quote(request: PriceRequest, books: Books): Prices | null {
     this.pairCut = this.pairs ? this.pairs.costFactor(request, books) : 1
     const decision = this.decide(request, books.now)
+    if (!decision.decline && trustBonus(request, this.quotes, this.quoteParams, books.now, 1) > 0) this.bonusQuotes++
     this.audit(request, books.now, decision)
     return decision.decline ? null : decision.prices
   }
@@ -238,7 +247,17 @@ export class BidPrice extends Strategy<BidPriceParams> {
   costOf(request: PriceRequest, option: DeliveryOption, now: number): number {
     const { fee, late } = this.costParts(request, option, now)
     const risk = this.params.lateRisk ? this.riskOf(request, option, now) * this.params.lateRiskCents : 0
-    return ((fee + late) * this.params.costScale + risk) * this.pairCut
+    return ((fee + late) * this.params.costScale + risk + this.guardCost(request, option, now)) * this.pairCut
+  }
+
+  /** `trustGuard`: the trust a late order would lose at this dealer, in cents of this option's price, times the late
+   * share the late-risk table predicts for it. A request that is likely late at a dealer with trust to lose is
+   * priced up or declined; one that is safe costs almost nothing more. */
+  guardCost(request: PriceRequest, option: DeliveryOption, now: number): number {
+    if (this.params.trustGuard <= 0) return 0
+    const loss = trustLossShare(this.quotes, request.dealerId, now, this.quoteParams)
+    const price = option.listPriceCents * this.quoteParams.startLevel
+    return this.params.trustGuard * loss * price * this.riskOf(request, option, now)
   }
 
   /** The late share the late-risk table predicts for this option if we win it now. */
@@ -255,7 +274,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
     const lateness = lateRatio(this.cost, this.learning, now) * muOf(this.fees, this.feeParams)
     return {
       fee: request.referenceFeeCents * prior.fee * feeRatio(this.cost, kind.band, this.learning, now),
-      late: price * prior.late * lateness * this.lateWeight(request.dealerId),
+      late: price * prior.late * lateness * this.shareWeight(request.dealerId),
     }
   }
 
@@ -381,6 +400,12 @@ export class BidPrice extends Strategy<BidPriceParams> {
         ? [`unseen removed ${this.unseen.removed.options} options of ${this.unseen.removed.quotes} requests`]
         : []),
       ...(this.pairs ? [this.pairs.summary()] : []),
+      ...(this.params.trustGuard > 0
+        ? [
+            `trust guard on ${this.guard.gigs} gigs, late weight × ${(this.guard.sum / Math.max(1, this.guard.gigs)).toFixed(2)} mean, × ${this.guard.top.toFixed(2)} top`,
+          ]
+        : []),
+      ...(this.quoteParams.trustValue > 0 ? [`trust bonus on ${this.bonusQuotes} quotes`] : []),
     ].join(', ')
   }
 
@@ -440,9 +465,18 @@ export class BidPrice extends Strategy<BidPriceParams> {
 
   /** A late order halves the dealer's trust, so lateness weighs more for a dealer who sends more of the requests:
    * 1 + `lateTrust` × its share, over the same for an average dealer. */
-  private lateWeight(dealer: string): number {
+  private shareWeight(dealer: string): number {
     const k = this.params.lateTrust
     return (1 + k * dealerWeight(this.quotes, dealer, this.quoteParams)) / (1 + k / this.quoteParams.dealers)
+  }
+
+  /** `trustGuard`: what a late order of this dealer costs over its refunds, as a factor on them: 1 plus the trust
+   * its halving loses (a share of the order's price) over the refunds' share of the price, at most `trustGuardMax`. */
+  private guardWeight(dealer: string, now: number): number {
+    if (this.params.trustGuard <= 0) return 1
+    const loss = trustLossShare(this.quotes, dealer, now, this.quoteParams)
+    const refunds = Math.max(0.05, this.feeParams.priors.late.costShare)
+    return Math.min(this.params.trustGuardMax, 1 + (this.params.trustGuard * loss) / refunds)
   }
 
   /** The fee models' view of some cars of an order posted at `at`, from the log alone, so a post and its replay
@@ -451,7 +485,8 @@ export class BidPrice extends Strategy<BidPriceParams> {
     const request = this.log.requests.get(order.id)
     if (!request) return null
     const seen = this.log.seen(order.id, legs)
-    return orderFeeGig(order, request, legs, experienced, at, seen, this.lateWeight(order.dealerId), this.setup)
+    const weight = this.shareWeight(order.dealerId) * this.guardWeight(order.dealerId, at)
+    return orderFeeGig(order, request, legs, experienced, at, seen, weight, this.setup)
   }
 
   /** A quote sent: the quote learner waits for its answer. A decline teaches nothing, and is not counted. */
@@ -506,6 +541,12 @@ export class BidPrice extends Strategy<BidPriceParams> {
     if (!order) return null
     const legs = legsOf(action.stops, order.id)
     const gig = this.orderGig(order, legs, action.audience.experienced, at)
+    const guard = this.guardWeight(order.dealerId, at)
+    if (guard > 1) {
+      this.guard.gigs++
+      this.guard.sum += guard
+      this.guard.top = Math.max(this.guard.top, guard)
+    }
     this.log.post(gigId, order.id, legs, action.schedule)
     posted(this.cost, gigId, order.id, legs.length, action.schedule)
     if (!gig) return null

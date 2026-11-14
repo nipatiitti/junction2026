@@ -30,6 +30,16 @@ export type BidPriceParams = {
   /** A late order halves the dealer's trust: its lateness cost is scaled by 1 + lateTrust × the dealer's share of the
    * requests, over the same for an average dealer. 0 turns it off. */
   lateTrust: number
+  /** Trust protection (trust.ts), off at 0: a late order also costs the trust its halving loses at that dealer for
+   * the rest of the week, times this. It scales the late weight of the order's gigs (at most `trustGuardMax`), and
+   * adds the request's predicted late share times the loss to the cost of its quote. */
+  trustGuard: number
+  trustGuardMax: number
+  /** The focus of the trust bonus (`trustValue` over 0): only a dealer with at least `trustMinShare` of the requests
+   * so far, only while its count is under `trustUntil`, and only for the requests `trustLagHours` after the win. */
+  trustMinShare: number
+  trustUntil: number
+  trustLagHours: number
   /** Learn this week's cost of each kind of order over the prior of src/params/cost.json; the prior weighs
    * `costPseudo` gigs (orders, three times as many for the late cost). */
   costLearn: boolean
@@ -83,9 +93,11 @@ export type BidPriceParams = {
   unseenLegKm: number
   /** Round trips (pairs.ts): post two one-car orders as one gig when B's pickup is within `pairKm` of A's delivery
    * and B's delivery within `pairKm` of A's pickup (any delivery with `pairChains`), with `pairSlackHours` to spare,
-   * at `pairOpen` × the two schedules; split back `pairGiveUpHours` before the first pickup must start. */
+   * at `pairOpen` × the two schedules (a chain that is no round trip at `pairChainOpen` ×); split back
+   * `pairGiveUpHours` before the first pickup must start. */
   pairs: boolean
   pairChains: boolean
+  pairChainOpen: number
   pairKm: number
   pairSlackHours: number
   pairOpen: number
@@ -109,6 +121,11 @@ export const DEFAULTS: BidPriceParams = {
   // discount pushed prices under cost. The win model still follows each dealer's trust (`trust`).
   trustValue: 0,
   lateTrust: 5,
+  trustGuard: 0,
+  trustGuardMax: 4,
+  trustMinShare: 0,
+  trustUntil: 25,
+  trustLagHours: 0,
   costLearn: true,
   costPseudo: 10,
   costScale: 1,
@@ -143,6 +160,7 @@ export const DEFAULTS: BidPriceParams = {
   unseenLegKm: 400,
   pairs: false,
   pairChains: false,
+  pairChainOpen: 0.92,
   pairKm: 25,
   pairSlackHours: 3,
   pairOpen: 0.85,
@@ -163,6 +181,9 @@ export function quoteParamsOf(p: BidPriceParams): QuoteParams {
     },
     minValueCents: p.minValueCents,
     trustValue: p.trustValue,
+    trustMinShare: p.trustMinShare,
+    trustUntil: p.trustUntil,
+    trustLagHours: p.trustLagHours,
   })
 }
 
