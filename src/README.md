@@ -76,7 +76,8 @@ params (defaults in its `StrategyKind`), and answers these calls, each with a re
 saves every week, and prints a table of margin, revenue, orders won, on-time share and ranked for each strategy and
 seed, with each strategy's mean; it writes the same as a CSV to `out/bench-ts-<date>-<time>.csv` (`--csv` names
 another file). A strategy can carry params: `<name>:key=value,key=value`, or a JSON file in place of a pair.
-`--key-env <NAME>` takes the Spread key from another variable, so two benches can run on two keys. Ctrl-C deletes
+`--jobs <n>` plays up to n weeks at once on the one key (1 by default; leave practice slots for teammates, the team
+holds eight), and their daily lines then mix in the output. `--key-env <NAME>` takes the Spread key from another variable, so two benches can run on two keys. Ctrl-C deletes
 the world in play. A week that throws still prints the table of the weeks before it, then the error. It never plays a
 ranking run or a final.
 
