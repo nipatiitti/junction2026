@@ -15,7 +15,7 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`lead_cost/`](lead_cost/README.md) | `LeadCostAdmission` | Which requests to take, by lead time, for `headroom` and up     |
 | [`lane_fee/`](lane_fee/README.md)   | `LaneFee`           | A lane's typical fee without one request's noise, for the same  |
 
-Thirty-five folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Thirty-six folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                                              |
@@ -46,6 +46,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`tight_margin/`](tight_margin/README.md)         | `TightPricing`                         | Max margin's prices only once the week's drivers fall behind                            |
 | [`low_opening/`](low_opening/README.md)           | `LowOpeningPlanner`                    | Slack fees, opening a patient gig's first post at 0.8 x the typical fee                 |
 | [`headroom/`](headroom/README.md)                 | `HeadroomPricing`                      | Ceiling, with the lane fee, the cost by lead time, dawn fees and a maximum that moves   |
+| [`offer_probe/`](offer_probe/README.md)           | `ProbeOffers`                          | Headroom, offering only to active drivers and learning acceptance by fee ratio           |
 | [`lane_prior/`](lane_prior/README.md)             | `PriorPricing`                         | Headroom, with a lift for each dear delivery place, fitted on the saved weeks           |
 | [`town_open/`](town_open/README.md)               | `TownOpening`, `TownFeePlanner`        | Headroom, with the opening fee of each pickup town learned from its bookings            |
 | [`same_day/`](same_day/README.md)                 | `SameDayAdmission`                     | Headroom, quoting the fastest option that still pays                                    |
