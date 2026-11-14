@@ -58,8 +58,8 @@ The two bundling layers were built on the price ladder; here their bundlers run 
 ## The mixed system
 
 `mix.py` is the ceiling system with the layers named in `--layers`. Its other options are those of `dispatch.py`.
-With one layer it is that folder's own system: fed a saved week, the mixed desk of each layer decides the same
-actions as the layer's own `dispatch.py`.
+With one of the eight layers that have a system of their own, it is that system: fed a saved week offline, the mixed
+desk of each decides the same actions as the layer's own `dispatch.py`. No mix has played a week on the server yet.
 
 Two layers that change the same part become one class that inherits from both, as
 [`scarcity_ceiling`](../scarcity_ceiling/README.md) combines two. Each layer's class calls the next one's method, so
@@ -138,7 +138,7 @@ So **commit your code before a tournament**, or its weeks cannot be read later. 
 disagree are not trusted, and the week is played.
 
 The root `dispatch.py` is played every time. Its weeks are saved as `dispatch`, and so are the baseline's and older
-weeks of other systems, so a saved one cannot be told from theirs.
+weeks of other systems, so a saved one cannot be told from theirs (#215).
 
 Every week the tournament plays is saved like any other online run. Commit the new folders under `data/scrape/runs`
 with your PR.
