@@ -13,6 +13,11 @@ car dealers and pays freelance drivers to move the cars, for one simulated week.
 - The system is `dispatch.py`, in Python, run with uv. Before you change it, read
   `docs/spread/HANDBOOK.md`. `RULES.md` and `API.md` next to it are the full references.
   `README.md` has the setup and the dates.
+- **Never run online unless the user explicitly asks.** By default, do not play or read worlds
+  on the Spread server. This covers every command that plays or reads worlds: `dispatch.py`,
+  `pnpm dispatch`, `pnpm bench`, `pnpm tune`, `strategies.bench`, the scrape and reveal tools,
+  and any direct call to the API. Work from the saved weeks under `data/scrape/runs/` and
+  `out/spread.sqlite` instead. Only an explicit request in the current conversation lifts this.
 - Practice weeks are free and repeatable: the same seed and level give the same week.
   Compare two versions of the system on the same seeds.
 - Ask for approval before you play a ranking run (`--board`) or a final (`--final`). Each
