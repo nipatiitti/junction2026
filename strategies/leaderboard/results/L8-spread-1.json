@@ -695,8 +695,8 @@
     "same_day": {
       "file": "strategies/same_day/dispatch.py",
       "fingerprint": "934741f57ec927dc",
-      "world_id": "wd5825cc6d0ed8e918b38",
-      "played_at": "2026-11-14T12:40:01+0200",
+      "world_id": "w0be30f93157177cac686",
+      "played_at": "2026-11-14T16:02:04+0000",
       "score": {
         "marginCents": 1228373,
         "revenueCents": 3335169,
