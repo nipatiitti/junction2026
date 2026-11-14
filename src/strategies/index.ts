@@ -2,6 +2,7 @@
 import type { StrategyKind } from '../strategy.ts'
 import { bidprice } from './bidprice/index.ts'
 import { flat } from './flat/index.ts'
+import { phased } from './phased/index.ts'
 import { recall } from './recall/index.ts'
 import { starter } from './starter/index.ts'
 
@@ -31,4 +32,5 @@ export const STRATEGIES: Record<string, StrategyKind> = {
   menu,
   recall,
   bidboard,
+  phased,
 }
