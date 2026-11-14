@@ -52,6 +52,18 @@ so the eight shared practice slots and the rate limit go to the models that are 
 The most recent survivor table and exact per-seed results are in `TOURNAMENT.md`; eliminated systems are in
 `SHELVED.md`. Both are written by `tools.roster_tournament` from saved weeks, not new runs.
 
+## Lean: two versions in step
+
+The `lean` strategy exists in TypeScript (`src/strategies/lean/`, with the harness in `src/harness/` and the ops in
+`src/ops/`) and in Python (`strategies/lean/`). Both must play the same week action for action.
+
+- **Every change to either version gets an entry in [`LEAN_CHANGELOG.md`](LEAN_CHANGELOG.md)**, in the same PR: the
+  date, the PR, which version changed, what changed, and whether the other version has it.
+- Make the same change in the other version in the same PR when you can, and check that the two still play the same
+  week on the simulator (`LEAN_CHANGELOG.md` has the two commands).
+- When you cannot, open an issue to bring the other version up to date, and name it in the entry.
+- `strategies/lean/order.json` is a copy of `src/strategies/lean/order.json`: change both together.
+
 ---
 
 # Agent workflow
@@ -276,6 +288,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the hazard-admission week: `uv run strategies/hazard_admission/dispatch.py --level 8 --seed spread-1`
 - Play the ifs week: `uv run strategies/ifs/dispatch.py --level 8 --seed spread-1`
 - Play the Simply Jack week: `uv run strategies/simply_jack/dispatch.py --level 8 --seed spread-9`
+- Play the lean week in Python: `uv run strategies/lean/dispatch.py --level 8 --seed spread-1`
 - Search the ifs values for better weeks: `uv run python -m strategies.ifs.search --target 20000`
 - Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
 - Measure the note reader: `uv run python -m strategies.notes.check reveal-<world id>`
@@ -317,6 +330,7 @@ on one line, so two PRs that each add a command do not conflict.
 - [ ] Feature works as the issue describes
 - [ ] No tests written or run
 - [ ] Documentation updated
+- [ ] A change to either `lean` version has its entry in `LEAN_CHANGELOG.md`
 - [ ] Follow-up work filed as new issues
 - [ ] PR moved from draft to open (ready for review), description ≤ 500 characters, `Closes #<issue>`
 - [ ] No conflicts, CI green

@@ -102,8 +102,17 @@ class Recorder:
     ranking run) or final. `policy` names the system that played it: dispatch.py's weeks are `dispatch`. Saving never
     stops the run: a failure prints a warning."""
 
-    def __init__(self, world: World, level: int, seed: str | None, kind: str, policy: str | None = None):
+    def __init__(
+        self,
+        world: World,
+        level: int,
+        seed: str | None,
+        kind: str,
+        policy: str | None = None,
+        settings: dict | None = None,
+    ):
         self.world, self.level, self.kind = world, level, kind
+        self.settings = settings  # the system's params, saved in meta.json as the TypeScript weeks save theirs
         # Read the module global now, not as a default argument: a default is evaluated once, when the method is
         # defined, so a system that sets `record.POLICY` at the top of its file would never reach it.
         self.policy = policy or POLICY
@@ -149,6 +158,7 @@ class Recorder:
                 "recorded": False,  # no actions, rosters or positions, which scrape.py records
                 "quoteRange": None,
                 "feeRange": None,
+                **({"settings": self.settings} if self.settings is not None else {}),
             }
             meta = save_week(target, self.world, self.drivers, meta, reveal or {})
             meta["seconds"] = round(time.monotonic() - self.started, 1)

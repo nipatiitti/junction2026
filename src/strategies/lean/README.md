@@ -8,6 +8,9 @@ pnpm dispatch --level 8 --seed spread-1          # lean is the default strategy
 pnpm bench lean --level 8 --seeds spread-1..spread-5
 ```
 
+`strategies/lean/` is a Python port that plays the same weeks action for action. A change to either version gets an
+entry in [`LEAN_CHANGELOG.md`](../../../LEAN_CHANGELOG.md) in the same PR.
+
 ## 1. The price (`demand.ts`, `index.ts`)
 
 - **What wins.** For one option of one request there is one price below which the dealer takes it. Its log, as a
