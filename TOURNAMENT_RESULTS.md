@@ -549,3 +549,29 @@ of 32-40% and 47-67%; the five biggest dealers were halved by late orders 6, 19,
 
 Where this leaves the general system: about €10,700 on unseen worlds. How the leaders win 110 more orders at the same
 margin per order is still not explained; holding price for trust is ruled out in its simple form.
+
+## Round 6: the early-week leak and three more mechanics (four untested seeds, baseline €10,724; none merged)
+
+A fresh, unanchored diagnosis (analysis/leaks.py, worktree agent-a4e7d2a09bf63ce59) compared 12 of our weeks request
+by request with every other saved week of the same seed: we send no quote on 310 of 1,033 requests (66% of Monday's
+and 55% of Tuesday's are quoted, 74-80% later); 98 declined requests a week were won by another system at a median
+1.35 × list; 189 lost quotes a week were won elsewhere, ours a median 8.3% higher; we never quote all three options.
+
+| Idea (flag) | spread-6 | spread-7 | spread-8 | spread-10 | Mean | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| Sweep, first setting: 75% win target at 5% margin until trust 12, then cap at 70% win (`sweep`) | €6,749 | €7,771 (89.0%, unranked) | €7,132 | €9,925 | €7,894 | loss (−€2,830): +30-90 orders at €16-27 an order; trust still collapses from late orders |
+| Sweep, mild: 60% at 15% margin until trust 8, late margin 25%, cost scale 1.12, brake 10 | €8,543 (254 orders) | €10,893 (389) | €12,179 (375) | €10,637 (316) | €10,563 | neutral (−€161): more orders on three seeds, on-time level or better, margin per order about €29 |
+| Quote instead of declining for value, and add every servable option (`quoteAll`, `allOptions`) | €8,541 | €10,072-10,767 | €12,752 | €10,480 | €10,461-10,635 | noise (−€89 to −€263): the added quotes won 5-6% and the added options were rarely taken |
+| Re-quote a few minutes before the response deadline (`requote`) | not played | €10,071 | €12,279 | not played | two-seed −€956 | loss: 104 of 179 re-quotes went up |
+| One flat fee per gig with a single late step (`flatFees`) | €4,877 | €9,746 | €9,139 | €8,530 | €8,073 | loss (−€2,651): fees paid rose to 1.14-1.16 × typical, orders fell 25-39% |
+
+Readings:
+- The requests we decline are not winnable at a profitable price in the week we are in: quoted at honest cost plus
+  12% they won 5-6%. That other systems won them in other weeks reflects those weeks' trust and prices, not a leak.
+- Buying early volume with lower prices does not pay back through trust within the week: the stronger the sweep, the
+  larger the loss; the mild one breaks even.
+- Our climbing fee schedule saves real money; paying drivers more is not the route to volume.
+
+After six rounds the general system stays at about €10,700 on unseen worlds. Kept changes: `minValueCents` 60 and
+the lateness rule (in `board.json`). Small candidates not merged: outage detection (+€157), mild sweep (−€161 with
+better on-time share).
