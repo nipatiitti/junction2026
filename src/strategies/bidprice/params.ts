@@ -36,6 +36,13 @@ export type BidPriceParams = {
   costPseudo: number
   /** Multiplies the cost `c` of every quote, for the bench and the tuner; 1 is the calibrated cost. */
   costScale: number
+  /** Late-risk rule (src/params/late.json, from analysis/late_risk.py): drop an option whose predicted late share
+   * (slack bucket x drivers near the pickup x evening win) is at or above `lateRiskMax`, and add the expected late
+   * cost `p x lateRiskCents` to the cost of the rest. */
+  lateRisk: boolean
+  lateRiskMax: number
+  /** What a late order costs over an on-time one, in cents, for the expected late cost; 0 adds nothing. */
+  lateRiskCents: number
   /** The learning rate of `mu`, and the late share that it aims at. */
   etaMu: number
   lateTarget: number
@@ -84,6 +91,9 @@ export const DEFAULTS: BidPriceParams = {
   costLearn: true,
   costPseudo: 10,
   costScale: 1,
+  lateRisk: false,
+  lateRiskMax: 0.4,
+  lateRiskCents: 0,
   hazardFit: true,
   etaMu: 0.02,
   lateTarget: 0.05,
