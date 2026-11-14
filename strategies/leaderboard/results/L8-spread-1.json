@@ -94,16 +94,16 @@
     },
     "baseline_ladder": {
       "file": "strategies/baseline_ladder/baseline_ladder.py",
-      "fingerprint": "2cc48e2ab75b0d5d",
-      "world_id": "wd82937701c3f0daabdcf",
-      "played_at": "2026-11-14T12:30:42+0200",
+      "fingerprint": "9df83c65615d2026",
+      "world_id": "w23ef1bc67e9d6b770c92",
+      "played_at": "2026-11-14T12:49:44+0200",
       "score": {
-        "marginCents": -5362485,
-        "revenueCents": 6199172,
-        "marginShare": -0.86503245917358,
-        "wonOrders": 730,
-        "onTimeShare": 0.5027397260273972,
-        "undeliveredShare": 0.00410958904109589,
+        "marginCents": 753296,
+        "revenueCents": 2809903,
+        "marginShare": 0.2680861225458672,
+        "wonOrders": 292,
+        "onTimeShare": 0.886986301369863,
+        "undeliveredShare": 0,
         "ranked": false
       }
     },
@@ -313,6 +313,21 @@
         "marginShare": 0.3704121511622899,
         "wonOrders": 355,
         "onTimeShare": 0.9887323943661972,
+        "undeliveredShare": 0,
+        "ranked": true
+      }
+    },
+    "eighty": {
+      "file": "strategies/eighty/dispatch.py",
+      "fingerprint": "d0e80deb88fe8f37",
+      "world_id": "w53aab09452fb10deab37",
+      "played_at": "2026-11-14T12:49:07+0200",
+      "score": {
+        "marginCents": 1285704,
+        "revenueCents": 3223716,
+        "marginShare": 0.39882669565185025,
+        "wonOrders": 365,
+        "onTimeShare": 0.9835616438356164,
         "undeliveredShare": 0,
         "ranked": true
       }
