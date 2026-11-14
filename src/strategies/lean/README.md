@@ -52,6 +52,11 @@ drivers who booked on their first view paid 0.80 ×. So the fee holds still and 
   from `lateFrom` (1.1) by `lateStep` (0.05) every `lateEvery` (30) minutes to `lateTop` (1.7). A gig that a driver
   gives back starts again from the fee that booked it.
 - Every time in a schedule counts waking minutes (07:00 to 21:00): a raise at night shows to nobody.
+- A gig whose last pickup is on the Monday after the weekend, posted before that Monday 06:00, keeps its opening
+  fee over the weekend and raises on the Monday: from 06:00 to its usual planning minute, or to 3 hours before the
+  last pickup when that minute fell on the Sunday (`rest`, #347). Of such cars 2 a week were booked on a Sunday and
+  31 on the Monday, at the 1.54 × typical that the weekend's raises had left. `rest` false spreads the raises over
+  the weekend as before.
 
 ## 3. Chains (`chains.ts`, `planner.ts`)
 
@@ -426,7 +431,7 @@ The same ten seeds, every week ranked (mean margin a week, against the defaults 
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
-`early` 0.8, `lateWithin` 60, `lateOpen` 1.25, `urgentOpen` 1.15, `urgentStep` 0.125, `urgentEvery` 15, `urgentTop` 2,
+`early` 0.8, `rest` true, `lateWithin` 60, `lateOpen` 1.25, `urgentOpen` 1.15, `urgentStep` 0.125, `urgentEvery` 15, `urgentTop` 2,
 `lateFrom` 1.1, `lateStep` 0.05, `lateEvery` 30, `lateTop` 1.7, `feeRatio` 0.84, `lateCost` 1, `premium` 3,
 `privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 0.98, `minHours` 4, `noise` 0.11,
 `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
