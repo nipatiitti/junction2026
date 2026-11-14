@@ -8,7 +8,7 @@
   "feeExtras": true,
   "onTime": true,
   "cold": false,
-  "minValueCents": 152,
+  "minValueCents": 60,
   "trustValue": 0,
   "lateTrust": 0,
   "costLearn": true,
