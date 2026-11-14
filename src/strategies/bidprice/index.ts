@@ -78,6 +78,7 @@ import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees
 import { lateRiskOf, newLateRisk } from './late.ts'
 import { keepSeen, newUnseen } from './unseen.ts'
 import { pushed, pushFee } from './ontime.ts'
+import { ordersOf, Pairs, scaled, sharesOf, splitEvent, sumSchedules, TWIN } from './pairs.ts'
 import { legsOf, WeekLog } from './log.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
 
@@ -96,6 +97,11 @@ export class BidPrice extends Strategy<BidPriceParams> {
   readonly log = new WeekLog()
   readonly lateRisk: ReturnType<typeof newLateRisk>
   readonly unseen: ReturnType<typeof newUnseen>
+  readonly pairs: Pairs | null
+  /** Each pair gig of ours with its first order's share of the fee, so the learners split its fee across its cars. */
+  readonly twins = new Map<string, number>()
+  /** The pair cut of the request being quoted (1 without `pairs`). */
+  private pairCut = 1
   /** The latest minute an event or action has told, for the summary. */
   private now = 0
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
@@ -112,28 +118,34 @@ export class BidPrice extends Strategy<BidPriceParams> {
     this.learning = { learn: params.costLearn, pseudoGigs: params.costPseudo }
     this.lateRisk = newLateRisk(setup.roster, setup.map)
     this.unseen = newUnseen(setup.roster, setup.map, params.unseenKm)
+    this.pairs = params.pairs ? new Pairs(setup, params) : null
   }
 
-  observe(event: DeskEvent): void {
+  observe(event: DeskEvent, books?: Books): void {
+    if (books) this.pairs?.observe(event, books)
     this.now = Math.max(this.now, event.at)
-    this.log.observe(event)
+    const events = splitEvent(event, this.twins)
+    for (const e of events) this.log.observe(e)
     observeQuotes(this.quotes, event, this.quoteParams)
-    learn(this.fees, event, this.feeParams)
-    this.learnCost(event)
-    this.count(event)
+    for (const e of events) {
+      learn(this.fees, e, this.feeParams)
+      this.learnCost(e)
+      this.count(e)
+    }
   }
 
   /** What the desk sent for us, as sent, and the world's answer: the quotes the quote learner waits on, and our gigs
    * for the fee learner. */
   sent(action: Action, result: ActionResult, books: Books): void {
+    this.pairs?.sent(action, result, books)
     if (!result.ok) return
     if (action.type === 'quote') this.quoted(action.requestId, action.prices)
-    const event = this.feeEventOf(action, result.id, books.now)
-    if (event) learn(this.fees, event, this.feeParams)
+    for (const event of this.feeEventsOf(action, result.id, books.now)) learn(this.fees, event, this.feeParams)
   }
 
   /** Design 1: each option we offer at the price that maximises (p − c) × W(p); a decline when none pays. */
   quote(request: PriceRequest, books: Books): Prices | null {
+    this.pairCut = this.pairs ? this.pairs.costFactor(request, books) : 1
     const decision = this.decide(request, books.now)
     this.audit(request, books.now, decision)
     return decision.decline ? null : decision.prices
@@ -226,7 +238,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   costOf(request: PriceRequest, option: DeliveryOption, now: number): number {
     const { fee, late } = this.costParts(request, option, now)
     const risk = this.params.lateRisk ? this.riskOf(request, option, now) * this.params.lateRiskCents : 0
-    return (fee + late) * this.params.costScale + risk
+    return ((fee + late) * this.params.costScale + risk) * this.pairCut
   }
 
   /** The late share the late-risk table predicts for this option if we win it now. */
@@ -271,6 +283,14 @@ export class BidPrice extends Strategy<BidPriceParams> {
         ? [previous]
         : gigShape(order, legs, this.log.factsOf(order.id), this.log.retryOf(order.id, legs), books.now, this.context())
     if (shapes.length === 0) throw new Error('cannot read the order') // the harness posts the starter's gig
+    if (need.why === 'urgent' && previous && ordersOf(previous).length >= 2) {
+      // A pair stays a pair: the sum of its orders' schedules (the tick splits it next).
+      const list = ordersOf(previous).flatMap((id) => {
+        const o = books.orders.get(id)
+        return o ? [this.schedule(o, previous.stops, previous.audience.experienced, books)] : []
+      })
+      return [{ ...previous, schedule: sumSchedules(list, books.now, 1, this.setup.level) }]
+    }
     return shapes.map(({ stops, audience }) => ({
       stops,
       audience,
@@ -297,10 +317,20 @@ export class BidPrice extends Strategy<BidPriceParams> {
    * was set, at once; one whose schedule ended `staleHours` ago, climbing. Not after the deadline warning, which has
    * its own schedule. At most `repriceMax`, the nearest last pickup first, so quotes never wait behind them. */
   tick(books: Books): Action[] {
+    const stale = (gigId: string) => {
+      const gig = this.log.gigs.get(gigId)
+      return (
+        !!gig && (gig.dropped || (gig.schedule.at(-1)?.at ?? books.now) + this.params.staleHours * HOUR <= books.now)
+      )
+    }
+    return [...this.repriceTick(books), ...(this.pairs?.tick(books, stale) ?? [])]
+  }
+
+  private repriceTick(books: Books): Action[] {
     const now = books.now
     const due = [...this.log.gigs].flatMap(([gigId, gig]) => {
       const order = books.orders.get(gig.orderId)
-      if (!order || books.urgent.has(order.id) || books.booked.has(gigId)) return []
+      if (!order || books.urgent.has(order.id) || books.booked.has(gigId) || this.twins.has(gigId)) return []
       if (!books.gigsOf(order.id).includes(gigId)) return []
       const ended = (gig.schedule.at(-1)?.at ?? now) + this.params.staleHours * HOUR <= now
       const push = this.params.onTimeOps && this.onTimePush(order, gig, books, now) > 0
@@ -350,6 +380,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
       ...(this.params.unseenRule
         ? [`unseen removed ${this.unseen.removed.options} options of ${this.unseen.removed.quotes} requests`]
         : []),
+      ...(this.pairs ? [this.pairs.summary()] : []),
     ].join(', ')
   }
 
@@ -432,8 +463,35 @@ export class BidPrice extends Strategy<BidPriceParams> {
     if (real) this.tally.quoted++
   }
 
-  /** The fee learner's event for a gig action of ours, with the `FeeGig` that planned it. */
-  private feeEventOf(action: Action, gigId: string, at: number): FeeEvent | null {
+  /** The fee learner's events for a gig action of ours, with the `FeeGig` that planned it; a pair's as its two
+   * orders' shares. */
+  private feeEventsOf(action: Action, gigId: string, at: number): FeeEvent[] {
+    const id = action.type === 'post' ? gigId : action.type === 'quote' ? '' : action.gigId
+    const share = this.twins.get(id)
+    if (action.type === 'post' && this.pairs) {
+      const shares = sharesOf(action.stops, (o) => this.log.requests.get(o)?.referenceFeeCents ?? 0)
+      if (shares) {
+        this.twins.set(gigId, shares[0]!.share)
+        return shares.flatMap(({ orderId, share }, i) => {
+          const part = { ...action, schedule: scaled(action.schedule, share) }
+          return this.feeEventOf(part, i === 0 ? gigId : gigId + TWIN, at, orderId) ?? []
+        })
+      }
+    }
+    if (share === undefined || action.type === 'post')
+      return [this.feeEventOf(action, gigId, at)].flatMap((e) => e ?? [])
+    const parts =
+      action.type === 'reprice'
+        ? [
+            { ...action, schedule: scaled(action.schedule, share) },
+            { ...action, gigId: id + TWIN, schedule: scaled(action.schedule, 1 - share) },
+          ]
+        : [action, { ...action, gigId: id + TWIN }]
+    return parts.flatMap((part) => this.feeEventOf(part as Action, gigId, at) ?? [])
+  }
+
+  /** The fee learner's event for a gig action of ours (for `orderId`'s cars of a post), with its `FeeGig`. */
+  private feeEventOf(action: Action, gigId: string, at: number, orderId?: string): FeeEvent | null {
     if (action.type === 'reprice') {
       this.log.reprice(action.gigId, action.schedule)
       repriced(this.cost, action.gigId, action.schedule)
@@ -444,7 +502,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
       return { kind: 'gig_withdrawn', at, gigId: action.gigId }
     }
     if (action.type !== 'post') return null
-    const order = this.log.orders.get(action.stops[0]?.orderId ?? '')
+    const order = this.log.orders.get(orderId ?? action.stops[0]?.orderId ?? '')
     if (!order) return null
     const legs = legsOf(action.stops, order.id)
     const gig = this.orderGig(order, legs, action.audience.experienced, at)
