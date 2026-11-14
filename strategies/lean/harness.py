@@ -395,6 +395,8 @@ class Desk:
             return
         self.seen = event["seq"]
         self.now = max(self.now, event["at"])
+        if event["kind"] == "deadline_close" and event["orderId"] in self.orders:
+            self.orders[event["orderId"]]["lastPickupAt"] = event["lastPickupAt"]
         self.observe(event)
         kind = event["kind"]
         if kind == "price_request":
@@ -487,6 +489,15 @@ class Desk:
         self.orders[order["id"]] = order
         if self.withdraw(order["id"]):
             self.post("changed", order, undelivered(order))
+        else:
+            # Another leg may have withdrawn successfully before one was refused: replace only those now without a gig.
+            legs = [
+                leg
+                for leg in undelivered(order)
+                if leg not in self.leg_gigs.get(order["id"], {}) and not self.waiting(order["id"], leg)
+            ]
+            if legs:
+                self.post("changed", order, legs)
 
     def cancel(self, event: dict) -> None:
         """The world has stopped a cancelled order's car. A withdrawn gig's other cars are left to the sweep."""
@@ -585,13 +596,18 @@ class Desk:
         self.posts[gig_id] = action
 
     def withdraw(self, order_id: str) -> bool:
-        """Takes an order's gigs out of the app. False, and nothing withdrawn, when a driver holds one of them."""
+        """Takes an order's gigs out of the app and waits for the answers. False when one is booked or refused;
+        every refused gig stays on its legs, and the caller replaces only legs actually without a gig."""
         self.send_post_of(order_id)
         gigs = self.gigs_of(order_id)
         if any(gig_id in self.booked for gig_id in gigs):
             return False
+        actions = [{"type": "withdraw", "gigId": gig_id} for gig_id in gigs]
+        self.outbox += actions
+        self.answered(actions)
+        if any(gig_id in self.gigs_of(order_id) for gig_id in gigs):
+            return False
         self.leg_gigs.pop(order_id, None)
-        self.outbox += [{"type": "withdraw", "gigId": gig_id} for gig_id in gigs]
         return True
 
     def send_post_of(self, order_id: str) -> None:

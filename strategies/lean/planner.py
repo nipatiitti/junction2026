@@ -11,7 +11,7 @@ from typing import Any
 from strategies.lean.chains import Car, Chain, best_chain_with, find_chains
 from strategies.lean.fees import BOOK_AHEAD, awake, plan_by, slow
 from strategies.lean.note import earliest_pickup, read_note
-from strategies.lean.ops import FIRST_TRY, Context, Roads, gig_shape
+from strategies.lean.ops import FIRST_TRY, Context, Roads, day_of, gig_shape, low_battery, shift_by_business_days
 
 HOUR = 60
 
@@ -56,7 +56,9 @@ class Planner:
         if not leg or len(legs) != 1 or leg["car"]["premium"] or leg["pickup"]["privateAddress"]:
             return 1
         drive = self.roads.drive([leg])
-        due = min(option["deadline"], facts.deadline if facts.deadline is not None else float("inf"))
+        stated = leg["pickup"]["window"]["from"]
+        moved = shift_by_business_days(option["deadline"], day_of(stated), day_of(max(stated, facts.ready_at or 0)))
+        due = min(moved, facts.deadline if facts.deadline is not None else float("inf"))
         room = (self.p.chainHours + 4) * HOUR
         if drive == float("inf") or due - drive < books.now + room:
             return 1
@@ -72,7 +74,8 @@ class Planner:
             typical=request["referenceFeeCents"],
             pickup_hours=leg["pickup"]["hours"],
             delivery_hours=leg["delivery"]["hours"],
-            stops=[],
+            delivery_from=leg["delivery"]["window"]["from"] if leg["delivery"]["privateAddress"] else 0,
+            stops=[{"kind": "pickup", "withPlates": facts.plates, "withCharging": low_battery(leg["car"])}],
             audience={"experienced": False, "manualLicence": facts.manual},
         )
         free = [
@@ -254,6 +257,7 @@ class Planner:
                     typical=request["referenceFeeCents"],
                     pickup_hours=leg["pickup"]["hours"],
                     delivery_hours=leg["delivery"]["hours"],
+                    delivery_from=leg["delivery"]["window"]["from"] if leg["delivery"]["privateAddress"] else 0,
                     stops=[pickup, delivery],
                     audience=post["audience"],
                 )

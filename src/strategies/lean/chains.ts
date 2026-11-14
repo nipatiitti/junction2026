@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs'
 import type { Audience, OpeningHours, StopRef, WorldMap } from '../../../vendor/spread-typescript/spread.ts'
 import { nextOpen } from '../../ops/calendar.ts'
 import { DAY, HOUR, minutes } from '../../ops/index.ts'
+import { CHARGING_MINUTES, PLATES_MINUTES } from '../../ops/serve.ts'
 
 /** The measured typical fee of one car: 15.72 euros and 0.387 a road minute. We split the minute into the drive and
  * the trip home by public transport, which costs a driver much less than the wheel. */
@@ -30,6 +31,7 @@ const MAX_DAY = 14 * HOUR
 export type Car = {
   gigId: string | undefined // its own gig in the app; none while the car waits for a partner
   orderId: string
+  fresh: boolean // no driver viewed an earlier gig of this order before now
   from: string
   to: string
   ready: number // the first minute it can be collected
@@ -39,6 +41,7 @@ export type Car = {
   typical: number // its typical fee as a single gig, in cents
   pickupHours: OpeningHours | null
   deliveryHours: OpeningHours | null
+  deliveryFrom: number // a private delivery's booked start, 0 at a dealer
   stops: StopRef[] // its pickup and its delivery, as posted
   audience: Audience
 }
@@ -60,6 +63,18 @@ export type Chain = {
 export type ChainModel = { intercept: number; weights: Record<string, number> }
 export const loadChains = (): ChainModel =>
   JSON.parse(readFileSync(new URL('./chain.json', import.meta.url), 'utf-8')) as ChainModel
+
+/** A number from 0 to 1 that depends only on the text (FNV-1a), so the same chain draws the same level. */
+export function draw(text: string): number {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193) >>> 0
+  return hash / 2 ** 32
+}
+
+/** The fee levels that `chainSpread` draws from, × `chainOpen`. */
+const SPREAD_LEVELS = [0.78, 0.88, 1, 1.12]
+export const spreadLevel = (key: string, enabled: number): number =>
+  enabled > 0 ? (SPREAD_LEVELS[Math.floor(draw(key) * SPREAD_LEVELS.length)] ?? 1) : 1
 
 /** What the model needs of the week: place id -> the drivers who live there, the bookings so far per driver, and
  * the opening fee × a chain's worth (`open`). Without `model` a chain keeps level 1. */
@@ -120,7 +135,7 @@ function score(path: Car[], drive: number, typical: number, map: WorldMap, now: 
     load,
     loadDrive: load * hours,
     monday: Math.floor(now / DAY) === 0 ? 1 : 0,
-    fresh: path.filter((car) => !car.gigId).length / path.length,
+    fresh: path.filter((car) => car.fresh).length / path.length,
     late: start >= LATE ? 1 : 0,
     night: start < EARLY ? 1 : 0,
     drivers: all / DRIVERS,
@@ -132,19 +147,28 @@ function score(path: Car[], drive: number, typical: number, map: WorldMap, now: 
 
 /** The fee level that earns the most, with its chance to book and what it earns over the cars as single gigs:
  * chance × (what the cars pay alone − the chain's fee) − (1 − chance) × what a failed chain costs them. */
-function priced(odds: number, singles: number, typical: number, now: number, scene: Scene) {
+function priced(odds: number, singles: number, typical: number, now: number, scene: Scene, multiplier: number) {
   const alone = (Math.floor(now / DAY) === 0 ? ALONE_MONDAY : ALONE) * (scene.alone ?? 1) * singles
   const slope = scene.model?.weights.level ?? 0
   let best = { level: 1, chance: 0, worth: -Infinity }
   for (const level of LEVELS) {
-    const chance = 1 / (1 + Math.exp(-(odds + slope * Math.log(level))))
-    const worth = chance * (alone - scene.open * level * typical) - (1 - chance) * FAILED * singles
+    const actual = level * multiplier // `chainOpen` and a drawn spread change both the chance and the fee.
+    const chance = 1 / (1 + Math.exp(-(odds + slope * Math.log(actual))))
+    const worth = chance * (alone - scene.open * actual * typical) - (1 - chance) * FAILED * singles
     if (worth > best.worth) best = { level, chance, worth }
   }
   return best
 }
 
-export type ChainParams = { maxHop: number; maxCars: number; minSaving: number; maxDrive: number; chainFit: number }
+export type ChainParams = {
+  maxHop: number
+  maxCars: number
+  minSaving: number
+  maxDrive: number
+  chainFit: number
+  chainOpen: number
+  chainSpread: number
+}
 
 /** A chain's chance to book, from 1,414 chains of 15 server weeks. What decides it is how many drivers can do the
  * chain as a round from home: with home to the first pickup and the last delivery to home inside `ROUND` road
@@ -195,7 +219,7 @@ export function findChains(
     if (paths >= MAX_PATHS) return
     if (path.length >= 2) {
       paths++
-      const chain = judge(path, drive, map, now, p.minSaving, scene)
+      const chain = judge(path, drive, map, now, p, scene)
       if (chain && keep(chain)) found.push(chain)
     }
     if (path.length >= p.maxCars) return
@@ -227,7 +251,7 @@ const NIGHT = 16 * HOUR
 
 /** The chain of a path, or null when it saves a driver less than `minSaving` of its cars' fees, or no driver can do
  * it inside every window. */
-function judge(path: Car[], drive: number, map: WorldMap, now: number, minSaving: number, scene: Scene): Chain | null {
+function judge(path: Car[], drive: number, map: WorldMap, now: number, p: ChainParams, scene: Scene): Chain | null {
   const first = path[0] as Car
   const last = path.at(-1) as Car
   const singles = path.reduce((sum, car) => sum + car.typical, 0)
@@ -236,7 +260,7 @@ function judge(path: Car[], drive: number, map: WorldMap, now: number, minSaving
   const cost = FIXED + PER_MINUTE * ((1 - HOME_SHARE) * drive + HOME_SHARE * (Number.isFinite(home) ? home : drive))
   // The cars' own typical fees carry the world's noise for their lanes: the chain keeps it.
   const typical = Math.round((cost * singles) / modelled)
-  if (typical > (1 - minSaving) * singles) return null // before the search for its starts, which costs the most
+  if (typical > (1 - p.minSaving) * singles) return null // before the search for its starts, which costs the most
   // The first start that works may be a later one: a start this afternoon can reach the second yard after it
   // closes, where one tomorrow morning does not.
   const earliest = Math.ceil(Math.max(now + LEAD, first.ready) / GRID) * GRID
@@ -247,7 +271,9 @@ function judge(path: Car[], drive: number, map: WorldMap, now: number, minSaving
   }
   if (startBy === undefined) return null
   if (scene.model) {
-    const best = priced(score(path, drive, typical, map, now, scene), singles, typical, now, scene)
+    const key = path.map((car) => car.orderId).join(' ')
+    const multiplier = p.chainOpen * spreadLevel(key, p.chainSpread)
+    const best = priced(score(path, drive, typical, map, now, scene), singles, typical, now, scene, multiplier)
     return best.worth > 0 ? { cars: path, drive, startBy, singles, typical, ...best } : null
   }
   const chance = bookChance(map, scene.homes, first.from, last.to)
@@ -265,7 +291,10 @@ function feasible(path: Car[], start: number, map: WorldMap): boolean {
     if (here !== undefined) waited += open - at
     at = open
     if (!(at <= car.collectBy - (here === undefined ? 0 : SLACK)) || waited > MAX_WAIT) return false
-    at += HANDLING + DRIVE * car.drive
+    const pickup = car.stops[0]
+    const extras = (pickup?.withPlates ? PLATES_MINUTES : 0) + (pickup?.withCharging ? CHARGING_MINUTES : 0)
+    at += HANDLING + DRIVE * car.drive + extras
+    at = Math.max(at, car.deliveryFrom)
     if (!(nextOpen(at, car.deliveryHours) <= car.due - SPARE)) return false
     at += HANDLING
     here = car.to

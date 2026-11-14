@@ -20,6 +20,7 @@ import type {
   PriceRequest,
   StopRef,
 } from '../../../vendor/spread-typescript/spread.ts'
+import { dayOf, shiftByBusinessDays } from '../../ops/calendar.ts'
 import {
   type Context,
   canServe,
@@ -232,9 +233,9 @@ class Lean extends Strategy<LeanParams> {
   private readonly orders = new Map<string, Order>()
   /** Our quotes that wait for the dealer: request id -> prices, and the dealer's trust when they were sent. */
   private readonly pending = new Map<string, { prices: Prices; offset: number }>()
-  /** Order id -> what the supply learns from its booking: its effects, and what the order model expected of it
-   * when it was won. */
-  private readonly wonAs = new Map<string, { keys: string[]; expected: number }>()
+  /** Order id -> what the order model expected of it when it was won. A booking's supply effects come from each
+   * booked car's current leg, so a trade-in's second car and a changed delivery teach their own routes. */
+  private readonly wonAs = new Map<string, { expected: number }>()
   /** Gig id -> the schedule in the app. */
   private readonly schedules = new Map<string, FeeStep[]>()
   /** Gig id -> the fee its driver booked at, for the gigs a driver gave back. */
@@ -258,7 +259,8 @@ class Lean extends Strategy<LeanParams> {
     this.demand = new Demand(setup.level, params.noise, params.middle)
     this.planner = new Planner(params, setup.map, params.chains && setup.level >= 3, {
       context: () => this.context(),
-      troubled: (orderId) => this.retries.has(`${orderId} 0`),
+      troubled: (orderId, gigId) =>
+        this.retries.has(`${orderId} 0`) || (gigId !== undefined && this.dropped.has(gigId)),
       homes: this.homes,
       load: () => this.tally.bookings / (setup.roster.length || MEDIAN_DRIVERS),
       model: params.chainModel ? loadChains() : undefined,
@@ -308,11 +310,13 @@ class Lean extends Strategy<LeanParams> {
     open: number,
   ): number | null {
     const f = features(request, this.setup.map, option)
-    const deadline = Math.min(option.deadline, facts.deadline ?? Infinity)
+    const leg = request.legs[0]
+    const stated = leg?.pickup.window.from ?? now
+    const moved = shiftByBusinessDays(option.deadline, dayOf(stated), dayOf(Math.max(stated, facts.readyAt ?? 0)))
+    const deadline = Math.min(moved, facts.deadline ?? Infinity)
     const lastPickup = deadline - DRIVE_PAD * driveMinutes(this.setup.map, request.legs) - ARRIVE_AHEAD
     const time = awake(now + QUOTE_WAIT, lastPickup - BOOK_AHEAD)
     if (time < this.params.minHours * HOUR) return null // too little time for the raises to find a driver
-    const leg = request.legs[0]
     const keys = this.supply.keys(leg?.pickup.placeId, leg?.delivery.placeId, goesToday(lastPickup, now))
     // The one level of the cost: what this week's bookings pay for such a car, × `costLevel`.
     let ratio = this.params.costLevel * this.supply.ratio(keys)
@@ -324,7 +328,7 @@ class Lean extends Strategy<LeanParams> {
       return request.referenceFeeCents * ratio + view.late * this.params.lateCost * option.listPriceCents
     }
     if (f.privatePickup) ratio += this.params.privatePickup
-    else if (f.privateDelivery) ratio += this.params.privateDelivery
+    if (f.privateDelivery) ratio += this.params.privateDelivery
     if (f.tradeIn) ratio += TRADE_IN
     if (f.weekendDelivery) ratio += WEEKEND
     if (facts.deadline !== null || facts.pickupHours !== null || facts.deliveryHours !== null) ratio += NARROW_NOTE
@@ -551,7 +555,7 @@ class Lean extends Strategy<LeanParams> {
   override observe(event: DeskEvent, books: Books): void {
     switch (event.kind) {
       case 'gig_viewed':
-        this.planner.viewed(event.gigId, event.driverId, event.at)
+        this.planner.viewed(event.gigId, event.driverId, event.at, books)
         break
       case 'offer_answered':
         if (event.answer === 'accepted') this.planner.took(event.gigId)
@@ -569,11 +573,7 @@ class Lean extends Strategy<LeanParams> {
         if (request && leg) {
           const ready = leg.pickup.window.from
           const view = this.view(request, order.deadline, order.lastPickupAt, ready, event.at, 0)
-          const today = goesToday(order.lastPickupAt, event.at)
-          this.wonAs.set(order.id, {
-            keys: this.supply.keys(leg.pickup.placeId, leg.delivery.placeId, today),
-            expected: view?.cost ?? 1,
-          })
+          this.wonAs.set(order.id, { expected: view?.cost ?? 1 })
         }
         this.outcome(order.id, order.option, event.at, books)
         break
@@ -581,6 +581,11 @@ class Lean extends Strategy<LeanParams> {
       case 'order_changed':
         this.orders.set(event.order.id, event.order)
         break
+      case 'deadline_close': {
+        const order = this.orders.get(event.orderId)
+        if (order) order.lastPickupAt = event.lastPickupAt
+        break
+      }
       case 'order_lost':
         this.outcome(event.requestId, null, event.at, books)
         break
@@ -592,10 +597,19 @@ class Lean extends Strategy<LeanParams> {
         if (!post || !(singles > 0)) break
         this.planner.booked(event.gigId, event.feeCents / singles)
         const ratio = clamp(event.feeCents / singles, BOOKED_LOW, BOOKED_HIGH)
-        // The supply learns what the order model did not expect of each car, with the effects it had at its win.
+        // The supply learns what the order model did not expect of each car, on that car's current route.
         for (const stop of pickups(post.stops)) {
           const won = this.wonAs.get(stop.orderId)
-          if (won) this.supply.learn(won.keys, ratio / won.expected)
+          const order = this.orders.get(stop.orderId)
+          const leg = order?.legs[stop.leg]
+          if (won && order && leg) {
+            const keys = this.supply.keys(
+              leg.pickup.placeId,
+              leg.delivery.placeId,
+              goesToday(order.lastPickupAt, event.at),
+            )
+            this.supply.learn(keys, ratio / won.expected)
+          }
         }
         this.tally.bookings++
         this.tally.ratios += ratio

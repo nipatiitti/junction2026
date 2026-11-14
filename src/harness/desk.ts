@@ -115,6 +115,10 @@ export class Desk implements Books {
     if (event.seq <= this.seen) return
     this.seen = event.seq
     this.now = Math.max(this.now, event.at)
+    if (event.kind === 'deadline_close') {
+      const order = this.orders.get(event.orderId)
+      if (order) order.lastPickupAt = event.lastPickupAt
+    }
     this.observe(event)
     if (event.kind === 'price_request') this.quote(event.request)
     else if (event.kind === 'order_won') await this.win(event.order)
@@ -197,6 +201,13 @@ export class Desk implements Books {
     if (!this.orders.has(order.id)) return
     this.orders.set(order.id, order)
     if (await this.withdraw(order.id)) await this.post('changed', order, undelivered(order))
+    else {
+      // Another leg may have withdrawn successfully before one was refused: replace only those now without a gig.
+      const legs = undelivered(order).filter(
+        (leg) => !this.legGigs.get(order.id)?.has(leg) && !this.waiting(order.id, leg),
+      )
+      if (legs.length > 0) await this.post('changed', order, legs)
+    }
   }
 
   /** The world has stopped a cancelled order's car and told each of its gigs what happens. A withdrawn gig that also
@@ -288,13 +299,17 @@ export class Desk implements Books {
     this.posts.set(gigId, action)
   }
 
-  /** Takes an order's gigs out of the drivers' app. False, and nothing withdrawn, when a driver holds one of them. */
+  /** Takes an order's gigs out of the drivers' app and waits for the answers. False when a driver holds one or the
+   * world refuses one. Keep refused gigs on their legs; the caller replaces only legs actually without a gig. */
   async withdraw(orderId: string): Promise<boolean> {
     await this.sendPostOf(orderId)
     const gigs = this.gigsOf(orderId)
     if (gigs.some((gigId) => this.booked.has(gigId))) return false
+    const actions = gigs.map((gigId) => ({ type: 'withdraw' as const, gigId }))
+    this.outbox.push(...actions)
+    if (actions.length > 0) await this.answered(actions)
+    if (this.gigsOf(orderId).some((gigId) => gigs.includes(gigId))) return false
     this.legGigs.delete(orderId)
-    for (const gigId of gigs) this.outbox.push({ type: 'withdraw', gigId })
     return true
   }
 

@@ -15,7 +15,7 @@ import math
 from dataclasses import dataclass
 
 from strategies.lean.js import js_round
-from strategies.lean.ops import Roads, next_open
+from strategies.lean.ops import CHARGING_MINUTES, PLATES_MINUTES, Roads, next_open
 
 HOUR = 60
 MAX_DRIVE = 8 * HOUR  # a gig of several cars may plan 12 hours of driving; we plan 8
@@ -46,6 +46,7 @@ class Car:
     typical: int  # its typical fee as a single gig, in cents
     pickup_hours: dict | None
     delivery_hours: dict | None
+    delivery_from: float  # a private delivery's booked start, 0 at a dealer
     stops: list[dict]  # its pickup and its delivery, as posted
     audience: dict
 
@@ -171,7 +172,12 @@ def feasible(path: list[Car], start: float, roads: Roads) -> bool:
         at = opened
         if not at <= car.collect_by - (0 if here is None else SLACK) or waited > MAX_WAIT:
             return False
-        at += HANDLING + DRIVE * car.drive
+        pickup = car.stops[0] if car.stops else {}
+        extras = (PLATES_MINUTES if pickup.get("withPlates") else 0) + (
+            CHARGING_MINUTES if pickup.get("withCharging") else 0
+        )
+        at += HANDLING + DRIVE * car.drive + extras
+        at = max(at, car.delivery_from)
         if not next_open(at, car.delivery_hours) <= car.due - SPARE:
             return False
         at += HANDLING

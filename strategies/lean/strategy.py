@@ -26,7 +26,18 @@ from strategies.lean.fees import BOOK_AHEAD, SHORT, awake, fast, fee_at, stepped
 from strategies.lean.js import INF, clamp, js_round
 from strategies.lean.note import earliest_pickup, read_note
 from strategies.lean.offers import Offers
-from strategies.lean.ops import FIRST_TRY, Context, Retry, Roads, can_serve, features, gig_shape, retry_after
+from strategies.lean.ops import (
+    FIRST_TRY,
+    Context,
+    Retry,
+    Roads,
+    can_serve,
+    day_of,
+    features,
+    gig_shape,
+    retry_after,
+    shift_by_business_days,
+)
 from strategies.lean.outlook import Work, load_orders, outlook
 from strategies.lean.planner import Planner, pickups
 from strategies.lean.supply import Supply
@@ -178,11 +189,13 @@ class Lean(Strategy[Params]):
         little time to find its driver or is work that drivers ask more for."""
         p = self.params
         f = features(request, self.roads, option)
-        deadline = min(option["deadline"], INF if facts.deadline is None else facts.deadline)
+        leg = request["legs"][0] if request["legs"] else None
+        stated = leg["pickup"]["window"]["from"] if leg else now
+        moved = shift_by_business_days(option["deadline"], day_of(stated), day_of(max(stated, facts.ready_at or 0)))
+        deadline = min(moved, INF if facts.deadline is None else facts.deadline)
         last_pickup = deadline - 1.1 * self.roads.drive(request["legs"]) - 30
         if awake(now + 15, last_pickup - BOOK_AHEAD) < p.minHours * HOUR:
             return None  # too little time for the raises to find a driver
-        leg = request["legs"][0] if request["legs"] else None
         today = last_pickup < (now // DAY + 1) * DAY
         learned = self.supply.ratio(
             self.supply.keys(
@@ -221,7 +234,7 @@ class Lean(Strategy[Params]):
             return request["referenceFeeCents"] * ratio + late * p.lateCost * option["listPriceCents"]
         if f.private_pickup:
             ratio += p.privatePickup
-        elif f.private_delivery:
+        if f.private_delivery:
             ratio += p.privateDelivery
         if f.trade_in:
             ratio += 0.05

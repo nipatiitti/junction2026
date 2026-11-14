@@ -103,6 +103,7 @@ function earliestFinish(
     at += minutes(context.map, pickup.placeId, delivery.placeId)
     at += (noted.plates ? PLATES_MINUTES : 0) + (lowBattery(car) ? CHARGING_MINUTES : 0)
     at = nextOpen(at, delivery.hours, noted.deliveryHours)
+    if (delivery.privateAddress) at = Math.max(at, delivery.window.from)
     if (leg === 0) first = at
     here = delivery.placeId
   })

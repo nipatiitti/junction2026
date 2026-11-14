@@ -29,6 +29,21 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-14: quote, booking and chain bug fixes (local bug-audit branch)
+
+- **PR / issue**: no issue was supplied and no pull request has been opened; branch `fix/typescript-lean-bugs`.
+- **Version changed**: both, with TypeScript-only state and model fixes.
+- **What changed**: delayed-readiness notes now move the deadline used by quote costs, and private pickup and delivery add independent
+  surcharges in both versions. Chain timing now includes plates, charging and private-delivery waits in both versions. Deadline
+  warnings update `lastPickupAt` in both books, and both harnesses keep a refused change-of-plan withdrawal on its legs instead
+  of losing it; only successfully withdrawn legs are replaced. TypeScript also learns each booked leg's current route, keeps dropped and no-show
+  gigs out of chains until repriced, and computes the chain model's `fresh` feature from views of earlier gigs instead of whether
+  a car currently waits without a gig. `chainOpen` and `chainSpread` now affect the modelled booking chance and expected fee, and
+  successful chain offers and their limits survive a rebuild. Python's `chainBid` candidate uses the same moved deadline and stop
+  requirements as the real gig.
+- **In step**: no (#329). The shared fixes are mirrored; the per-leg recovery was already present in Python, and the documented
+  older Python model and defaults remain different. Python has no chain model or chain-offer reconstruction to mirror.
+
 ### 2026-11-15: shared outcomes on (issue #360)
 
 - **Version changed**: TypeScript.

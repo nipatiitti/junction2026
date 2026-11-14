@@ -391,6 +391,8 @@ def earliest_finish(request: dict, now: int, context: Context, facts: NoteFacts)
         at += context.roads.minutes(pickup["placeId"], delivery["placeId"])
         at += (PLATES_MINUTES if noted.plates else 0) + (CHARGING_MINUTES if low_battery(car) else 0)
         at = next_open(at, delivery["hours"], noted.delivery_hours)
+        if delivery["privateAddress"]:
+            at = max(at, delivery["window"]["from"])
         if index == 0:
             first = at
         here = delivery["placeId"]

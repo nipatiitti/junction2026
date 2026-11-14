@@ -5,7 +5,7 @@
 import type { Action, ActionResult, Order, StopRef, WorldMap } from '../../../vendor/spread-typescript/spread.ts'
 import { type Context, DAY, driveMinutes, FIRST_TRY, gigShape, HOUR, readNote } from '../../ops/index.ts'
 import type { Books, GigNeed } from '../../strategy.ts'
-import { type Car, type Chain, type ChainModel, type ChainParams, findChains } from './chains.ts'
+import { type Car, type Chain, type ChainModel, type ChainParams, draw, findChains, spreadLevel } from './chains.ts'
 import { awake, BOOK_AHEAD, planBy, slow } from './fees.ts'
 
 export type PlannerParams = ChainParams & {
@@ -32,14 +32,6 @@ const FRIDAY = 4
 /** Whether a chain whose first last pickup is `collectBy` is of that kind when posted at the minute `at`. */
 const postable = (collectBy: number, at: number, pickLead: number): boolean =>
   Math.floor(at / DAY) < FRIDAY && collectBy - at >= pickLead * HOUR
-/** The fee levels of a chain that `chainSpread` draws from, × `chainOpen`. */
-const LEVELS = [0.78, 0.88, 1, 1.12]
-/** A number from 0 to 1 that depends only on the text (FNV-1a), so the same chain draws the same level. */
-export function draw(text: string): number {
-  let hash = 0x811c9dc5
-  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193) >>> 0
-  return hash / 2 ** 32
-}
 /** Direct offers of an open chain (the rules: an offer is open 10 minutes, three open per gig, three per driver
  * per day, none read at night). A driver gets one `OFFER_AFTER` minutes after their view, and only once per chain. */
 const [OFFER_OPEN, OFFERS_PER_GIG, OFFERS_PER_DAY, OFFER_AFTER] = [10, 3, 3, 3]
@@ -53,7 +45,7 @@ const MAX_POSTS = 5
  * not (such cars stay single). */
 export type Host = {
   context(): Context
-  troubled(orderId: string): boolean
+  troubled(orderId: string, gigId?: string): boolean
   homes: ReadonlyMap<string, number> // place id -> the drivers who live there
   load(): number // the bookings so far per driver
   model: ChainModel | undefined // chains.ts: prices and ranks the chains by their chance to book
@@ -64,6 +56,7 @@ type Posted = { orders: string[]; startBy: number; typical: number; at: number }
 
 const pickups = (stops: readonly StopRef[]): StopRef[] => stops.filter((stop) => stop.kind === 'pickup')
 const keyOf = (stops: readonly StopRef[]): string => stops.map((s) => `${s.orderId}/${s.leg}/${s.kind}`).join(' ')
+const offerKey = (gigId: string, driverId: string): string => `${gigId}\n${driverId}`
 
 export class Planner {
   /** The chains in the app: gig id -> its cars' orders, its last start, its fee unit and the minute of its post.
@@ -75,8 +68,12 @@ export class Planner {
   private readonly fails = new Map<string, number>()
   /** Order id -> the minute it was won: its wait for a partner counts from there. */
   private readonly wonAt = new Map<string, number>()
+  /** Order id -> the first view of any of its gigs: the chain model's `fresh` is no view before the chain's post. */
+  private readonly seenAt = new Map<string, number>()
   /** Gig id of a posted chain -> the drivers who viewed it and the minute, and the drivers we offered it to. */
   private readonly views = new Map<string, Map<string, number>>()
+  /** Gig and driver -> the minute their unanswered offer was planned; only live actions need this pending state. */
+  private readonly pendingOffers = new Map<string, number>()
   private readonly offered = new Map<string, Map<string, number>>()
   /** Driver id and day -> the offers we sent them that day. */
   private readonly asked = new Map<string, number>()
@@ -164,18 +161,23 @@ export class Planner {
         const day = `${driverId} ${Math.floor(now / DAY)}`
         if (sent.has(driverId) || now < at + OFFER_AFTER || (this.asked.get(day) ?? 0) >= OFFERS_PER_DAY) continue
         actions.push({ type: 'offer', gigId, driverId, feeCents: Math.round(shown * level) })
+        this.pendingOffers.set(offerKey(gigId, driverId), now)
         this.asked.set(day, (this.asked.get(day) ?? 0) + 1)
         sent.set(driverId, now)
         free--
       }
       this.offered.set(gigId, sent)
     }
-    this.tally.offers += actions.length
     return actions
   }
 
-  /** A driver viewed a gig. */
-  viewed(gigId: string, driverId: string, at: number): void {
+  /** A driver viewed a gig. Every order's first view is kept for the chain model; a posted chain's viewers can also
+   * get direct offers. */
+  viewed(gigId: string, driverId: string, at: number, books: Books): void {
+    for (const stop of pickups(books.posts.get(gigId)?.stops ?? [])) {
+      const previous = this.seenAt.get(stop.orderId)
+      if (previous === undefined || at < previous) this.seenAt.set(stop.orderId, at)
+    }
     if (!this.posted.has(gigId)) return
     const seen = this.views.get(gigId) ?? new Map<string, number>()
     if (!seen.has(driverId)) seen.set(driverId, at)
@@ -187,12 +189,11 @@ export class Planner {
     if (this.posted.has(gigId)) this.tally.taken++
   }
 
-  /** What a chain's fees are × its worth to a driver: `chainOpen`, and with `chainSpread` one of `LEVELS` drawn
-   * from its cars' orders, which measures how the fee moves the chance to book. */
+  /** What a chain's fees are × its worth to a driver: `chainOpen`, and with `chainSpread` one of `SPREAD_LEVELS`
+   * drawn from its cars' orders, which measures how the fee moves the chance to book. */
   private level(chain: Chain): number {
     const key = chain.cars.map((car) => car.orderId).join(' ')
-    const drawn = this.p.chainSpread > 0 ? (LEVELS[Math.floor(draw(key) * LEVELS.length)] ?? 1) : 1
-    return this.p.chainOpen * drawn * chain.level
+    return this.p.chainOpen * spreadLevel(key, this.p.chainSpread) * chain.level
   }
 
   private scene() {
@@ -248,9 +249,47 @@ export class Planner {
     return this.units.get(keyOf(stops))
   }
 
-  /** The world's answer to a chain's post or withdrawal. A chain that it refuses, or that we took out, counts
-   * as a failed try for each of its cars. */
+  /** The world's answer to a chain's post, offer or withdrawal. A chain that it refuses, or that we took out, counts
+   * as a failed try for each of its cars. Successful offers are also rebuilt from the journal; offers planned in this
+   * process already have their limits recorded. */
   sent(action: Action, result: ActionResult, books: Books): void {
+    if (action.type === 'offer') {
+      const { gigId, driverId } = action
+      const key = offerKey(gigId, driverId)
+      const plannedAt = this.pendingOffers.get(key)
+      const sent = this.offered.get(gigId)
+      const known = sent?.has(driverId) ?? false
+      const day = (at: number) => `${driverId} ${Math.floor(at / DAY)}`
+      const reserve = (at: number, amount: number) => {
+        const bucket = day(at)
+        this.asked.set(bucket, Math.max(0, (this.asked.get(bucket) ?? 0) + amount))
+      }
+      if (!result.ok) {
+        // Undo the exact planning-day reservation. A replayed refusal has no live reservation to undo.
+        if (plannedAt !== undefined) {
+          this.pendingOffers.delete(key)
+          sent?.delete(driverId)
+          reserve(plannedAt, -1)
+        }
+        return
+      }
+      this.tally.offers++
+      // Both a delayed live answer and its journal replay use the answer's minute. The day can differ from planning.
+      if (plannedAt !== undefined) {
+        this.pendingOffers.delete(key)
+        reserve(plannedAt, -1)
+        reserve(books.now, 1)
+      }
+      if (known) {
+        sent?.set(driverId, books.now)
+        return
+      }
+      const restored = sent ?? new Map<string, number>()
+      restored.set(driverId, books.now)
+      this.offered.set(gigId, restored)
+      if (plannedAt === undefined) reserve(books.now, 1)
+      return
+    }
     if (action.type === 'withdraw') {
       const chain = this.posted.get(action.gigId)
       if (!chain || !result.ok) return
@@ -302,10 +341,10 @@ export class Planner {
   }
 
   /** Whether an order's car may join a chain: one car, no setback, no warning, and a dealer's yard. */
-  private chainable(order: Order, books: Books): boolean {
+  private chainable(order: Order, books: Books, gigId?: string): boolean {
     const leg = order.legs[0]
     if (!leg || order.legs.length !== 1 || order.deliveredAt[0] !== null || books.urgent.has(order.id)) return false
-    if ((this.fails.get(order.id) ?? 0) >= this.p.chainTries || this.host.troubled(order.id)) return false
+    if ((this.fails.get(order.id) ?? 0) >= this.p.chainTries || this.host.troubled(order.id, gigId)) return false
     return !leg.car.premium && !leg.pickup.privateAddress
   }
 
@@ -318,7 +357,7 @@ export class Planner {
       const leg = order.legs[0]
       const request = books.requests.get(order.id)
       const [gigId, ...more] = books.gigsOf(order.id)
-      if (!leg || !request || more.length > 0 || !this.chainable(order, books)) continue
+      if (!leg || !request || more.length > 0 || !this.chainable(order, books, gigId)) continue
       if (!gigId && !this.waits(order, books)) continue
       if (gigId && books.booked.has(gigId)) continue
       const post = gigId
@@ -331,6 +370,7 @@ export class Planner {
       cars.push({
         gigId,
         orderId: order.id,
+        fresh: (this.seenAt.get(order.id) ?? now) >= now,
         from: leg.pickup.placeId,
         to: leg.delivery.placeId,
         ready: pickup.window?.from ?? leg.pickup.window.from,
@@ -340,6 +380,7 @@ export class Planner {
         typical: request.referenceFeeCents,
         pickupHours: leg.pickup.hours,
         deliveryHours: leg.delivery.hours,
+        deliveryFrom: leg.delivery.privateAddress ? leg.delivery.window.from : 0,
         stops: [pickup, delivery],
         audience: post.audience,
       })
