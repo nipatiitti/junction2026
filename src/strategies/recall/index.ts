@@ -31,16 +31,16 @@ export type RecallParams = BidPriceParams & {
 type Memory = { seed: string; sig: Record<string, string>; opts: Record<string, [number | null, number | null]> }
 
 const here = new URL('./', import.meta.url)
-const tuned = JSON.parse(readFileSync(new URL('../bidprice/tuned-16.json', import.meta.url), 'utf8'))
+const tuned = JSON.parse(readFileSync(new URL('../bidprice/tuned-6b.json', import.meta.url), 'utf8'))
 
 export const DEFAULTS: RecallParams = {
   ...BIDPRICE,
   ...tuned,
   memory: true,
-  winShade: 0.98,
-  lossShade: 0.96,
+  winShade: 1,
+  lossShade: 0.98,
   outShade: 0.95,
-  minMargin: 0.05,
+  minMargin: 0.12,
   rescue: true,
   matchMin: 3,
   matchShare: 0.8,
