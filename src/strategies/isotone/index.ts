@@ -10,7 +10,7 @@ const OWN = {
   gridHi: 2.2,
   gridStep: 0.05,
   /** Prior counts per cell, from the trust-0 threshold quantiles below. */
-  priorWeight: 20,
+  priorWeight: 25,
   /** Prior threshold scale: capital-region deliveries and the rest; trust raises it by `trustLift` a point. */
   capitalScale: 0.88,
   otherScale: 1.05,
@@ -24,7 +24,7 @@ const OWN = {
   /** Counts of a context fade by this on each of its outcomes, so the week's level and price-war days show. */
   decay: 0.997,
   /** Cost × this in the argmax: under 1 buys volume, which pays back in trust. */
-  costWeight: 0.85,
+  costWeight: 1,
   /** Thompson spread: 1 = the posterior's own, 0 = greedy. */
   explore: 1,
   /** Final price × this, a nudge after the argmax. */

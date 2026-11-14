@@ -9,6 +9,6 @@ quoted) as a loss in every higher one. Counts start from the trust-0 threshold q
 observations and fade by `decay` per outcome. Each option takes the grid z maximising (z − cost) × win, with a
 Thompson draw (one shared normal draw over the cells' Beta posteriors, made non-increasing).
 
-Params: `gridLo` 1.0, `gridHi` 2.2, `gridStep` 0.05, `priorWeight` 20, `capitalScale` 0.88, `otherScale` 1.05,
+Params: `gridLo` 1.0, `gridHi` 2.2, `gridStep` 0.05, `priorWeight` 25, `capitalScale` 0.88, `otherScale` 1.05,
 `trustLift` 0.03, `trustMid` 3, `trustHigh` 10, `sameDayLadder` 1.21, `nextDayLadder` 1.13, `decay` 0.997,
-`explore` 1, `costWeight` 0.85 (cost × this in the argmax, to buy volume and trust), `shade` 1, plus the base's.
+`explore` 1, `costWeight` 1 (cost × this in the argmax; 0.85 lost margin on spread-1), `shade` 1, plus the base's.
