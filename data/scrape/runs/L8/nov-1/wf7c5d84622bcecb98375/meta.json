@@ -1,0 +1,24 @@
+{
+  "seed": "nov-1",
+  "level": 8,
+  "policy": "war-guard",
+  "kind": "practice",
+  "worldId": "wf7c5d84622bcecb98375",
+  "version": "69bec23df8dac30452edef9380604ca21f2f18bb",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 10668,
+  "score": {
+    "marginCents": 958754,
+    "revenueCents": 3121416,
+    "marginShare": 0.30715354826143004,
+    "wonOrders": 344,
+    "onTimeShare": 0.9796511627906976,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 38.4,
+  "requests": 566
+}

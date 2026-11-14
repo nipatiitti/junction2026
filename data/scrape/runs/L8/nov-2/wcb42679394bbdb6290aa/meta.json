@@ -1,0 +1,24 @@
+{
+  "seed": "nov-2",
+  "level": 8,
+  "policy": "bundling-cheaper",
+  "kind": "practice",
+  "worldId": "wcb42679394bbdb6290aa",
+  "version": "69bec23df8dac30452edef9380604ca21f2f18bb",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 19022,
+  "score": {
+    "marginCents": 752978,
+    "revenueCents": 4245047,
+    "marginShare": 0.17737801254026161,
+    "wonOrders": 451,
+    "onTimeShare": 0.9711751662971175,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 46.7,
+  "requests": 674
+}
