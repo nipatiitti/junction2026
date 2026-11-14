@@ -80,6 +80,8 @@ export type BidPriceParams = {
   pairSlackHours: number
   pairOpen: number
   pairGiveUpHours: number
+  /** The quote side of `pairs`: a request that would pair with an open order of ours costs this share less. */
+  pairCostCut: number
 }
 
 export const DEFAULTS: BidPriceParams = {
@@ -128,6 +130,7 @@ export const DEFAULTS: BidPriceParams = {
   pairSlackHours: 3,
   pairOpen: 0.85,
   pairGiveUpHours: 6,
+  pairCostCut: 0.08,
 }
 
 /** The quote models' params from the strategy's. */
