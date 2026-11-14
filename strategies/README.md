@@ -3,14 +3,17 @@
 Each folder here is one strategy: one part of the decisions that `dispatch.py` makes. Every strategy is a subclass of
 the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are all built, fed and read the same way.
 
-| Folder                              | Class          | What it decides                                                 |
-| ----------------------------------- | -------------- | --------------------------------------------------------------- |
-| [`notes/`](notes/README.md)         | `NoteReader`   | What a dealer's note says, and the snow that a pickup waits for |
-| [`admission/`](admission/README.md) | `Admission`    | Which price requests to take, and which option to quote         |
-| [`pricing/`](pricing/README.md)     | `PricingModel` | The price of each quote, learned from our wins and losses       |
-| [`fees/`](fees/README.md)           | `FeePlanner`   | The fee schedule of each gig                                    |
-| [`offers/`](offers/README.md)       | `Offers`       | Direct offers to drivers near a gig's pickup                    |
-| [`bundling/`](bundling/README.md)   | `Bundler`      | Which orders' cars go together in one gig                       |
+| Folder                              | Class               | What it decides                                                 |
+| ----------------------------------- | ------------------- | --------------------------------------------------------------- |
+| [`notes/`](notes/README.md)         | `NoteReader`        | What a dealer's note says, and the snow that a pickup waits for |
+| [`admission/`](admission/README.md) | `Admission`         | Which price requests to take, and which option to quote         |
+| [`pricing/`](pricing/README.md)     | `PricingModel`      | The price of each quote, learned from our wins and losses       |
+| [`fees/`](fees/README.md)           | `FeePlanner`        | The fee schedule of each gig                                    |
+| [`offers/`](offers/README.md)       | `Offers`            | Direct offers to drivers near a gig's pickup                    |
+| [`bundling/`](bundling/README.md)   | `Bundler`           | Which orders' cars go together in one gig                       |
+| [`dawn_fees/`](dawn_fees/README.md) | `DawnFeePlanner`    | The fee schedule by the drivers' day, for `headroom` and up     |
+| [`lead_cost/`](lead_cost/README.md) | `LeadCostAdmission` | Which requests to take, by lead time, for `headroom` and up     |
+| [`lane_fee/`](lane_fee/README.md)   | `LaneFee`           | A lane's typical fee without one request's noise, for the same  |
 
 Twenty-six folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
@@ -38,11 +41,11 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`option_menu/`](option_menu/README.md)           | `OptionMenu`                           | Ceiling, quoting admission's option and every slower one                                |
 | [`slack_fees/`](slack_fees/README.md)             | `SlackFeePlanner`                      | Ceiling, with the early fee held for cars that have a day to wait                       |
 | [`tempo/`](tempo/README.md)                       | `TempoAdmission`                       | Ceiling, with each area's capacity set by how fast our gigs book there                  |
-| [`dawn_fees/`](dawn_fees/README.md)               | `DawnFeePlanner`                       | Ceiling, with fees held low overnight and a ladder from 06:00 on the last morning       |
-| [`lead_cost/`](lead_cost/README.md)               | `LeadCostAdmission`                    | Dawn fees, with the driver cost by lead time and the option of the most margin          |
-| [`headroom/`](headroom/README.md)                 | `HeadroomPricing`                      | Lead cost, with a price maximum that moves with the wins and losses at it               |
-| [`lane_prior/`](lane_prior/README.md)             | `PriorPricing`                         | Headroom, with each delivery place's price offset from the saved weeks                  |
-| [`town_open/`](town_open/README.md)               | `TownOpening`, `TownFeePlanner`        | Lane prior, with the opening fee of each pickup town learned from its bookings          |
+| [`headroom/`](headroom/README.md)                 | `HeadroomPricing`                      | Ceiling, with the lane fee, the cost by lead time, dawn fees and a maximum that moves   |
+| [`lane_prior/`](lane_prior/README.md)             | `PriorPricing`                         | Headroom, with a lift for each dear delivery place, fitted on the saved weeks           |
+| [`town_open/`](town_open/README.md)               | `TownOpening`, `TownFeePlanner`        | Headroom, with the opening fee of each pickup town learned from its bookings            |
+| [`same_day/`](same_day/README.md)                 | `SameDayAdmission`                     | Headroom, quoting the fastest option that still pays                                    |
+| [`soft_top/`](soft_top/README.md)                 | `SoftTopPlanner`                       | Headroom, with a top fee of twice the lane fee, not 2.5 times                           |
 
 [`bench/`](bench/README.md) is not a strategy either: it compares versions of `dispatch.py` on the same seeds.
 

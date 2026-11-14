@@ -1,32 +1,30 @@
 # Lane fee
 
-A dispatch system built on [`strategies/lead_cost`](../lead_cost/README.md): its `Desk` is a subclass of the
-lead-cost desk that counts every driver cost and every fee from the lane's typical fee, not from the request's own.
-Issue #200. The systems it builds on stay as they are.
+The typical fee of a lane without the noise of one request, and the admission and the fee planner that count from it,
+for the systems of [`strategies/headroom`](../headroom/README.md) and up. Issue #200. The folders it builds on stay as
+they are.
 
-| File          | Class               | Builds on           | What it decides                                              |
-| ------------- | ------------------- | ------------------- | ------------------------------------------------------------ |
-| `lane.py`     | `LaneFee`           | `Strategy`          | The typical fee of a lane, without the noise of one request  |
-| `lane.py`     | `LaneCostAdmission` | `LeadCostAdmission` | The lead-cost admission, with its driver cost on the lane fee |
-| `lane.py`     | `LaneFeePlanner`    | `DawnFeePlanner`    | The dawn schedule, with every fee on the lane fee            |
-| `fit.py`      |                     |                     | Fits the lane fees on the saved weeks, into `lanes.json`     |
-| `lanes.json`  |                     |                     | The fitted lane fees                                         |
-| `dispatch.py` | `Desk`              | the lead-cost desk  | The system: the lead-cost desk with the three classes above  |
+| File         | Class               | Builds on           | What it decides                                               |
+| ------------ | ------------------- | ------------------- | ------------------------------------------------------------- |
+| `lane.py`    | `LaneFee`           | `Strategy`          | The typical fee of a lane, without the noise of one request   |
+| `lane.py`    | `LaneCostAdmission` | `LeadCostAdmission` | The lead-cost admission, with its driver cost on the lane fee |
+| `lane.py`    | `LaneFeePlanner`    | `DawnFeePlanner`    | The dawn fee schedule, with every fee on the lane fee         |
+| `fit.py`     |                     |                     | Fits the lane fees on the saved weeks, into `lanes.json`      |
+| `lanes.json` |                     |                     | The fitted lane fees                                          |
 
 All three classes are subclasses of `Strategy` ([`strategies/strategy.py`](../strategy.py)) with the constructor
-`(roster, world_map, level=8, params=None)`; `LaneFee` has a frozen `Params`.
+`(roster, world_map, level=8, params=None)`; `LaneFee` has a frozen `Params`. A desk builds one `LaneFee` and gives it
+to the other two, as the headroom desk does:
 
-## Run it
-
-From the repository root:
-
-```sh
-uv run strategies/lane_fee/dispatch.py --level 8 --seed spread-1
-uv run python -m strategies.bench strategies/lane_fee/dispatch.py strategies/lead_cost/dispatch.py --jobs 2
-uv run python -m strategies.lane_fee.fit     # fits lanes.json from out/spread.sqlite
+```python
+self.lane = LaneFee(roster, world_map, level)
+self.admission = LaneCostAdmission(roster, world_map, level, lane=self.lane)
+self.fees = LaneFeePlanner(roster, world_map, level, lane=self.lane)
 ```
 
-Its weeks are saved with the policy `lane-fee`.
+```sh
+uv run python -m strategies.lane_fee.fit     # fits lanes.json from out/spread.sqlite
+```
 
 ## What the saved weeks show
 
@@ -57,21 +55,37 @@ a factor, and every gig opens at 0.9 times it.
 2. **Admission.** `LaneCostAdmission` is the lead-cost admission whose table multiplies the lane fee instead of the
    request's typical fee. A request with a low typical fee is no longer taken as cheap, and one with a high typical
    fee is no longer declined for it.
-3. **Fees.** `LaneFeePlanner` is the dawn fee planner whose opening fee, hold fee, dawn ladder and top fee are
-   multiples of the lane fee. After a change of plan (`order_changed`) the fee is that of the new lane; the
+3. **Fees.** `LaneFeePlanner` is the dawn fee planner whose opening fee, hold fee, dawn ladder, sprint ladder and
+   top fee are multiples of the lane fee. After a change of plan (`order_changed`) the fee is that of the new lane; the
    request's own typical fee, which is for the old trip, then counts for nothing.
-
-The desk builds one `LaneFee` and gives it to both.
 
 ## The variables
 
 `Params` in `lane.py`, exported as `LaneFeeParams`.
 
-| Variable | Default | What it does                                                                      |
-| -------- | ------- | --------------------------------------------------------------------------------- |
-| `own`    | 1.0     | The request's own typical fee counts as this many requests of its lane            |
-| `line`   | 1.5     | The line over the road minutes counts as this many requests of the lane           |
+| Variable | Default | What it does                                                            |
+| -------- | ------- | ----------------------------------------------------------------------- |
+| `own`    | 1.0     | The request's own typical fee counts as this many requests of its lane  |
+| `line`   | 1.5     | The line over the road minutes counts as this many requests of the lane |
 
 `lanes.json` holds each lane's mean log typical fee and its number of requests, the line (`base`, `per_minute`),
 and the two spreads that give `line`: a request around its lane (`noise`) and a lane around the line (`spread`).
 Run `fit.py` again when weeks on new seeds are saved, and commit the new `lanes.json`.
+
+## Played
+
+Level 8, each week saved in `data/scrape/runs` under the policy named. All have the lead-cost admission and dawn
+fees; the first pair differs only in the lane fee.
+
+| What was played                                       | Policy       | `spread-1` | `spread-2` | `spread-4` |
+| ----------------------------------------------------- | ------------ | ---------- | ---------- | ---------- |
+| Headroom pricing, without the lane fee                | `x-cap`      | €11,839.45 |            |            |
+| The same with the lane fee                            | `x-cap-lane` | €12,346.00 |            |            |
+| Ceiling pricing with the lane fee                     | `a-lane`     | €11,815.71 |            |            |
+| The same with the cost table measured under dawn fees | `lane-fee`   | €13,352.62 | €8,718.53  | €8,642.74  |
+
+With the lane fee, the driver fees of the week fell from 1.05 to 1.00 times the requests' typical fees while it won
+about as many orders (389 against 395). The last line is why the systems keep the first cost table of
+`strategies/lead_cost`: the cheaper table won 450 orders on `spread-1` and made the most of any week there, and on
+`spread-4` it won more cars than drivers could move on time (93.9% on time) and made €4,400 less than the headroom
+system.

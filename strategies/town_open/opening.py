@@ -2,7 +2,7 @@
 
 Two strategies (strategies/strategy.py). `TownOpening` keeps one opening fee, as a multiple of the typical fee, for
 the world and an offset for each pickup town: a gig that a driver books at its opening fee within minutes lowers it,
-and a gig that needed a raise lifts it. `TownFeePlanner` is the dawn fee planner of strategies/dawn_fees, unchanged
+and a gig that needed a raise lifts it. `TownFeePlanner` is the lane fee planner of strategies/lane_fee, unchanged
 there, opening each gig at its town's multiple. README.md next to this file explains the rule.
 """
 
@@ -13,7 +13,8 @@ from dataclasses import dataclass, replace
 
 from spread.types import DeskEvent, DriverProfile, FeeStep, Order, PriceRequest, WorldMap
 
-from strategies.dawn_fees import DawnFeePlanner, DawnParams, dawn_plan, last_dawn
+from strategies.dawn_fees import DawnParams, dawn_plan, last_dawn
+from strategies.lane_fee import LaneFee, LaneFeePlanner
 from strategies.strategy import Strategy
 
 
@@ -22,12 +23,12 @@ class Params:
     """The variables of the opening fee. Each fee is a multiple of the gig's typical fee."""
 
     start: float = 0.9  # every town opens here on Monday: the opening fee of strategies/fees
-    low: float = 0.72  # no town opens below this ...
+    low: float = 0.8  # no town opens below this ...
     high: float = 1.0  # ... or above this
     quick: int = 20  # a booking at the opening fee within this many minutes of the post is a quick one
-    quick_share: float = 0.6  # the opening settles where this share of a town's gigs book quickly
-    step: float = 0.015  # the world's step per gig: -0.6% after a quick booking, +0.9% after a raise
-    town_step: float = 0.03  # the same for the town's own offset: -1.2% and +1.8%
+    quick_share: float = 0.7  # the opening settles where this share of a town's gigs book quickly
+    step: float = 0.015  # the world's step per gig: -0.45% after a quick booking, +1.05% after a raise
+    town_step: float = 0.03  # the same for the town's own offset: -0.9% and +2.1%
     town_limit: float = 0.12  # a town's offset stays within this of the world's opening
     same: float = (
         0.05  # a gig that opened within this of its town's fee teaches; one with little time left opens higher
@@ -111,8 +112,8 @@ class TownOpening(Strategy[Params]):
         )
 
 
-class TownFeePlanner(DawnFeePlanner):
-    """The dawn fee planner, opening each gig at the fee of its pickup town."""
+class TownFeePlanner(LaneFeePlanner):
+    """The lane fee planner, opening each gig at the fee of its pickup town."""
 
     def __init__(
         self,
@@ -120,9 +121,10 @@ class TownFeePlanner(DawnFeePlanner):
         world_map: WorldMap,
         level: int = 8,
         params: DawnParams | None = None,
+        lane: LaneFee | None = None,
         opening: TownOpening | None = None,
     ) -> None:
-        super().__init__(roster, world_map, level, params)
+        super().__init__(roster, world_map, level, params, lane)
         self.opening = opening or TownOpening(roster, world_map, level)
 
     def schedule(self, order: Order, request: PriceRequest, cars: int, now: int) -> list[FeeStep]:

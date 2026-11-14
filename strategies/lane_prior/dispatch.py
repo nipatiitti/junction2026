@@ -1,9 +1,8 @@
 """The lane-prior system: the headroom system with the pricing of this folder. See README.md next to this file.
 
-Admission, fees and everything else are the headroom system's (strategies/headroom). The one change is where each
-price starts: the price and the maximum of a request are lifted by the offset of its delivery place, fitted on the
-saved weeks. A car to a town where few drivers live is quoted higher from Monday morning, and a car into the Helsinki
-area lower, instead of learning both from the week's own wins and losses.
+Admission, fees and everything else are the headroom system's (strategies/headroom). The one change is where a price
+starts for a car that goes to a town where few drivers live: its price and its maximum are lifted by the offset of
+the delivery place, fitted on the saved weeks, instead of learning it from the week's own wins and losses.
 
 Run it from the repository root: uv run strategies/lane_prior/dispatch.py --level 8 --seed spread-1
 """
@@ -43,6 +42,7 @@ class Desk(headroom.Desk):
         self.pricing = PriorPricing(roster, world_map, level)  # the price, lifted by the delivery place's offset
         self.strategies: list[Strategy] = [
             self.notes,
+            self.lane,
             self.admission,
             self.pricing,
             self.fees,

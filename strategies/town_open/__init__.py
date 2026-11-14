@@ -1,4 +1,4 @@
-"""Town opening, a system built on strategies/lane_prior: see README.md in this folder."""
+"""Town opening, a system built on strategies/headroom: see README.md in this folder."""
 
 from strategies.town_open.opening import Params as TownParams
 from strategies.town_open.opening import TownFeePlanner, TownOpening, pickup_place
