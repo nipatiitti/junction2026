@@ -32,8 +32,7 @@ class SoloFirstBundler(FallbackBundler):
             self.fallbacks[order_id] = Fallback(order_id, now + self.params.fallback_wait, batch, last_pickup_at)
 
     def fallbacks_due(self, now: int) -> list[Fallback]:
-        done = [f for f in self.fallbacks.values() if f.at <= now and f.attempts == 0]
-        for f in self.fallbacks.values():
-            if f.at <= now:
-                self.fallbacks.pop(f.order_id, None)
-        return done
+        expired = [f for f in self.fallbacks.values() if f.at <= now]
+        for f in expired:
+            self.fallbacks.pop(f.order_id, None)
+        return [f for f in expired if f.attempts == 0]
