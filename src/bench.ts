@@ -102,7 +102,7 @@ async function main(): Promise<void> {
     },
   })
   const level = parseLevel(args.level)
-  const labels = positionals.length > 0 ? positionals : ['starter']
+  const labels = positionals.length > 0 ? positionals : ['lean']
   if (new Set(labels).size !== labels.length) throw new UsageError('a strategy is named twice')
   const runs: [string, Run][] = labels.map((label) => [label, runFromSpec(label)])
   const seeds = parseSeeds(args.seeds)

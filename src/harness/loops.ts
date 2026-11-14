@@ -19,17 +19,30 @@ const WAKE_ON: DeskEventKind[] = [
 /** A way to play a desk to the end of its world, from the last event that the desk has seen. */
 export type Loop = (world: World, desk: Desk) => Promise<void>
 
-/** Steps the world from one event that needs an answer to the next, and stops at each midnight for a report and
- * when the strategy's tick is due. */
+/** While dealers ask for prices (weekdays, 08:00 to 18:15) the world moves in steps of this many minutes: a request
+ * waits 15 minutes for its quote, so every one is answered in time, and a week takes a few hundred requests to the
+ * server instead of one for each event. */
+const STEP = 10
+const OPENS = 8 * 60 - STEP
+const CLOSES = 18 * 60 + 20
+/** Outside those hours the world runs to the next event that needs an answer, and stops at least this often. */
+const QUIET_STEP = 60
+
+/** Whether a price request can be open at `minute`. */
+const dealersAsk = (minute: number): boolean =>
+  Math.floor(minute / DAY) % 7 < 5 && minute % DAY >= OPENS && minute % DAY < CLOSES
+
+/** Plays a practice world to its end, one request to the server a step: the advance carries the actions decided on
+ * the step before, then moves the clock, and its answer holds the new events. It stops at each midnight for a report. */
 export async function playPractice(world: World, desk: Desk): Promise<void> {
   while (desk.now < desk.endsAt) {
     const day = Math.floor(desk.now / DAY)
     const midnight = (day + 1) * DAY
-    // One request a step: the advance applies the outbox, then moves the clock.
     await desk.settle()
     const actions = desk.outbox.splice(0)
-    const max = Math.min(desk.endsAt, midnight, desk.nextTick)
-    const step = await world.advance({ untilEvent: WAKE_ON, max, actions })
+    const asking = dealersAsk(desk.now)
+    const max = Math.min(desk.endsAt, midnight, desk.now + (asking ? STEP : QUIET_STEP))
+    const step = await world.advance(asking ? { to: max, actions } : { untilEvent: WAKE_ON, max, actions })
     desk.readResults(actions, step.results)
     desk.now = step.now
     for (const event of step.events) await desk.handle(event)
