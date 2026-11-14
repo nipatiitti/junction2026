@@ -31,7 +31,8 @@ sound yet.
 
 To change a line or a length, edit `timeline.js`. To change what happens and when, edit the beats in the scene's
 file; each file lists its beats at the top. A new kind of view exports `{ build(segment) }` and goes in
-`src/views/index.js`.
+`src/views/index.js`. In the browser console, `player.frame('scene2', 3.2)` draws one frame of a view, for example
+to save stills.
 
 ## Repeatable frames
 
@@ -42,6 +43,6 @@ it was. Three.js (0.186.1) and mp4-muxer (5.2.2) load from jsDelivr at pinned ve
 
 ## Status
 
-The title cards and scene 1 are built. Scenes 2–4 and the end are rough sets with their cast and main beats.
+The title cards and scenes 1 and 2 are built. Scenes 3, 4 and the end are rough sets with their cast and main beats.
 The spoken lines are captions for now; voices, sound effects and music are still to come. The numbers in
 `timeline.js` are placeholders until the final is played.

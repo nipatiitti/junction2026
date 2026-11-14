@@ -194,6 +194,12 @@ new EventSource('/events').onmessage = (e) => {
   location.reload()
 }
 
+// For checks from the console: player.frame('scene2', 3.2) draws that frame of that view, without the guides.
+window.player = {
+  segments,
+  frame: (id, t) => draw((segments.find((s) => s.id === id)?.start ?? 0) + t, { guides: false }),
+}
+
 // A pasted or edited address jumps to its view and time (the player's own updates do not fire this).
 addEventListener('hashchange', () => {
   readHash()
