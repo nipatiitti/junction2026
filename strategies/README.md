@@ -15,7 +15,7 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`lead_cost/`](lead_cost/README.md) | `LeadCostAdmission` | Which requests to take, by lead time, for `headroom` and up     |
 | [`lane_fee/`](lane_fee/README.md)   | `LaneFee`           | A lane's typical fee without one request's noise, for the same  |
 
-Forty-two folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Forty-three folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                                               |
@@ -37,6 +37,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`scarcity_ceiling/`](scarcity_ceiling/README.md) | `ChainScarcityAdmission`               | The ceiling's quote over the scarcity-priced admission                                   |
 | [`profit_max/`](profit_max/README.md)             | `ProfitPricing`                        | Ceiling, quoting the price with the most expected margin on a win curve                  |
 | [`learned_cost/`](learned_cost/README.md)         | `LearnedCostAdmission`                 | Ceiling, with the driver cost corrected by our own bookings, by town                     |
+| [`learned_notes/`](learned_notes/README.md)       | `LearnedNoteReader`                    | Headroom, adding reviewed data-fitted phrases after the base note rules                  |
 | [`trust_value/`](trust_value/README.md)           | `TrustValueAdmission`                  | Ceiling, counting the dealer trust that an order on time buys                            |
 | [`war_guard/`](war_guard/README.md)               | `WarGuardPricing`, `WarGuardAdmission` | Ceiling, undoing the price war's lessons and widening the outage                         |
 | [`war_sweep/`](war_sweep/README.md)               | `WarSweepPricing`                      | Headroom, capping quotes in a detected price war without adding capacity                 |
