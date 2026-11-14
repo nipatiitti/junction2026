@@ -13,6 +13,7 @@ export type PlannerParams = ChainParams & {
   open: number
   holdHours: number
   chainPatience: number
+  chainTries: number
   pickLead: number
   chainLast: number
 }
@@ -31,7 +32,11 @@ const MAX_POSTS = 5
 
 /** What the planner asks of the strategy: the context for reading a gig's shape, and whether a car had a setback or
  * not (such cars stay single). */
-export type Host = { context(): Context; troubled(orderId: string): boolean }
+export type Host = {
+  context(): Context
+  troubled(orderId: string): boolean
+  homes: ReadonlyMap<string, number> // place id -> the drivers who live there
+}
 
 /** A chain in the app, as its post action and the world's answer tell it. */
 type Posted = { orders: string[]; startBy: number; typical: number; at: number }
@@ -45,8 +50,8 @@ export class Planner {
   private readonly posted = new Map<string, Posted>()
   /** The key of a posted chain's stops -> what the chain is worth to its driver, in cents. */
   private readonly units = new Map<string, number>()
-  /** The orders that were in a chain no driver took: they stay single. */
-  private readonly single = new Set<string>()
+  /** Order id -> the chains it was in that no driver took: after `chainTries` of them it stays single. */
+  private readonly fails = new Map<string, number>()
   /** Order id -> the minute it was won: its wait for a partner counts from there. */
   private readonly wonAt = new Map<string, number>()
   private readonly tally = { posted: 0, cars: 0, booked: 0, bookedCars: 0, ratios: 0, undone: 0 }
@@ -82,7 +87,7 @@ export class Planner {
     const cars = this.openCars(books).filter((car) => postable(car.collectBy, now, p.pickLead))
     if (!cars.some((car) => !car.gigId)) return actions
     const worth = (c: Chain) => this.likely(c, now) && this.mayBeOpen(c.startBy, now, p.chainPatience)
-    for (const chain of findChains(cars, this.map, now, p, worth).slice(0, MAX_POSTS)) {
+    for (const chain of findChains(cars, this.map, now, p, worth, this.host.homes).slice(0, MAX_POSTS)) {
       // The first pickup ends at the chain's last start: a driver who starts later misses a later car's window.
       // `sent` reads the last start back from this window.
       const stops = chain.cars.flatMap((car) => car.stops)
@@ -148,13 +153,13 @@ export class Planner {
     return this.units.get(keyOf(stops))
   }
 
-  /** The world's answer to a chain's post or withdrawal. A chain that it refuses, or that we took out, leaves its
-   * cars to single gigs for good. */
+  /** The world's answer to a chain's post or withdrawal. A chain that it refuses, or that we took out, counts
+   * as a failed try for each of its cars. */
   sent(action: Action, result: ActionResult, books: Books): void {
     if (action.type === 'withdraw') {
       const chain = this.posted.get(action.gigId)
       if (!chain || !result.ok) return
-      for (const orderId of chain.orders) this.single.add(orderId)
+      for (const orderId of chain.orders) this.failed(orderId)
       this.posted.delete(action.gigId)
       this.tally.undone++
       return
@@ -163,7 +168,7 @@ export class Planner {
     const orders = [...new Set(pickups(action.stops).map((stop) => stop.orderId))]
     if (orders.length < 2) return
     if (!result.ok) {
-      for (const orderId of orders) this.single.add(orderId)
+      for (const orderId of orders) this.failed(orderId)
       return
     }
     // The opening fee is `open` × the chain's worth, and the first pickup's window ends at its last start.
@@ -187,7 +192,12 @@ export class Planner {
 
   /** A gig's window ended without a driver: a chain's cars stay single from here. */
   expired(gigId: string, stops: readonly StopRef[]): void {
-    if (this.posted.has(gigId)) for (const stop of pickups(stops)) this.single.add(stop.orderId)
+    if (this.posted.has(gigId)) for (const stop of pickups(stops)) this.failed(stop.orderId)
+  }
+
+  /** A chain with this order's car found no driver. */
+  private failed(orderId: string): void {
+    this.fails.set(orderId, (this.fails.get(orderId) ?? 0) + 1)
   }
 
   summary(): string {
@@ -200,7 +210,7 @@ export class Planner {
   private chainable(order: Order, books: Books): boolean {
     const leg = order.legs[0]
     if (!leg || order.legs.length !== 1 || order.deliveredAt[0] !== null || books.urgent.has(order.id)) return false
-    if (this.single.has(order.id) || this.host.troubled(order.id)) return false
+    if ((this.fails.get(order.id) ?? 0) >= this.p.chainTries || this.host.troubled(order.id)) return false
     return !leg.car.premium && !leg.pickup.privateAddress
   }
 

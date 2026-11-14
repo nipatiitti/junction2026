@@ -450,6 +450,27 @@ What the 15 saved weeks of the defaults (these ten and five ranking runs) say of
   minutes 77%.
 - **A chain books at once or not at all.** Half of the bookings come within 4 minutes and 90% within 37.
 
+### Three tries to book more chains (#351)
+
+Each played on the same ten seeds, against the saved weeks of the defaults (mean margin a week, all weeks ranked):
+
+| Variant                                            | Margin  | Against the defaults | Orders | Chains posted, booked | Cars in booked chains |
+| -------------------------------------------------- | ------- | -------------------- | ------ | --------------------- | --------------------- |
+| Defaults                                           | €16,875 |                      | 440    | 94, 52%               | 120                   |
+| `chainFit` 1                                       | €16,971 | +€96 ± 343, 6 of 10  | 446    | 96, 56%               | 130                   |
+| `chainTries` 2                                     | €16,644 | −€230 ± 282, 3 of 10 | 443    | 132, 44%              | 142                   |
+| `chainPatience` 0.67                               | €16,578 | −€297 ± 155, 2 of 10 | 440    | 94, 53%               | 123                   |
+| `chainFit` 1, `chainTries` 2, `chainPatience` 0.67 | €17,028 | +€153 ± 351, 7 of 10 | 452    | 134, 47%              | 149                   |
+
+- **None is a measured gain**, so the defaults stay (`chainFit` 0, `chainTries` 1, `chainPatience` 1).
+- **`chainFit`** ranks two chains that want the same car by saving × chance to book (`bookChance` in `chains.ts`,
+  from the drivers who can do the chain as a round from home). 4 points more chains book and 10 more cars ride in
+  them.
+- **`chainTries`** lets a car of a failed chain join one more chain. 22 more cars ride in chains, but the second
+  chains book less often, and the fees over all orders do not fall (0.963 × typical against 0.960).
+- **The three together** put 29 more cars in chains (149 against 120) with 11 more orders; that should be worth
+  about €500 and measures as +€153 ± 351. It needs more seeds to say.
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
@@ -457,4 +478,4 @@ What the 15 saved weeks of the defaults (these ten and five ranking runs) say of
 `lateFrom` 1.1, `lateStep` 0.05, `lateEvery` 30, `lateTop` 1.7, `feeRatio` 0.84, `lateCost` 1, `premium` 3,
 `privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 0.98, `minHours` 4, `noise` 0.11,
 `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
-`pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1.
+`pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1, `chainTries` 1, `chainFit` 0.

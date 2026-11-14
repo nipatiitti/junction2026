@@ -147,6 +147,13 @@ export const DEFAULTS = {
   /** A chain that no driver took this many waking hours after its post is taken apart: 51% of the chains book
    * within the hour, and one still open then books 24% of the time. 0 waits until `chainLast`. */
   chainPatience: 1,
+  /** A car may be in this many chains that no driver took before it stays a single gig: a failed chain costs its
+   * cars 0.01 × typical (1.04 against 1.03, 15 server weeks). A later chain needs a car that no driver has seen,
+   * so it is never the same chain again. */
+  chainTries: 1,
+  /** How much a chain's chance to book counts when two chains want the same car (chains.ts, `bookChance`): the
+   * best chain saves the most × its chance to this power. 0 ranks by the saving alone. */
+  chainFit: 0,
 }
 export type LeanParams = typeof DEFAULTS
 
@@ -224,6 +231,7 @@ class Lean extends Strategy<LeanParams> {
     this.planner = new Planner(params, setup.map, params.chains && setup.level >= 3, {
       context: () => this.context(),
       troubled: (orderId) => this.retries.has(`${orderId} 0`),
+      homes: this.homes,
     })
   }
 
