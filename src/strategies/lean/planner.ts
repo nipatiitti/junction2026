@@ -5,7 +5,7 @@
 import type { Action, ActionResult, Order, StopRef, WorldMap } from '../../../vendor/spread-typescript/spread.ts'
 import { type Context, DAY, driveMinutes, FIRST_TRY, gigShape, HOUR, readNote } from '../../ops/index.ts'
 import type { Books, GigNeed } from '../../strategy.ts'
-import { type Car, type Chain, type ChainParams, findChains } from './chains.ts'
+import { type Car, type Chain, type ChainModel, type ChainParams, findChains } from './chains.ts'
 import { awake, BOOK_AHEAD, planBy, slow } from './fees.ts'
 
 export type PlannerParams = ChainParams & {
@@ -46,6 +46,8 @@ export type Host = {
   context(): Context
   troubled(orderId: string): boolean
   homes: ReadonlyMap<string, number> // place id -> the drivers who live there
+  load(): number // the bookings so far per driver
+  model: ChainModel | undefined // chains.ts: prices and ranks the chains by their chance to book
 }
 
 /** A chain in the app, as its post action and the world's answer tell it. */
@@ -97,7 +99,7 @@ export class Planner {
     const cars = this.openCars(books).filter((car) => postable(car.collectBy, now, p.pickLead))
     if (!cars.some((car) => !car.gigId)) return actions
     const worth = (c: Chain) => this.likely(c, now) && this.mayBeOpen(c.startBy, now, p.chainPatience)
-    for (const chain of findChains(cars, this.map, now, p, worth, this.host.homes).slice(0, MAX_POSTS)) {
+    for (const chain of findChains(cars, this.map, now, p, worth, this.scene()).slice(0, MAX_POSTS)) {
       // The first pickup ends at the chain's last start: a driver who starts later misses a later car's window.
       // `sent` reads the last start back from this window.
       const stops = chain.cars.flatMap((car) => car.stops)
@@ -120,7 +122,11 @@ export class Planner {
   private level(chain: Chain): number {
     const key = chain.cars.map((car) => car.orderId).join(' ')
     const drawn = this.p.chainSpread > 0 ? (LEVELS[Math.floor(draw(key) * LEVELS.length)] ?? 1) : 1
-    return this.p.chainOpen * drawn
+    return this.p.chainOpen * drawn * chain.level
+  }
+
+  private scene() {
+    return { homes: this.host.homes, load: this.host.load(), open: this.p.open, model: this.host.model }
   }
 
   /** Whether a chain is of the kind that books (see `postable`). */

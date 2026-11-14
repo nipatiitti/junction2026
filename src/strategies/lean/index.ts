@@ -46,6 +46,7 @@ import {
   Strategy,
   type StrategyKind,
 } from '../../strategy.ts'
+import { loadChains } from './chains.ts'
 import { bestPrice, Demand } from './demand.ts'
 import { awake, BOOK_AHEAD, fast, feeAt, planBy, SHORT, stepped } from './fees.ts'
 import { loadOrders, type OrderModel, outlook } from './outlook.ts'
@@ -162,6 +163,10 @@ export const DEFAULTS = {
   /** 1 draws each chain's fee level from 0.78, 0.88, 1 and 1.12 × `chainOpen` by its cars' orders: an experiment
    * that measures how a chain's fee moves its chance to book. 0 is off. */
   chainSpread: 0,
+  /** Price and rank the chains by the chain model (chains.ts, chain.json): each chain gets the fee level from
+   * 0.85 to 1.3 that earns the most over its cars as single gigs, by its chance to book at that level, the best
+   * chain earns the most a car, and a chain that earns nothing is not posted. */
+  chainModel: false,
 }
 export type LeanParams = typeof DEFAULTS
 
@@ -240,6 +245,8 @@ class Lean extends Strategy<LeanParams> {
       context: () => this.context(),
       troubled: (orderId) => this.retries.has(`${orderId} 0`),
       homes: this.homes,
+      load: () => this.tally.bookings / (setup.roster.length || MEDIAN_DRIVERS),
+      model: params.chainModel ? loadChains() : undefined,
     })
   }
 
