@@ -268,6 +268,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Measure the lead-cost table: `uv run python -m strategies.lead_cost.fit`
 - Fit lean's cost weights again (`--write` saves them): `uv run --with numpy python -m analysis.lean_cost`
 - Fit lean's chain model (`--write` saves it): `uv run --no-project --python 3.13 --with scikit-learn python -m analysis.chain_model`
+- Fit Lean's time-dependent opportunity-cost table (`--write` saves it): `uv run --with numpy python -m analysis.lean_value`
 - Fit the lane fees: `uv run python -m strategies.lane_fee.fit`
 - Fit the lane priors: `uv run python -m strategies.lane_prior.fit`
 - Fit lean's supply and demand functions: `uv run python -m analysis.supply_curve`

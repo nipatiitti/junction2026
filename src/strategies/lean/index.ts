@@ -52,6 +52,7 @@ import { awake, BOOK_AHEAD, fast, feeAt, planBy, SHORT, stepped } from './fees.t
 import { loadOrders, type OrderModel, outlook } from './outlook.ts'
 import { Planner } from './planner.ts'
 import { Supply } from './supply.ts'
+import { valueCharge } from './value.ts'
 
 export const DEFAULTS = {
   /** The fee a gig opens at, × typical (fees.ts, `stepped`). It holds it and raises three times over the waking
@@ -182,6 +183,8 @@ export const DEFAULTS = {
    * experiment that measures what such offers do. */
   chainOffers: 0,
   chainOfferSpread: 0,
+  /** Replace the uniform load charge with this × the value table's time-dependent crowding and on-time cost. */
+  value: 0,
 }
 export type LeanParams = typeof DEFAULTS
 
@@ -275,14 +278,19 @@ class Lean extends Strategy<LeanParams> {
     const options = this.setup.level <= 3 ? request.options.slice(0, 1) : request.options
     const quotes: [OptionKind, number][] = []
     const open = this.openGigs(books)
-    const tax = this.params.tax + this.params.taxLoad * this.load()
+    const load = this.load()
+    const tax = this.params.tax + (this.params.value ? 0 : this.params.taxLoad * load)
+    const won = this.tally.won / (this.setup.roster.length || MEDIAN_DRIVERS)
     for (const option of options) {
       if (!canServe(request, option, now, context).ok) continue
       if (this.setup.level <= 3) return { [option.kind]: option.listPriceCents }
       const cost = this.cost(request, option, facts, now, open)
       if (cost === null) continue
       const belief = this.demand.belief(this.demand.keys(request, option.kind), this.trustOffset(request.dealerId))
-      const best = bestPrice(belief, option.listPriceCents, cost * (1 + tax) + this.params.taxEuros * 100)
+      const charge = this.params.value
+        ? this.params.value * valueCharge(now, won, lateShare, option.kind, request.referenceFeeCents)
+        : 0
+      const best = bestPrice(belief, option.listPriceCents, cost * (1 + tax) + this.params.taxEuros * 100 + charge)
       if (best === null) continue
       quotes.push([option.kind, Math.round(best)])
     }

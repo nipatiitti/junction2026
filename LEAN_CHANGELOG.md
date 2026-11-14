@@ -29,6 +29,16 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-14: time-dependent opportunity cost (local experimental patch)
+
+- **Version changed**: TypeScript.
+- **What changed**: `value` replaces the uniform load charge with a table of crowding and 90%-cliff costs by hour,
+  load and late share (`value.ts`, `value.json`, fitted by `analysis.lean_value`). Zero is unchanged. One gained
+  €680.93 on 40 paired simulator seeds, then €387.35 on 40 fresh paired validation seeds (SE €187.77, CI +€7.55 to
+  +€767.15), with every week ranked in both batches. Its server check has not run. Details and raw CSVs:
+  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#time-dependent-opportunity-cost-local-experimental).
+- **In step**: no (#329). The Python version does not have `value`.
+
 ### 2026-11-15: shared outcomes on (issue #360)
 
 - **Version changed**: TypeScript.

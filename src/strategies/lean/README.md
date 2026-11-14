@@ -737,6 +737,61 @@ With the chain model, against the defaults of that hour (`sharedOutcome` was sti
 Every week of both rounds is in [`decision-algorithms-server.csv`](decision-algorithms-server.csv), and saved under
 `data/scrape/runs/L8/dp-*`.
 
+## Time-dependent opportunity cost (experimental, issue #371)
+
+`value` replaces the fixed `taxLoad` charge with two costs from `value.json`: crowding by the hour and orders won so
+far, and the 90% ranking cliff from the late share so far and an option's risk. It is the value of the state without
+the order less its value with it, fitted on 157 saved weeks by `analysis.lean_value.py` (rebuild with `uv run --with
+numpy python -m analysis.lean_value --write`). `value=0` preserves the fixed charge exactly; `value=1` is the only
+candidate in this patch. The default remains off.
+
+### Colleague's evidence, reproduced
+
+The earlier ten-server-seed experiment in the table above gained €521.48 ± €343.42, on 8 of 10. The candidate then
+gained **€680.93** on 40 `lean-vt-screen-*` simulator seeds (SE €221.72, CI +€232.46 to +€1,129.39), ahead on 28 of
+40. With no code or setting change, it gained **€387.35** on 40 new `lean-vt-validate-*` seeds, SE €187.77,
+Student-t(39) 2.063 and paired 95% CI **+€7.55 to +€767.15**, ahead on 26 of 40. Its 10% winsorized mean was €400.11.
+All 80 candidate and control weeks were ranked, but mean on-time share fell 0.85 points and the lowest candidate week
+was 90.12%. Applying the frozen sources to current `eefe683a` reproduced every margin in that validation exactly, as
+did their three published SHA-256 hashes.
+
+Dose escalation was stopped: `value=1.25` gained €869.67 in training but caused an unranked week; `value=1.10` gained
+€251.32 on new validation and caused an 88.9% unranked week. Neither is a candidate. The ten earlier live seeds with
+the chain model, shown above, are also relevant but not clean proof: those gained €251 ± 457 on only 5 of 10, while
+costing on-time share.
+
+### Independent simulator validation
+
+I then played the untouched `value=0` and `value=1` arms on 40 new random `vr2-*` seeds. The result does **not**
+replicate the claimed gain:
+
+| 40 fresh pairs | Control    | Candidate  |
+| -------------- | ---------- | ---------- |
+| Mean margin    | €17,979.30 | €18,050.86 |
+| Mean orders    | 433.9      | 428.6      |
+| Mean on time   | 96.96%     | 95.88%     |
+| Lowest on time | 93.36%     | 91.96%     |
+| Ranked         | 40 of 40   | 40 of 40   |
+
+The paired gain was **+€71.56**, SD €1,079.05, SE €170.61, Student-t(39) 0.419 and 95% CI **−€273.54 to +€416.65**.
+The candidate was ahead on only 19 of 40, with median difference −€196.17; its 10% winsorized gain was €68.41, so this
+is not just an outlier cancelling a real improvement. Mean on-time share fell another 1.08 points. There were no
+candidate-only unranked weeks. Raw output is [`value-independent.csv`](value-independent.csv) and the fresh seed list
+is [`value-independent-seeds.txt`](value-independent-seeds.txt). Replay it with:
+
+```sh
+journal=$(mktemp -d)
+pnpm sim --port 8787  # in another terminal
+SPREAD_URL=http://localhost:8787 SPREAD_KEY=sim SPREAD_RECORD=0 SPREAD_JOURNAL_DIR="$journal" \
+  pnpm bench lean:value=0 lean:value=1 --level 8 --jobs 6 \
+  --seeds "$(cat src/strategies/lean/value-independent-seeds.txt)"
+```
+
+The original raw comparisons are [`value-screen.csv`](value-screen.csv), [`value-validation.csv`](value-validation.csv),
+[`value-dose-screen.csv`](value-dose-screen.csv), [`value-110-screen.csv`](value-110-screen.csv) and
+[`value-110-validation.csv`](value-110-validation.csv). Their pre-registered 30-pair server design is in
+[`VALUE_SERVER_PROTOCOL.md`](VALUE_SERVER_PROTOCOL.md).
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
