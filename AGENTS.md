@@ -224,10 +224,12 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the ceiling-pricing week: `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1`
 - Play the headroom week: `uv run strategies/headroom/dispatch.py --level 8 --seed spread-1`
 - Play the learned-hold week: `uv run strategies/learned_hold/dispatch.py --level 8 --seed spread-1`
+- Play the bulk-yard week: `uv run strategies/bulk_yard/dispatch.py --level 8 --seed spread-1`
 - Play the lane-prior week: `uv run strategies/lane_prior/dispatch.py --level 8 --seed spread-1`
 - Play the town-opening week: `uv run strategies/town_open/dispatch.py --level 8 --seed spread-1`
 - Play the same-day week: `uv run strategies/same_day/dispatch.py --level 8 --seed spread-1`
 - Play the soft-top week: `uv run strategies/soft_top/dispatch.py --level 8 --seed spread-1`
+- Play the snow-aware week: `uv run strategies/snow_aware/dispatch.py --level 8 --seed spread-1`
 - Measure the lead-cost table: `uv run python -m strategies.lead_cost.fit`
 - Fit the lane fees: `uv run python -m strategies.lane_fee.fit`
 - Fit the lane priors: `uv run python -m strategies.lane_prior.fit`
@@ -255,6 +257,7 @@ on one line, so two PRs that each add a command do not conflict.
 - See what a tournament would play (plays nothing): `uv run python -m strategies.tournament --plan`
 - Play the tournament of ceiling's layers: `uv run python -m strategies.tournament --seeds spread-1..spread-3`
 - Play the active models on fresh seeds until stopped: `uv run python -m tools.sweep`
+- List open worlds older than 15 minutes (`--yes` deletes them): `uv run --env-file .env python -m tools.kill_old_worlds`
 - Build the saved-weeks DB: `uv run python -m tools.db`
 - Lint / format Python: `uv run ruff check --fix . && uv run ruff format .`
 - Play a week in TypeScript: `pnpm dispatch --level 8 --seed spread-1`
