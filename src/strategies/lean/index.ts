@@ -48,6 +48,7 @@ import {
 } from '../../strategy.ts'
 import { bestPrice, Demand } from './demand.ts'
 import { awake, BOOK_AHEAD, fast, feeAt, planBy, SHORT, stepped } from './fees.ts'
+import { tableSteps } from './feetable.ts'
 import { loadOrders, type OrderModel, outlook } from './outlook.ts'
 import { Pacer } from './pace.ts'
 import { Planner } from './planner.ts'
@@ -177,6 +178,11 @@ export const DEFAULTS = {
   /** Scales of the charge by hand, as "minute:scale;minute:scale": the charge is × `scale` from `minute` on. The
    * rollout plays its simulated weeks with it; empty for none. */
   rolloutPlan: '',
+  /** true takes the opening fee, the early fee and the planned raises of a single-car gig from the table of a
+   * dynamic program (feetable.ts, feetable.json, written by analysis/lean_fee_table.py), by the gig's planning
+   * time and pickup day, in place of `open`, `early` and `raiseAt1` to `raise3`. The urgent climb, the late climb,
+   * chains, `jitter`, `rest` and the top stay as they are. */
+  feeTable: false,
 }
 export type LeanParams = typeof DEFAULTS
 
@@ -476,6 +482,7 @@ class Lean extends Strategy<LeanParams> {
       top: p.urgentTop,
       jitter: p.jitter,
       rest: p.rest,
+      ...(p.feeTable ? tableSteps(now, order.lastPickupAt, p.rest) : undefined),
     })
   }
 
