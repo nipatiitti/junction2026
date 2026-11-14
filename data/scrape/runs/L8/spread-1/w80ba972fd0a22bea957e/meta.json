@@ -1,0 +1,24 @@
+{
+  "seed": "spread-1",
+  "level": 8,
+  "policy": "x-cap-lane-oldfees",
+  "kind": "practice",
+  "worldId": "w80ba972fd0a22bea957e",
+  "version": "39aab436743843b1c52f1a0528a8c388b617ce04-dirty",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 12983,
+  "score": {
+    "marginCents": 1057365,
+    "revenueCents": 3284297,
+    "marginShare": 0.32194560966928387,
+    "wonOrders": 384,
+    "onTimeShare": 0.9791666666666666,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 30.3,
+  "requests": 603
+}
