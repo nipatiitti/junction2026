@@ -111,6 +111,12 @@ export const DEFAULTS = {
   /** A new car that may join a chain waits this many hours for a partner before it is posted alone: half of the
    * single gigs book within half an hour, before a partner can arrive. 0 posts at once. */
   holdHours: 0,
+  /** A chain that no driver took this many hours after its post is taken apart while its cars still have time; 0
+   * waits until `chainHours` before its last start. */
+  chainPatience: 0,
+  /** The share of the capacity charge that a request pays when it can go on with one of our open cars
+   * (`pairDiscount`): a chained car shares its driver, so it takes less of the week's capacity. */
+  pairCharge: 1,
   /** Modifiers (mods.ts): rules that the Python systems measured, each off by default. `dawn`: their fee schedule by
    * the drivers' day, to `dawnTop` × typical. `leadCost`: the driver cost from their table by lead time. `bestOption`:
    * quote only the option with the most expected margin. `pairDiscount`: this share off the cost of a request that
@@ -167,6 +173,7 @@ class Lean extends Strategy<LeanParams> {
   /** The chains decided: the key of their stops -> the chain; and, once posted, gig id -> the chain. */
   private readonly planned = new Map<string, Chain>()
   private readonly chains = new Map<string, Chain>()
+  private readonly chainPosted = new Map<string, number>()
   /** The orders that were in a chain no driver took: they stay single. */
   private readonly single = new Set<string>()
   /** Order id -> the minute it first waited for a partner; and the orders whose wait is over. */
@@ -203,7 +210,7 @@ class Lean extends Strategy<LeanParams> {
     const options = this.setup.level <= 3 ? request.options.slice(0, 1) : request.options
     const p = this.params
     if (p.areaCap > 0 && this.setup.level > 3 && this.areaFull(request, books)) return null
-    const paired = p.pairDiscount > 0 && this.pairs(request, books)
+    const paired = (p.pairDiscount > 0 || p.pairCharge < 1) && this.pairs(request, books)
     const trust = this.trustCount(request.dealerId)
     const quotes: { kind: OptionKind; cents: number; value: number }[] = []
     for (const option of options) {
@@ -215,7 +222,7 @@ class Lean extends Strategy<LeanParams> {
       const belief = this.demand.belief(this.demand.keys(request, option.kind), this.trustOffset(request.dealerId))
       const crowd = 1 + 0.04 * Math.max(0, this.askedFrom(request) - 4)
       const place = (1 - p.flatShare) * this.typ(request) + p.flatShare * p.flatEuros * 100
-      const charge = cost + this.capacity * crowd * place
+      const charge = cost + this.capacity * crowd * place * (paired ? p.pairCharge : 1)
       const best = bestPrice(belief, option.listPriceCents, charge)
       if (best === null) continue
       let cents = Math.max(best, cost * p.minMargin)
@@ -464,7 +471,9 @@ class Lean extends Strategy<LeanParams> {
     for (const [gigId, chain] of this.chains) {
       const live = chain.cars.some((car) => books.gigsOf(car.orderId).includes(gigId))
       if (!live) this.chains.delete(gigId)
-      if (!live || books.booked.has(gigId) || now < chain.startBy - p.chainHours * HOUR) continue
+      const waited = awake(this.chainPosted.get(gigId) ?? now, now) // the hours that drivers could see it
+      const patient = !(p.chainPatience > 0) || waited < p.chainPatience * HOUR
+      if (!live || books.booked.has(gigId) || (patient && now < chain.startBy - p.chainHours * HOUR)) continue
       for (const car of chain.cars) this.single.add(car.orderId)
       this.chains.delete(gigId)
       this.chained.undone++
@@ -633,13 +642,14 @@ class Lean extends Strategy<LeanParams> {
     }
   }
 
-  override sent(action: Action, result: ActionResult): void {
+  override sent(action: Action, result: ActionResult, books: Books): void {
     const chain = action.type === 'post' ? this.planned.get(keyOf(action.stops)) : undefined
     if (action.type === 'post' && chain) {
       // A chain that the world refuses leaves its cars to single gigs.
       if (!result.ok) for (const car of chain.cars) this.single.add(car.orderId)
       else {
         this.chains.set(result.id, chain)
+        this.chainPosted.set(result.id, books.now)
         this.chained.posted++
         this.chained.cars += chain.cars.length
       }
