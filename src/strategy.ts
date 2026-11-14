@@ -5,6 +5,7 @@ import type {
   Action,
   ActionResult,
   DeskEvent,
+  DriverLateEvent,
   DriverProfile,
   Order,
   PostAction,
@@ -102,6 +103,11 @@ export abstract class Strategy<P extends Params = Params> {
    * books of the posts and withdrawals it sends. */
   tick(_books: Books): Action[] {
     return []
+  }
+
+  /** Whether to release the late driver of a `driver_late` event now; the harness then posts the cars again. */
+  releaseLate(_event: DriverLateEvent, _books: Books): boolean {
+    return false
   }
 
   /** One line on the strategy's week, printed at the end; empty for none. */

@@ -5,6 +5,7 @@ import {
   type ActionResult,
   type DeskEvent,
   type DeskSnapshot,
+  type DriverLateEvent,
   type Order,
   type OrderCancelledEvent,
   type PostAction,
@@ -129,6 +130,24 @@ export class Desk implements Books {
     // After a no-show the gig is open again, as after a drop. A late driver still comes.
     else if (event.kind === 'gig_dropped' || event.kind === 'no_show') this.booked.delete(event.gigId)
     else if (event.kind === 'delivered') this.delivered(event.orderId, event.leg, event.at)
+    else if (event.kind === 'driver_late') await this.late(event)
+  }
+
+  /** Releases a late driver when the strategy asks, before they leave and without a fee, and posts the cars again. */
+  async late(event: DriverLateEvent): Promise<void> {
+    const previous = this.posts.get(event.gigId)
+    const order = this.orders.get(previous?.stops[0]?.orderId ?? '')
+    if (!previous || !order || !this.booked.has(event.gigId)) return
+    if (!this.guard.run('tick', () => this.strategy.releaseLate(event, this))) return
+    const release: Action = { type: 'release', gigId: event.gigId }
+    this.outbox.push(release)
+    await this.answered([release])
+    if (!this.booked.has(event.gigId))
+      await this.post(
+        'lost',
+        order,
+        legsOf(previous, order.id).filter((leg) => order.deliveredAt[leg] === null),
+      )
   }
 
   /** Puts the strategy's periodic actions in the outbox once `every` minutes have passed since the last time, and
@@ -384,6 +403,10 @@ export class Desk implements Books {
           this.outbox.push({ ...action, stops: action.stops.map(({ window: _, ...stop }) => stop) })
       } else if (action.type === 'post') this.carry(action, result.id)
       else if (action.type === 'withdraw') this.forget(action.gigId)
+      else if (action.type === 'release') {
+        this.forget(action.gigId)
+        this.booked.delete(action.gigId)
+      }
       this.journal.write({ seq: this.seen, at: this.now, action, result })
       this.guard.run('sent', () => this.strategy.sent(action, result, this))
     })

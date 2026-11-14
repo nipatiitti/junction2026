@@ -13,6 +13,7 @@ import type {
   ActionResult,
   DeliveryOption,
   DeskEvent,
+  DriverLateEvent,
   FeeStep,
   Order,
   PriceRequest,
@@ -77,6 +78,7 @@ import {
 } from './cost.ts'
 import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees.ts'
 import { lateRiskOf, newLateRisk } from './late.ts'
+import { LateDrivers } from './late_driver.ts'
 import { legsOf, WeekLog } from './log.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
 
@@ -93,6 +95,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   readonly cost: CostState
   readonly learning: CostLearning
   readonly log = new WeekLog()
+  readonly lateDrivers = new LateDrivers()
   readonly lateRisk: ReturnType<typeof newLateRisk>
   /** The latest minute an event or action has told, for the summary. */
   private now = 0
@@ -111,9 +114,10 @@ export class BidPrice extends Strategy<BidPriceParams> {
     this.lateRisk = newLateRisk(setup.roster, setup.map)
   }
 
-  observe(event: DeskEvent): void {
+  observe(event: DeskEvent, books: Books): void {
     this.now = Math.max(this.now, event.at)
     this.log.observe(event)
+    if (this.params.driverLate) this.lateDrivers.observe(event, books.orders)
     observeQuotes(this.quotes, event, this.quoteParams)
     learn(this.fees, event, this.feeParams)
     this.learnCost(event)
@@ -123,6 +127,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   /** What the desk sent for us, as sent, and the world's answer: the quotes the quote learner waits on, and our gigs
    * for the fee learner. */
   sent(action: Action, result: ActionResult, books: Books): void {
+    if (this.params.driverLate) this.lateDrivers.sent(action, result, this.log.gigs)
     if (!result.ok) return
     if (action.type === 'quote') this.quoted(action.requestId, action.prices)
     const event = this.feeEventOf(action, result.id, books.now)
@@ -279,7 +284,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
     const gig = this.orderGig(order, legsOf(stops, order.id), experienced, books.now)
     if (!gig) throw new Error(`no request for order ${order.id}`) // the harness posts the starter's gig
     const { schedule } = this.plan(gig, books.now)
-    if (!books.urgent.has(order.id)) return schedule
+    if (!books.urgent.has(order.id) && !this.lateDrivers.released.has(order.id)) return schedule
     return higher(schedule, urgentRamp(books.now, gig.typicalCents, this.params), this.setup.level)
   }
 
@@ -318,6 +323,20 @@ export class BidPrice extends Strategy<BidPriceParams> {
     })
   }
 
+  /** Behind `driverLate`: release a late driver who would miss the deadline when another can still make it. */
+  override releaseLate(event: DriverLateEvent, books: Books): boolean {
+    if (!this.params.driverLate) return false
+    const gig = this.log.gigs.get(event.gigId)
+    return this.lateDrivers.decide(
+      event,
+      gig,
+      books.orders.get(gig?.orderId ?? ''),
+      this.setup.map,
+      books.now,
+      this.params,
+    )
+  }
+
   summary(): string {
     const { requests, quoted, won, booked, paidOverTypical } = this.tally
     const level = Math.exp(this.quotes.belief.world?.[0] ?? Math.log(this.quoteParams.startLevel))
@@ -334,6 +353,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([k, v]) => `${k} ${v}`)
         .join(' ')}`,
+      ...(this.params.driverLate ? [this.lateDrivers.summary()] : []),
       ...(this.params.chargeOver200
         ? [`charging spared ${charging.gigsSpared} gig cars, ${charging.quotesSpared} quote checks`]
         : []),

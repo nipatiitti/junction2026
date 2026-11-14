@@ -73,6 +73,11 @@ export type BidPriceParams = {
   repriceMax: number
   /** Rule 3 by the route: plan a charging stop only when the car's drive is over 200 road km (src/ops/charging.ts). */
   chargeOver200: boolean
+  /** Release a late driver who would miss the deadline when another can still come `lateLeadHours` from now, before
+   * the last pickup and `lateGainHours` before the late one (late_driver.ts). */
+  driverLate: boolean
+  lateLeadHours: number
+  lateGainHours: number
 }
 
 export const DEFAULTS: BidPriceParams = {
@@ -116,6 +121,9 @@ export const DEFAULTS: BidPriceParams = {
   climbTop: 3,
   repriceMax: 10,
   chargeOver200: false,
+  driverLate: false,
+  lateLeadHours: 2,
+  lateGainHours: 1,
 }
 
 /** The quote models' params from the strategy's. */
