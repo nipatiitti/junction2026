@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { ease, lerp, pop, progress } from '../kit/anim.js'
 import { car } from '../kit/car.js'
 import { character, POSES, pose } from '../kit/character.js'
-import { boomRing, burst, flash, glowSprite, shake, speedLines } from '../kit/fx.js'
+import { boomRing, burst, flash, glowSprite, shake, sparkle, speedLines } from '../kit/fx.js'
 import { at, box, glow, mat, mesh } from '../kit/materials.js'
 import { C } from '../kit/palette.js'
 import { rng } from '../kit/rng.js'
@@ -104,22 +104,6 @@ function gigCard(g, t, lines, { scale, press, times, y = 1170 }) {
     g.fillText(name === 'decline' ? lines.decline : lines.accept, 0, 2)
     g.restore()
   }
-  g.restore()
-}
-
-/** A four-pointed twinkle at x, y. */
-function twinkle(g, x, y, size, alpha) {
-  if (alpha <= 0) return
-  g.save()
-  g.globalAlpha = alpha
-  g.fillStyle = '#fff6c9'
-  g.beginPath()
-  g.moveTo(x, y - size)
-  g.quadraticCurveTo(x, y, x + size, y)
-  g.quadraticCurveTo(x, y, x, y + size)
-  g.quadraticCurveTo(x, y, x - size, y)
-  g.quadraticCurveTo(x, y, x, y - size)
-  g.fill()
   g.restore()
 }
 
@@ -483,7 +467,7 @@ export default {
         if (t >= STAR && t < 8) {
           star.getWorldPosition(spot)
           const [x, y] = toScreen(spot, camera)
-          twinkle(g, x, y, 60 + 25 * Math.sin(t * 20), 0.9)
+          sparkle(g, x, y, 60 + 25 * Math.sin(t * 20), 0.9)
         }
         if (t >= 7 && t < 8) {
           const s = pop(t, 7, 0.25)

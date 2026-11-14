@@ -204,3 +204,43 @@ export function flash(g, a, color = '255,255,255') {
   g.fillRect(0, 0, g.canvas.width, g.canvas.height)
   g.restore()
 }
+
+/** A four-pointed sparkle at x, y, for glints and stars. */
+export function sparkle(g, x, y, size, alpha = 1, color = '#fff6c9') {
+  if (alpha <= 0 || size <= 0) return
+  g.save()
+  g.globalAlpha = alpha
+  g.fillStyle = color
+  g.beginPath()
+  g.moveTo(x, y - size)
+  g.quadraticCurveTo(x, y, x + size, y)
+  g.quadraticCurveTo(x, y, x, y + size)
+  g.quadraticCurveTo(x, y, x - size, y)
+  g.quadraticCurveTo(x, y, x, y - size)
+  g.fill()
+  g.restore()
+}
+
+/** Darkens the edges of the picture; strength 0–1. */
+export function vignette(g, strength = 0.6) {
+  const { width, height } = g.canvas
+  const shade = g.createRadialGradient(width / 2, height / 2, height * 0.25, width / 2, height / 2, height * 0.75)
+  shade.addColorStop(0, 'rgba(0,0,0,0)')
+  shade.addColorStop(1, `rgba(0,0,0,${strength})`)
+  g.save()
+  g.fillStyle = shade
+  g.fillRect(0, 0, width, height)
+  g.restore()
+}
+
+/** Film grain: light and dark specks that change every frame (seeded by the frame, so renders match). */
+export function grain(g, t, amount = 0.06, { seed = 1, count = 1600 } = {}) {
+  const { width, height } = g.canvas
+  const rand = rng(seed * 7919 + Math.floor(t * 30))
+  g.save()
+  for (let i = 0; i < count; i++) {
+    g.fillStyle = rand() < 0.5 ? `rgba(255,255,255,${amount})` : `rgba(0,0,0,${amount * 1.5})`
+    g.fillRect(rand() * width, rand() * height, 2 + rand() * 2, 2 + rand() * 2)
+  }
+  g.restore()
+}
