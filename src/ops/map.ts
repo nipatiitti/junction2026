@@ -10,6 +10,8 @@ export type Context = {
   /** How tight admission is, from 1 (the on-time share is at its target) down to 0.25 (at the delivery minimum):
    * the slack an option needs grows as it falls. */
   tightening?: number
+  /** Rule 3 by the route: a charging stop only on a drive over 200 road km (charging.ts). */
+  chargeOver200?: boolean
 }
 
 const index = new WeakMap<WorldMap, Map<string, Road>>()

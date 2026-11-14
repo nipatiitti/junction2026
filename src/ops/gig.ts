@@ -12,6 +12,7 @@ import type {
   VisitFailedEvent,
 } from '../../vendor/spread-typescript/types.ts'
 import { DAY, dayOf, HOUR, isWeekend } from './calendar.ts'
+import { charging, needsCharging } from './charging.ts'
 import { type Context, driveMinutes, minutes } from './map.ts'
 import { earliestPickup, NO_FACTS, type NoteFacts } from './note.ts'
 import { deliveryWindow, pickupWindow, snowAt } from './windows.ts'
@@ -107,9 +108,10 @@ function stopsFor(order: Order, leg: number, noted: NoteFacts, retry: Retry, now
     leg,
     kind: 'pickup',
     withPlates: retry.plates || noted.plates,
-    withCharging: lowBattery(car),
+    withCharging: needsCharging(car, pickup.placeId, delivery.placeId, context),
     ...(pickupAt && { window: pickupAt }),
   }
+  if (lowBattery(car) && !first.withCharging) charging.gigsSpared++
   const second: StopRef = { orderId: order.id, leg, kind: 'delivery' }
   const narrower = deliverBy.from > base.from || deliverBy.to < base.to
   // After a window passed, the delivery runs to the end of the world, so the car can still arrive, late.

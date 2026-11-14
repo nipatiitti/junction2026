@@ -43,6 +43,7 @@ import {
   recordQuote,
 } from '../../models/quote/index.ts'
 import { appendFileSync } from 'node:fs'
+import { charging } from '../../ops/charging.ts'
 import { type Context, canServe, driveMinutes, type GigShape, gigShape, HOUR } from '../../ops/index.ts'
 import {
   type Books,
@@ -333,6 +334,9 @@ export class BidPrice extends Strategy<BidPriceParams> {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([k, v]) => `${k} ${v}`)
         .join(' ')}`,
+      ...(this.params.chargeOver200
+        ? [`charging spared ${charging.gigsSpared} gig cars, ${charging.quotesSpared} quote checks`]
+        : []),
     ].join(', ')
   }
 
@@ -387,7 +391,13 @@ export class BidPrice extends Strategy<BidPriceParams> {
 
   private context(): Context {
     const { map, level } = this.setup
-    return { map, level, forecasts: this.log.forecasts, tightening: tightening(this.fees, this.feeParams) }
+    return {
+      map,
+      level,
+      forecasts: this.log.forecasts,
+      tightening: tightening(this.fees, this.feeParams),
+      ...(this.params.chargeOver200 && { chargeOver200: true }),
+    }
   }
 
   /** A late order halves the dealer's trust, so lateness weighs more for a dealer who sends more of the requests:

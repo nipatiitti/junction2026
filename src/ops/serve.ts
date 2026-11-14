@@ -8,6 +8,7 @@
  *   asking the 5 hours of it declined 165 cars that arrived on time for 1 that was late. */
 import type { DeliveryOption, PriceRequest } from '../../vendor/spread-typescript/types.ts'
 import { dayOf, HOUR, nextOpen, shiftByBusinessDays } from './calendar.ts'
+import { charging, needsCharging } from './charging.ts'
 import { lowBattery } from './gig.ts'
 import { type Context, driveMinutes, minutes } from './map.ts'
 import { NO_FACTS, type NoteFacts, readNote } from './note.ts'
@@ -101,7 +102,9 @@ function earliestFinish(
     if (leg === 0 && pickup.privateAddress && at > pickup.window.to) at = Infinity
     at = nextOpen(at, pickup.hours, noted.pickupHours)
     at += minutes(context.map, pickup.placeId, delivery.placeId)
-    at += (noted.plates ? PLATES_MINUTES : 0) + (lowBattery(car) ? CHARGING_MINUTES : 0)
+    const charge = needsCharging(car, pickup.placeId, delivery.placeId, context)
+    if (lowBattery(car) && !charge) charging.quotesSpared++
+    at += (noted.plates ? PLATES_MINUTES : 0) + (charge ? CHARGING_MINUTES : 0)
     at = nextOpen(at, delivery.hours, noted.deliveryHours)
     if (leg === 0) first = at
     here = delivery.placeId

@@ -71,6 +71,8 @@ export type BidPriceParams = {
   climbStep: number
   climbTop: number
   repriceMax: number
+  /** Rule 3 by the route: plan a charging stop only when the car's drive is over 200 road km (src/ops/charging.ts). */
+  chargeOver200: boolean
 }
 
 export const DEFAULTS: BidPriceParams = {
@@ -113,6 +115,7 @@ export const DEFAULTS: BidPriceParams = {
   climbStep: 0.1,
   climbTop: 3,
   repriceMax: 10,
+  chargeOver200: false,
 }
 
 /** The quote models' params from the strategy's. */
