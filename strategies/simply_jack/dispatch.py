@@ -6,6 +6,8 @@ Jack makes two decisions, and each is a few plain rules with its numbers at the 
    that dealer we win and falls by LADDER_DOWN after each we lose, between PRICE_MIN and PRICE_MAX. In the first
    TRUST_DAYS of the week the steps swap, so a loss cuts more than a win adds: Jack wins most requests early, at a
    small margin, to earn the dealers' trust, and takes the bigger margin that trust allows later in the week.
+   Each morning every dealer's price falls by MORNING_STEP: overnight the competitor cuts its prices for the
+   dealers we won most from.
    The price war: once a week the competitor quotes 20% less for a day. When Jack wins at most one of his last
    WAR_WINDOW quotes from Tuesday on, he quotes WAR_PRICE times his prices until 18:00, and the ladder learns nothing then. The
    discount does not change which requests he takes, and it comes once a week. Too few drivers: for each car
@@ -50,6 +52,7 @@ LADDER_DOWN = 0.01  # a lost one lowers it by this share
 TRUST_DAYS = 1  # Monday: a win adds LADDER_DOWN and a loss takes LADDER_UP, to win most requests
 WAR_WINDOW, WAR_PRICE = 15, 0.85  # at most one win in this many quotes is the price war: quote this much less
 WARN_STEP = 0.01  # each car warned in the last 24 hours (no driver 3 hours before its last pickup) adds this
+MORNING_STEP = 0.03  # each morning every dealer's price falls by this: overnight the competitor answers our wins
 PRICE_MIN, PRICE_MAX = 1.30, 2.00  # a dealer's price stays between these times the list price
 MIN_LEAD = 8 * HOUR  # leave out an option whose driver would have less than this to reach the car
 MAX_FEE_LIST = 1.16  # decline when the typical fee is more than this times the list price: too dear a lane
@@ -67,6 +70,7 @@ NUMBERS = {
     "WAR_WINDOW": WAR_WINDOW,
     "WAR_PRICE": WAR_PRICE,
     "WARN_STEP": WARN_STEP,
+    "MORNING_STEP": MORNING_STEP,
     "PRICE_MIN": PRICE_MIN,
     "PRICE_MAX": PRICE_MAX,
     "MIN_LEAD": MIN_LEAD,
@@ -163,6 +167,7 @@ class Ladder:
 
     def __init__(self) -> None:
         self.factors: dict[str, float] = {}  # dealer id -> price factor; a dealer not here is at PRICE
+        self.day = 0  # the day of the last event, for the morning step
         self.quoted: dict[str, str] = {}  # request id -> its dealer, for the requests we quoted to win
         self.declined = self.won = self.lost = self.war_quotes = 0
         self.recent: list[bool] = []  # the last WAR_WINDOW answers: won or lost
@@ -183,6 +188,9 @@ class Ladder:
         return war
 
     def observe(self, event: DeskEvent) -> None:
+        if event["at"] // DAY > self.day:  # a new morning: the competitor has answered our wins overnight
+            self.day = event["at"] // DAY
+            self.factors = {d: max(PRICE_MIN, f * (1 - MORNING_STEP)) for d, f in self.factors.items()}
         if event["kind"] == "deadline_close":
             self.warnings[event["orderId"]] = event["at"]
         elif event["kind"] == "order_won":
