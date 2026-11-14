@@ -5,11 +5,13 @@ Two videos share this player, its kit, its sound and its MP4 export:
 - **The joke video** (the default): a 45-second vertical video (1080×1920, 30 fps) about our dispatcher, in the
   low-poly 3D look of a "what if" TikTok, made with Three.js, with its own music and sound effects. `PROMPT.md` has
   the full brief: the joke, the look, every scene and its beats.
-- **The ts:lean video** (`?video=lean`): a 59.5-second technical video in 16:10 (1920×1200, 30 fps) for YouTube. It
-  opens with 63 strategies thrown at a wall like spaghetti, states the problem, and shows `ts:lean` as a block
-  diagram of the real code: a 15-second zoom into `bestPrice()` and a 10-second zoom out while cars and drivers
-  drive its lanes the way the code moves them. `prompt.md` at the root of the repository has its brief; the
-  section [The ts:lean video](#the-tslean-video) below says where its parts are.
+- **The ts:lean video** (`?video=lean`): a 106.5-second technical video in 16:10 (1920×1200, 30 fps) for YouTube.
+  Four developers throw 63 strategies at a wall like spaghetti, the problem is stated, an "I am speed" race leads into
+  `ts:lean`, and `ts:lean` is shown for 63 seconds as a block diagram of the real code: a 15-second zoom into
+  `bestPrice()`, a closer look at the fees, the chains and the learning, and a zoom out while cars and drivers drive
+  its lanes the way the code moves them. It ends with the four developers' high five at the wall. `prompt.md` at the
+  root of the repository has its brief; the section [The ts:lean video](#the-tslean-video) below says where its parts
+  are.
 
 ## Run it
 
@@ -60,19 +62,20 @@ sounds the same and the MP4 gets exactly what the preview plays.
 
 Voice lines come from ElevenLabs text to speech, with meme voices cast in `voices.ts` (which voice says which line,
 and its delivery tags such as `[whispers]`); the words themselves come from `timeline.js`. Each line is saved as
-`video/audio/voice/<name>.mp3` and committed, so rendering needs no key; the page mixes it in at the line's cue. The mixer levels every line to the same loudness, starts it at its
-first word and dips the music under it; `rate` on a voice cue (in the view's `sounds()`) speeds a line up to fit.
+`video/audio/voice/<name>.mp3` and committed, so rendering needs no key; the page mixes it in at the line's cue. The
+mixer levels every line to the same loudness, starts it at its first word and dips the music under it; `rate` on a
+voice cue (in the view's `sounds()`) speeds a line up to fit.
 
 ```bash
 node --env-file=.env.local video/voices.ts
 ```
 
-makes the lines of both videos that have no file yet; `--force` makes every line again, and names (`scene1-speed scene4-nah`) make
-just those again. It needs `pnpm install` (for the ElevenLabs SDK) and an ElevenLabs key in `.env.local`, which
-`npx -y @elevenlabs/cli@latest onboard init` sets up once (the key is never committed). A recording of your own with
-the same name (`.mp3`, `.m4a`, `.wav` or `.ogg`) works too. The names are `scene1-speed`, `scene1-whisper`,
-`scene2-chat`, `scene2-back`, `scene3-bro`, `scene3-sixseven`, `scene3-chews`, `scene4-accepted`, `scene4-nah`,
-`scene4-scream`, `scene4-panic`, `end-remember` and `end-us`.
+makes the lines of both videos that have no file yet; `--force` makes every line again, and names (`scene1-speed
+scene4-nah`) make just those again. It needs `pnpm install` (for the ElevenLabs SDK) and an ElevenLabs key in
+`.env.local`, which `npx -y @elevenlabs/cli@latest onboard init` sets up once (the key is never committed). A
+recording of your own with the same name (`.mp3`, `.m4a`, `.wav` or `.ogg`) works too. The names are `scene1-speed`,
+`scene1-whisper`, `scene2-chat`, `scene2-back`, `scene3-bro`, `scene3-sixseven`, `scene3-chews`, `scene4-accepted`,
+`scene4-nah`, `scene4-scream`, `scene4-panic`, `end-remember` and `end-us`.
 
 ## Repeatable frames
 
@@ -87,18 +90,19 @@ Open <http://localhost:8790/?video=lean>, or pick it in the player's first menu.
 tag, mark and subtitles are drawn by `src/lean/ui.js` (the "safe areas" box shows the title-safe and action-safe
 frames instead of TikTok's), and Render MP4 saves `lean-video-<view>.mp4`.
 
-| File                       | What it holds                                                                        |
-| -------------------------- | ------------------------------------------------------------------------------------ |
-| `src/lean/timeline.js`     | the views in order, their lengths and chapters, every spoken line with its subtitle   |
-| `src/lean/diagram.js`      | the block diagram as data: systems, classes, functions, lanes, lines, the zoom frames |
-| `src/lean/map.js`          | builds the diagram in 3D, and draws the chart inside `bestPrice()`                   |
-| `src/lean/traffic.js`      | cars on the lanes as formulas of time: stops, and queues behind the car ahead         |
-| `src/lean/views/*.js`      | spaghetti, title, problem, didnot, zoom (both zooms), result, handshake               |
-| `src/lean/ui.js`           | the chapter tag, the mark, subtitles and the lower third                              |
-| `src/lean/sets.js`         | the hackathon hall and the laptop desk, shared by three views                         |
+| File                   | What it holds                                                                             |
+| ---------------------- | ----------------------------------------------------------------------------------------- |
+| `src/lean/timeline.js` | the views in order, their lengths and chapters, every spoken line with its subtitle       |
+| `src/lean/diagram.js`  | the block diagram as data: systems, classes, functions, lanes, lines, the zoom frames     |
+| `src/lean/map.js`      | builds the diagram in 3D, and draws the chart inside `bestPrice()`                        |
+| `src/lean/traffic.js`  | cars on the lanes as formulas of time: stops, and queues behind the car ahead             |
+| `src/lean/views/*.js`  | spaghetti, title, problem, didnot, speed, zoom (every part of chapter 02), result, ending |
+| `src/lean/panels.js`   | the cards beside the diagram: the fee steps, the chains, the win curve learning           |
+| `src/lean/ui.js`       | the chapter tag, the mark, subtitles and the lower third                                  |
+| `src/lean/sets.js`     | the hackathon hall, the laptop desk and the developers, shared by three views             |
 
 The diagram's names are the code's names on main (15 November 2026), and every green tag is a measured effect from
-`src/strategies/lean/README.md`; check them again before a render when `ts:lean` has changed. Its 17 voice lines
+`src/strategies/lean/README.md`; check them again before a render when `ts:lean` has changed. Its 26 voice lines
 (`lean-*` in `voices.ts`) are made like the joke video's (below) and committed in `audio/voice/`; a line's `rate` in
 `lean/timeline.js` speeds it up to fit its subtitle, at most 1.12.
 

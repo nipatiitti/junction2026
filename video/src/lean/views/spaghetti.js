@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { clamp, ease, lerp, pop, progress, track } from '../../kit/anim.js'
-import { POSES, pose } from '../../kit/character.js'
+import { pose } from '../../kit/character.js'
 import { sparkle } from '../../kit/fx.js'
 import { at, box, mat, mesh } from '../../kit/materials.js'
 import { rng } from '../../kit/rng.js'
@@ -10,28 +10,69 @@ import { captions, voiceCues } from '../lines.js'
 import { developer, hall } from '../sets.js'
 import { SANS } from '../ui.js'
 
-// Joke 1, the hook: the team throws 63 strategies at a wall like spaghetti, in slow motion. They slap the wall, slide
-// down one by one while a counter on the wall runs down, and one sticks: ts:lean. The texts are in timeline.js.
-// Beats (local seconds):
-//   0–1.4    the first frame is already mid-throw: 63 strands fly at the wall, slowly; they slap it at 1.4
-//   1.6–3.0  they slide down; the named ones get an ELIMINATED stamp; the counter runs from 63 to 1
-//   3.0–4.0  one strand still sticks; push in on its tag, ts:lean; sparkles
+// Joke 1, the hook: four developers tip pots of spaghetti at a wall, in slow motion: 63 strategies, each a bundle of
+// thin cooked strands. They slap the wall with a splash of tomato sauce, slide down one by one while a counter on the
+// wall runs down, and one sticks: ts:lean. The texts are in timeline.js. Beats (local seconds):
+//   0–1.9    the first frame is already mid-throw; the bundles fly at the wall and slap it from 1.2
+//   1.9–6.6  they slide down; the named ones get an ELIMINATED stamp; the counter runs from 63 to 1
+//   6.6–9.0  one still sticks; push in on its tag, ts:lean; sparkles
 
 const COUNT = 63
-const THROWN = -0.6 // the throw left the pot before the first frame
-const HIT = 1.4 // the strands reach the wall
+const STRANDS = 3 // strands in a bundle
 const WALL = -3 // z of the wall's face
-const POT = [-3.0, 1.95, 1.9]
 const WINNER = [1.7, 2.75] // where ts:lean sticks, x and y on the wall
-const SLIDE_FROM = 1.6
+const SLIDES = [1.9, 6.6]
+const NAMED_AT = [3.0, 3.6, 4.2, 4.8]
+/** Where the four developers stand, and when each tips the pot (the first two before the first frame). */
+const DEVS = [
+  { x: -4.3, z: 1.0, shirt: '#d6262c', tip: -0.5 },
+  { x: -3.1, z: 2.0, shirt: '#2563eb', tip: -0.25 },
+  { x: -4.7, z: 2.9, shirt: '#16a34a', tip: 0.0 },
+  { x: -3.0, z: 3.6, shirt: '#7c3aed', tip: 0.25 },
+]
 
-/** A strand of spaghetti: a wavy tube along x, about 1.7 long. */
-function strandGeometry(seed) {
+/** A cooked strand: a long thin tube that wanders in a plane (z = 0), about 1.9 long. */
+export function strandGeometry(seed) {
   const rand = rng(seed)
   const points = []
-  for (let i = 0; i <= 8; i++)
-    points.push(new THREE.Vector3(-0.85 + i * 0.21, rand.range(-0.09, 0.09), rand.range(-0.03, 0.03)))
-  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 32, 0.03, 5, false)
+  let angle = rand.range(-0.4, 0.4)
+  let x = -0.95
+  let y = 0
+  for (let i = 0; i <= 14; i++) {
+    points.push(new THREE.Vector3(x, y, rand.range(-0.01, 0.01)))
+    angle += rand.range(-0.55, 0.55)
+    x += Math.cos(angle) * 0.14
+    y += Math.sin(angle) * 0.14
+  }
+  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 96, 0.016, 6, false)
+}
+
+/** A splash of tomato sauce: a round blob with soft lobes, flat on the wall. */
+export function splatGeometry(seed) {
+  const rand = rng(seed)
+  const shape = new THREE.Shape()
+  const n = 40
+  const [p1, p2, p3] = [rand() * 6.28, rand() * 6.28, rand() * 6.28]
+  const [a1, a2] = [rand.range(0.12, 0.24), rand.range(0.05, 0.12)]
+  for (let i = 0; i <= n; i++) {
+    const a = (i / n) * Math.PI * 2
+    const r = 1 + a1 * Math.sin(3 * a + p1) + a2 * Math.sin(5 * a + p2) + 0.05 * Math.sin(9 * a + p3)
+    if (i === 0) shape.moveTo(Math.cos(a) * r, Math.sin(a) * r)
+    else shape.lineTo(Math.cos(a) * r, Math.sin(a) * r)
+  }
+  return new THREE.ShapeGeometry(shape)
+}
+
+/** A cooking pot with two handles, its opening up. */
+export function pot() {
+  const group = new THREE.Group()
+  const steel = mat('#b8c0ca', { side: THREE.DoubleSide })
+  group.add(mesh(new THREE.CylinderGeometry(0.3, 0.26, 0.42, 16, 1, true), steel))
+  group.add(at(mesh(new THREE.CircleGeometry(0.26, 16).rotateX(-Math.PI / 2), steel), 0, -0.2, 0))
+  for (const side of [-1, 1]) group.add(at(box(0.16, 0.05, 0.08, '#4b5563'), side * 0.36, 0.14, 0))
+  // the last spaghetti in the pot
+  group.add(at(mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.06, 16), mat('#efcf7d')), 0, 0.02, 0))
+  return group
 }
 
 function counterPainter(g, { n }, w, h) {
@@ -51,14 +92,13 @@ export default {
   sounds(segment) {
     const cues = [
       ...voiceCues(segment),
-      { at: 0, sound: 'whoosh', length: 1.3, from: 300, to: 1400, gain: 0.35 },
-      { at: HIT, sound: 'splat', gain: 0.55 },
-      { at: HIT + 0.09, sound: 'splat', gain: 0.4 },
-      { at: HIT + 0.2, sound: 'splat', gain: 0.35 },
-      { at: SLIDE_FROM, sound: 'slot', length: 1.4, gain: 0.07 },
-      { at: 3.05, sound: 'twinkle', gain: 0.25 },
-      { at: 3.0, sound: 'riser', length: 0.9, gain: 0.12 },
+      { at: 0, sound: 'whoosh', length: 1.6, from: 250, to: 1200, gain: 0.35 },
+      { at: SLIDES[0], sound: 'slot', length: SLIDES[1] - SLIDES[0], gain: 0.05 },
+      { at: 6.6, sound: 'riser', length: 0.6, gain: 0.12 },
+      { at: 6.8, sound: 'twinkle', gain: 0.25 },
     ]
+    for (let i = 0; i < 9; i++) cues.push({ at: 1.2 + i * 0.08, sound: 'splat', gain: 0.5 - i * 0.03 })
+    for (const at of NAMED_AT) cues.push({ at, sound: 'boom', gain: 0.18, length: 0.3 })
     return cues
   },
 
@@ -67,82 +107,93 @@ export default {
     hall(scene, { hour: 'HOUR 31' })
     const rand = rng(63)
 
-    // the wall the strands hit, with the counter
-    scene.add(at(box(7.2, 5.2, 0.2, '#ecebf3'), 1.6, 2.6, WALL - 0.1))
+    // the wall the spaghetti hits, with the counter
+    scene.add(at(box(7.6, 5.4, 0.2, '#ecebf3'), 1.6, 2.7, WALL - 0.1))
     const counter = liveTexture(256, 256, counterPainter)
     counter.set({ n: COUNT })
     scene.add(
       at(
         new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), new THREE.MeshBasicMaterial({ map: counter.texture })),
-        4.55,
-        4.45,
+        4.75,
+        4.6,
         WALL + 0.01,
       ),
     )
 
-    // the team: the developer tips the pot, two teammates cheer
-    const dev = developer()
-    dev.root.rotation.y = Math.PI / 2.4
-    scene.add(at(dev.root, -3.6, 0, 1.7))
-    pose(dev, { armL: [-1.45, 0, -0.1], armR: [-1.45, 0, 0.1], torso: [0.12, 0, 0] })
-    const pot = mesh(
-      new THREE.CylinderGeometry(0.42, 0.34, 0.6, 12, 1, true),
-      mat('#aab2bc', { side: THREE.DoubleSide }),
-    )
-    pot.rotation.z = -1.0
-    scene.add(at(pot, POT[0] - 0.25, POT[1] - 0.15, POT[2]))
-    const mates = []
-    for (const [x, z, shirt] of [
-      [-4.9, 0.5, '#2b7de9'],
-      [-5.1, 2.9, '#6a4c93'],
-    ]) {
-      const mate = developer({ shirt })
-      mate.root.rotation.y = Math.PI / 2.6
-      scene.add(at(mate.root, x, 0, z))
-      mates.push(mate)
-    }
+    // the four developers, each tipping a pot held out in both hands
+    const devs = DEVS.map((spec) => {
+      const person = developer({ shirt: spec.shirt })
+      const facing = Math.atan2(1.6 - spec.x, WALL - spec.z)
+      person.root.position.set(spec.x, 0, spec.z)
+      person.root.rotation.y = facing
+      const held = pot()
+      held.position.set(0, 0.42, 0.66)
+      person.torso.add(held)
+      scene.add(person.root)
+      // where the pot's opening is in the world when it tips: the strands leave from there
+      const mouth = new THREE.Vector3(spec.x + Math.sin(facing) * 0.95, 1.55, spec.z + Math.cos(facing) * 0.95)
+      return { person, held, mouth, ...spec }
+    })
 
-    // 63 strands, in three shapes; the named ones carry a tag
-    const shapes = [strandGeometry(1), strandGeometry(2), strandGeometry(3)]
-    const noodle = mat('#f3d27a')
+    // 63 bundles of strands in six shapes, and a splash of sauce where each one lands
+    const shapes = [1, 2, 3, 4, 5, 6].map(strandGeometry)
+    const noodle = new THREE.MeshStandardMaterial({ color: '#f0cf7a', roughness: 0.38, metalness: 0 })
+    const perShape = Math.ceil((COUNT * STRANDS) / shapes.length)
     const instanced = shapes.map((g) => {
-      const m = new THREE.InstancedMesh(g, noodle, Math.ceil(COUNT / 3))
+      const m = new THREE.InstancedMesh(g, noodle, perShape)
       m.frustumCulled = false
       m.castShadow = true
       scene.add(m)
       return m
     })
-    const named = [...segment.tags, segment.winner]
-    const strands = []
+    const sauce = new THREE.MeshStandardMaterial({ color: '#d8462a', roughness: 0.25, metalness: 0 })
+    const splats = []
+    const bundles = []
     for (let i = 0; i < COUNT; i++) {
       const winner = i === COUNT - 1
-      const target = winner ? [WINNER[0], WINNER[1]] : [rand.range(-1.6, 4.9), rand.range(0.7, 4.7)]
-      strands.push({
+      const dev = devs[i % devs.length]
+      const target = winner ? [...WINNER] : [rand.range(-1.7, 4.9), rand.range(0.8, 4.9)]
+      bundles.push({
+        dev,
         target,
-        launch: THROWN + rand() * 0.25,
-        hit: HIT + rand() * 0.18,
-        spin: [rand.range(-6, 6), rand.range(-6, 6), rand.range(-6, 6)],
+        launch: dev.tip + 0.1 + rand() * 0.25,
+        hit: 1.2 + rand() * 0.7,
+        spin: [rand.range(-5, 5), rand.range(-5, 5), rand.range(-5, 5)],
         turn: rand() * Math.PI,
-        arc: rand.range(0.8, 1.6),
-        slide: winner ? Infinity : 0, // set below: the order they slide off in
+        arc: rand.range(0.6, 1.4),
+        slide: winner ? Infinity : 0,
         drop: rand.range(5, 9),
+        offsets: Array.from({ length: STRANDS }, () => [
+          rand.range(-0.08, 0.08),
+          rand.range(-0.08, 0.08),
+          rand() * 0.6,
+        ]),
         winner,
       })
+      const splat = mesh(splatGeometry(i + 7), sauce, { shadow: false })
+      splat.scale.setScalar(0.001)
+      splat.rotation.z = rand() * Math.PI
+      splat.position.set(
+        target[0] + rand.range(-0.1, 0.1),
+        target[1] + rand.range(-0.1, 0.1),
+        WALL + 0.012 + i * 0.0002,
+      )
+      scene.add(splat)
+      splats.push({ splat, size: rand.range(0.12, 0.22) })
     }
-    // the named losers slide off while the camera is close, the others before and after them
-    const order = strands.map((_, i) => i).filter((i) => !strands[i].winner)
-    const namedLosers = order.slice(0, segment.tags.length)
-    for (const [k, i] of namedLosers.entries()) strands[i].target = [0.1 + k * 1.15, 2.2 + (k % 2) * 1.1]
-    const others = order.slice(segment.tags.length)
+    // the named losers slide off while the camera is close; the others before and after them
+    const losers = bundles.map((_, i) => i).filter((i) => !bundles[i].winner)
+    const named = losers.slice(0, segment.tags.length)
+    named.forEach((i, k) => {
+      bundles[i].target = [0.1 + k * 1.15, 2.2 + (k % 2) * 1.1]
+      splats[i].splat.position.set(bundles[i].target[0], bundles[i].target[1], splats[i].splat.position.z)
+      bundles[i].slide = NAMED_AT[k]
+    })
+    const others = losers.slice(segment.tags.length)
     others.forEach((i, rank) => {
-      strands[i].slide = SLIDE_FROM + rank * ((3.0 - SLIDE_FROM) / (others.length - 1))
+      bundles[i].slide = SLIDES[0] + rank * ((SLIDES[1] - SLIDES[0]) / (others.length - 1))
     })
-    namedLosers.forEach((i, k) => {
-      strands[i].slide = 2.0 + k * 0.2
-    })
-    const tags = []
-    named.forEach((text, k) => {
-      const i = k < segment.tags.length ? namedLosers[k] : COUNT - 1
+    const tags = [...segment.tags, segment.winner].map((text, k) => {
       const winner = k === segment.tags.length
       const tag = sign(text, {
         w: winner ? 1.3 : 1.05,
@@ -151,91 +202,104 @@ export default {
         fg: winner ? '#ffffff' : '#1d1f24',
       })
       scene.add(tag)
-      tags.push({ tag, i, winner, text })
+      return { tag, i: winner ? COUNT - 1 : named[k], winner }
     })
 
     const camera = new THREE.PerspectiveCamera(40, 16 / 10, 0.05, 120)
     const screen = (v) => toScreen(v, camera, 1920, 1200)
     const dummy = new THREE.Object3D()
-    const where = (s, t) => {
-      // in the air from launch to hit, flat on the wall, then sliding down to the floor
-      if (t < s.hit) {
-        const u = clamp((t - s.launch) / (s.hit - s.launch))
-        const x = lerp(POT[0], s.target[0], u)
-        const y = lerp(POT[1], s.target[1], u) + Math.sin(Math.PI * u) * s.arc
-        const z = lerp(POT[2], WALL + 0.05, u)
-        return { p: [x, y, z], r: [s.spin[0] * u, s.spin[1] * u, s.spin[2] * u + s.turn * u] }
+    /** Where a bundle is at time t: in the air from its pot, flat on the wall, or sliding down to the floor. */
+    const where = (b, t) => {
+      if (t < b.hit) {
+        const u = clamp((t - b.launch) / (b.hit - b.launch))
+        const p = [
+          lerp(b.dev.mouth.x, b.target[0], u),
+          lerp(b.dev.mouth.y, b.target[1], u) + Math.sin(Math.PI * u) * b.arc,
+          lerp(b.dev.mouth.z, WALL + 0.05, u),
+        ]
+        return { p, r: [b.spin[0] * u, b.spin[1] * u, b.spin[2] * u + b.turn * u], flying: t >= b.launch }
       }
-      const fall = Math.max(0, t - s.slide)
-      const y = Math.max(0.05, s.target[1] - 0.5 * s.drop * fall * fall)
+      const fall = Math.max(0, t - b.slide)
+      const y = Math.max(0.05, b.target[1] - 0.5 * b.drop * fall * fall)
       const lying = y <= 0.05
       return {
-        p: [s.target[0], y, lying ? WALL + 0.35 : WALL + 0.05],
-        r: lying ? [Math.PI / 2, 0, s.turn] : [0, 0, s.turn],
+        p: [b.target[0], y, lying ? WALL + 0.4 : WALL + 0.04],
+        r: lying ? [Math.PI / 2, 0, b.turn] : [0, 0, b.turn],
+        flying: true,
       }
     }
-    const screenTags = []
+    const marks = []
 
     return {
       scene,
       camera,
       update(t) {
-        const counts = [0, 0, 0]
+        const counts = shapes.map(() => 0)
         let stuck = 0
-        strands.forEach((s, i) => {
-          const { p, r } = where(s, t)
-          if (t >= s.hit && t < s.slide) stuck++
-          dummy.position.set(...p)
-          dummy.rotation.set(...r)
-          dummy.scale.setScalar(1)
-          dummy.updateMatrix()
-          const shape = i % 3
-          instanced[shape].setMatrixAt(counts[shape]++, dummy.matrix)
+        let flying = 0
+        bundles.forEach((b, i) => {
+          const { p, r, flying: out } = where(b, t)
+          if (t >= b.hit && t < b.slide) stuck++
+          if (t < b.hit) flying++
+          b.offsets.forEach(([ox, oy, twist], s) => {
+            dummy.position.set(p[0] + ox, p[1] + oy, p[2] + (t < b.hit ? ox : 0))
+            dummy.rotation.set(r[0], r[1], r[2] + twist)
+            dummy.scale.setScalar(out ? 1 : 0.001)
+            dummy.updateMatrix()
+            const shape = (i * STRANDS + s) % shapes.length
+            instanced[shape].setMatrixAt(counts[shape]++, dummy.matrix)
+          })
+          const { splat, size } = splats[i]
+          splat.scale.setScalar(Math.max(0.001, size * pop(t, b.hit, 0.15)))
         })
         for (const m of instanced) m.instanceMatrix.needsUpdate = true
-        counter.set({ n: t < HIT ? COUNT : Math.max(1, stuck) })
+        counter.set({ n: t < 1.2 ? COUNT : Math.max(1, stuck + flying) })
 
-        screenTags.length = 0
+        marks.length = 0
         for (const { tag, i, winner } of tags) {
-          const { p, r } = where(strands[i], t)
-          tag.position.set(p[0] + 0.15, p[1] + 0.26, p[2] + 0.04)
-          tag.rotation.set(0, 0, t < strands[i].hit ? r[2] * 0.3 : 0)
-          tag.visible = p[1] > 0.06
-          screenTags.push({ i, winner, p })
+          const { p } = where(bundles[i], t)
+          tag.position.set(p[0] + 0.15, p[1] + 0.3, p[2] + 0.05)
+          tag.visible = t >= bundles[i].launch && p[1] > 0.06
+          marks.push({ i, winner, p })
         }
 
-        pose(dev, {
-          armL: [-1.45 + 0.15 * Math.sin(t * 2), 0, -0.1],
-          armR: [-1.45 + 0.15 * Math.sin(t * 2), 0, 0.1],
-          torso: [0.12, 0, 0],
-        })
-        mates.forEach((mate, k) => {
-          pose(mate, { ...POSES.armsUp, lift: Math.abs(Math.sin(t * 5 + k)) * 0.12 })
+        // the developers tip their pots: arms up and forward, the pot turning over; then they cheer a little
+        devs.forEach((dev, k) => {
+          const tip = ease.outCubic(progress(t, dev.tip, dev.tip + 0.5)) * (1 - ease.inOutQuad(progress(t, 2.4, 3.4)))
+          pose(dev.person, {
+            armL: [-1.35 - 0.5 * tip, 0, -0.12],
+            armR: [-1.35 - 0.5 * tip, 0, 0.12],
+            torso: [0.08 + 0.12 * tip, 0, 0],
+            head: [-0.1 * tip, 0, 0],
+            lift: 0.04 * Math.abs(Math.sin(t * 4 + k)) * progress(t, 3.4, 4),
+          })
+          dev.held.position.set(0, 0.42 + 0.22 * tip, 0.66 + 0.06 * tip)
+          dev.held.rotation.x = 1.6 * tip
         })
 
-        // the camera: wide, then in on the wall, then on the strand that sticks
+        // the camera: wide, then in on the wall, then on the one that sticks
         const eye = track(t, [
-          [0, [0.2, 2.8, 10.8]],
-          [1.3, [0.3, 2.7, 9.6], 'outQuad'],
-          [2.2, [1.5, 2.8, 4.4], 'inOutQuad'],
-          [3.0, [1.5, 2.8, 4.0]],
-          [4.2, [WINNER[0] + 0.1, WINNER[1] + 0.2, WALL + 2.5], 'inOutCubic'],
+          [0, [-0.9, 3.1, 12.6]],
+          [1.6, [-0.6, 2.95, 11.2], 'outQuad'],
+          [2.6, [1.5, 2.85, 4.6], 'inOutQuad'],
+          [6.6, [1.6, 2.85, 4.1]],
+          [8.0, [WINNER[0] + 0.1, WINNER[1] + 0.2, WALL + 2.4], 'inOutCubic'],
         ])
         const look = track(t, [
-          [0, [0.4, 2.3, -2]],
-          [2.2, [1.6, 2.7, WALL], 'inOutQuad'],
-          [3.0, [1.6, 2.7, WALL]],
-          [4.2, [WINNER[0] + 0.1, WINNER[1] + 0.1, WALL], 'inOutCubic'],
+          [0, [-0.5, 2.1, -1.2]],
+          [2.6, [1.6, 2.75, WALL], 'inOutQuad'],
+          [6.6, [1.6, 2.75, WALL]],
+          [8.0, [WINNER[0] + 0.1, WINNER[1] + 0.1, WALL], 'inOutCubic'],
         ])
         camera.position.set(...eye)
         camera.lookAt(...look)
       },
       overlay(g, t) {
-        // ELIMINATED on each named strand as it starts to slide
-        for (const { i, winner, p } of screenTags) {
-          const s = strands[i]
-          if (winner || t < s.slide) continue
-          const k = pop(t, s.slide, 0.2)
+        // ELIMINATED on each named bundle as it starts to slide
+        for (const { i, winner, p } of marks) {
+          const b = bundles[i]
+          if (winner || t < b.slide) continue
+          const k = pop(t, b.slide, 0.2)
           if (k <= 0 || p[1] <= 0.06) continue
           const [x, y] = screen(new THREE.Vector3(p[0] + 0.15, p[1] + 0.3, p[2]))
           g.save()
@@ -249,9 +313,9 @@ export default {
           outlined(g, 'ELIMINATED', x, y - 4, 44, { fill: '#dc2626', stroke: '#ffffff', line: 8, alpha: k, font: SANS })
         }
         // sparkles round the one that sticks
-        if (t > 3.0) {
+        if (t > 6.6) {
           const [x, y] = screen(new THREE.Vector3(WINNER[0], WINNER[1] + 0.2, WALL + 0.1))
-          const a = ease.outQuad(progress(t, 3.0, 3.3))
+          const a = ease.outQuad(progress(t, 6.6, 6.9))
           for (let k = 0; k < 5; k++) {
             const angle = t * 1.6 + (k * Math.PI * 2) / 5
             sparkle(g, x + Math.cos(angle) * 300, y + Math.sin(angle) * 150, 26 + 10 * Math.sin(t * 7 + k), a)

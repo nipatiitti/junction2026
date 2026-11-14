@@ -50,6 +50,7 @@ function said(name: string): string {
 const CLEAR = '[calm, clear]'
 const LEAN_LINES: Line[] = [
   { name: 'lean-careful', voice: VOICES.liam, text: `[deadpan] ${said('lean-careful')}` },
+  { name: 'lean-spaghetti', voice: VOICES.liam, text: `[matter-of-fact] ${said('lean-spaghetti')}` },
   { name: 'lean-stuck', voice: VOICES.liam, text: `[hushed] ${said('lean-stuck')}` },
   { name: 'lean-problem', voice: VOICES.liam, text: `${CLEAR} ${said('lean-problem')}` },
   { name: 'lean-high', voice: VOICES.liam, text: `${CLEAR} ${said('lean-high')}` },
@@ -62,15 +63,23 @@ const LEAN_LINES: Line[] = [
     text: `[deep, slow] ${said('lean-didnot')}`,
     effects: { environmentId: 'hall', distance: 0.2 },
   },
+  { name: 'lean-speed', voice: VOICES.liam, text: `[whispers, intense] ${said('lean-speed')}`, stability: 0.3 },
   { name: 'lean-touches', voice: VOICES.liam, text: `${CLEAR} ${said('lean-touches')}` },
   { name: 'lean-events', voice: VOICES.liam, text: `${CLEAR} ${said('lean-events')}` },
   { name: 'lean-decisions', voice: VOICES.liam, text: `${CLEAR} ${said('lean-decisions')}` },
   { name: 'lean-price', voice: VOICES.liam, text: `${CLEAR} ${said('lean-price')}` },
   { name: 'lean-fees', voice: VOICES.liam, text: `${CLEAR} ${said('lean-fees')}` },
+  { name: 'lean-weekend', voice: VOICES.liam, text: `${CLEAR} ${said('lean-weekend')}` },
   { name: 'lean-chains', voice: VOICES.liam, text: `${CLEAR} ${said('lean-chains')}` },
+  { name: 'lean-chancefee', voice: VOICES.liam, text: `${CLEAR} ${said('lean-chancefee')}` },
   { name: 'lean-learn', voice: VOICES.liam, text: `${CLEAR} ${said('lean-learn')}` },
+  { name: 'lean-supply', voice: VOICES.liam, text: `${CLEAR} ${said('lean-supply')}` },
+  { name: 'lean-cars', voice: VOICES.liam, text: `${CLEAR} ${said('lean-cars')}` },
+  { name: 'lean-requests', voice: VOICES.liam, text: `${CLEAR} ${said('lean-requests')}` },
   { name: 'lean-margin', voice: VOICES.liam, text: `[proud] ${said('lean-margin')}` },
   { name: 'lean-ontime', voice: VOICES.liam, text: `[smug] ${said('lean-ontime')}` },
+  { name: 'lean-shipit', voice: VOICES.liam, text: `[excited, shouting] ${said('lean-shipit')}`, stability: 0.3 },
+  { name: 'lean-thatsit', voice: VOICES.liam, text: `[warm, satisfied] ${said('lean-thatsit')}` },
 ]
 
 const LINES: Line[] = [
