@@ -40,6 +40,14 @@ def requests(db: sqlite3.Connection, levels: list[int]) -> list[tuple[str, str, 
     return rows
 
 
+def dumps(out: dict) -> str:
+    """The fit as JSON in the repository's format: two spaces, and each lane's pair on one line."""
+    head = {key: value for key, value in out.items() if key != "lanes"}
+    lines = [f"  {json.dumps(key)}: {json.dumps(value)}," for key, value in head.items()]
+    lanes = ",\n".join(f"    {json.dumps(lane)}: {json.dumps(pair)}" for lane, pair in out["lanes"].items())
+    return "{\n" + "\n".join(lines) + '\n  "lanes": {\n' + lanes + "\n  }\n}\n"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Fits the typical fee of each lane on the saved weeks.")
     parser.add_argument("--db", default="out/spread.sqlite")
@@ -74,7 +82,7 @@ def main() -> None:
         "per_minute": round(slope, 3),
         "lanes": {f"{a}>{b}": [round(means[a, b], 4), len(lanes[a, b])] for a, b in sorted(lanes)},
     }
-    Path(args.out).write_text(json.dumps(out, indent=1) + "\n")
+    Path(args.out).write_text(dumps(out))
     print(f"Wrote {args.out}")
 
 
