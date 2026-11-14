@@ -29,6 +29,19 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-14: shared learning of a lost request (issue #357)
+
+- **Version changed**: TypeScript.
+- **What changed**: `sharedOutcome` averages a lost request's shared demand updates over its quoted options instead
+  of applying them once per option, while each option effect still learns separately. False keeps the old path. On 40
+  fresh paired simulator seeds, `sharedOutcome=true,costLevel=1` gained €549.67 ± €122.80 (SE) a week over the false
+  control, paired 95% CI +€301.29 to +€798.06; both had every week ranked. On 15 fresh paired server seeds, shared
+  learning alone gained €447.06 ± €213.10 (SE), ahead on 10 of 15, paired 95% CI −€10.00 to +€904.11, all 15 ranked;
+  `costLevel=1` was €283.57 behind shared learning alone. The default remains false. Details and raw CSVs:
+  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#shared-demand-outcomes-14-november-experimental).
+- **In step**: no (#329). The Python version does not have `sharedOutcome`; the fee and supply changes above are also
+  still outstanding there.
+
 ### 2026-11-15: no raises over the weekend (issue #347)
 
 - **Version changed**: TypeScript.

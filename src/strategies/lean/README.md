@@ -472,11 +472,92 @@ orders, so the difference is fees and refunds alone:
 +€624 ± 130 a week, ahead on 10 of 10 seeds (+€172 to +€1,375), with 0.3 points fewer orders on time. The `rest`
 false week of `supply-1` is the saved week of the old schedule to the cent.
 
+## Shared demand outcomes (14 November, experimental)
+
+`sharedOutcome` changes only losses with several quoted options. The old code updates the world, day, dealer, pickup
+and delivery effects once per option, so one lost request can count several times. With `sharedOutcome=true`, every
+option's contribution is calculated from the same pre-outcome state. Each delivery-option effect still learns alone;
+each shared effect receives the mean of the option contributions once. Wins and the `false` control are unchanged.
+The default is false: the server check below is encouraging, not conclusive enough to change it.
+
+The first 40 paired simulator seeds (`lean-so-screen-1..40`) were used to explore the change. Shared learning alone
+gained €426.35 (SE €156.81, paired 95% CI +€109.17 to +€743.53). Adding `costLevel=1` gained €485.18 over the control
+(SE €182.15, CI +€116.74 to +€853.62); its increment over shared learning alone was only €58.83 ± €140.35. These are
+selection results, not independent proof. The combined candidate was then frozen, including its SHA-256 hashes, before
+40 new seeds (`lean-so-validate-1..40`) were played. The hashes were unchanged afterward.
+
+| Frozen validation, 40 fresh paired simulator seeds | Control    | Candidate  |
+| -------------------------------------------------- | ---------- | ---------- |
+| Mean margin                                        | €17,694.01 | €18,243.68 |
+| Mean orders                                        | 449.0      | 420.2      |
+| Mean on time                                       | 96.36%     | 96.53%     |
+| Ranked                                             | 40 of 40   | 40 of 40   |
+
+The paired candidate-minus-control gain was **€549.67 a week**, SD €776.66, SE €122.80, t(39) 4.476 and 95% CI
+**+€301.29 to +€798.06**. It was ahead on 28 of 40 seeds, with a median gain of €588.67; a 10% winsorized mean was
+€517.26, so the result is not just one large seed. No candidate week became unranked. This is simulator evidence only;
+its CI does not establish that the true gain exceeds €500.
+
+Every benchmark used a new `SPREAD_JOURNAL_DIR`; reusing one contaminates a restarted simulator because its world ids
+repeat and the harness journals append by world id. Two identical configurations in a fresh directory produced the
+same score to the cent before these comparisons. The validation seeds map to 39 distinct recorded request/driver packs
+(one pack occurs twice), with independent hidden draws and quote decisions per named seed. Raw bench output:
+[`shared-outcome-screen.csv`](shared-outcome-screen.csv) and
+[`shared-outcome-validation.csv`](shared-outcome-validation.csv).
+
+### Server check on 15 fresh seeds (14 November, issue #357)
+
+Three arms played 15 new random server seeds each, level 8, one paired run at a time. The 45 weeks used `f1804809`
+with only the two TypeScript source changes; #347's weekend schedule was merged into this branch afterward. These are
+therefore measurements on the pre-#347 base, not a replay of the final merge, and should be repeated on it before the
+parameter is enabled.
+
+| 15 paired server seeds | Control (`sharedOutcome=false`) | Shared only | Shared, `costLevel=1` |
+| ---------------------- | ------------------------------- | ----------- | --------------------- |
+| Mean margin            | €13,010.05                      | €13,457.10  | €13,173.53            |
+| Margin SD              | €3,404.08                       | €3,366.07   | €3,414.27             |
+| Mean orders            | 390.2                           | 370.7       | 359.7                 |
+| Mean on time           | 96.33%                          | 96.72%      | 96.50%                |
+| Ranked                 | 14 of 15                        | 15 of 15    | 14 of 15              |
+
+| Paired difference       | Mean ± SD              | SE      | 95% Student-t CI        | Ahead |
+| ----------------------- | ---------------------- | ------- | ----------------------- | ----- |
+| Shared − control        | **+€447.06 ± €825.33** | €213.10 | **−€10.00 to +€904.11** | 10/15 |
+| `costLevel=1` − control | +€163.48 ± €706.46     | €182.41 | −€227.74 to +€554.71    | 10/15 |
+| `costLevel=1` − shared  | −€283.57 ± €725.16     | €187.24 | −€685.15 to +€118.01    | 5/15  |
+
+Shared learning alone has the same sign as the simulator result but is not conclusive on 15 pairs: t(14) 2.098, with a
+median paired gain of €212.57 and per-seed differences from −€967.65 to +€2,227.75. None of its weeks became unranked;
+the control was unranked once where shared learning was ranked (its on-time share was 93.26% against 88.68%). There is
+no support here for also raising `costLevel` from 0.98 to 1. Do not change the defaults on this evidence alone. Raw
+bench output is [`shared-outcome-server-15.csv`](shared-outcome-server-15.csv); every week is under
+`data/scrape/runs/L8/so15-<seed>/<world id>`.
+
+The exact server comparison can be repeated with a fresh journal directory and recording enabled:
+
+```sh
+journal=$(mktemp -d)
+SPREAD_JOURNAL_DIR="$journal" \
+  pnpm bench lean:sharedOutcome=false lean:sharedOutcome=true lean:sharedOutcome=true,costLevel=1 \
+  --level 8 --jobs 3 --csv out/lean-so-15.csv \
+  --seeds so15-7b0c78dd,so15-65faabd4,so15-9ca165e4,so15-0dc06b05,so15-126df8b9,so15-61ebfa24,so15-ecb8752d,so15-8c6518e8,so15-63f8e141,so15-3d85f5d0,so15-a13b2a16,so15-7554c2e4,so15-7a3a06f0,so15-59edee08,so15-1ccfc1c6
+```
+
+The frozen candidate can be replayed offline against its unchanged control:
+
+```sh
+journal=$(mktemp -d)
+pnpm sim --port 8787  # in another terminal
+SPREAD_URL=http://localhost:8787 SPREAD_KEY=sim SPREAD_RECORD=0 SPREAD_JOURNAL_DIR="$journal" \
+  pnpm bench lean:sharedOutcome=false lean:sharedOutcome=true,costLevel=1 \
+  --level 8 --seeds lean-so-validate-1..lean-so-validate-40 --jobs 12
+```
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
 `early` 0.8, `rest` true, `lateWithin` 60, `lateOpen` 1.25, `urgentOpen` 1.15, `urgentStep` 0.125, `urgentEvery` 15, `urgentTop` 2,
 `lateFrom` 1.1, `lateStep` 0.05, `lateEvery` 30, `lateTop` 1.7, `feeRatio` 0.84, `lateCost` 1, `premium` 3,
 `privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 0.98, `minHours` 4, `noise` 0.11,
-`tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
+`sharedOutcome` false, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
 `pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1.
