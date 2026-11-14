@@ -16,14 +16,14 @@ const OWN = {
   nextDay: 1.12,
   sameDay: 1.33,
   /** The SA step: level × exp(eta × (won − target)); eta falls from `eta0` towards `etaMin` with observations. */
-  target: 0.55,
+  target: 0.25,
   eta0: 0.08,
   etaMin: 0.025,
   etaDecay: 20,
   /** A town's own level gets weight n / (n + `townPool`) over its region's. */
   townPool: 8,
   /** Levels stay within these bounds. */
-  minLevel: 1.0,
+  minLevel: 1.18,
   maxLevel: 2.0,
   /** Outage: a region winning over `outageRate` of at least `outageMin` quotes today is priced × `outageBoost`. */
   outageRate: 0.8,
