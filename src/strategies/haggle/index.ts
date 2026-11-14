@@ -53,7 +53,7 @@ export type HaggleParams = {
   minMargin: number
   /** ... nor under cost + this many cents. */
   minMarginCents: number
-  /** Quote only the one option pickOption would choose (false: every option we can serve). */
+  /** Quote every servable option (false: only pickOption's comfortable option and slower ones). */
   allOptions: boolean
   /** Fee schedule: opening multiple of typical, the multiple reached `riseLeadMin` before the last pickup. */
   feeOpen: number
@@ -153,7 +153,9 @@ class Haggle extends Strategy<HaggleParams> {
     const context = this.context()
     const servable = request.options.filter((o) => canServe(request, o, books.now, context).ok)
     if (servable.length === 0) return null
-    const chosen = p.allOptions ? servable : [servable.at(-1)!]
+    const pick = pickOption(request, books.now, context)
+    const from = pick ? servable.findIndex((o) => o.kind === pick.kind) : -1
+    const chosen = p.allOptions || from < 0 ? servable : servable.slice(from)
     const d = this.levelOf(request.dealerId)
     const region = this.region.get(this.regionOf(request)) ?? 0
     const cost = request.referenceFeeCents * p.costMult * (request.legs.some((l) => l.car.premium) ? p.premiumMult : 1)
@@ -222,7 +224,7 @@ class Haggle extends Strategy<HaggleParams> {
 export const haggle: StrategyKind<HaggleParams> = {
   defaults: {
     startMult: 1.3,
-    targetWin: 0.4,
+    targetWin: 0.3,
     stepStart: 0.08,
     stepMin: 0.03,
     stepDecay: 15,
@@ -232,12 +234,12 @@ export const haggle: StrategyKind<HaggleParams> = {
     minMult: 0.9,
     maxMult: 2.2,
     costMult: 1.25,
-    minMargin: 0.1,
+    minMargin: 0.25,
     minMarginCents: 1500,
-    allOptions: true,
-    feeOpen: 0.95,
-    feeTop: 1.6,
-    riseLeadMin: 120,
+    allOptions: false,
+    feeOpen: 1.1,
+    feeTop: 1.8,
+    riseLeadMin: 240,
     repostBump: 0.2,
     urgentOpen: 1.6,
     urgentTop: 2.6,
