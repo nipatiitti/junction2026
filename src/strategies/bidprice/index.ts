@@ -35,12 +35,14 @@ import {
   createQuoteState,
   dealerWeight,
   driversNear,
+  inWar,
   type Option,
   observe as observeQuotes,
   type QuoteParams,
   type QuoteState,
   recordQuote,
 } from '../../models/quote/index.ts'
+import { appendFileSync } from 'node:fs'
 import { type Context, canServe, driveMinutes, type GigShape, gigShape, HOUR } from '../../ops/index.ts'
 import {
   type Books,
@@ -73,13 +75,14 @@ import {
   unbooked,
 } from './cost.ts'
 import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees.ts'
+import { lateRiskOf, newLateRisk } from './late.ts'
 import { legsOf, WeekLog } from './log.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
 
 /** A quote at this many times the list price or more is a decline. */
 const DECLINED = 5
 
-class BidPrice extends Strategy<BidPriceParams> {
+export class BidPrice extends Strategy<BidPriceParams> {
   override readonly every = 30
   readonly quoteParams: QuoteParams
   readonly feeParams: FeeParams
@@ -89,9 +92,12 @@ class BidPrice extends Strategy<BidPriceParams> {
   readonly cost: CostState
   readonly learning: CostLearning
   readonly log = new WeekLog()
+  readonly lateRisk: ReturnType<typeof newLateRisk>
   /** The latest minute an event or action has told, for the summary. */
   private now = 0
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
+  /** Why each request got no quote, and how many options each admission rule left out of the quotes. */
+  readonly declines: Record<string, number> = {}
 
   constructor(setup: Setup, params: BidPriceParams) {
     super(setup, params)
@@ -101,6 +107,7 @@ class BidPrice extends Strategy<BidPriceParams> {
     this.fees = newFeeState(this.feeParams)
     this.cost = newCostState(this.costPrior)
     this.learning = { learn: params.costLearn, pseudoGigs: params.costPseudo }
+    this.lateRisk = newLateRisk(setup.roster, setup.map)
   }
 
   observe(event: DeskEvent): void {
@@ -124,7 +131,78 @@ class BidPrice extends Strategy<BidPriceParams> {
   /** Design 1: each option we offer at the price that maximises (p − c) × W(p); a decline when none pays. */
   quote(request: PriceRequest, books: Books): Prices | null {
     const decision = this.decide(request, books.now)
+    this.audit(request, books.now, decision)
     return decision.decline ? null : decision.prices
+  }
+
+  /** The decline log: the reason a request got no quote (or `quoted`), and each option an admission rule left out.
+   * With `BIDPRICE_DECLINE_LOG` set, one JSON line per request in that file. */
+  audit(request: PriceRequest, now: number, decision: ReturnType<BidPrice['decide']>): void {
+    const context = this.context()
+    const options = this.setup.level <= 3 ? request.options.slice(0, 1) : request.options
+    const verdicts = options.map((option) => ({ option, ...canServe(request, option, now, context) }))
+    const served = verdicts.filter((v) => v.ok)
+    const risky = served.filter(
+      (v) => this.params.lateRisk && this.riskOf(request, v.option, now) >= this.params.lateRiskMax,
+    )
+    const offered: string[] = this.offered(request, now).map((o) => o.kind)
+    const dropped = (kind: string) => {
+      if (!verdicts.find((v) => v.option.kind === kind)?.ok) return 'serve'
+      if (risky.some((v) => v.option.kind === kind)) return 'lateRisk'
+      return offered.includes(kind) ? null : 'comfort'
+    }
+    const optionDrops = Object.fromEntries(
+      options.flatMap((o) => {
+        const why = dropped(o.kind)
+        return why ? [[o.kind, why]] : []
+      }),
+    )
+    for (const why of Object.values(optionDrops)) this.bump(`opt-${why}`)
+    let reason = 'quoted'
+    if (decision.decline) {
+      if (served.length === 0) {
+        const why = verdicts.map((v) => v.reason)
+        reason = why.some((r) => r.includes('h needed'))
+          ? 'serve-slack'
+          : why.some((r) => r.includes('note'))
+            ? 'serve-note'
+            : why.some((r) => r.includes('read'))
+              ? 'serve-unread'
+              : 'serve-deadline'
+      } else if (offered.length === 0) reason = 'lateRisk'
+      else if (inWar(this.quotes, now, this.quoteParams)) reason = 'war'
+      else {
+        const loose = bestQuote(
+          request,
+          this.costs(request, now),
+          this.quotes,
+          { ...this.quoteParams, minValueCents: -1e18 },
+          now,
+        )
+        reason = loose.decline ? 'underCost' : 'minValue'
+      }
+    }
+    this.bump(reason)
+    const file = process.env.BIDPRICE_DECLINE_LOG
+    if (file) {
+      const costs = this.costs(request, now)
+      const line = {
+        id: request.id,
+        at: now,
+        reason,
+        optionDrops,
+        offered,
+        costs,
+        value: decision.valueCents,
+        win: decision.winProb,
+        prices: decision.decline ? null : decision.prices,
+      }
+      appendFileSync(file, `${JSON.stringify(line)}\n`)
+    }
+  }
+
+  private bump(reason: string): void {
+    this.declines[reason] = (this.declines[reason] ?? 0) + 1
   }
 
   decide(request: PriceRequest, now: number) {
@@ -143,7 +221,13 @@ class BidPrice extends Strategy<BidPriceParams> {
    * times `mu` and the dealer's late weight. */
   costOf(request: PriceRequest, option: DeliveryOption, now: number): number {
     const { fee, late } = this.costParts(request, option, now)
-    return (fee + late) * this.params.costScale
+    const risk = this.params.lateRisk ? this.riskOf(request, option, now) * this.params.lateRiskCents : 0
+    return (fee + late) * this.params.costScale + risk
+  }
+
+  /** The late share the late-risk table predicts for this option if we win it now. */
+  riskOf(request: PriceRequest, option: DeliveryOption, now: number): number {
+    return lateRiskOf(this.lateRisk, request, option, now, this.setup.map)
   }
 
   /** The two parts of `costOf`, in cents. */
@@ -167,6 +251,7 @@ class BidPrice extends Strategy<BidPriceParams> {
     const served = options
       .map((option) => ({ option, ...canServe(request, option, now, context) }))
       .filter((verdict) => verdict.ok)
+      .filter((verdict) => !this.params.lateRisk || this.riskOf(request, verdict.option, now) < this.params.lateRiskMax)
     if (this.params.comfortHours <= 0) return served.map((verdict) => verdict.option)
     const comfortable = served.filter((v) => v.slack >= (this.params.comfortHours * HOUR) / (context.tightening ?? 1))
     return (comfortable.length > 0 ? comfortable : served.slice(-1)).map((verdict) => verdict.option)
@@ -244,6 +329,10 @@ class BidPrice extends Strategy<BidPriceParams> {
       booked > 0
         ? `fees paid ${(paidOverTypical / booked).toFixed(2)} × typical over ${booked} bookings`
         : 'no fee paid',
+      `declines ${Object.entries(this.declines)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => `${k} ${v}`)
+        .join(' ')}`,
     ].join(', ')
   }
 
