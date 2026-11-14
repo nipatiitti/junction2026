@@ -39,7 +39,15 @@ for (const dir of process.argv.slice(2)) {
     const g = s.gig,
       first = g.stops.every((x: any) => !posted.has(x.orderId + ':' + x.leg))
     for (const x of g.stops) posted.add(x.orderId + ':' + x.leg)
-    const r = S.act(W, [{ type: 'post', stops: g.stops, audience: g.audience, schedule: g.schedule }])[0]
+    // the snapshot keeps only the LAST schedule; a gig re-priced after a drop or a fee update shows its later (urgent) fee from postedAt.
+    // Before that schedule starts, post the fee the server actually booked at (if booked then), else hold its first step.
+    const late = g.schedule[0].at - g.postedAt,
+      rb = real[g.id]?.booked
+    const sched =
+      late > 5 && process.env.REPLAY_RAW !== '1' && rb && rb.at < g.schedule[0].at
+        ? [{ at: g.postedAt, feeCents: rb.fee }, ...g.schedule]
+        : g.schedule
+    const r = S.act(W, [{ type: 'post', stops: g.stops, audience: g.audience, schedule: sched }])[0]
     if (!first) continue
     const o = W.orders[g.stops[0].orderId]
     if (!r.ok || !o) {
@@ -54,7 +62,9 @@ for (const dir of process.argv.slice(2)) {
       simGig: r.id,
       at: s.at,
       ref: [...new Set<string>(g.stops.map((x: any) => x.orderId))].reduce((t, id) => t + (W.orders[id]?.ref ?? 0), 0),
+      late,
       open0: g.schedule[0].feeCents,
+      open1: sched[0].feeCents,
       top: g.schedule[g.schedule.length - 1].feeCents,
       steps: g.schedule.length,
       from: o.legs[g.stops[0].leg].pickup.window.from,
