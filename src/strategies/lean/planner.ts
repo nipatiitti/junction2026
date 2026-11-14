@@ -13,20 +13,19 @@ export type PlannerParams = ChainParams & {
   open: number
   holdHours: number
   chainPatience: number
-  /** Plan by the drivers' day (fees.ts, `planBy`): no hold and no chain in the last hours before it. */
-  spread: boolean
+  pickLead: number
   chainLast: number
 }
 
-/** A chain books 69% of the time when it is posted from Monday to Thursday, has `PICK_LEAD` hours to its first
+/** A chain books 69% of the time when it is posted from Monday to Thursday, has `pickLead` hours to its first
  * last pickup and holds a car that no driver has seen; 23% of the time otherwise (28 server weeks, 2,430 chains).
  * A chain that fails costs its cars 1.06 × typical and their one notification, so only the first kind is posted,
- * and a car waits for a partner only while such a chain is still possible. */
-const PICK_LEAD = 20 * HOUR
+ * and a car waits for a partner only while such a chain is still possible. Requests end on Friday evening, so
+ * from Friday on no new car comes. */
 const FRIDAY = 4
 /** Whether a chain whose first last pickup is `collectBy` is of that kind when posted at the minute `at`. */
-const postable = (collectBy: number, at: number): boolean =>
-  Math.floor(at / DAY) < FRIDAY && collectBy - at >= PICK_LEAD
+const postable = (collectBy: number, at: number, pickLead: number): boolean =>
+  Math.floor(at / DAY) < FRIDAY && collectBy - at >= pickLead * HOUR
 /** The most chains posted in one tick. */
 const MAX_POSTS = 5
 
@@ -80,7 +79,7 @@ export class Planner {
       actions.push({ type: 'withdraw', gigId })
     }
     // A chain needs a car that no driver has seen, so without one there is nothing to search.
-    const cars = this.openCars(books).filter((car) => postable(car.collectBy, now))
+    const cars = this.openCars(books).filter((car) => postable(car.collectBy, now, p.pickLead))
     if (!cars.some((car) => !car.gigId)) return actions
     const worth = (c: Chain) => this.likely(c, now) && this.mayBeOpen(c.startBy, now, p.chainPatience)
     for (const chain of findChains(cars, this.map, now, p, worth).slice(0, MAX_POSTS)) {
@@ -95,23 +94,25 @@ export class Planner {
         type: 'post',
         stops,
         audience: { experienced: false, manualLicence: chain.cars.some((car) => car.audience.manualLicence) },
-        schedule: slow(now, chain.typical, chain.startBy - BOOK_AHEAD, p.open, 1.3),
+        schedule: slow(now, chain.typical, chain.startBy - BOOK_AHEAD, p.open),
       })
     }
     return actions
   }
 
-  /** Whether a chain is of the kind that books (see `PICK_LEAD`). */
+  /** Whether a chain is of the kind that books (see `postable`). */
   private likely(chain: Chain, now: number): boolean {
-    return postable(Math.min(...chain.cars.map((car) => car.collectBy)), now) && chain.cars.some((car) => !car.gigId)
+    const collectBy = Math.min(...chain.cars.map((car) => car.collectBy))
+    return postable(collectBy, now, this.p.pickLead) && chain.cars.some((car) => !car.gigId)
   }
 
   /** Whether a chain with the last start `startBy` may be in the app at `now`, and for `more` waking hours after:
-   * while drivers have `chainLast` waking hours left to plan the day of its last start. After that its cars go back
+   * while drivers have `chainLast` waking hours left to plan the day of its last start (fees.ts, `planBy`). After
+   * that its cars go back
    * to single gigs, which need that time for their raises. The same rule posts a chain, withdraws it, and decides
    * whether a car waits for one, so no chain is posted that the next tick takes apart. */
   private mayBeOpen(startBy: number, now: number, more = 0): boolean {
-    return !this.p.spread || awake(now, planBy(now, startBy)) >= (this.p.chainLast + more) * HOUR
+    return awake(now, planBy(now, startBy)) >= (this.p.chainLast + more) * HOUR
   }
 
   /** A new car that may join a chain waits `holdHours` for a partner, while it has time to spare after the wait:
@@ -132,7 +133,7 @@ export class Planner {
     // Only while a chain with this car could still be posted, and stay its `chainPatience`, after the wait.
     const collectBy = Math.min(order.legs[0]?.pickup.window.to ?? Infinity, order.lastPickupAt)
     return (
-      postable(collectBy, books.now + p.holdHours * HOUR) &&
+      postable(collectBy, books.now + p.holdHours * HOUR, p.pickLead) &&
       this.mayBeOpen(order.lastPickupAt, books.now, p.holdHours + p.chainPatience)
     )
   }

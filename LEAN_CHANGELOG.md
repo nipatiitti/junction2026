@@ -29,6 +29,18 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-14: straightening (PR #330, issue #335)
+
+- **Version changed**: TypeScript.
+- **What changed**: state rebuilt from the events and the journal; one rule for when a chain may be open, and a
+  bounded chain search; one cost level (`costLevel` 0.98, the order model's mean is 1, the supply learns what the
+  model leaves); one fee schedule timed by the drivers' planning and one urgent climb, in waking minutes; constants
+  named or made params; `overhead`, `minMargin`, `spread` and `chainHours` removed. Results:
+  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#straightening-14-november-night-335).
+- **In step**: no (#329). `strategies/lean/order.json` is on purpose not the copy of the TypeScript file now: the
+  new file's `meanCost` is the model's mean, which the Python code would read as a cost 8% higher. Copy it when the
+  Python code has `costLevel`.
+
 ### 2026-11-14: clean-up and the fixes of the open problems (issue #320)
 
 - **Version changed**: TypeScript.

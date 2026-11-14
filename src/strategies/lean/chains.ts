@@ -2,32 +2,30 @@
  * from one car to the next when the next is collected near where the first is delivered. A path through it is a day
  * of work: the driver pays one trip to the first car and one trip home from the last, where the same cars as single
  * gigs pay a trip out and a trip home each. A path that ends where it started pays no trip home at all. The search
- * walks every path of up to `maxCars` cars inside the 12 hours of driving that a gig of several cars may plan, keeps
- * the ones a driver can do inside every window, and takes the paths that save the most, each car once. */
+ * walks the paths of up to `maxCars` cars inside `maxDrive` hours of driving, keeps the ones a driver can do inside
+ * every window, and takes the paths that save the most, each car once. */
 import type { Audience, OpeningHours, StopRef, WorldMap } from '../../../vendor/spread-typescript/spread.ts'
 import { nextOpen } from '../../ops/calendar.ts'
 import { HOUR, minutes } from '../../ops/index.ts'
 
-/** A gig of several cars may plan 12 hours of driving (RULES.md). We plan 8: chains with more book rarely (50%
- * from 8 hours, 25% from 10), and their drivers finish them the next day, after a car's deadline. */
-const MAX_DRIVE = 8 * HOUR
 /** The measured typical fee of one car: 15.72 euros and 0.387 a road minute. We split the minute into the drive and
  * the trip home by public transport, which costs a driver much less than the wheel. */
 const FIXED = 1572
 const PER_MINUTE = 38.7
 const HOME_SHARE = 0.3
-/** A driver takes this long at a stop, and a delivery must arrive this long before it is due. */
+/** A driver takes this long at a stop, and a delivery must arrive this long before it is due. Neither is measured. */
 const HANDLING = 15
 const SPARE = 45
 /** Real drives take up to this × the road minutes, and a later car is reached this long before its last pickup. */
 const DRIVE = 1.2
 const SLACK = 30
-/** A chain's driver starts no sooner than this from now, waits at most this long in all, and works at most this long. */
+/** A chain's driver starts no sooner than this from now, waits at most this long in all, and works at most this
+ * long. None of the three is measured, and the last cannot bind with four cars and 8 hours of driving. */
 const LEAD = 2 * HOUR
 const MAX_WAIT = 2 * HOUR
 const MAX_DAY = 14 * HOUR
 
-/** One open car of ours: a single gig that no driver holds. */
+/** One open car of ours: a single gig that no driver holds, or a car that waits for a partner. */
 export type Car = {
   gigId: string | undefined // its own gig in the app; none while the car waits for a partner
   orderId: string
@@ -52,7 +50,7 @@ export type Chain = {
   singles: number // the cars' typical fees as single gigs, summed
 }
 
-export type ChainParams = { maxHop: number; maxCars: number; minSaving: number }
+export type ChainParams = { maxHop: number; maxCars: number; minSaving: number; maxDrive: number }
 
 /** The search stops after this many paths, so that one tick stays far inside its 3 seconds: 20 cars near each other
  * make 116,000 paths of four. The cars are walked in the order of their ids, so the same cars give the same chains. */
@@ -88,7 +86,7 @@ export function findChains(
     for (const b of next.get(last) ?? []) {
       if (path.includes(b)) continue
       const more = drive + minutes(map, last.to, b.from) + b.drive
-      if (more <= MAX_DRIVE) walk([...path, b], more)
+      if (more <= p.maxDrive * HOUR) walk([...path, b], more)
     }
   }
   for (const car of cars) walk([car], car.drive)

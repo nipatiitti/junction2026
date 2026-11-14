@@ -1,6 +1,6 @@
 {
   "about": "What a won order costs to serve, over its typical fee, and the chance that it arrives late, from what the desk sees when it quotes. The cost is fitted by analysis/lean_cost.py on the 12,798 orders of the server weeks of lean's defaults of 14 November; the chance to be late by analysis/ml/fit_order.py on the saved weeks before.",
-  "meanCost": 1.0017,
+  "meanCost": 0.9215,
   "meanLate": 0.0266,
   "cost": {
     "base": 0.9226,
@@ -22,7 +22,7 @@
     "friday": 0.0888,
     "private_pickup": 0.4538,
     "private_delivery": 0.1192,
-    "premium": 0.1201,
+    "premium": 0.1105,
     "electric": 0.0806,
     "trade_in": 0.1445,
     "has_note": 0.0103,
@@ -31,7 +31,7 @@
     "drivers": -0.1907,
     "won_so_far": 0.0722,
     "won_today": 0.0227,
-    "open_gigs": 0.005
+    "open_gigs": 0.0046
   },
   "late": {
     "base": -4.8114,
