@@ -3,9 +3,9 @@
  * hidden threshold seen in earlier weeks (`learn.ts`), scaled by the dealer's trust now. Overfit to practice seeds;
  * on an unknown week it is bidprice. README.md has the rules and the params. */
 import { readdirSync, readFileSync } from 'node:fs'
-import type { PriceRequest } from '../../../vendor/spread-typescript/spread.ts'
+import type { FeeStep, Order, PriceRequest } from '../../../vendor/spread-typescript/spread.ts'
 import { type Option, OPTIONS, trustOf } from '../../models/quote/index.ts'
-import type { Books, Prices, Setup, Strategy, StrategyKind } from '../../strategy.ts'
+import type { Books, GigPlan, Prices, Setup, Strategy, StrategyKind } from '../../strategy.ts'
 import { BidPrice } from '../bidprice/index.ts'
 import { type BidPriceParams, DEFAULTS as BIDPRICE } from '../bidprice/params.ts'
 
@@ -26,8 +26,15 @@ export type RecallParams = BidPriceParams & {
   matchMin: number
   /** The share of requests so far that must match. */
   matchShare: number
+  /** Open a remembered gig at its lowest on-time booked fee (`fees-<seed>.json`, `learn-fees.ts`). */
+  feeMemory: boolean
+  /** A remembered gig opens at its lowest on-time booked ratio × this… */
+  feeShade: number
+  /** …and never under this ratio of the typical fee. */
+  feeFloorMem: number
 }
 
+type FeeMemory = { seed: string; gigs: Record<string, [number | null, number, number, number | null]> }
 type Memory = { seed: string; sig: Record<string, string>; opts: Record<string, [number | null, number | null]> }
 
 const here = new URL('./', import.meta.url)
@@ -44,6 +51,9 @@ export const DEFAULTS: RecallParams = {
   rescue: true,
   matchMin: 3,
   matchShare: 0.8,
+  feeMemory: true,
+  feeShade: 1.03,
+  feeFloorMem: 0.7,
 }
 
 const sigOf = (r: PriceRequest) => `${r.dealerId}|${r.options.map((o) => o.listPriceCents).join(',')}`
@@ -54,12 +64,27 @@ function readMemories(): Memory[] {
     .map((f) => JSON.parse(readFileSync(new URL(f, here), 'utf8')) as Memory)
 }
 
+function readFees(): Map<string, FeeMemory> {
+  return new Map(
+    readdirSync(here)
+      .filter((f) => /^fees-.*\.json$/.test(f))
+      .map((f) => JSON.parse(readFileSync(new URL(f, here), 'utf8')) as FeeMemory)
+      .map((m) => [m.seed, m]),
+  )
+}
+
 class Recall extends BidPrice {
   readonly rp: RecallParams
   readonly memories: Memory[]
   /** Requests seen, and how many each memory matched. */
   seen = 0
   readonly hits: number[]
+  readonly feeMemories: Map<string, FeeMemory>
+  /** Each request's typical fee and its number of legs, for the fee memory. */
+  readonly typicals = new Map<string, [number, number]>()
+  /** Gigs (order/legs) opened from the fee memory once already; a repost climbs as bidprice does. */
+  readonly feeOpened = new Set<string>()
+  readonly feeMemo = { opened: 0, ratioSum: 0 }
   readonly memo = { raised: 0, lowered: 0, dropped: 0, untouched: 0, rescued: 0, unknown: 0 }
 
   constructor(setup: Setup, params: RecallParams) {
@@ -67,6 +92,30 @@ class Recall extends BidPrice {
     this.rp = params
     this.memories = params.memory && setup.level === 8 ? readMemories() : []
     this.hits = this.memories.map(() => 0)
+    this.feeMemories = params.memory && params.feeMemory && setup.level === 8 ? readFees() : new Map()
+  }
+
+  /** bidprice's schedule, opened at the remembered lowest on-time booked fee when that is lower; later steps and
+   * the urgent ramp unchanged. */
+  override schedule(order: Order, stops: GigPlan['stops'], experienced: boolean, books: Books): FeeStep[] {
+    const schedule = super.schedule(order, stops, experienced, books)
+    const seed = this.recognised()?.seed
+    const fees = seed ? this.feeMemories.get(seed) : undefined
+    const typical = this.typicals.get(order.id)
+    if (!fees || !typical || books.urgent.has(order.id) || schedule.length === 0) return schedule
+    const legs = [...new Set(stops.filter((s) => s.orderId === order.id).map((s) => s.leg))].sort()
+    if (stops.some((s) => s.orderId !== order.id)) return schedule
+    const key = `${order.id}/${legs.join(',')}`
+    const low = fees.gigs[key]?.[0]
+    if (low == null || this.feeOpened.has(key)) return schedule
+    const typicalCents = (typical[0] * legs.length) / typical[1]
+    const ratio = Math.max(low * this.rp.feeShade, this.rp.feeFloorMem)
+    const open = Math.round(ratio * typicalCents)
+    if (open >= schedule[0].feeCents) return schedule
+    this.feeOpened.add(key)
+    this.feeMemo.opened++
+    this.feeMemo.ratioSum += open / typicalCents
+    return [{ ...schedule[0], feeCents: open }, ...schedule.slice(1)]
   }
 
   /** The memory this week is, or null. */
@@ -80,6 +129,7 @@ class Recall extends BidPrice {
 
   override quote(request: PriceRequest, books: Books): Prices | null {
     const sig = sigOf(request)
+    this.typicals.set(request.id, [request.referenceFeeCents, request.legs.length])
     this.seen++
     this.memories.forEach((m, i) => {
       if (m.sig[request.id] === sig) this.hits[i]++
@@ -159,7 +209,9 @@ class Recall extends BidPrice {
     return (
       `${super.summary()}; recall: seed ${m ? `${m.seed} recognised` : 'not recognised'} ` +
       `(${m ? this.hits[this.memories.indexOf(m)] : 0}/${this.seen} matched), raised ${raised}, lowered ${lowered}, ` +
-      `dropped ${dropped}, untouched ${untouched}, not in memory ${unknown}, rescued ${rescued}`
+      `dropped ${dropped}, untouched ${untouched}, not in memory ${unknown}, rescued ${rescued}, ` +
+      `fee memory: ${this.feeMemo.opened} gigs opened from memory at ` +
+      `${(this.feeMemo.ratioSum / Math.max(1, this.feeMemo.opened)).toFixed(2)} × typical`
     )
   }
 }
