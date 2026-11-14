@@ -53,6 +53,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`town_open/`](town_open/README.md)               | `TownOpening`, `TownFeePlanner`        | Headroom, with the opening fee of each pickup town learned from its bookings            |
 | [`same_day/`](same_day/README.md)                 | `SameDayAdmission`                     | Headroom, quoting the fastest option that still pays                                    |
 | [`soft_top/`](soft_top/README.md)                 | `SoftTopPlanner`                       | Headroom, with a top fee of twice the lane fee, not 2.5 times                           |
+| [`slack_budget/`](slack_budget/README.md)         | `SlackBudgetAdmission`                 | Headroom, spending on-time slack above a reserve and refusing known risks at it       |
 | [`snow_aware/`](snow_aware/README.md)             | `SnowPlanner`, `SnowBundler`           | Headroom, stretching snowy legs and opening snowy pickup gigs earlier and dearer       |
 | [`opening_offers/`](opening_offers/README.md)     | `OpeningOffers`                        | Direct offers to nearby homes from a gig's first post, at the chain-offer fee           |
 | [`home_return/`](home_return/README.md)           | `HomeReturnFees`                       | A discounted fee where many drivers live at the delivery town                           |
