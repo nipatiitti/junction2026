@@ -3,17 +3,17 @@
 The scripts in this folder save, load and collect data; none of them decides anything in a week. Run each as a module
 from the repository root, for example `uv run python -m tools.db`.
 
-| File              | What it does                                                                      |
-| ----------------- | --------------------------------------------------------------------------------- |
-| `record.py`       | Saves every week that a system plays online ([below](#every-online-run-is-saved)) |
-| `db.py`           | Loads saved weeks and probe rows into the SQLite database `out/spread.sqlite`     |
-| `stats.py`        | Turns saved weeks into distributions, in `summary.json`                           |
-| `scrape.py`       | Plays weeks on the server only to collect data                                    |
-| `sweep.py`        | Plays the models of `active-models.md` on fresh seeds until stopped ([below](#play-many-fresh-seeds)) |
-| `roster_tournament.py` | Tournaments for all systems, with a leaderboard ([below](#roster-tournament-and-shadow-leaderboard)) |
-| `probe.py`        | Forks a world to find the price or fee where an outcome flips                     |
-| `kill_old_worlds.py` | Deletes the team's open practice worlds older than 15 minutes ([below](#delete-forgotten-worlds)) |
-| `spread_proxy.py` | The kit's client through `HTTPS_PROXY` ([below](#claude-code-cloud-environments)) |
+| File                   | What it does                                                                                          |
+| ---------------------- | ----------------------------------------------------------------------------------------------------- |
+| `record.py`            | Saves every week that a system plays online ([below](#every-online-run-is-saved))                     |
+| `db.py`                | Loads saved weeks and probe rows into the SQLite database `out/spread.sqlite`                         |
+| `stats.py`             | Turns saved weeks into distributions, in `summary.json`                                               |
+| `scrape.py`            | Plays weeks on the server only to collect data                                                        |
+| `sweep.py`             | Plays the models of `active-models.md` on fresh seeds until stopped ([below](#play-many-fresh-seeds)) |
+| `roster_tournament.py` | Tournaments for all systems, with a leaderboard ([below](#roster-tournament-and-shadow-leaderboard))  |
+| `probe.py`             | Forks a world to find the price or fee where an outcome flips                                         |
+| `kill_old_worlds.py`   | Deletes the team's open practice worlds older than 15 minutes ([below](#delete-forgotten-worlds))     |
+| `spread_proxy.py`      | The kit's client through `HTTPS_PROXY` ([below](#claude-code-cloud-environments))                     |
 
 ## Every online run is saved
 
@@ -159,6 +159,10 @@ the team's committed weeks in `data/scrape`:
 uv run python -m tools.stats   # reads data/scrape, writes out/summary.json, prints the main numbers
 uv run python -m tools.db      # loads data/scrape into out/spread.sqlite
 ```
+
+Folders without an end-of-week snapshot are not weeks: the prober's folders under `data/scrape/probe2` have a
+`meta.json` and events, but no `snapshot.json.gz`, so both scripts skip them as weeks. `db.py` still loads their probe
+results into the `probes`, `fee_probes` and `shape_probes` tables.
 
 The database is not committed: `uv run python -m tools.db` builds it from the committed week folders in a few seconds, the saved
 online runs included. Only to add scraped weeks, play them on the server with `scrape.py`, which saves each week's raw

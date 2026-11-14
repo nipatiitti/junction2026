@@ -40,21 +40,21 @@ returns the base `chains` result, so the append-only fallback is exactly the bas
 
 `Params` is a frozen subclass of the base bundling `Params`. It adds no thresholds; every default is unchanged.
 
-| Variable    | Default | What it controls                                             |
-| ----------- | ------- | ------------------------------------------------------------ |
-| `max_cars`  | 3       | Most cars in one gig                                          |
-| `max_drive` | 480     | Most planned road minutes, also capped by the 12-hour rule    |
-| `transit`   | 0.5     | Cost of a transit minute relative to a minute at the wheel    |
-| `min_saving`| 10.0    | Minimum marginal saving in driver-minutes for an insertion    |
-| `max_wait`  | 120     | Longest wait for a later pickup's window to open              |
-| `lead`      | 120     | Minutes allowed for a driver to see the gig and reach pickup  |
-| `slow`      | 1.15    | Timing-check multiplier on road minutes                       |
-| `buffer`    | 60      | Minutes by which a delivery precedes its window's end         |
-| `hold`      | 45      | Longest batch-order wait for more cars                        |
-| `quiet`     | 20      | Batch inactivity after which held orders can go               |
-| `safe`      | 360     | Latest waiting ends this long before the last pickup          |
-| `fee_floor` | 0.6     | Lower bound on bundle fees relative to the sum of solo fees   |
-| `fee_cap`   | 0.95    | Upper bound on bundle fees relative to the sum of solo fees   |
+| Variable     | Default | What it controls                                             |
+| ------------ | ------- | ------------------------------------------------------------ |
+| `max_cars`   | 3       | Most cars in one gig                                         |
+| `max_drive`  | 480     | Most planned road minutes, also capped by the 12-hour rule   |
+| `transit`    | 0.5     | Cost of a transit minute relative to a minute at the wheel   |
+| `min_saving` | 10.0    | Minimum marginal saving in driver-minutes for an insertion   |
+| `max_wait`   | 120     | Longest wait for a later pickup's window to open             |
+| `lead`       | 120     | Minutes allowed for a driver to see the gig and reach pickup |
+| `slow`       | 1.15    | Timing-check multiplier on road minutes                      |
+| `buffer`     | 60      | Minutes by which a delivery precedes its window's end        |
+| `hold`       | 45      | Longest batch-order wait for more cars                       |
+| `quiet`      | 20      | Batch inactivity after which held orders can go              |
+| `safe`       | 360     | Latest waiting ends this long before the last pickup         |
+| `fee_floor`  | 0.6     | Lower bound on bundle fees relative to the sum of solo fees  |
+| `fee_cap`    | 0.95    | Upper bound on bundle fees relative to the sum of solo fees  |
 
 ## Limits
 

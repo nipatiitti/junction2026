@@ -5,12 +5,12 @@ where `forecast` events announce snow. Admission and pricing, the root desk and 
 they are. The note reader still handles summer tyres: a car that cannot be collected in snow waits for a clear window
 at either end.
 
-| File       | Class         | Builds on        | What it decides                                        |
-| ---------- | ------------- | ---------------- | ------------------------------------------------------ |
-| `snow.py`  | `SnowState`   |                  | The forecast snow windows at each place                |
-| `snow.py`  | `SnowPlanner` | `LaneFeePlanner` | The opening fee when snow is forecast on pickup day    |
-| `snow.py`  | `SnowBundler` | `Bundler`        | Snow-local chain timing and the wait before posting    |
-| `dispatch.py` | `Desk`     | the headroom desk | The system, with one state shared by fees and bundling |
+| File          | Class         | Builds on         | What it decides                                        |
+| ------------- | ------------- | ----------------- | ------------------------------------------------------ |
+| `snow.py`     | `SnowState`   |                   | The forecast snow windows at each place                |
+| `snow.py`     | `SnowPlanner` | `LaneFeePlanner`  | The opening fee when snow is forecast on pickup day    |
+| `snow.py`     | `SnowBundler` | `Bundler`         | Snow-local chain timing and the wait before posting    |
+| `dispatch.py` | `Desk`        | the headroom desk | The system, with one state shared by fees and bundling |
 
 ## Shared state and cold start
 
@@ -57,11 +57,11 @@ rules.
 `Params` extends the frozen `DawnParams`; `BundlerParams` extends the frozen bundling `Params`. All inherited values
 stay at their headroom/base defaults.
 
-| Variable       | Default | What it does                                                        |
-| -------------- | ------- | ------------------------------------------------------------------- |
-| `snow_premium` | 0.20    | Added to the opening multiple on a snowy pickup day                  |
-| `snow_slow`    | 1.35    | Drive stretch on a forecast-affected leg, against the base's 1.15   |
-| `snow_buffer`  | 60 min  | Extra delivery buffer for a chain with any forecast-affected leg     |
+| Variable       | Default | What it does                                                      |
+| -------------- | ------- | ----------------------------------------------------------------- |
+| `snow_premium` | 0.20    | Added to the opening multiple on a snowy pickup day               |
+| `snow_slow`    | 1.35    | Drive stretch on a forecast-affected leg, against the base's 1.15 |
+| `snow_buffer`  | 60 min  | Extra delivery buffer for a chain with any forecast-affected leg  |
 
 ## Run it
 

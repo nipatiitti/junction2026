@@ -4,10 +4,10 @@ A dispatch system built on [`strategies/headroom`](../headroom/README.md). Its `
 this week's gigs book while they are open, then chooses the cheapest observed opening fee that is likely enough to
 book before the last on-time pickup. Headroom and the other systems stay as they are. Issue #242.
 
-| File          | Class              | Builds on         | What it decides                                      |
-| ------------- | ------------------ | ----------------- | ---------------------------------------------------- |
+| File          | Class              | Builds on         | What it decides                                         |
+| ------------- | ------------------ | ----------------- | ------------------------------------------------------- |
 | `fees.py`     | `HazardFeePlanner` | `LaneFeePlanner`  | The opening fee, from an online booking-hazard estimate |
-| `dispatch.py` | `Desk`             | the headroom desk | The system, including the accepted-post observations |
+| `dispatch.py` | `Desk`             | the headroom desk | The system, including the accepted-post observations    |
 
 `HazardFeePlanner` is a subclass of `Strategy` ([`strategies/strategy.py`](../strategy.py)) through
 `LaneFeePlanner`, with the constructor `(roster, world_map, level=8, params=None)` and a frozen `Params`.
@@ -62,12 +62,12 @@ better fee. The estimator must not create that incentive merely to explore cheap
 
 `Params` in `fees.py`, exported as `HazardFeeParams`, also contains every `DawnParams` field.
 
-| Variable          | Default                                  | What it does                                             |
-| ----------------- | ---------------------------------------- | -------------------------------------------------------- |
-| `band_width`      | 0.25                                     | Width of a fee-over-lane-fee hazard band                  |
-| `ratios`          | 0.75, 0.9, 1.0, 1.15, 1.4, 1.75, 2.25    | Candidate opening ratios, clamped to the base opening     |
-| `target_prob`     | 0.90                                     | Required booking probability before the last pickup       |
-| `min_hours`       | 6.0                                      | Minimum faded daytime exposure before a band can be used  |
-| `half_life_hours` | 36.0                                     | Half-life of exposure and bookings; 0 disables fading     |
+| Variable          | Default                               | What it does                                             |
+| ----------------- | ------------------------------------- | -------------------------------------------------------- |
+| `band_width`      | 0.25                                  | Width of a fee-over-lane-fee hazard band                 |
+| `ratios`          | 0.75, 0.9, 1.0, 1.15, 1.4, 1.75, 2.25 | Candidate opening ratios, clamped to the base opening    |
+| `target_prob`     | 0.90                                  | Required booking probability before the last pickup      |
+| `min_hours`       | 6.0                                   | Minimum faded daytime exposure before a band can be used |
+| `half_life_hours` | 36.0                                  | Half-life of exposure and bookings; 0 disables fading    |
 
 This is an online estimator, not a fitted performance result. No offline or online score is claimed here.

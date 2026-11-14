@@ -73,28 +73,30 @@ def rows(prefixes):
             meta = json.loads(meta_p.read_text())
             if prefixes and not any(str(meta.get("policy", "")).startswith(p) for p in prefixes):
                 continue
-            roster = json.loads(gzip.open(world / "drivers.json.gz").read())
+            with gzip.open(world / "drivers.json.gz", "rt") as stream:
+                roster = json.load(stream)
             nr = near(roster)
             orders, money = {}, defaultdict(int)
-            for line in gzip.open(world / "events.jsonl.gz", "rt"):
-                if not line.strip():
-                    continue
-                e = json.loads(line)
-                k = e["kind"]
-                if k == "order_won":
-                    o = e["order"]
-                    orders[o["id"]] = {"o": o, "won": e["at"], "left": len(o["legs"]), "done": None}
-                elif k == "order_changed" and e.get("order") and e["order"]["id"] in orders:
-                    orders[e["order"]["id"]]["o"]["deadline"] = e["order"]["deadline"]
-                elif k == "order_cancelled":
-                    orders.pop(e.get("orderId"), None)
-                elif k == "delivered" and e.get("orderId") in orders:
-                    x = orders[e["orderId"]]
-                    x["left"] -= 1
-                    if x["left"] == 0:
-                        x["done"] = e["at"]
-                elif k == "ledger" and (e.get("line") or {}).get("orderId"):
-                    money[e["line"]["orderId"]] += e["line"]["cents"]
+            with gzip.open(world / "events.jsonl.gz", "rt") as stream:
+                for line in stream:
+                    if not line.strip():
+                        continue
+                    e = json.loads(line)
+                    k = e["kind"]
+                    if k == "order_won":
+                        o = e["order"]
+                        orders[o["id"]] = {"o": o, "won": e["at"], "left": len(o["legs"]), "done": None}
+                    elif k == "order_changed" and e.get("order") and e["order"]["id"] in orders:
+                        orders[e["order"]["id"]]["o"]["deadline"] = e["order"]["deadline"]
+                    elif k == "order_cancelled":
+                        orders.pop(e.get("orderId"), None)
+                    elif k == "delivered" and e.get("orderId") in orders:
+                        x = orders[e["orderId"]]
+                        x["left"] -= 1
+                        if x["left"] == 0:
+                            x["done"] = e["at"]
+                    elif k == "ledger" and (e.get("line") or {}).get("orderId"):
+                        money[e["line"]["orderId"]] += e["line"]["cents"]
             for oid, x in orders.items():
                 o, legs = x["o"], x["o"]["legs"]
                 slack = (o["deadline"] - drive(legs) - x["won"]) / 60

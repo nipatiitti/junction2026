@@ -337,11 +337,11 @@ chains where the server books 63%, so it cannot judge those. The server check fo
 
 Five fresh seeds, each version on the same seeds (level 8, a week):
 
-| Version | Margin | Orders | Late orders | Lowest week on time | Ranked |
-| --- | --- | --- | --- | --- | --- |
-| main | €12,546 | 338 | 10.6 | 93.2% | 5 of 5 |
-| The changes, with the cost level 8% up (a side effect of the first fit) | €12,605 | 310 | 6.6 | 95.8% | 5 of 5 |
-| The changes, with the cost level as before | €12,901 | 351 | 10.2 | 95.7% | 5 of 5 |
+| Version                                                                 | Margin  | Orders | Late orders | Lowest week on time | Ranked |
+| ----------------------------------------------------------------------- | ------- | ------ | ----------- | ------------------- | ------ |
+| main                                                                    | €12,546 | 338    | 10.6        | 93.2%               | 5 of 5 |
+| The changes, with the cost level 8% up (a side effect of the first fit) | €12,605 | 310    | 6.6         | 95.8%               | 5 of 5 |
+| The changes, with the cost level as before                              | €12,901 | 351    | 10.2        | 95.7%               | 5 of 5 |
 
 +€355 ± 335 a week against main, ahead on 3 of 5 seeds: inside what chance gives. Gigs whose raises are over book at
 1.32 × typical against 1.78, the cars of failed chains are late 1.7% of the time against 3.9%, and Fridays cost
@@ -354,12 +354,12 @@ Three reviews of the code found state that a restart lost, rules written several
 cost level set in four places, and most constants where `pnpm bench` and `pnpm tune` could not reach them. What
 changed, with no tuned value changed on purpose:
 
-| Checkpoint | Change | Check on the simulator (40 seeds) |
-| --- | --- | --- |
-| 0 | Baseline | €18,614, 402 orders, 97.3% on time; slowest tick 3.2 seconds (over the 3-second budget); 65 chains withdrawn within 30 minutes of their post |
-| 1 | The planner's state, the drops, the floors and the supply's inputs come from the events and the journal | +€74 ± 121 against 0. A week restarted twice ends within a few hundred euros of the same week uninterrupted, with the same chain counts |
-| 2 | One rule for when a chain may be open; chains that would be refused no longer block others; a path is judged from its first start that works; the search is ordered and bounded | Slowest tick 0.2 seconds; 3 chains withdrawn within 30 minutes. The margin (−€800 ± 127) does not count: the simulator books 82 to 93% of the chains, the server 60% |
-| 3 to 5 | One cost level (`costLevel`); the supply learns what the order model leaves; one test for "today"; `minMargin`, `overhead`, `spread` and `chainHours` removed; one planning-timed fee schedule and one urgent climb, in waking minutes; constants named or made params | +€183 ± 165 against 2, 387 orders against 395; no fault, no schedule that is empty, falls or starts in the past; every new param accepted by `pnpm bench` |
+| Checkpoint | Change                                                                                                                                                                                                                                                                 | Check on the simulator (40 seeds)                                                                                                                                    |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0          | Baseline                                                                                                                                                                                                                                                               | €18,614, 402 orders, 97.3% on time; slowest tick 3.2 seconds (over the 3-second budget); 65 chains withdrawn within 30 minutes of their post                         |
+| 1          | The planner's state, the drops, the floors and the supply's inputs come from the events and the journal                                                                                                                                                                | +€74 ± 121 against 0. A week restarted twice ends within a few hundred euros of the same week uninterrupted, with the same chain counts                              |
+| 2          | One rule for when a chain may be open; chains that would be refused no longer block others; a path is judged from its first start that works; the search is ordered and bounded                                                                                        | Slowest tick 0.2 seconds; 3 chains withdrawn within 30 minutes. The margin (−€800 ± 127) does not count: the simulator books 82 to 93% of the chains, the server 60% |
+| 3 to 5     | One cost level (`costLevel`); the supply learns what the order model leaves; one test for "today"; `minMargin`, `overhead`, `spread` and `chainHours` removed; one planning-timed fee schedule and one urgent climb, in waking minutes; constants named or made params | +€183 ± 165 against 2, 387 orders against 395; no fault, no schedule that is empty, falls or starts in the past; every new param accepted by `pnpm bench`            |
 
 `SPREAD_RESTART_AT=<minute>,<minute>` makes a practice week restart itself at those world minutes, and each week now
 prints its slowest strategy calls.

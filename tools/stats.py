@@ -68,10 +68,15 @@ def load_week(folder: Path) -> Week:
 
 
 def find_weeks(roots: Iterable[Path]) -> Iterator[Path]:
+    """Saved weeks; prober folders have a meta.json but no end-of-week snapshot."""
     for root in roots:
         for meta in sorted(root.rglob("meta.json")):
-            if not meta.parent.name.endswith(".partial"):
-                yield meta.parent
+            folder = meta.parent
+            if folder.name.endswith(".partial"):
+                continue
+            if not ((folder / "snapshot.json").exists() or (folder / "snapshot.json.gz").exists()):
+                continue
+            yield folder
 
 
 def load_map(roots: Iterable[Path]) -> dict | None:

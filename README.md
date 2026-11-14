@@ -27,15 +27,14 @@ are already set, as in a Claude Code cloud session ([`tools/README.md`](tools/RE
 Several of us build dispatch systems in parallel; the team picks one for the final. Each plays a practice week with
 `--level 1` to `8` and `--seed <text>`: the same seed gives the same week, so compare systems on the same seeds.
 
-| System                                                                          | Play a week                                                               |
-| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `dispatch.py`, built from [`strategies/`](strategies/README.md)                 | `uv run dispatch.py --level 8 --seed spread-1`                            |
-| [Price ladder](strategies/price_ladder/README.md)                               | `uv run strategies/price_ladder/dispatch.py --level 8 --seed spread-1`    |
-| [Ratchet](strategies/ratchet/README.md)                                         | `uv run strategies/ratchet/dispatch.py --level 8 --seed spread-1`         |
-| [Ceiling pricing](strategies/ceiling/README.md)                                 | `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1`         |
-| [Baseline](strategies/baseline/README.md), the organisers' starter              | `uv run python strategies/baseline/baseline.py --level 8 --seed spread-1` |
-| [TypeScript](src/README.md): a harness that plays one strategy                  | `pnpm dispatch --strategy starter --level 8 --seed spread-1`              |
-| [bidprice](src/strategies/bidprice/README.md): the brief's design in TypeScript | `pnpm dispatch --strategy bidprice --level 8 --seed spread-1`             |
+| System                                                             | Play a week                                                               |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| `dispatch.py`, built from [`strategies/`](strategies/README.md)    | `uv run dispatch.py --level 8 --seed spread-1`                            |
+| [Price ladder](strategies/price_ladder/README.md)                  | `uv run strategies/price_ladder/dispatch.py --level 8 --seed spread-1`    |
+| [Ratchet](strategies/ratchet/README.md)                            | `uv run strategies/ratchet/dispatch.py --level 8 --seed spread-1`         |
+| [Ceiling pricing](strategies/ceiling/README.md)                    | `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1`         |
+| [Baseline](strategies/baseline/README.md), the organisers' starter | `uv run python strategies/baseline/baseline.py --level 8 --seed spread-1` |
+| [TypeScript](src/README.md): a harness that plays one strategy     | `pnpm dispatch --strategy starter --level 8 --seed spread-1`              |
 
 - `--final` plays our copy of a test final or of the final. `--board` plays a ranking run: each ranking world can be
   played once and its score stays on the public rankings, so agree on it in the team first.
