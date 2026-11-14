@@ -56,6 +56,12 @@ reaches that fee by then, it finds that driver too. Ceiling's plan finds 1,546 o
 1,309: it reaches the fee later. Where it does not reach the fee in time, the week cannot tell whether a driver would
 have taken the lower fee later. The bench below does.
 
+On the five distinct saved `scarcity-ceiling` weeks, which ceiling pricing quoted over another admission (seeds
+`spread-1` to `spread-5`; the two `spread-1` weeks are the same week), ceiling's plan finds 1,220 of the 1,223 drivers,
+and this one 1,035. Most of those drivers booked at the opening fee (the median at 0.90 × the typical fee), which both
+plans post first; the 185 gigs that this plan loses booked after a raise that it holds back.
+
 ## Bench
 
-To be played.
+Not played online yet: the checkout it was built in had no team key. The bench command under [Run it](#run-it) plays it
+beside ceiling on the same practice seeds; its result belongs here.

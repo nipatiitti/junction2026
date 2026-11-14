@@ -48,6 +48,12 @@ ceiling. Of the orders that the weeks won, it keeps 3,219 of ceiling's 3,233, wi
 their margin is €65,542 against €65,680. The requests it takes in addition were not won in those weeks, so the replay
 cannot tell what they earn; the bench below does.
 
+On the five distinct saved `scarcity-ceiling` weeks, which ceiling pricing quoted over another admission (seeds
+`spread-1` to `spread-5`; the two `spread-1` weeks are the same week), the world's correction ends between 0.98 and
+1.04, and the place corrections lower 514 to 954 estimates a week and raise 16 to 433. Admission takes 69.6% of the
+requests against 65.4%, and keeps 1,321 of ceiling's 1,327 won orders (98.6% on time), for €30,258 against €30,465.
+
 ## Bench
 
-To be played.
+Not played online yet: the checkout it was built in had no team key. The bench command under [Run it](#run-it) plays it
+beside ceiling on the same practice seeds; its result belongs here.

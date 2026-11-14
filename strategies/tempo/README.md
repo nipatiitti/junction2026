@@ -46,6 +46,12 @@ ceiling, and keeps 3,210 of ceiling's 3,233 won orders, with the same on-time sh
 against €65,680: the areas it narrows gave up €393 of orders that paid. The bench below measures what the wider areas
 add.
 
+On the five distinct saved `scarcity-ceiling` weeks, which ceiling pricing quoted over another admission (seeds
+`spread-1` to `spread-5`; the two `spread-1` weeks are the same week), 57% to 70% of a week's gigs book within 30
+minutes; 429 to 643 requests a week get more room and 201 to 366 less. Admission takes 65.2% of the requests against
+65.4%, and keeps 1,321 of ceiling's 1,327 won orders (98.6% on time), for €30,255 against €30,465.
+
 ## Bench
 
-To be played.
+Not played online yet: the checkout it was built in had no team key. The bench command under [Run it](#run-it) plays it
+beside ceiling on the same practice seeds; its result belongs here.

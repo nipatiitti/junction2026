@@ -42,6 +42,11 @@ change: 65.4% of the requests are taken, and 3,231 of ceiling's 3,233 won orders
 option, so a quote with more options has an unknown answer more often (2,344 against 2,040). The bench below
 measures which options the dealers take.
 
+On the five distinct saved `scarcity-ceiling` weeks, which ceiling pricing quoted over another admission (seeds
+`spread-1` to `spread-5`; the two `spread-1` weeks are the same week), 165 to 373 quotes a week carry slower options,
+and the same 1,327 orders are kept.
+
 ## Bench
 
-To be played.
+Not played online yet: the checkout it was built in had no team key. The bench command under [Run it](#run-it) plays it
+beside ceiling on the same practice seeds; its result belongs here.
