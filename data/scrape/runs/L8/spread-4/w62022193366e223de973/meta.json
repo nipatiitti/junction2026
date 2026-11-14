@@ -1,0 +1,24 @@
+{
+  "seed": "spread-4",
+  "level": 8,
+  "policy": "lane-fee",
+  "kind": "practice",
+  "worldId": "w62022193366e223de973",
+  "version": "5504b227ce3c2d39a380fa9a54c9e98bccf77853-dirty",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 21790,
+  "score": {
+    "marginCents": 864274,
+    "revenueCents": 4647297,
+    "marginShare": 0.18597348092880658,
+    "wonOrders": 409,
+    "onTimeShare": 0.9388753056234719,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 44.4,
+  "requests": 653
+}

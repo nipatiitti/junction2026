@@ -1,0 +1,24 @@
+{
+  "seed": "spread-1",
+  "level": 8,
+  "policy": "t-town",
+  "kind": "practice",
+  "worldId": "wd06732be2bdda63c055f",
+  "version": "5504b227ce3c2d39a380fa9a54c9e98bccf77853",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 14716,
+  "score": {
+    "marginCents": 1222905,
+    "revenueCents": 3364581,
+    "marginShare": 0.3634642768297152,
+    "wonOrders": 375,
+    "onTimeShare": 0.984,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 43.2,
+  "requests": 591
+}
