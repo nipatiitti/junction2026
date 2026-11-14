@@ -1,0 +1,24 @@
+{
+  "seed": "nov-3",
+  "level": 8,
+  "policy": "radar-lift",
+  "kind": "practice",
+  "worldId": "w4c7f8172def9e5576990",
+  "version": "d5be61f3a0a98b16b00314a3e2c934df12be7406",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 14526,
+  "score": {
+    "marginCents": 1301687,
+    "revenueCents": 3714935,
+    "marginShare": 0.3503929409262881,
+    "wonOrders": 329,
+    "onTimeShare": 0.9726443768996961,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 86.8,
+  "requests": 564
+}

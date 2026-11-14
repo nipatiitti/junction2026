@@ -5,10 +5,11 @@ A dispatch system built on [`strategies/all_in`](../all_in/README.md), the leadi
 live balance of our work and our drivers near the pickup, as a ride-hailing broker prices a ride. Issue #300. The
 systems it builds on stay as they are.
 
-| File          | Class          | Builds on       | What it decides                                     |
-| ------------- | -------------- | --------------- | --------------------------------------------------- |
-| `pricing.py`  | `RadarPricing` | `PriorPricing`  | The all-in price of a quote, times the area's surge |
-| `dispatch.py` | `Desk`         | the all-in desk | The system: the all-in desk with the pricing above  |
+| File           | Class          | Builds on       | What it decides                                      |
+| -------------- | -------------- | --------------- | ---------------------------------------------------- |
+| `pricing.py`   | `RadarPricing` | `PriorPricing`  | The all-in price of a quote, times the area's surge  |
+| `dispatch.py`  | `Desk`         | the all-in desk | The system: the all-in desk with the pricing above   |
+| `lift_only.py` | `Desk`         | the radar desk  | The same system with a surge that never cuts a price |
 
 `RadarPricing` is a subclass of `Strategy` ([`strategies/strategy.py`](../strategy.py)) through `PriorPricing`, with
 the constructor `(roster, world_map, level=8, params=None, radar=None)` and a frozen `Params`. `radar` is the desk's
@@ -20,30 +21,36 @@ From the repository root:
 
 ```sh
 uv run strategies/radar_broker/dispatch.py --level 8 --seed spread-1
+uv run strategies/radar_broker/lift_only.py --level 8 --seed spread-1
 uv run python -m strategies.bench strategies/radar_broker/dispatch.py strategies/all_in/dispatch.py --jobs 4
 ```
 
-Its weeks are saved with the policy `radar-broker`. The `Radar` line at the end of a week counts the quotes surged up
+Its weeks are saved with the policy `radar-broker`, and those of `lift_only.py` with `radar-lift`. The `Radar` line at the end of a week counts the quotes surged up
 and lowered, and gives the week's mean balance.
 
 ## What the weeks show
 
 Played on the fresh seeds `nov-1` to `nov-5`, level 8, on 2026-11-14, against the saved `all_in` weeks of the same
-seeds (the all-in system has not changed since they were played, and its `spread-1` week repeats to the cent):
+seeds (the all-in system has not changed since they were played, and its `spread-1` week repeats to the cent).
+`radar_broker` is the surge both ways; `lift_only` is the same surge with `surge_down = 0`, so it never cuts a price:
 
-| Seed      | `all_in` | `radar_broker` | Difference | Orders (all in / radar) | On time (all in / radar) |
-| --------- | -------- | -------------- | ---------- | ----------------------- | ------------------------ |
-| `nov-1`   | €14,093  | €13,460        | −633       | 350 / 348               | 97.7% / 97.7%            |
-| `nov-2`   | €19,376  | €17,664        | −1,712     | 364 / 364               | 95.3% / 97.0%            |
-| `nov-3`   | €12,538  | €12,664        | +126       | 323 / 329               | 96.3% / 97.6%            |
-| `nov-4`   | €15,852  | €14,732        | −1,120     | 329 / 323               | 99.7% / 98.8%            |
-| `nov-5`   | €11,511  | €11,556        | +45        | 355 / 354               | 94.9% / 94.9%            |
-| Mean week | €14,674  | €14,015        | −659       |                         |                          |
+| Seed      | `all_in` | `radar_broker` | Difference | `lift_only` | Difference | On time (all in / radar / lift) |
+| --------- | -------- | -------------- | ---------- | ----------- | ---------- | ------------------------------- |
+| `nov-1`   | €14,093  | €13,460        | −633       | €14,243     | +150       | 97.7% / 97.7% / 98.0%           |
+| `nov-2`   | €19,376  | €17,664        | −1,712     | €18,530     | −846       | 95.3% / 97.0% / 96.1%           |
+| `nov-3`   | €12,538  | €12,664        | +126       | €13,017     | +479       | 96.3% / 97.6% / 97.3%           |
+| `nov-4`   | €15,852  | €14,732        | −1,120     | €14,238     | −1,614     | 99.7% / 98.8% / 99.1%           |
+| `nov-5`   | €11,511  | €11,556        | +45        | €12,462     | +951       | 94.9% / 94.9% / 96.8%           |
+| Mean week | €14,674  | €14,015        | −659       | €14,498     | −176       |                                 |
 
-With these defaults the surge loses €659 a week and is ahead on 2 of the 5 seeds. All its weeks are ranked. It wins
-about as many orders as all-in, so it moves price without choosing better cars: the cut where our drivers will be free
-gives away margin, and the lift where work piles up loses cars that all-in moved at a profit. Play `all_in`, not this
-system, until a variant beats it.
+Every week of both is ranked, and both win about as many orders as all-in (1,718 and 1,724 against 1,721).
+
+- **The surge both ways** loses €659 a week and is ahead on 2 of the 5 seeds.
+- **Lift only** loses €176 a week and is ahead on 3 of the 5. The standard error of that mean difference is 465, so
+  it is within what chance gives: five seeds cannot tell it from all-in. It makes €483 a week more than the surge
+  both ways, which points at the cut where our drivers will be free as the part that gave margin away.
+
+Play `all_in`, not these systems, until a variant beats it over more seeds.
 
 ## The idea
 
@@ -93,4 +100,4 @@ surge only sets what we ask for it. Up to level 3 every quote wins at the list p
 | `surge_down`    | 0.05    | The largest cut, in logs                                                         |
 | `center_weight` | 0.02    | The weight of each quote in the week's mean balance                              |
 
-The defaults are a first guess, not tuned; the weeks above show they do not pay.
+The defaults are a first guess, not tuned; the weeks above show that they do not pay, and that the cut costs most.
