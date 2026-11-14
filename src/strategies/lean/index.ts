@@ -153,8 +153,9 @@ export const DEFAULTS = {
   chainPatience: 1,
   /** A car may be in this many chains that no driver took before it stays a single gig: a failed chain costs its
    * cars 0.01 × typical (1.04 against 1.03, 15 server weeks). A later chain needs a car that no driver has seen,
-   * so it is never the same chain again. */
-  chainTries: 1,
+   * so it is never the same chain again. With the chain model, 3 made €212 a week more than 2 over 20 server seeds
+   * and 5 made €193 less than 3 over ten; without the model 2 lost. */
+  chainTries: 3,
   /** How much a chain's chance to book counts when two chains want the same car (chains.ts, `bookChance`): the
    * best chain saves the most × its chance to this power. 0 ranks by the saving alone. */
   chainFit: 0,
@@ -165,8 +166,9 @@ export const DEFAULTS = {
   chainSpread: 0,
   /** Price and rank the chains by the chain model (chains.ts, chain.json): each chain gets the fee level from
    * 0.85 to 1.3 that earns the most over its cars as single gigs, by its chance to book at that level, the best
-   * chain earns the most a car, and a chain that earns nothing is not posted. */
-  chainModel: false,
+   * chain earns the most a car, and a chain that earns nothing is not posted. With `chainTries` 3 on 20 server
+   * seeds: +€1,126 a week, 71% of the chains book where 53% did, and 197 cars a week ride in them where 117 did. */
+  chainModel: true,
   /** With the model: × what a chain's cars are taken to pay as single gigs (0.94 on the Monday, 0.99 after). Over
    * 1 the model pays chains more, so more of them book. */
   chainAlone: 1,
