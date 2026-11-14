@@ -46,3 +46,7 @@ uv run --env-file .env python -m strategies.bench \
 
 That is one run: ten models, two weeks each at `--jobs 6`. Add seeds as the slots allow, before a ranking round most
 of all. Each model's weeks land in `data/scrape/runs` with its own policy, so they stay apart in the database.
+
+To gather many weeks without watching, `uv run python -m tools.sweep` plays the active models on fresh random seeds,
+round after round, until stopped ([`tools/README.md`](tools/README.md#play-many-fresh-seeds)). It adds weeks, it does
+not read them, so a comparison still needs the run above.
