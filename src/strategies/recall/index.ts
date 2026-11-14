@@ -28,7 +28,7 @@ export type RecallParams = BidPriceParams & {
   matchShare: number
 }
 
-type Memory = { seed: string; sig: Record<string, string>; opts: Record<string, [number | null, number | null]> }
+export type Memory = { seed: string; sig: Record<string, string>; opts: Record<string, [number | null, number | null]> }
 
 const here = new URL('./', import.meta.url)
 const tuned = JSON.parse(readFileSync(new URL('../bidprice/tuned-6b.json', import.meta.url), 'utf8'))
@@ -54,15 +54,15 @@ function readMemories(): Memory[] {
     .map((f) => JSON.parse(readFileSync(new URL(f, here), 'utf8')) as Memory)
 }
 
-class Recall extends BidPrice {
-  readonly rp: RecallParams
+export class Recall<P extends RecallParams = RecallParams> extends BidPrice {
+  readonly rp: P
   readonly memories: Memory[]
   /** Requests seen, and how many each memory matched. */
   seen = 0
   readonly hits: number[]
   readonly memo = { raised: 0, lowered: 0, dropped: 0, untouched: 0, rescued: 0, unknown: 0 }
 
-  constructor(setup: Setup, params: RecallParams) {
+  constructor(setup: Setup, params: P) {
     super(setup, params)
     this.rp = params
     this.memories = params.memory && setup.level === 8 ? readMemories() : []
@@ -70,7 +70,7 @@ class Recall extends BidPrice {
   }
 
   /** The memory this week is, or null. */
-  private recognised(): Memory | null {
+  protected recognised(): Memory | null {
     let best = -1
     for (let i = 0; i < this.memories.length; i++) if (best < 0 || this.hits[i] > this.hits[best]) best = i
     if (best < 0) return null
@@ -165,7 +165,7 @@ class Recall extends BidPrice {
 }
 
 /** bidprice's rule across options: a faster option is never cheaper than a slower one. */
-function ordered(prices: Partial<Record<Option, number>>): Prices {
+export function ordered(prices: Partial<Record<Option, number>>): Prices {
   let floor = 0
   for (const kind of [...OPTIONS].reverse()) {
     const p = prices[kind]

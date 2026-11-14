@@ -2,6 +2,7 @@
 import type { StrategyKind } from '../strategy.ts'
 import { bidprice } from './bidprice/index.ts'
 import { flat } from './flat/index.ts'
+import { probe } from './probe/index.ts'
 import { recall } from './recall/index.ts'
 import { starter } from './starter/index.ts'
 
@@ -26,4 +27,5 @@ export const STRATEGIES: Record<string, StrategyKind> = {
   gambit,
   menu,
   recall,
+  probe,
 }
