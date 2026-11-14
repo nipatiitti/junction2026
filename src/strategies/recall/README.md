@@ -23,3 +23,11 @@ Params: bidprice's (defaults from `../bidprice/tuned-16.json`) plus `memory` tru
 quotes raised, lowered, dropped, untouched, not in memory and rescued.
 
 `pnpm bench recall --level 8 --seeds spread-1`: EUR 14,301 (486 orders, 94.0% on time) against bidprice's 11,833.
+
+## Fee memory
+
+`node src/strategies/recall/learn-fees.ts <seed>` writes `fees-<seed>.json`: per won order's gig (`<request id>/<legs>`),
+`[lowest fee ratio over typical that booked and was delivered on time, median booked ratio, weeks seen, highest ratio
+that stayed unbooked for 3+ hours]`. With `feeMemory` (default true) a recognised week opens such a gig's first post at
+`max(lowest × feeShade (1.03), feeFloorMem (0.7))` × typical when that is under bidprice's opening fee; the later steps,
+reprices and the urgent ramp are bidprice's. The summary counts the gigs opened from memory and their mean ratio.
