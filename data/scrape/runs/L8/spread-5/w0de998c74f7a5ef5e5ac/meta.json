@@ -1,0 +1,24 @@
+{
+  "seed": "spread-5",
+  "level": 8,
+  "policy": "eighty-caphi75",
+  "kind": "practice",
+  "worldId": "w0de998c74f7a5ef5e5ac",
+  "version": "6112d696823f2e4e7ff4c915fcc7afdcc1ca512d-dirty",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 12577,
+  "score": {
+    "marginCents": 733659,
+    "revenueCents": 2862775,
+    "marginShare": 0.2562754669857044,
+    "wonOrders": 293,
+    "onTimeShare": 0.9488054607508533,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 33.6,
+  "requests": 528
+}
