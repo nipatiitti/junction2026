@@ -18,7 +18,7 @@ const OWN = {
   nextDay: 1.4,
   within3: 1.32,
   trustStep: 0,
-  mondayDiscount: 0,
+  mondayDiscount: 0.08,
   bigShare: 0.05,
   bigFee: 1.1,
   bigComfort: 12,
