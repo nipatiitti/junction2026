@@ -49,6 +49,7 @@ import {
 import { bestPrice, Demand } from './demand.ts'
 import { awake, BOOK_AHEAD, fast, feeAt, SHORT, stepped } from './fees.ts'
 import { Planner } from './planner.ts'
+import { Supply } from './supply.ts'
 
 export const DEFAULTS = {
   /** The share of the week's requests to win, in a world with 777 drivers (the median). */
@@ -76,8 +77,15 @@ export const DEFAULTS = {
   /** A premium car's cost × this, and what a private address adds × typical. */
   premium: 3,
   privateAddress: 0.25,
+  /** What a car that must be collected today adds × typical: drivers plan their day the evening before. */
+  today: 0,
   /** What a booking costs × typical before this week's bookings say: the measured median with the climb's steps. */
   feeRatio: 0.84,
+  /** Learn what a booking costs by pickup place, delivery place and whether the car goes today (supply.ts), not
+   * as one figure for the week. */
+  supply: true,
+  supplyMore: 0,
+  supplyStart: 10,
   /** Added to the cost × typical for drops, failed visits and refunds. */
   overhead: 0.06,
   /** An option needs this many waking hours between now and the last minute to book, or we do not quote it. */
@@ -87,6 +95,8 @@ export const DEFAULTS = {
   /** The noise that stays in one request's threshold, as a logistic scale in log price: 20 to 25% stays whatever
    * we learn. A wider noise makes the best price higher, because a dearer quote then loses fewer wins. */
   noise: 0.28,
+  /** At level 8, the multiple of the list price at which half of the quotes win, before the week's learning. */
+  middle: 1.4,
   /** How much of the dealer's trust (1% for each order on time) goes into the price. */
   trust: 0.7,
   /** How much the target falls for each 1.0 × typical that bookings cost over `feeRatio`. 0 leaves volume to the
@@ -131,6 +141,7 @@ class Lean extends Strategy<LeanParams> {
   override readonly every = 15
   private readonly demand: Demand
   private readonly planner: Planner
+  private readonly supply: Supply
   private readonly drivers: number
   private capacity: number
   private feeRatio: number
@@ -155,7 +166,8 @@ class Lean extends Strategy<LeanParams> {
   private readonly tally = { requests: 0, quoted: 0, won: 0, multiples: 0, bookings: 0, ratios: 0 }
   constructor(setup: Setup, params: LeanParams) {
     super(setup, params)
-    this.demand = new Demand(setup.level, params.noise)
+    this.supply = new Supply(params.feeRatio, params.supplyMore, params.supplyStart)
+    this.demand = new Demand(setup.level, params.noise, params.middle)
     this.drivers = setup.roster.length > 0 ? setup.roster.length / 777 : 1
     this.capacity = params.capacity
     this.feeRatio = params.feeRatio
@@ -202,9 +214,21 @@ class Lean extends Strategy<LeanParams> {
     const lastPickup = deadline - 1.1 * driveMinutes(this.setup.map, request.legs) - 30
     const time = awake(now + 15, lastPickup - BOOK_AHEAD)
     if (time < this.params.minHours * HOUR) return null // too little time for the raises to find a driver
-    let ratio = this.feeRatio + this.params.overhead
+    const leg = request.legs[0]
+    const today = lastPickup < (Math.floor(now / DAY) + 1) * DAY
+    const learned = this.supply.ratio(
+      this.supply.keys(
+        leg?.pickup.placeId,
+        leg?.delivery.placeId,
+        today,
+        request.referenceFeeCents,
+        Math.floor(now / DAY),
+      ),
+    )
+    let ratio = (this.params.supply ? learned : this.feeRatio) + this.params.overhead
     if (f.privatePickup || f.privateDelivery) ratio += this.params.privateAddress
     if (f.tradeIn) ratio += 0.05
+    if (today && !this.params.supply) ratio += this.params.today
     if (f.weekendDelivery) ratio += 0.05
     if (facts.deadline !== null || facts.pickupHours !== null || facts.deliveryHours !== null) ratio += 0.03
     if (f.premium) ratio *= this.params.premium // one driver in twelve may take it
@@ -397,6 +421,22 @@ class Lean extends Strategy<LeanParams> {
         if (!post || !(singles > 0)) break
         this.planner.booked(event.gigId, event.feeCents / singles)
         const ratio = clamp(event.feeCents / singles, 0.3, 2.5)
+        for (const stop of pickups(post.stops)) {
+          const order = books.orders.get(stop.orderId)
+          const leg = order?.legs[stop.leg]
+          if (!order || !leg) continue
+          const today = order.lastPickupAt < (Math.floor(event.at / DAY) + 1) * DAY
+          this.supply.learn(
+            this.supply.keys(
+              leg.pickup.placeId,
+              leg.delivery.placeId,
+              today,
+              books.requests.get(order.id)?.referenceFeeCents,
+              Math.floor(event.at / DAY),
+            ),
+            ratio,
+          )
+        }
         // A chain counts once for each of its cars: the cost behind a bid is a car's, not a booking's.
         for (let i = pickups(post.stops).length; i > 0; i--) this.feeRatio += 0.04 * (ratio - this.feeRatio)
         this.tally.bookings++
