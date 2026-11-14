@@ -56,5 +56,17 @@ for ceiling's own.
 
 ## Bench
 
-Not played online yet: the checkout it was built in had no team key. The bench command under [Run it](#run-it) plays it
-beside ceiling on the same practice seeds; its result belongs here.
+`strategies.bench` on 2026-11-14 at level 8, in one run with `ceiling` and the root `dispatch.py` (€17,610.37 in total)
+on the same seeds. Every week was ranked. The weeks are saved under `data/scrape/runs/L8/` with the policy `profit-max`.
+
+| Seed       |  `ceiling` | `profit_max` | Difference | On time |
+| ---------- | ---------: | -----------: | ---------: | ------: |
+| `spread-1` |  €9,831.09 |    €9,076.00 |   −€755.09 |   98.2% |
+| `spread-2` |  €6,673.95 |    €6,537.88 |   −€136.07 |   98.7% |
+| `spread-3` |  €4,312.02 |    €3,629.56 |   −€682.46 |   99.1% |
+| Total      | €20,817.06 |   €19,243.44 | −€1,573.62 |         |
+
+Behind ceiling on all three seeds, by €1,573.62 in total. Its won orders paid 1.353 × the list price against 1.373 for
+ceiling, and it won 926 orders against 952. Matched by order id with ceiling's weeks, it won 127 orders that ceiling did
+not (€1,928 of margin) and lost 153 that ceiling won (€3,261): the curve gave up dear cars to win cheap ones.
+Its `spread` of 0.08 is an assumption, not a fit; as it stands, the curve costs money.

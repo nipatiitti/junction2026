@@ -59,5 +59,17 @@ requests a week.
 
 ## Bench
 
-Not played online yet: the checkout it was built in had no team key. The bench command under [Run it](#run-it) plays it
-beside ceiling on the same practice seeds; its result belongs here.
+`strategies.bench` on 2026-11-14 at level 8, in one run with `ceiling` and the root `dispatch.py` (€17,610.37 in total)
+on the same seeds. Every week was ranked. The weeks are saved under `data/scrape/runs/L8/` with the policy `war-guard`.
+
+| Seed       |  `ceiling` | `war_guard` | Difference | On time |
+| ---------- | ---------: | ----------: | ---------: | ------: |
+| `spread-1` |  €9,831.09 |  €10,223.10 |   +€392.01 |   98.5% |
+| `spread-2` |  €6,673.95 |   €6,511.15 |   −€162.80 |   96.5% |
+| `spread-3` |  €4,312.02 |   €4,358.12 |    +€46.10 |   99.2% |
+| Total      | €20,817.06 |  €21,092.37 |   +€275.31 |         |
+
+Ahead of ceiling by €275.31 in total, on two of the three seeds. Matched by order id with ceiling's weeks, it won nearly
+the same cars (23 orders that ceiling did not, and 33 fewer), and the orders that both won made €215 more; 96 of its
+orders lost money against 102 for ceiling. On `spread-2` its on-time share fell to 96.5%, and late refunds over the
+three weeks were €554 against €407. The lead is under 1.5% on three seeds, too small to tell from the week's own noise.

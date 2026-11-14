@@ -63,5 +63,17 @@ plans post first; the 185 gigs that this plan loses booked after a raise that it
 
 ## Bench
 
-Not played online yet: the checkout it was built in had no team key. The bench command under [Run it](#run-it) plays it
-beside ceiling on the same practice seeds; its result belongs here.
+`strategies.bench` on 2026-11-14 at level 8, in one run with `ceiling` and the root `dispatch.py` (€17,610.37 in total)
+on the same seeds. Every week was ranked. The weeks are saved under `data/scrape/runs/L8/` with the policy `slack-fees`.
+
+| Seed       |  `ceiling` | `slack_fees` | Difference | On time |
+| ---------- | ---------: | -----------: | ---------: | ------: |
+| `spread-1` |  €9,831.09 |   €10,206.83 |   +€375.74 |   97.9% |
+| `spread-2` |  €6,673.95 |    €6,891.04 |   +€217.09 |   97.5% |
+| `spread-3` |  €4,312.02 |    €4,077.60 |   −€234.42 |   99.2% |
+| Total      | €20,817.06 |   €21,175.47 |   +€358.41 |         |
+
+Ahead of ceiling by €358.41 in total, the most of the seven, on two of the three seeds. Driver fees fell from €61.08 to
+€58.94 a car, so the orders that both won made €1,250 more. Holding the raise gave some of it back: late refunds were
+€633 against €407, and it lost 41 orders that ceiling won (€1,519) while it won 36 that ceiling did not (€577). The lead
+is under 2% on three seeds.

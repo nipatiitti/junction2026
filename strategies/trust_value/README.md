@@ -55,5 +55,19 @@ On the five distinct saved `scarcity-ceiling` weeks, which ceiling pricing quote
 
 ## Bench
 
-Not played online yet: the checkout it was built in had no team key. The bench command under [Run it](#run-it) plays it
-beside ceiling on the same practice seeds; its result belongs here.
+`strategies.bench` on 2026-11-14 at level 8, in one run with `ceiling` and the root `dispatch.py` (€17,610.37 in total)
+on the same seeds. Every week was ranked. The weeks are saved under `data/scrape/runs/L8/` with the policy
+`trust-value`.
+
+| Seed       |  `ceiling` | `trust_value` | Difference | On time |
+| ---------- | ---------: | ------------: | ---------: | ------: |
+| `spread-1` |  €9,831.09 |     €8,995.51 |   −€835.58 |   97.9% |
+| `spread-2` |  €6,673.95 |     €5,642.00 | −€1,031.95 |   98.4% |
+| `spread-3` |  €4,312.02 |     €2,449.57 | −€1,862.45 |   97.3% |
+| Total      | €20,817.06 |    €17,087.08 | −€3,729.98 |         |
+
+Behind ceiling on all three seeds, by €3,729.98 in total: the furthest behind of the seven. It won 1,083 orders against
+952, but the 876 orders that both won made €3,353 less, because the trust value lowers ceiling's price floor as well as
+its margin check (1.335 × the list price against 1.373). 150 of its orders lost money (€6,483 together) against 102 for
+ceiling (€3,316), and late refunds rose from €407 to €1,017 as the extra cars kept the drivers busy. Within the week,
+the trust that the extra orders bought did not pay for the thinner prices.
