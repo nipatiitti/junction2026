@@ -205,6 +205,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Type check: `pnpm check`
 - Install Python dependencies: `uv sync`
 - Play a Spread practice week: `uv run dispatch.py --level 8 --seed spread-1`
+- Play an admission scenario: `uv run python strategies/admission_scenarios/capacity.py --level 8 --seed spread-1`
 - Play the baseline week: `uv run python strategies/baseline/baseline.py --level 8 --seed spread-1`
 - Play the price-ladder week: `uv run strategies/price_ladder/dispatch.py --level 8 --seed spread-1`
 - Play the city-ladder week: `uv run strategies/city_ladder/dispatch.py --level 8 --seed spread-1`
@@ -217,6 +218,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the more-chains week: `uv run strategies/bundling_more/dispatch.py --level 8 --seed spread-1`
 - Play the cheaper-bundles week: `uv run strategies/bundling_cheaper/dispatch.py --level 8 --seed spread-1`
 - Play the urgency-priced week: `uv run strategies/delivery_urgency/dispatch.py --level 8 --seed spread-1`
+- Play the special-premium week: `uv run strategies/special_premium/dispatch.py --level 8 --seed spread-1`
 - Play the scarcity-urgency week: `uv run strategies/scarcity_urgency/dispatch.py --level 8 --seed spread-1`
 - Play the ratchet week: `uv run strategies/ratchet/dispatch.py --level 8 --seed spread-1`
 - Play the ceiling-pricing week: `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1`
