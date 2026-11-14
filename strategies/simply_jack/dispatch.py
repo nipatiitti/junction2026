@@ -3,10 +3,13 @@
 Jack makes two decisions, and each is a few plain rules with its numbers at the top of this file:
 
 1. The price. Each dealer has its own price factor. It starts at PRICE, rises by LADDER_UP after each request of
-   that dealer we win and falls by LADDER_DOWN after each we lose, between PRICE_MIN and PRICE_MAX. Quote every
+   that dealer we win and falls by LADDER_DOWN after each we lose, between PRICE_MIN and PRICE_MAX. In the first
+   TRUST_DAYS of the week the steps swap, so a loss cuts more than a win adds: Jack wins most requests early, at a
+   small margin, to earn the dealers' trust, and takes the bigger margin that trust allows later in the week. Quote every
    option of a request at its list price times the dealer's factor. Leave out an option that gives a driver less
    than MIN_LEAD to reach the car: its deadline, less the drive, less the minute the dealer decides. Decline a
-   request with no option left, or whose typical driver fee is more than MAX_FEE_SHARE of our price.
+   request with no option left, with a private address (its narrow booked slot makes a quarter of those cars
+   late), or whose typical driver fee is more than MAX_FEE_SHARE of our price.
 2. The driver fee. Post each gig at FEE_OPEN times the typical fee, then raise it in FEE_STEPS even steps to
    FEE_TOP times the typical fee, which it reaches TOP_BEFORE minutes before the car's last pickup. When that is on
    a later day, the gig holds its opening fee until DAWN of that day, and only then climbs. A gig with an hour or
@@ -39,6 +42,7 @@ HOUR, DAY = 60, 24 * 60
 PRICE = 1.55  # each dealer's price starts at the list price times this: the competitor asks 26% to 54% more
 LADDER_UP = 0.02  # a won request raises its dealer's price by this share
 LADDER_DOWN = 0.01  # a lost one lowers it by this share
+TRUST_DAYS = 2  # Monday and Tuesday: a win adds LADDER_DOWN and a loss takes LADDER_UP, to win most requests
 PRICE_MIN, PRICE_MAX = 1.40, 2.00  # a dealer's price stays between these times the list price
 MIN_LEAD = 6 * HOUR  # leave out an option whose driver would have less than this to reach the car
 MAX_FEE_SHARE = 0.75  # decline when the typical fee is more than this share of our price
@@ -52,6 +56,7 @@ NUMBERS = {
     "PRICE": PRICE,
     "LADDER_UP": LADDER_UP,
     "LADDER_DOWN": LADDER_DOWN,
+    "TRUST_DAYS": TRUST_DAYS,
     "PRICE_MIN": PRICE_MIN,
     "PRICE_MAX": PRICE_MAX,
     "MIN_LEAD": MIN_LEAD,
@@ -66,14 +71,16 @@ NUMBERS = {
 
 def jack_prices(request: PriceRequest, factor: float, minutes: dict[tuple[str, str], int]) -> dict[str, int]:
     """Rule 1, the price: every option with time for a driver, at its list price times the dealer's `factor`, or
-    nothing when no option is left or the driver costs too much. `minutes` are the road minutes between places."""
+    nothing when no option is left, a car goes from or to a private address, or the driver costs too much.
+    `minutes` are the road minutes between places."""
     drive = sum(minutes[leg["pickup"]["placeId"], leg["delivery"]["placeId"]] for leg in request["legs"])
     prices = {
         option["kind"]: round(option["listPriceCents"] * factor)
         for option in request["options"]
         if option["deadline"] - drive - request["respondBy"] >= MIN_LEAD
     }
-    if not prices or request["referenceFeeCents"] > MAX_FEE_SHARE * min(prices.values()):
+    private = any(leg["pickup"]["privateAddress"] or leg["delivery"]["privateAddress"] for leg in request["legs"])
+    if not prices or private or request["referenceFeeCents"] > MAX_FEE_SHARE * min(prices.values()):
         return {}
     return prices
 
@@ -149,16 +156,17 @@ class Ladder:
 
     def observe(self, event: DeskEvent) -> None:
         if event["kind"] == "order_won":
-            self.learn(event["order"]["id"], won=True)
+            self.learn(event["order"]["id"], won=True, at=event["at"])
         elif event["kind"] == "order_lost":
-            self.learn(event["requestId"], won=False)
+            self.learn(event["requestId"], won=False, at=event["at"])
 
-    def learn(self, request_id: str, won: bool) -> None:
+    def learn(self, request_id: str, won: bool, at: int) -> None:
         dealer = self.quoted.pop(request_id, None)
         if dealer is None:
             return
         self.won, self.lost = self.won + won, self.lost + (not won)
-        factor = self.factor(dealer) * (1 + LADDER_UP if won else 1 - LADDER_DOWN)
+        up, down = (LADDER_DOWN, LADDER_UP) if at < TRUST_DAYS * DAY else (LADDER_UP, LADDER_DOWN)
+        factor = self.factor(dealer) * (1 + up if won else 1 - down)
         self.factors[dealer] = min(PRICE_MAX, max(PRICE_MIN, factor))
 
     def summary(self) -> str:
