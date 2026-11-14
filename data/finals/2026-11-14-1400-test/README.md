@@ -14,13 +14,13 @@ Our run of the 14:00 test final with the TypeScript harness, kept for the after-
 
 ## Files
 
-| File | What it holds |
-|---|---|
-| `console.log` | What the run printed: the score at each midnight, the end, the strategy's summary line |
-| `journal.jsonl` | Every action we sent (417 quotes, 75 posts, 5 withdraws) with the server's answer, the minute and the last event seen |
-| `leaderboard.json` | The last message of `GET /v1/leaderboard`, fetched at 14:22 after the final had ended |
-| `practice-rankings-L8.json` | `GET /v1/leaderboards/practice?level=8`, fetched at 14:22 |
-| `pre-final-practice-bench.csv` | The practice bench played at 13:55 on seed `rnd-43f95900`: `target=0.6` and `target=1` |
+| File                           | What it holds                                                                                                         |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `console.log`                  | What the run printed: the score at each midnight, the end, the strategy's summary line                                |
+| `journal.jsonl`                | Every action we sent (417 quotes, 75 posts, 5 withdraws) with the server's answer, the minute and the last event seen |
+| `leaderboard.json`             | The last message of `GET /v1/leaderboard`, fetched at 14:22 after the final had ended                                 |
+| `practice-rankings-L8.json`    | `GET /v1/leaderboards/practice?level=8`, fetched at 14:22                                                             |
+| `pre-final-practice-bench.csv` | The practice bench played at 13:55 on seed `rnd-43f95900`: `target=0.6` and `target=1`                                |
 
 The week itself (events, snapshot, driver list, score, reveal) is in
 `data/scrape/runs/L8/final/f3d1d8961dc4ca1899d73/`, and the two practice weeks of the bench are in
