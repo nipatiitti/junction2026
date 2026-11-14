@@ -221,6 +221,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
 - Measure the note reader: `uv run python -m strategies.notes.check reveal-<world id>`
 - Compare two versions: `uv run python -m strategies.bench dispatch.py origin/main`
+- Play the active models on fresh seeds until stopped: `uv run python -m tools.sweep`
 - Build the saved-weeks DB: `uv run python -m tools.db`
 - Lint / format Python: `uv run ruff check --fix . && uv run ruff format .`
 - Play a week in TypeScript: `pnpm dispatch --level 8 --seed spread-1`
@@ -228,6 +229,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Compare TypeScript strategies: `pnpm bench starter --level 8 --seeds spread-1..spread-5`
 - Tune a TypeScript strategy's params: `pnpm tune <strategy> --space <space.json> --holdout spread-6..spread-10`
 - Build the facts tables: `uv run python -m analysis.facts`
+- Build the quotas database: `uv run python -m analysis.quotas`
 - Export the fee model priors: `uv run python -m analysis.priors_fees`
 - Margin gap report (oracle): `uv run python -m analysis.oracle`
 - Get the team's scraped data: `mkdir -p out && gh release download --pattern 'spread-data-*.tar.gz' --output - | tar -xz -C out`
