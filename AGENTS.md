@@ -20,6 +20,10 @@ car dealers and pays freelance drivers to move the cars, for one simulated week.
   `out/spread.sqlite` instead. Only an explicit request in the current conversation lifts this.
 - Practice weeks are free and repeatable: the same seed and level give the same week.
   Compare two versions of the system on the same seeds.
+- **Shelved strategies.** Check `SHELVED.md` before any online test with one of them: use its recorded mean margins
+  instead of replaying it to evaluate it. `tools.roster_tournament` keeps the list current. Shelving only excludes
+  strategies from later tournament rounds; it does not delete code. To study a changed version, explain what changed
+  and why a fresh measured week is necessary rather than relying on the old snapshot.
 - Ask for approval before you play a ranking run (`--board`) or a final (`--final`). Each
   ranking world can be played once, and its score stays on the public rankings.
 - Every online run is saved. When `dispatch.py` finishes a week on the server (a practice week,
@@ -45,6 +49,8 @@ Before you play anything on the live server, read [`active-models.md`](active-mo
 practice week, taken from the last comparison of every system, and says how to refresh the list. Play one of those —
 with the root `dispatch.py` beside it as the week's reference — rather than a model the team has already left behind,
 so the eight shared practice slots and the rate limit go to the models that are ahead.
+The most recent survivor table and exact per-seed results are in `TOURNAMENT.md`; eliminated systems are in
+`SHELVED.md`. Both are written by `tools.roster_tournament` from saved weeks, not new runs.
 
 ---
 
@@ -278,6 +284,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the active models on fresh seeds until stopped: `uv run python -m tools.sweep`
 - Play every new or changed strategy (Python and TypeScript) online on spread-1 and chart them all: `uv run --env-file .env python -m strategies.leaderboard`
 - Play only the new or changed TypeScript strategies for the leaderboard: `uv run --env-file .env python -m strategies.leaderboard --language typescript`
+- Run the roster tournament: `uv run python -m tools.roster_tournament --play`
 - List open worlds older than 15 minutes (`--yes` deletes them): `uv run --env-file .env python -m tools.kill_old_worlds`
 - Build the saved-weeks DB: `uv run python -m tools.db`
 - Lint / format Python: `uv run ruff check --fix . && uv run ruff format .`
