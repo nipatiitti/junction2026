@@ -19,8 +19,8 @@ import { building, jitter, lamp, lights, pine, pole, sky, snowGround, stars } fr
 //   4.3      our car passes at light speed: flash, a red light trail, a sonic boom; he is launched
 //   4.4–6.0  the camera tilts after him into the sky; his sunglasses fall into the crater
 //   6.0–8.0  space: "BOMBOCLAAAT", he flies past a satellite and becomes a star; "−∞ AURA", "he did not win"
-//   8.0–8.9  the crater with his smoking sunglasses between the two others
-//   8.9–10   the scared driver presses ACCEPT again and again, sweating
+//   8.0–8.35 the crater with his smoking sunglasses between the two others
+//   8.35–10  the scared driver presses ACCEPT again and again, sweating
 
 const SPACE = 800 // the space set floats this high above the parking lot
 const PASS = 4.3 // our car passes
@@ -28,7 +28,7 @@ const LAUNCH = PASS + 0.05 // the gym bro leaves the ground
 const STAR = 7.3 // he becomes a star
 const LANE_Z = 5.2
 const DRIVERS = { npc: -1.5, bro: 0, scared: 1.5 }
-const PRESSES = [8.95, 9.3, 9.65] // the scared driver's ACCEPTs
+const PRESSES = [8.45, 8.95, 9.5] // the scared driver's ACCEPTs
 const mixed = (a, b, k) => a.map((x, i) => lerp(x, b[i], k))
 /** Seconds until something thrown up at v from h metres above the ground lands. */
 const fallTime = (h, v) => (v + Math.sqrt(v * v + 2 * 9.8 * h)) / 9.8
@@ -135,9 +135,9 @@ export default {
         { at: at + 0.02, sound: 'ding', gain: 0.12, notes: [93] },
       ]),
       { at: 1.0, voice: 'scene4-accepted' },
-      { at: 3.2, voice: 'scene4-nah' },
+      { at: 2.75, voice: 'scene4-nah' },
       { at: 6.05, voice: 'scene4-scream' },
-      { at: PRESSES[0], voice: 'scene4-panic' },
+      { at: 8.4, voice: 'scene4-panic', rate: 1.2 },
     ]
   },
   build(segment) {
@@ -401,7 +401,7 @@ export default {
         } else if (t < 8) {
           position = [0, SPACE + 2, 16]
           target = [5, SPACE + 5, -12]
-        } else if (t < 8.9) {
+        } else if (t < 8.35) {
           position = [0.4, 1.3, 5.2]
           target = [0, 0.6, 0]
         } else {
@@ -448,7 +448,7 @@ export default {
             outlined(g, lines.laugh, x + (i ? 210 : -210) + jitter, y - 140 + i * 40, 70, { fill: '#ffffff', line: 10 })
           }
         }
-        caption(g, t, lines.nah, { t0: 3.2, t1: PASS, y: 1360, size: 100 })
+        caption(g, t, lines.nah, { t0: 2.8, t1: PASS, y: 1360, size: 100 })
 
         speedLines(g, t, t > PASS - 0.2 && t < PASS + 0.4 ? 1 : 0, { seed: 13 })
         flash(g, t >= PASS ? 0.9 * (1 - progress(t, PASS, PASS + 0.35)) : 0)
@@ -480,8 +480,8 @@ export default {
         caption(g, t, lines.didNot, { t0: 7.35, t1: 8, y: 1330, size: 60, italic: true })
 
         // The scared driver presses ACCEPT again and again, sweating
-        if (t >= 8.9) {
-          gigCard(g, t, lines, { scale: 0.5 * pop(t, 8.9, 0.15), press: 'accept', times: PRESSES, y: 1290 })
+        if (t >= 8.35) {
+          gigCard(g, t, lines, { scale: 0.5 * pop(t, 8.35, 0.15), press: 'accept', times: PRESSES, y: 1290 })
           scared.head.getWorldPosition(spot)
           const [x, y] = toScreen(spot, camera)
           for (let i = 0; i < 3; i++) {

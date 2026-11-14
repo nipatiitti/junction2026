@@ -1,6 +1,6 @@
 # Joke video
 
-A 44.5-second vertical video (1080×1920, 30 fps) about our dispatcher, in the low-poly 3D look of a "what if"
+A 45-second vertical video (1080×1920, 30 fps) about our dispatcher, in the low-poly 3D look of a "what if"
 TikTok, made with Three.js, with its own music and sound effects. `PROMPT.md` has the full brief: the joke, the
 look, every scene and its beats.
 
@@ -53,7 +53,8 @@ sounds the same and the MP4 gets exactly what the preview plays.
 
 Voice lines come from ElevenLabs text to speech, with meme voices cast in `voices.ts` (which voice says which line,
 and its delivery tags such as `[whispers]`); the words themselves come from `timeline.js`. Each line is saved as
-`video/audio/voice/<name>.mp3` and committed, so rendering needs no key; the page mixes it in at the line's cue.
+`video/audio/voice/<name>.mp3` and committed, so rendering needs no key; the page mixes it in at the line's cue. The mixer levels every line to the same loudness, starts it at its
+first word and dips the music under it; `rate` on a voice cue (in the view's `sounds()`) speeds a line up to fit.
 
 ```bash
 node --env-file=.env.local video/voices.ts

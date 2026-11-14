@@ -108,7 +108,7 @@ export const SEGMENTS = [
   {
     id: 'end',
     view: 'end',
-    duration: 3.4,
+    duration: 3.9,
     lines: {
       remember: 'Remember November 2026?',
       us: 'It was us.',

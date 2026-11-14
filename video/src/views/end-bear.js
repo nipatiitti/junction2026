@@ -12,14 +12,14 @@ import { NUMBERS } from '../timeline.js'
 // The end, "November 2026": a polar bear sits on a fell under the northern lights with a calendar page. It turns
 // its head slowly while the camera does a dolly zoom, its eyes glint, and then: "It was us." The texts are in
 // timeline.js. Beats (local seconds):
-//   0–0.4    wide: the bear on the fell, looking up at the aurora
+//   0–0.4    wide: the bear on the fell, looking up at the aurora; 0.2 "Remember November 2026?" (voice and text)
 //   0.4–1.6  the head turns to the camera; the camera moves in while it widens (the background stretches)
-//   1.35     "Remember November 2026?" types out; 1.6 the eyes glint
-//   2.15     "It was us." slams in: red flash, a snap zoom, the hackathon days get circled on the calendar
-//   2.6      the team name
+//   1.6      the eyes glint
+//   2.35     "It was us." slams in: red flash, a snap zoom, the hackathon days get circled on the calendar
+//   3.0      the team name
 
 const GLINT = 1.6
-const US = 2.15
+const US = 2.35
 
 function calendarPage(page) {
   return (g, state, w, h) => {
@@ -135,13 +135,13 @@ export default {
       [72, 2.45],
     ]
     return [
-      { at: 0, sound: 'drone', length: 3.4, note: 33, gain: 0.2 },
+      { at: 0, sound: 'drone', length: 3.9, note: 33, gain: 0.2 },
       { at: 0, sound: 'whoosh', length: 1.6, from: 200, to: 700, gain: 0.1 },
       ...melody.map(([note, at]) => ({ at, sound: 'musicBox', note, gain: 0.22, wet: 0.6 })),
       { at: GLINT, sound: 'ding', notes: [100], gain: 0.12, wet: 0.5 },
       { at: US, sound: 'boom', gain: 0.8 },
-      { at: 1.35, voice: 'end-remember' },
-      { at: US, voice: 'end-us' },
+      { at: 0.2, voice: 'end-remember', rate: 1.1 },
+      { at: US, voice: 'end-us', rate: 1.05 },
     ]
   },
   build(segment) {
@@ -243,7 +243,7 @@ export default {
             sparkle(g, (p.x + 1) * 540, (1 - p.y) * 960, 70 * Math.sin(Math.PI * progress(t, GLINT, GLINT + 0.5)))
           }
         }
-        caption(g, t, lines.remember, { t0: 1.35, y: 1230, size: 76, type: 0.5 })
+        caption(g, t, lines.remember, { t0: 0.2, y: 1230, size: 76, type: 1.6 })
         if (t >= US) {
           const s = lerp(1.8, 1, ease.outBack(progress(t, US, US + 0.2)))
           g.save()
@@ -252,7 +252,7 @@ export default {
           outlined(g, lines.us, 0, 0, 140, { fill: '#ff3b3b', line: 24 })
           g.restore()
         }
-        caption(g, t, NUMBERS.team, { t0: 2.6, y: 1480, size: 46, fill: '#cfe3ff' })
+        caption(g, t, NUMBERS.team, { t0: 3.0, y: 1480, size: 46, fill: '#cfe3ff' })
         flash(g, t >= US ? 0.4 * (1 - progress(t, US, US + 0.3)) : 0, '255,40,60')
         vignette(g, 0.5 + 0.3 * progress(t, 0, 3.4))
         grain(g, t, 0.05)

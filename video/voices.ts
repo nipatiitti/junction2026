@@ -40,11 +40,11 @@ function words(id: string, key: string): string {
 const LINES: Line[] = [
   { name: 'scene1-speed', voice: VOICES.liam, text: `[confident] ${words('scene1', 'speed')}` },
   { name: 'scene1-whisper', voice: VOICES.callum, text: `[whispers] ${words('scene1', 'whisper')}`, stability: 0.3 },
-  { name: 'scene2-chat', voice: VOICES.liam, text: `[in disbelief] ${words('scene2', 'chat')}`, stability: 0.3 },
-  { name: 'scene2-back', voice: VOICES.will, text: `[sleepy, mumbling] ${words('scene2', 'back')}` },
+  { name: 'scene2-chat', voice: VOICES.liam, text: `[fast, in disbelief] ${words('scene2', 'chat')}`, stability: 0.3 },
+  { name: 'scene2-back', voice: VOICES.will, text: `[sleepy] ${words('scene2', 'back')}` },
   { name: 'scene3-bro', voice: VOICES.charlie, text: `[deadpan] ${words('scene3', 'bro')}` },
   { name: 'scene3-sixseven', voice: VOICES.charlie, text: `[excited] ${words('scene3', 'sixSeven')}`, stability: 0.3 },
-  { name: 'scene3-chews', voice: VOICES.charlie, text: `[mouth full] ${words('scene3', 'chews')}` },
+  { name: 'scene3-chews', voice: VOICES.charlie, text: `[satisfied] ${words('scene3', 'chews')}` },
   {
     name: 'scene4-accepted',
     voice: VOICES.river,
@@ -60,7 +60,12 @@ const LINES: Line[] = [
     stability: 0.3,
     effects: { environmentId: 'valley', distance: 0.5 },
   },
-  { name: 'scene4-panic', voice: VOICES.chris, text: `[nervous, fast] ${words('scene4', 'panic')}!`, stability: 0.3 },
+  {
+    name: 'scene4-panic',
+    voice: VOICES.chris,
+    text: `[panicking, very fast] ${words('scene4', 'panic')}!`,
+    stability: 0.3,
+  },
   {
     name: 'end-remember',
     voice: VOICES.adam,
