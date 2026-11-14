@@ -260,6 +260,7 @@ class Version:
     label: str
     file: Path
     worktree: Path | None = None  # the temporary worktree of a git ref, removed at the end
+    args: tuple[str, ...] = ()  # more arguments for the file, such as the layers of the tournament's mixed system
 
 
 def split_ref(spec: str) -> tuple[str, str]:
@@ -270,7 +271,7 @@ def split_ref(spec: str) -> tuple[str, str]:
 
 def command(version: Version, seed: str, level: int) -> list[str]:
     """The command that plays one practice week. Never a ranking run or a final: those need the team's approval."""
-    return [sys.executable, str(version.file), "--level", str(level), "--seed", seed]
+    return [sys.executable, str(version.file), "--level", str(level), "--seed", seed, *version.args]
 
 
 def git(*args: str, cwd: Path | None = None) -> str:
@@ -330,8 +331,10 @@ class Bench:
         self.running: set[subprocess.Popen] = set()
         self.unfinished: dict[tuple[str, str], str] = {}  # (version, seed) -> the world of a run that has not ended
 
-    def play(self) -> list[Result]:
-        runs = [(version, seed) for seed in self.seeds for version in self.versions]
+    def play(self, runs: list[tuple[Version, str]] | None = None) -> list[Result]:
+        """Plays every seed with every version, or only the weeks in `runs`, as the tournament asks."""
+        if runs is None:
+            runs = [(version, seed) for seed in self.seeds for version in self.versions]
         print(f"Playing {len(runs)} practice weeks at level {self.level}, {self.jobs} at a time.", flush=True)
         pool = ThreadPoolExecutor(max_workers=self.jobs)
         futures: list[Future[Result]] = [pool.submit(self.play_one, version, seed) for version, seed in runs]
