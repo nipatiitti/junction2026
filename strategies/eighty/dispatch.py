@@ -5,7 +5,8 @@ system that beat headroom on its own (issue #200):
 
 - fees: the soft-top planner (strategies/soft_top), the dawn schedule with a top of twice the lane fee;
 - admission: the same-day admission (strategies/same_day), the fastest option that pays;
-- pricing: the lane-prior pricing (strategies/lane_prior), lifted by the delivery place's fitted offset.
+- pricing: the lane-prior pricing (strategies/lane_prior), lifted by the delivery place's fitted offset, and moved
+  up for a car that is dear to move and down for a cheap one (pricing.py in this folder).
 
 The variables of every part can be changed for one run with the environment variable `EIGHTY_PARAMS`: JSON with a
 key per part (`admission`, `pricing`, `fees`, `lane`, `bundler`, `offers`) naming the fields of its `Params` to
@@ -29,15 +30,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from spread.client import World
 
 import dispatch as root
+from strategies.eighty.pricing import CostPricing
 from strategies.headroom import dispatch as headroom
-from strategies.lane_prior import PriorPricing
 from strategies.same_day import SameDayAdmission
 from strategies.soft_top import SoftTopPlanner
 from strategies.strategy import Strategy
 from tools import record
 
 # The values this system plays with, by part, over the defaults of each part's class.
-PARAMS: dict[str, dict[str, object]] = {}
+PARAMS: dict[str, dict[str, object]] = {"pricing": {"cost_slope": 0.0}}
 
 TAG = os.environ.get("EIGHTY_TAG", "")
 POLICY = f"eighty-{TAG}" if TAG else "eighty"  # its saved weeks form their own group in out/spread.sqlite
@@ -65,7 +66,7 @@ class Desk(headroom.Desk):
         super().__init__(world, level, now)
         roster, world_map = self.admission.roster, self.admission.world_map  # loaded once by the root desk
         self.admission = SameDayAdmission(roster, world_map, level, lane=self.lane)  # the fastest option that pays
-        self.pricing = PriorPricing(roster, world_map, level)  # the price, lifted by the delivery place's offset
+        self.pricing = CostPricing(roster, world_map, level)  # the lane-prior price, leaning with the driver cost
         self.fees = SoftTopPlanner(roster, world_map, level, lane=self.lane)  # the dawn schedule, with a lower top
         self.strategies: list[Strategy] = [
             self.notes,
@@ -84,6 +85,7 @@ class Desk(headroom.Desk):
 # The root loop (play_practice, play_final) plays with this desk, and main() saves its weeks as `eighty`.
 root.Desk = Desk
 root.Recorder = Recorder
+
 
 class Tee:
     """Writes what the week prints to the terminal and to a log file too."""
