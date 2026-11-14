@@ -128,6 +128,13 @@ export const DEFAULTS = {
   maxCars: 4,
   minSaving: 0.15,
   chainHours: 5,
+  /** With `spread`, a chain goes back to single gigs when drivers have this many waking hours left to plan the day
+   * of its last start. */
+  chainLast: 3,
+  /** Minutes between two raises of a chain's fee, each 0.09 × what the chain is worth to a driver, up to
+   * `chainTop` × that; 0 holds the opening fee for half of the chain's time and then creeps. */
+  chainRaise: 0,
+  chainTop: 1.25,
   /** A new car that may join a chain waits this many hours for a partner before it is posted alone: half of the
    * single gigs book within half an hour, before a partner can arrive, and a chain of cars never posted before
    * books 79% of the time against 57%. 0 posts at once. */

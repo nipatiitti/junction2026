@@ -23,7 +23,7 @@ import {
 } from '../../ops/index.ts'
 import type { Books, GigNeed } from '../../strategy.ts'
 import { bestChainWith, type Car, type Chain, type ChainParams, findChains } from './chains.ts'
-import { awake, BOOK_AHEAD, planBy, slow } from './fees.ts'
+import { awake, BOOK_AHEAD, fast, planBy, slow } from './fees.ts'
 
 export type PlannerParams = ChainParams & {
   chains: boolean
@@ -34,6 +34,9 @@ export type PlannerParams = ChainParams & {
   chainBid: boolean
   /** Plan by the drivers' day (fees.ts, `planBy`): no hold and no chain in the last hours before it. */
   spread: boolean
+  chainLast: number
+  chainRaise: number
+  chainTop: number
 }
 
 /** What the planner asks of the strategy: the context for reading a gig's shape, and whether a car had a setback or
@@ -118,7 +121,7 @@ export class Planner {
       if (!live) this.posted.delete(gigId)
       const patient = !(p.chainPatience > 0) || awake(at, now) < p.chainPatience * HOUR // hours drivers could see it
       // With `spread`, its cars go back to single gigs while drivers still plan the day of its last start.
-      const planned = !p.spread || awake(now, planBy(now, chain.startBy)) >= 3 * HOUR
+      const planned = !p.spread || awake(now, planBy(now, chain.startBy)) >= p.chainLast * HOUR
       if (!live || books.booked.has(gigId) || (patient && planned && now < chain.startBy - p.chainHours * HOUR))
         continue
       for (const car of chain.cars) this.single.add(car.orderId)
@@ -139,7 +142,12 @@ export class Planner {
         type: 'post',
         stops,
         audience: { experienced: false, manualLicence: chain.cars.some((car) => car.audience.manualLicence) },
-        schedule: slow(now, chain.typical, chain.startBy - BOOK_AHEAD, p.open, 1.3),
+        // Three chains in four that book do so within the hour: one that waits needs more, and still costs less
+        // than its cars alone.
+        schedule:
+          p.chainRaise > 0
+            ? fast(now, chain.typical, p.open, 0.09, p.chainRaise, p.chainTop)
+            : slow(now, chain.typical, chain.startBy - BOOK_AHEAD, p.open, 1.3),
       })
     }
     return actions
