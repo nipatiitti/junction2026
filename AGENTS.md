@@ -34,6 +34,13 @@ car dealers and pays freelance drivers to move the cars, for one simulated week.
   one run, whatever its `--jobs` or `--keys`. Every system on our key shares one rate limit,
   so parallel runs slow down the whole team.
 
+## Active models
+
+Before you play anything on the live server, read [`active-models.md`](active-models.md). It lists the models worth a
+practice week, taken from the last comparison of every system, and says how to refresh the list. Play one of those —
+with the root `dispatch.py` beside it as the week's reference — rather than a model the team has already left behind,
+so the eight shared practice slots and the rate limit go to the models that are ahead.
+
 ---
 
 # Agent workflow
