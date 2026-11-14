@@ -55,9 +55,11 @@ export const BASE_DEFAULTS = {
   brakeMarkup: 0,
   /** Plan fees with bidprice's fee solver and learned booking hazard (src/models/fees/); false: the ramp below. The
    * solver opens at `feeFloor` × the expected fee and reaches `topRatio` × typical `topLeadHours` before the last
-   * pickup; `feeExtras`, `hazardFit`, `onTime`, `etaMu` and `lateTarget` pass through to the fee model as in bidprice. */
+   * pickup; `feeExtras`, `hazardFit`, `onTime`, `etaMu` and `lateTarget` pass through to the fee model as in bidprice.
+   * `feeFloor`, `topRatio` and `topLeadHours` are the best bidprice tune's (flat on spread-1: EUR 9,199 at 95.6% on
+   * time, fees 1.16 × typical, against the ramp's EUR 7,251 at 95.9%, 1.23 × typical). */
   feeSolver: true,
-  feeFloor: BIDPRICE.feeFloor,
+  feeFloor: 1.03,
   feeExtras: BIDPRICE.feeExtras,
   hazardFit: BIDPRICE.hazardFit,
   onTime: BIDPRICE.onTime,
@@ -66,9 +68,9 @@ export const BASE_DEFAULTS = {
   /** The fee ramp: `openFee` × typical, up to `topFee` × typical `topLeadHours` before the last pickup. */
   openFee: 0.9,
   topFee: 2.5,
-  topLeadHours: 8,
+  topLeadHours: 11.8,
   /** After the deadline warning: `topRatio` × typical at once, up to `urgentTop` × typical in two hours. */
-  topRatio: 1.5,
+  topRatio: 1.58,
   urgentTop: 2.5,
   /** The tick: reprice a dropped gig (`dropStep` × typical above), and one whose schedule ended `staleHours` ago
    * (climbing `climbStep` × typical an hour to `climbTop` × typical); at most `repriceMax` a tick. */
@@ -78,11 +80,11 @@ export const BASE_DEFAULTS = {
   climbTop: 3,
   repriceMax: 10,
   /** Expected driver cost = typical fee × `costFactor` × feature multipliers; never quote under cost × `minMargin`.
-   * With the solver, `solverCostFactor` instead, learned towards the fees paid over typical this week, the prior
-   * weighing `costPseudo` bookings. */
+   * With the solver and `costPseudo` over 0, learned towards the fees paid over typical this week, `costFactor`
+   * weighing `costPseudo` bookings. Off by default: on spread-1 the learned 1.19 let flat win underpriced orders
+   * (EUR 7,208 at 94.4% against EUR 9,199 at 95.6% with 1.3). */
   costFactor: 1.3,
-  solverCostFactor: 1.15,
-  costPseudo: 10,
+  costPseudo: 0,
   minMargin: 1.1,
   /** Seeds `ctx.random`. */
   seed: 1,
@@ -343,12 +345,12 @@ export abstract class PricedStrategy<P extends BaseParams = BaseParams> extends 
     return `base: quoted ${b.quoted}, won ${b.won}, braked options ${b.load} by load (max ${b.maxLoad.toFixed(1)}) and ${b.late} by lateness, late ${this.t.late} of ${this.t.delivered} delivered, ${fees}, cost factor ${this.costFactor().toFixed(2)}`
   }
 
-  /** Fees over typical: `costFactor` on the ramp; with the solver, `solverCostFactor` learned towards what this
-   * week's bookings paid over typical. */
+  /** Fees over typical: `costFactor`; with the solver and `costPseudo` over 0, learned towards what this week's
+   * bookings paid over typical. */
   costFactor(): number {
     const p = this.params
-    if (!p.feeSolver) return p.costFactor
-    return (this.paid.overTypical + p.costPseudo * p.solverCostFactor) / (this.paid.booked + p.costPseudo)
+    if (!p.feeSolver || p.costPseudo <= 0) return p.costFactor
+    return (this.paid.overTypical + p.costPseudo * p.costFactor) / (this.paid.booked + p.costPseudo)
   }
 
   /** Expected driver cost of an option, in cents: typical fee × `costFactor()` × simple feature multipliers. */
