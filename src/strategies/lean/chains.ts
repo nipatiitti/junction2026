@@ -8,8 +8,9 @@ import type { Audience, OpeningHours, StopRef, WorldMap } from '../../../vendor/
 import { nextOpen } from '../../ops/calendar.ts'
 import { HOUR, minutes } from '../../ops/index.ts'
 
-/** A gig of several cars may plan 12 hours of driving (RULES.md); real drives run longer than the road minutes. */
-const MAX_DRIVE = 12 * HOUR - 30
+/** A gig of several cars may plan 12 hours of driving (RULES.md). We plan 8: chains with more book rarely (50%
+ * from 8 hours, 25% from 10), and their drivers finish them the next day, after a car's deadline. */
+const MAX_DRIVE = 8 * HOUR
 /** The measured typical fee of one car: 15.72 euros and 0.387 a road minute. We split the minute into the drive and
  * the trip home by public transport, which costs a driver much less than the wheel. */
 const FIXED = 1572
@@ -18,6 +19,9 @@ const HOME_SHARE = 0.3
 /** A driver takes this long at a stop, and a delivery must arrive this long before it is due. */
 const HANDLING = 15
 const SPARE = 45
+/** Real drives take up to this × the road minutes, and a later car is reached this long before its last pickup. */
+const DRIVE = 1.2
+const SLACK = 30
 /** A chain's driver starts no sooner than this from now, waits at most this long in all, and works at most this long. */
 const LEAD = 2 * HOUR
 const MAX_WAIT = 2 * HOUR
@@ -140,8 +144,8 @@ function feasible(path: Car[], start: number, map: WorldMap): boolean {
     const open = nextOpen(Math.max(at, car.ready), car.pickupHours)
     if (here !== undefined) waited += open - at
     at = open
-    if (!(at <= car.collectBy) || waited > MAX_WAIT) return false
-    at += HANDLING + 1.1 * car.drive
+    if (!(at <= car.collectBy - (here === undefined ? 0 : SLACK)) || waited > MAX_WAIT) return false
+    at += HANDLING + DRIVE * car.drive
     if (!(nextOpen(at, car.deliveryHours) <= car.due - SPARE)) return false
     at += HANDLING
     here = car.to

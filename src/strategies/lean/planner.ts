@@ -23,7 +23,7 @@ import {
 } from '../../ops/index.ts'
 import type { Books, GigNeed } from '../../strategy.ts'
 import { bestChainWith, type Car, type Chain, type ChainParams, findChains } from './chains.ts'
-import { awake, BOOK_AHEAD, slow } from './fees.ts'
+import { awake, BOOK_AHEAD, planBy, slow } from './fees.ts'
 
 export type PlannerParams = ChainParams & {
   chains: boolean
@@ -32,6 +32,8 @@ export type PlannerParams = ChainParams & {
   holdHours: number
   chainPatience: number
   chainBid: boolean
+  /** Plan by the drivers' day (fees.ts, `planBy`): no hold and no chain in the last hours before it. */
+  spread: boolean
 }
 
 /** What the planner asks of the strategy: the context for reading a gig's shape, and whether a car had a setback or
@@ -115,7 +117,10 @@ export class Planner {
       const live = chain.cars.some((car) => books.gigsOf(car.orderId).includes(gigId))
       if (!live) this.posted.delete(gigId)
       const patient = !(p.chainPatience > 0) || awake(at, now) < p.chainPatience * HOUR // hours drivers could see it
-      if (!live || books.booked.has(gigId) || (patient && now < chain.startBy - p.chainHours * HOUR)) continue
+      // With `spread`, its cars go back to single gigs while drivers still plan the day of its last start.
+      const planned = !p.spread || awake(now, planBy(now, chain.startBy)) >= 3 * HOUR
+      if (!live || books.booked.has(gigId) || (patient && planned && now < chain.startBy - p.chainHours * HOUR))
+        continue
       for (const car of chain.cars) this.single.add(car.orderId)
       this.posted.delete(gigId)
       this.tally.undone++
@@ -123,7 +128,11 @@ export class Planner {
     }
     const found = findChains(this.openCars(books), this.map, now, p)
     for (const chain of found.filter((c) => c.startBy - now >= (p.chainHours + 3) * HOUR).slice(0, 5)) {
+      // The first pickup ends at the chain's last start: a driver who starts later misses a later car's window.
       const stops = chain.cars.flatMap((car) => car.stops)
+      const first = stops[0]
+      if (p.spread && first && !first.window && chain.startBy > chain.cars[0]!.ready)
+        stops[0] = { ...first, window: { from: chain.cars[0]!.ready, to: chain.startBy } }
       this.planned.set(keyOf(stops), chain)
       for (const car of chain.cars) if (car.gigId) actions.push({ type: 'withdraw', gigId: car.gigId })
       actions.push({
@@ -146,7 +155,10 @@ export class Planner {
     if (!this.chainable(order, books) || books.gigsOf(order.id).length > 0) return false
     const since = this.heldSince.get(order.id) ?? books.now
     this.heldSince.set(order.id, since)
-    const holds = books.now < since + p.holdHours * HOUR && books.now < order.lastPickupAt - (p.chainHours + 6) * HOUR
+    // With `spread`, only while drivers have 5 waking hours left to plan it after the wait.
+    const planned = !p.spread || awake(books.now, planBy(books.now, order.lastPickupAt)) >= (p.holdHours + 5) * HOUR
+    const holds =
+      planned && books.now < since + p.holdHours * HOUR && books.now < order.lastPickupAt - (p.chainHours + 6) * HOUR
     if (!holds) this.released.add(order.id)
     return holds
   }
