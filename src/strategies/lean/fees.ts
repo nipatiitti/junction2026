@@ -88,14 +88,38 @@ const STEPS: [number, number][] = [
   [10, 1.55],
   [6, 2],
 ]
-export function stepped(now: number, typical: number, lastPickup: number, open: number, floor = 0): FeeStep[] {
+export function stepped(
+  now: number,
+  typical: number,
+  lastPickup: number,
+  open: number,
+  floor = 0,
+  jitter = 0,
+  seed = '',
+): FeeStep[] {
+  const random = rng(seed)
   const points: [number, number][] = [[now, Math.max(open, floor)]]
   for (const [hours, ratio] of STEPS) {
-    const at = lastPickup - hours * HOUR
-    if (at <= now) points[0] = [now, Math.max(points[0]?.[1] ?? 0, ratio)]
-    else points.push([at, ratio])
+    // Each gig raises at its own minutes and by its own size, so a driver cannot plan a second look for the raise.
+    const at = lastPickup - hours * HOUR + (random() - 0.5) * 3 * HOUR * jitter
+    const to = ratio * (1 + (random() - 0.5) * 0.1 * jitter)
+    if (at <= now) points[0] = [now, Math.max(points[0]?.[1] ?? 0, to)]
+    else points.push([at, to])
   }
   return schedule(points, typical)
+}
+
+/** A small seeded generator (mulberry32 over a string hash): the same numbers for the same seed, so a strategy
+ * rebuilt in the final draws the same schedule. */
+function rng(seed: string): () => number {
+  let a = 0
+  for (let i = 0; i < seed.length; i++) a = (Math.imul(a ^ seed.charCodeAt(i), 2654435761) + i) | 0
+  return () => {
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
 }
 
 /** The fast schedule from `now`: `open` × typical at once, then `step` × typical more every `every` minutes up to
