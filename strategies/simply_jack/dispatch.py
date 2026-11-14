@@ -47,7 +47,7 @@ HOUR, DAY = 60, 24 * 60
 # Jack's numbers. Change one, play a week, and keep it if the margin goes up.
 PRICE = 1.55  # each dealer's price starts at the list price times this: the competitor asks 26% to 54% more
 LADDER_UP = 0.02  # a won request raises its dealer's price by this share
-LADDER_DOWN = 0.01  # a lost one lowers it by this share
+LADDER_DOWN = 0.015  # a lost one lowers it by this share
 TRUST_DAYS = 1  # Monday: a win adds LADDER_DOWN and a loss takes LADDER_UP, to win most requests
 WAR_WINDOW, WAR_PRICE = 15, 0.85  # at most one win in this many quotes is the price war: quote this much less
 WARN_STEP = 0.02  # each car warned in the last 24 hours (no driver 3 hours before its last pickup) adds this
