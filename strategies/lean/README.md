@@ -5,6 +5,9 @@ A port of the TypeScript [`lean`](../../src/strategies/lean/README.md) strategy 
 `tools.roster_tournament` and the Python side of the leaderboard pick up `strategies/lean/dispatch.py` on their own.
 Issue #323.
 
+**Keep the two in step.** A change to either version gets an entry in [`LEAN_CHANGELOG.md`](../../LEAN_CHANGELOG.md)
+in the same PR, which also says how to check that both still play the same week.
+
 It decides exactly as the TypeScript `lean`. On the offline simulator, seven seeds (`spread-1`, `spread-2`,
 `spread-3` with `--set`, `spread-7`, `nov-3`, `nov-8` and two `sweep-*` packs) gave the same week action for action:
 every quote, post, withdrawal and reprice at the same minute with the same prices and fees, about 10,500 actions in
