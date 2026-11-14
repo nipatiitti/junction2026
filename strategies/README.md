@@ -115,6 +115,8 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`soft_top/`](soft_top/README.md)                 | `SoftTopPlanner`                       | Headroom, with a top fee of twice the lane fee, not 2.5 times                            |
 | [`flu_guard/`](flu_guard/README.md)               | `FluGuardAdmission`                    | Soft top, with a guard against the week's flu day, which shows at midnight               |
 | [`all_in/`](all_in/README.md)                     | `AllInAdmission`, `AllInPlanner`       | Soft top with the lane priors, same-day quotes, the flu guard and fees tuned on 22 weeks |
+| [`all_in_75/`](all_in_75/README.md)               | `AllIn75Pricing`                       | All in with the price aiming to win 75% of its quotes, not 45%                           |
+| [`all_in_65/`](all_in_65/README.md)               | `AllIn65Pricing`                       | All in with the price aiming to win 65% of its quotes, not 45%                           |
 | [`slack_budget/`](slack_budget/README.md)         | `SlackBudgetAdmission`                 | Headroom, spending on-time slack above a reserve and refusing known risks at it          |
 | [`snow_aware/`](snow_aware/README.md)             | `SnowPlanner`, `SnowBundler`           | Headroom, stretching snowy legs and opening snowy pickup gigs earlier and dearer         |
 | [`opening_offers/`](opening_offers/README.md)     | `OpeningOffers`                        | Direct offers to nearby homes from a gig's first post, at the chain-offer fee            |
