@@ -10,12 +10,12 @@ import { MONO, SANS } from '../ui.js'
 // Chapter 03, the result: the whole diagram stays behind, dimmed, its traffic still running, and three cards come up
 // in front: the margin, the strategies tried against the one shipped, and the on-time share (the one joke number, with
 // its lying subtitle). The texts are in timeline.js. Beats (local seconds):
-//   0.6 the margin card · 2.0 the strategies card · 3.8 the on-time card, its decimals ticking in · 6.7 fade
+//   0.6 the margin card · 2.0 the strategies card · 4.3 the on-time card, its decimals ticking in · 6.7 fade
 
 const CARDS = [
   { key: 'margin', at: 0.6, colour: '#4ade80', x: 380 },
   { key: 'strategies', at: 2.0, colour: '#60a5fa', x: 960 },
-  { key: 'onTime', at: 3.8, colour: '#fbbf24', x: 1540 },
+  { key: 'onTime', at: 4.3, colour: '#fbbf24', x: 1540 },
 ]
 
 function resultCard(g, t, { at, colour, x }, value, label) {
@@ -51,8 +51,8 @@ export default {
       { at: 0.6, sound: 'whoosh', length: 0.4, from: 400, to: 2400, gain: 0.15 },
       { at: 0.9, sound: 'kaching', gain: 0.22 },
       { at: 2.0, sound: 'whoosh', length: 0.4, from: 400, to: 2400, gain: 0.12 },
-      { at: 3.8, sound: 'whoosh', length: 0.4, from: 400, to: 2400, gain: 0.12 },
-      { at: 3.9, sound: 'slot', length: 0.9, gain: 0.08 },
+      { at: 4.3, sound: 'whoosh', length: 0.4, from: 400, to: 2400, gain: 0.12 },
+      { at: 4.5, sound: 'slot', length: 1.2, gain: 0.08 },
     ]
   },
   build(segment) {
@@ -106,7 +106,7 @@ export default {
         resultCard(g, t, CARDS[1], texts.strategies, texts.strategiesLabel)
         // the on-time share: its decimals tick in one by one
         const [whole, decimals] = texts.onTime.replace('%', '').split('.')
-        const count = Math.min(decimals.length, Math.floor(progress(t, 4.0, 5.2) * (decimals.length + 1)))
+        const count = Math.min(decimals.length, Math.floor(progress(t, 4.5, 5.7) * (decimals.length + 1)))
         const shown = count > 0 ? `${whole}.${decimals.slice(0, count)}%` : `${whole}%`
         resultCard(g, t, CARDS[2], shown, texts.onTimeLabel)
         if (t >= 1.2) {

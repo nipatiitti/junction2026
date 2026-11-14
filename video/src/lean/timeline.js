@@ -57,13 +57,13 @@ export const SEGMENTS = [
   {
     id: 'problem',
     view: 'problem',
-    duration: 10.0,
+    duration: 11.0,
     chapter: PROBLEM,
     lines: [
-      line('lean-problem', 0.4, 3.4, 'The problem: price the car now, find a driver later.'),
-      line('lean-high', 3.7, 6.0, 'Quote too high, and the competitor wins it.'),
-      line('lean-low', 6.2, 8.5, 'Pay too little, and no driver comes in time.'),
-      line('lean-ranked', 8.6, 10.0, 'Under ninety percent on time: not ranked.', 'Under 90% on time: not ranked.'),
+      line('lean-problem', 0.3, 3.6, 'The problem: price the car now, find a driver later.', undefined, 1.1),
+      line('lean-high', 3.7, 6.2, 'Quote too high, and the competitor wins it.', undefined, 1.05),
+      line('lean-low', 6.3, 8.6, 'Pay too little, and no driver comes.', undefined, 1.08),
+      line('lean-ranked', 8.7, 11.0, 'Under ninety percent: not ranked.', 'Under 90% on time: not ranked.', 1.1),
     ],
     texts: {
       dealer: 'Dealer',
@@ -93,15 +93,10 @@ export const SEGMENTS = [
     duration: 15.0,
     chapter: SOLUTION,
     lines: [
-      line(
-        'lean-touches',
-        0.3,
-        3.9,
-        "Everything that touches ts:lean: Bahn's world, our harness, ops and saved weeks.",
-      ),
-      line('lean-events', 4.1, 7.5, 'Every request and booking is an event, and ts:lean answers each one.'),
-      line('lean-decisions', 7.8, 11.3, "Three decisions: the price, the driver's fee, and which cars share a driver."),
-      line('lean-price', 11.5, 15.0, 'The price: win chance times profit, minus what one more order costs the rest.'),
+      line('lean-touches', 0.3, 3.3, 'This is everything around ts:lean.'),
+      line('lean-events', 3.6, 7.5, 'Every event comes in here, and ts:lean answers it.'),
+      line('lean-decisions', 7.7, 11.2, 'Three decisions: the price, the fee, and the chains.', undefined, 1.12),
+      line('lean-price', 11.3, 15.0, 'The price: win chance times profit, minus a load charge.', undefined, 1.12),
     ],
   },
   {
@@ -111,15 +106,9 @@ export const SEGMENTS = [
     duration: 10.0,
     chapter: SOLUTION,
     lines: [
-      line('lean-fees', 0.3, 3.5, 'Won cars become gigs: fees open low and rise when drivers plan.'),
-      line(
-        'lean-chains',
-        3.6,
-        7.0,
-        'Chains: up to four cars, one driver, fifteen hundred sixty euros a week.',
-        'Chains: up to four cars, one driver, +€1,560 a week.',
-      ),
-      line('lean-learn', 7.2, 10.0, 'And every booking and lost quote teaches the model.'),
+      line('lean-fees', 0.3, 4.3, 'Won cars become gigs; fees start low and rise.'),
+      line('lean-chains', 4.4, 7.8, 'Chains: one driver takes up to four cars.'),
+      line('lean-learn', 7.9, 10.0, 'Every outcome teaches the model.'),
     ],
   },
   {
@@ -130,12 +119,13 @@ export const SEGMENTS = [
     lines: [
       line(
         'lean-margin',
-        0.6,
-        3.4,
+        0.5,
+        4.2,
         'Plus twenty-four thousand, four hundred fifty-one euros a week.',
         '+€24,451 a week.',
+        1.05,
       ),
-      line('lean-ontime', 3.8, 5.6, 'On time: basically always.', '[trust me bro]'),
+      line('lean-ontime', 4.3, 6.8, 'On time: basically always.', '[trust me bro]'),
     ],
     texts: {
       margin: NUMBERS.ourMargin,

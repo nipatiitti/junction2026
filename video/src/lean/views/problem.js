@@ -13,7 +13,7 @@ import { MONO, SANS } from '../ui.js'
 //   0.6–1.6 the request flies to ts:lean · 2.0–2.9 the gig flies to the drivers
 //   3.9 the price tag 1.9 × list · 4.2–6.0 the competitor's car drives in and leaves with the dealer's car
 //   6.2 a new car waits · 6.4 the fee tag 0.6 × typical · 6.8–8.2 the drivers shrug · 7.0–8.5 the clock · 7.8 LATE
-//   8.7–9.3 the on-time gauge falls under 90% · 9.3 NOT RANKED
+//   8.9–9.5 the on-time gauge falls under 90% · 9.5 NOT RANKED
 
 const W = 1920
 const H = 1200
@@ -90,7 +90,7 @@ export default {
       { at: 4.2, sound: 'engine', length: 1.6, from: 70, to: 190, gain: 0.14 },
       { at: 4.8, sound: 'screech', length: 0.5, gain: 0.08 },
       { at: 6.4, sound: 'boom', gain: 0.2, length: 0.4 },
-      { at: 9.3, sound: 'boom', gain: 0.45 },
+      { at: 9.5, sound: 'boom', gain: 0.45 },
     ]
     for (let at = 7.0; at < 8.5; at += 0.25) cues.push({ at, sound: 'tap', gain: 0.07 })
     return cues
@@ -224,10 +224,10 @@ export default {
           card(g, cx, cy - 50, texts.competitor, null, '#64748b', { alpha: progress(t, 4.4, 4.6) })
         }
         // too little: the fee tag, the clock, LATE
-        if (t >= 6.4) tag(g, rx, ry - 230, texts.low, '#ea580c', pop(t, 6.4, 0.3) * (1 - progress(t, 9.6, 10)))
-        if (t >= 7.0 && t < 9.8) {
+        if (t >= 6.4) tag(g, rx, ry - 230, texts.low, '#ea580c', pop(t, 6.4, 0.3) * (1 - progress(t, 10.6, 11)))
+        if (t >= 7.0 && t < 10.6) {
           const [cx, cy] = screen(-12.5, 4.5, -1)
-          const a = progress(t, 7.0, 7.2) * (1 - progress(t, 9.5, 9.8))
+          const a = progress(t, 7.0, 7.2) * (1 - progress(t, 10.2, 10.6))
           g.save()
           g.globalAlpha = a
           g.translate(cx + 150, cy - 150)
@@ -253,12 +253,12 @@ export default {
         }
         if (t >= 7.8) {
           const [cx, cy] = screen(CAR_AT[0], 3, CAR_AT[1])
-          tag(g, cx + 40, cy - 70, texts.late, '#dc2626', pop(t, 7.8, 0.3) * (1 - progress(t, 9.6, 10)))
+          tag(g, cx + 40, cy - 70, texts.late, '#dc2626', pop(t, 7.8, 0.3) * (1 - progress(t, 10.6, 11)))
         }
         // the on-time gauge falls under 90%, and the stamp
-        if (t >= 8.6) {
-          const a = progress(t, 8.6, 8.8)
-          const share = lerp(0.96, 0.84, ease.inOutCubic(progress(t, 8.7, 9.3)))
+        if (t >= 8.8) {
+          const a = progress(t, 8.8, 9.0)
+          const share = lerp(0.96, 0.84, ease.inOutCubic(progress(t, 8.9, 9.5)))
           const angle = (s) => Math.PI + ((s - 0.8) / 0.2) * Math.PI
           g.save()
           g.globalAlpha = a
@@ -296,7 +296,7 @@ export default {
           g.font = `500 24px ${SANS}`
           g.fillText('on time · 90% to be ranked', 0, 52)
           g.restore()
-          const s = pop(t, 9.3, 0.25)
+          const s = pop(t, 9.5, 0.25)
           if (s > 0) {
             g.save()
             g.translate(960, 300)

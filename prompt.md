@@ -1,6 +1,6 @@
 # Prompt: build the ts:lean video
 
-Build a 58.5-second technical video for YouTube, 16:10 (1920×1200, 30 fps), that shows how `ts:lean` works: the
+Build a 59.5-second technical video for YouTube, 16:10 (1920×1200, 30 fps), that shows how `ts:lean` works: the
 dispatch system our team Blib Blib built at Junction 2026 for Bahn's Spread challenge. It is built in `video/` beside
 the joke video and shares its player, kit, sound and export (`?video=lean`; `video/README.md` says where its parts
 are). It opens with spaghetti thrown at a wall, states the problem, and shows the solution as a block diagram of the
@@ -30,7 +30,7 @@ without it, on the same seeds, at level 8. All euros are game euros. Every text,
 
 ## Format and style
 
-- 58.5 s in all; no view is longer than 15 s; never over 90 s.
+- 59.5 s in all; no view is longer than 15 s; never over 90 s.
 - A professional technical YouTube look rather than a short: a dark navy ground with a fine grid, rounded panels with
   a rim in each system's colour, clean sans-serif names and monospace code, calm camera moves. The low-poly cast,
   cars and hall of the joke video come back in the scenes; they are our own models, not Roblox assets.
@@ -49,12 +49,12 @@ without it, on the same seeds, at level 8. All euros are game euros. Every text,
 | ----- | ---- | --------- | ---------------------- | --------------------------------------------------- |
 | 0.0   | 5.0  | spaghetti |                        | Joke 1: 63 strategies at the wall, one sticks       |
 | 5.0   | 8.0  | title     |                        | `ts:lean`, what the video is about, the team        |
-| 8.0   | 18.0 | problem   | 01 The problem         | price now, driver later; too high; too little; 90%  |
-| 18.0  | 22.0 | didnot    |                        | Joke 2: "This will definitely work." "It did not."  |
-| 22.0  | 37.0 | zoomin    | 02 The solution        | into the diagram, 15 s                              |
-| 37.0  | 47.0 | zoomout   | 02 The solution        | out again, with the traffic, 10 s                   |
-| 47.0  | 54.0 | result    | 03 The result          | three cards: margin, strategies, on time            |
-| 54.0  | 58.5 | handshake |                        | Joke 3, with the end title as a lower third         |
+| 8.0   | 19.0 | problem   | 01 The problem         | price now, driver later; too high; too little; 90%  |
+| 19.0  | 23.0 | didnot    |                        | Joke 2: "This will definitely work." "It did not."  |
+| 23.0  | 38.0 | zoomin    | 02 The solution        | into the diagram, 15 s                              |
+| 38.0  | 48.0 | zoomout   | 02 The solution        | out again, with the traffic, 10 s                   |
+| 48.0  | 55.0 | result    | 03 The result          | three cards: margin, strategies, on time            |
+| 55.0  | 59.5 | handshake |                        | Joke 3, with the end title as a lower third         |
 
 ## The block diagram
 
@@ -97,7 +97,7 @@ Times inside a scene are its local seconds.
   strategy carefully." (subtitle `[we threw 63 at a wall]`) and "Only one stuck."
 - **Title (3.0 s).** Over the drifting grid: `ts:lean` rises in, a red rule grows under it, then "How we price a car
   delivery for Bahn's Spread challenge" and "Blib Blib · Junction 2026".
-- **Problem (10.0 s), chapter 01.** Three panels: the dealer (Pertti and a car), `ts:lean`, and three drivers. A
+- **Problem (11.0 s), chapter 01.** Three panels: the dealer (Pertti and a car), `ts:lean`, and three drivers. A
   `price_request` card flies to `ts:lean` and a `gig` card to the drivers. Too high: a `1.9 × list` tag, and the
   competitor's grey car drives in and leaves with the dealer's car. Too little: a `fee 0.6 × typical` tag, the drivers
   shrug, a clock spins and a new car gets `LATE`. Then an on-time gauge falls under 90% and is stamped NOT RANKED.
@@ -129,7 +129,7 @@ Times inside a scene are its local seconds.
 
 Made with ElevenLabs like the joke video's (`video/voices.ts`, pre-made voices, delivery tags); neither voice is a
 copy of a real person's. The files are named `lean-…` so they never overwrite the joke video's, and the voice reads
-`ts:lean` as the letters. The words, subtitles and times are in `video/src/lean/timeline.js`:
+`ts:lean` as the letters. Each line fits its subtitle's time; a few are sped up by at most 1.12 (`rate`). The words, subtitles and times are in `video/src/lean/timeline.js`:
 `lean-careful`, `lean-stuck`, `lean-problem`, `lean-high`, `lean-low`, `lean-ranked`, `lean-work`, `lean-didnot`,
 `lean-touches`, `lean-events`, `lean-decisions`, `lean-price`, `lean-fees`, `lean-chains`, `lean-learn`,
 `lean-margin`, `lean-ontime`.
@@ -154,7 +154,7 @@ mixer dips the music under speech. No copyrighted songs.
 
 ### Check
 
-- [ ] The voice lines are made (`node --env-file=.env.local video/voices.ts`), and each fits its subtitle's time
+- [x] The voice lines are made (`node --env-file=.env.local video/voices.ts`), and each fits its subtitle's time
 - [ ] Under 90 seconds, and the spaghetti makes someone curious within 3 seconds
 - [ ] Three cutaway jokes at most: the spaghetti, "It did not" and the handshake
 - [ ] Every system, class and function on the diagram exists under that name in the code, and every tag's number is
