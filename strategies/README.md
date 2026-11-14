@@ -12,7 +12,7 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`offers/`](offers/README.md)       | `Offers`       | Direct offers to drivers near a gig's pickup                    |
 | [`bundling/`](bundling/README.md)   | `Bundler`      | Which orders' cars go together in one gig                       |
 
-Seventeen folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Eighteen folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                                |
@@ -27,6 +27,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`ceiling/`](ceiling/README.md)                   | `CeilingPricing`, `ChainAdmission`     | Prices just under a maximum, over the driver cost, with timed return legs |
 | [`delivery_urgency/`](delivery_urgency/README.md) | `UrgencyPricing`, `UrgencyAdmission`   | The ladder's quote priced by the delivery option's kind                   |
 | [`scarcity_urgency/`](scarcity_urgency/README.md) | `ScarcityUrgencyAdmission`             | The town's scarcity and the urgency quote in one folder                   |
+| [`scarcity_ceiling/`](scarcity_ceiling/README.md) | `ChainScarcityAdmission`               | The ceiling's quote over the scarcity-priced admission                    |
 | [`profit_max/`](profit_max/README.md)             | `ProfitPricing`                        | Ceiling, quoting the price with the most expected margin on a win curve   |
 | [`learned_cost/`](learned_cost/README.md)         | `LearnedCostAdmission`                 | Ceiling, with the driver cost corrected by our own bookings, by town      |
 | [`trust_value/`](trust_value/README.md)           | `TrustValueAdmission`                  | Ceiling, counting the dealer trust that an order on time buys             |
