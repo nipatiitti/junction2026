@@ -1,7 +1,7 @@
 # The TypeScript system
 
 `src/dispatch.ts` plays a Spread week with one strategy on a harness. The strategy that plays by default is
-[`lean`](strategies/lean/README.md): one online win model, one worth of capacity and one slow fee climb, built from the
+[`lean`](strategies/lean/README.md): one online win model, one online cost model and one stepped fee schedule, built from the
 measured level 8 facts. [`BRIEF.md`](BRIEF.md) is the brief of the system before it, kept for its measurements.
 
 `vendor/spread-typescript/` holds the organisers' TypeScript kit of 13 November, unchanged: the client (`spread.ts`),
@@ -11,7 +11,7 @@ its gig when a strategy fails.
 
 ```sh
 pnpm dispatch --level 8 --seed spread-1   # a whole practice week with the lean strategy
-pnpm dispatch --set target=0.26 --seed spread-1   # other params
+pnpm dispatch --set noise=0.26 --seed spread-1   # other params
 pnpm dispatch --strategy starter --seed spread-1   # another strategy
 pnpm starter --level 8 --seed spread-1    # the same week with the organisers' unchanged starter
 pnpm reveal-csv <world id>                # write an ended week and its reveal to CSV files
@@ -90,14 +90,14 @@ the world in play. A week that throws still prints the table of the weeks before
 ranking run or a final.
 
 ```sh
-pnpm bench lean lean:target=0.26 --level 8 --seeds spread-1..spread-5
+pnpm bench lean lean:noise=0.26 --level 8 --seeds spread-1..spread-5
 ```
 
 **Tune a strategy's params** with `pnpm tune`, a search by successive halving on practice weeks. A space file names
 each param to search with a list of values or a range; the other params keep their defaults:
 
 ```json
-{ "target": [0.24, 0.27, 0.3, 0.33], "capacity": { "min": 0.2, "max": 0.8 } }
+{ "noise": [0.24, 0.27, 0.3, 0.33], "open": { "min": 0.8, "max": 0.95 } }
 ```
 
 A range is drawn evenly, or on a log scale with `"log": true` (its min above 0); a drawn number keeps three

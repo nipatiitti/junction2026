@@ -28,6 +28,9 @@ const CLOSES = 18 * 60 + 20
 /** Outside those hours the world runs to the next event that needs an answer, and stops at least this often. */
 const QUIET_STEP = 60
 
+/** World minutes at which a practice week restarts itself once (SPREAD_RESTART_AT, comma-separated). */
+const RESTARTS = (process.env.SPREAD_RESTART_AT ?? '').split(',').filter(Boolean).map(Number)
+
 /** Whether a price request can be open at `minute`. */
 const dealersAsk = (minute: number): boolean =>
   Math.floor(minute / DAY) % 7 < 5 && minute % DAY >= OPENS && minute % DAY < CLOSES
@@ -36,6 +39,13 @@ const dealersAsk = (minute: number): boolean =>
  * the step before, then moves the clock, and its answer holds the new events. It stops at each midnight for a report. */
 export async function playPractice(world: World, desk: Desk): Promise<void> {
   while (desk.now < desk.endsAt) {
+    // A smoke check of the rebuild: at each world minute of SPREAD_RESTART_AT the week stops as if our process had,
+    // with its outbox unsent, and the harness rebuilds it from the world and the journal.
+    const restart = RESTARTS.findIndex((minute) => desk.now >= minute)
+    if (restart >= 0) {
+      RESTARTS.splice(0, RESTARTS.length, ...RESTARTS.filter((minute) => desk.now < minute))
+      throw new Unreachable(0, `Restart at minute ${desk.now}, as SPREAD_RESTART_AT asks`)
+    }
     const day = Math.floor(desk.now / DAY)
     const midnight = (day + 1) * DAY
     await desk.settle()

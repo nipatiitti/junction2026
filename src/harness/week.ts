@@ -112,5 +112,7 @@ function finish(score: Score, desk: Desk): void {
   const summary = desk.guard.run('summary', () => desk.strategy.summary())
   if (summary) console.log(summary)
   if (desk.guard.faults.size > 0) console.log(`Strategy faults: ${counts(desk.guard.faults)}.`)
+  const slowest = [...desk.guard.slowest].map(([call, ms]) => `${call} ${Math.round(ms)} ms`)
+  if (slowest.length > 0) console.log(`Slowest calls: ${slowest.join(', ')}.`)
   if (desk.refused.size > 0) console.log(`Refused actions: ${counts(desk.refused)}.`)
 }

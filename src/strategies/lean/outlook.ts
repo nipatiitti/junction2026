@@ -8,7 +8,7 @@ import { DAY, HOUR } from '../../ops/index.ts'
 type Weights = Record<string, number>
 const clamp = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value))
 
-export type OrderModel = { meanCost: number; meanLate: number; cost: Weights; late: Weights }
+export type OrderModel = { meanCost: number; cost: Weights; late: Weights }
 
 /** A request as the model sees it, at the minute `at`. */
 export type Work = {
@@ -37,7 +37,8 @@ export type Work = {
 export const loadOrders = (): OrderModel =>
   JSON.parse(readFileSync(new URL('./order.json', import.meta.url), 'utf-8')) as OrderModel
 
-/** What the model expects of this work, won now: its cost over the mean order's (1 = as dear as the mean order),
+/** What the model expects of this work, won now: its cost over the mean order's (1 = as dear as the mean order:
+ * `meanCost` is the mean of the fit, so the level of a price is `costLevel` alone),
  * and its chance to be late. */
 export function outlook(model: OrderModel, work: Work): { cost: number; late: number } {
   const offset = Math.floor(work.readyAt / DAY) - Math.floor(work.at / DAY)
