@@ -109,6 +109,11 @@ export const SEGMENTS = [
     id: 'end',
     view: 'end',
     duration: 3.4,
-    lines: { remember: 'Remember November 2026?', us: 'It was us.', calendar: ['NOVEMBER', '2026'] },
+    lines: {
+      remember: 'Remember November 2026?',
+      us: 'It was us.',
+      // the page the bear holds; the circled days are the hackathon
+      calendar: { title: 'NOVEMBER', year: 2026, month: 11, circled: [13, 14, 15] },
+    },
   },
 ]

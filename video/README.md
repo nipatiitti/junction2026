@@ -64,6 +64,6 @@ it was. Three.js (0.186.1) and mp4-muxer (5.2.2) load from jsDelivr at pinned ve
 
 ## Status
 
-The title cards and scenes 1–4 are built, with music and effects. The end is a rough set with its cast and main
-beats. The spoken lines are captions until voice files are recorded. The numbers in `timeline.js` are placeholders
-until the final is played.
+All nine views are built, with music and effects: the four title cards, scenes 1–4 and the end. The spoken lines are
+captions until voice files are recorded. The numbers and the team name in `timeline.js` are placeholders until the
+final is played.
