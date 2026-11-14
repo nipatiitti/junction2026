@@ -46,8 +46,9 @@ import {
   Strategy,
   type StrategyKind,
 } from '../../strategy.ts'
+import { type Car, type Chain, findChains } from './chains.ts'
 import { bestPrice, Demand } from './demand.ts'
-import { awake, BOOK_AHEAD, fast, feeAt, openingFor, SHORT, slow } from './fees.ts'
+import { awake, BOOK_AHEAD, fast, feeAt, openingFor, SHORT, slow, stepped } from './fees.ts'
 
 export const DEFAULTS = {
   /** The share of the week's requests to win, in a world with 777 drivers (the median). */
@@ -63,6 +64,9 @@ export const DEFAULTS = {
   /** The fee a gig opens at and the end of its slow climb, × typical. */
   open: 0.68,
   climbTo: 1.04,
+  /** Instead of the climb: hold `open` × typical and raise only 24, 16, 10 and 6 hours before the last pickup (to
+   * 1.05, 1.25, 1.55 and 2 × typical). */
+  stepped: false,
   /** Each delivery must arrive this share of its drive (20 minutes at least) before its deadline: a driver plans by
    * the road minutes, and real drives run longer. 0 leaves the deadline as the window. */
   buffer: 0,
@@ -87,12 +91,22 @@ export const DEFAULTS = {
   /** The top of the fast climb × typical, and for a car that is late already. */
   urgentTop: 2,
   lateTop: 1.7,
+  /** Chains (chains.ts): post open cars together when one driver can take them one after the other. A car joins
+   * when the next is collected within `maxHop` road minutes of its delivery, a chain holds `maxCars` at most and
+   * must cost a driver `minSaving` less than its cars alone. It goes back to single gigs when no driver has taken
+   * it `chainHours` before its last start. */
+  chains: true,
+  maxHop: 60,
+  maxCars: 4,
+  minSaving: 0.15,
+  chainHours: 5,
 }
 export type LeanParams = typeof DEFAULTS
 
 type OptionKind = DeliveryOption['kind']
 const clamp = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value))
 const pickups = (stops: readonly StopRef[]): StopRef[] => stops.filter((stop) => stop.kind === 'pickup')
+const keyOf = (stops: readonly StopRef[]): string => stops.map((s) => `${s.orderId}/${s.leg}/${s.kind}`).join(' ')
 
 class Lean extends Strategy<LeanParams> {
   override readonly every = 15
@@ -119,6 +133,12 @@ class Lean extends Strategy<LeanParams> {
   private readonly late = new Set<string>()
   private done = 0
   private readonly tally = { requests: 0, quoted: 0, won: 0, multiples: 0, bookings: 0, ratios: 0 }
+  /** The chains decided: the key of their stops -> the chain; and, once posted, gig id -> the chain. */
+  private readonly planned = new Map<string, Chain>()
+  private readonly chains = new Map<string, Chain>()
+  /** The orders that were in a chain no driver took: they stay single. */
+  private readonly single = new Set<string>()
+  private readonly chained = { posted: 0, cars: 0, booked: 0, bookedCars: 0, ratios: 0, undone: 0 }
 
   constructor(setup: Setup, params: LeanParams) {
     super(setup, params)
@@ -238,8 +258,7 @@ class Lean extends Strategy<LeanParams> {
     const request = books.requests.get(order.id)
     if (!request) throw new Error(`no request for order ${order.id}`)
     const now = books.now
-    const typical = (stops: readonly StopRef[]) =>
-      (request.referenceFeeCents * pickups(stops).length) / order.legs.length
+    const typical = (stops: readonly StopRef[]) => this.typicalOf(stops, books)
     if (need.why === 'urgent' && previous) {
       const gigId = books.gigsOf(order.id).find((id) => books.posts.get(id) === previous)
       // A gig that a driver gave back starts again from the fee that booked it, not from the fee of the hours since.
@@ -283,6 +302,7 @@ class Lean extends Strategy<LeanParams> {
     const bookBy = order.lastPickupAt - BOOK_AHEAD
     if (warned || awake(Math.max(now, from), bookBy) < SHORT)
       return fast(now, typical, Math.max(shown + 0.05, 1.15), 0.12, 15, Math.max(p.urgentTop, shown + 0.05))
+    if (p.stepped) return stepped(now, typical, order.lastPickupAt, p.open, shown)
     return slow(now, typical, bookBy, p, from, shown, p.urgentTop)
   }
 
@@ -321,11 +341,97 @@ class Lean extends Strategy<LeanParams> {
       const order = post && books.orders.get(post.stops[0]?.orderId ?? '')
       const request = order && books.requests.get(order.id)
       if (!post || !order || !request || books.booked.has(gigId) || !books.gigsOf(order.id).includes(gigId)) continue
-      const typical = (request.referenceFeeCents * pickups(post.stops).length) / order.legs.length
-      const schedule = this.fees(order, typical, books.now, fee, books.now)
+      const schedule = this.fees(order, this.typicalOf(post.stops, books), books.now, fee, books.now)
       if (schedule.length > 0) actions.push({ type: 'reprice', gigId, schedule })
     }
+    if (this.params.chains && this.setup.level >= 3) actions.push(...this.chainActions(books))
     return actions
+  }
+
+  // ------------------------------------------------------------------------------------------------ the chains
+
+  /** Takes apart the chains that no driver took in time, and posts the new chains among the open single cars: each
+   * car's own gig leaves the app, and one gig carries them all. */
+  private chainActions(books: Books): Action[] {
+    const p = this.params
+    const now = books.now
+    const actions: Action[] = []
+    for (const [gigId, chain] of this.chains) {
+      const live = chain.cars.some((car) => books.gigsOf(car.orderId).includes(gigId))
+      if (!live) this.chains.delete(gigId)
+      if (!live || books.booked.has(gigId) || now < chain.startBy - p.chainHours * HOUR) continue
+      for (const car of chain.cars) this.single.add(car.orderId)
+      this.chains.delete(gigId)
+      this.chained.undone++
+      actions.push({ type: 'withdraw', gigId }) // the harness posts each car again, as a single gig
+    }
+    const found = findChains(this.openCars(books), this.setup.map, now, p)
+    for (const chain of found.filter((c) => c.startBy - now >= (p.chainHours + 3) * HOUR).slice(0, 5)) {
+      const stops = chain.cars.flatMap((car) => car.stops)
+      this.planned.set(keyOf(stops), chain)
+      for (const car of chain.cars) actions.push({ type: 'withdraw', gigId: car.gigId })
+      actions.push({
+        type: 'post',
+        stops,
+        audience: { experienced: false, manualLicence: chain.cars.some((car) => car.audience.manualLicence) },
+        schedule: slow(now, chain.typical, chain.startBy - BOOK_AHEAD, p, now, 0, 1.3),
+      })
+    }
+    return actions
+  }
+
+  /** Our open cars that may join a chain: one car, one gig that no driver holds, no setback, no warning, a dealer's
+   * yard, any driver, and time left. */
+  private openCars(books: Books): Car[] {
+    const now = books.now
+    const cars: Car[] = []
+    for (const order of books.orders.values()) {
+      const leg = order.legs[0]
+      const [gigId, ...more] = books.gigsOf(order.id)
+      const post = gigId ? books.posts.get(gigId) : undefined
+      const request = books.requests.get(order.id)
+      if (!leg || order.legs.length !== 1 || order.deliveredAt[0] !== null || !gigId || more.length > 0) continue
+      if (!post || !request || post.stops.length !== 2 || books.booked.has(gigId) || books.urgent.has(order.id))
+        continue
+      if (this.single.has(order.id) || this.retries.has(`${order.id} 0`) || this.dropped.has(gigId)) continue
+      if (leg.car.premium || post.audience.experienced || leg.pickup.privateAddress) continue
+      if (now > order.lastPickupAt - (this.params.chainHours + 3) * HOUR) continue
+      const [pickup, delivery] = post.stops as [StopRef, StopRef]
+      const drive = driveMinutes(this.setup.map, [leg])
+      if (pickup.kind !== 'pickup' || delivery.kind !== 'delivery' || !Number.isFinite(drive)) continue
+      cars.push({
+        gigId,
+        orderId: order.id,
+        from: leg.pickup.placeId,
+        to: leg.delivery.placeId,
+        ready: pickup.window?.from ?? leg.pickup.window.from,
+        collectBy: Math.min(pickup.window?.to ?? leg.pickup.window.to, order.lastPickupAt),
+        due: delivery.window?.to ?? (leg.delivery.privateAddress ? leg.delivery.window.to : order.deadline),
+        drive,
+        typical: request.referenceFeeCents,
+        pickupHours: leg.pickup.hours,
+        deliveryHours: leg.delivery.hours,
+        stops: [pickup, delivery],
+        audience: post.audience,
+      })
+    }
+    return cars
+  }
+
+  /** The typical fees of a gig's cars as single gigs, summed. */
+  private singlesOf(stops: readonly StopRef[], books: Books): number {
+    let sum = 0
+    for (const stop of pickups(stops)) {
+      const request = books.requests.get(stop.orderId)
+      if (request)
+        sum += request.referenceFeeCents / (books.orders.get(stop.orderId)?.legs.length ?? request.legs.length)
+    }
+    return sum
+  }
+
+  /** The unit of a gig's fee schedule: what a chain is worth to its driver, or the cars' typical fees. */
+  private typicalOf(stops: readonly StopRef[], books: Books): number {
+    return this.planned.get(keyOf(stops))?.typical ?? this.singlesOf(stops, books)
   }
 
   // ------------------------------------------------------------------------------------------------- the books
@@ -352,10 +458,15 @@ class Lean extends Strategy<LeanParams> {
         this.dropped.delete(event.gigId)
         this.bookedAt.set(event.gigId, event.feeCents)
         const post = books.posts.get(event.gigId)
-        const order = post && books.orders.get(post.stops[0]?.orderId ?? '')
-        const typical = order && books.requests.get(order.id)?.referenceFeeCents
-        if (!post || !order || !typical) break
-        const ratio = clamp(event.feeCents / ((typical * pickups(post.stops).length) / order.legs.length), 0.3, 2.5)
+        const singles = post ? this.singlesOf(post.stops, books) : 0
+        if (!post || !(singles > 0)) break
+        const chain = this.chains.get(event.gigId)
+        if (chain) {
+          this.chained.booked++
+          this.chained.bookedCars += chain.cars.length
+          this.chained.ratios += event.feeCents / singles
+        }
+        const ratio = clamp(event.feeCents / singles, 0.3, 2.5)
         this.feeRatio += 0.04 * (ratio - this.feeRatio)
         this.tally.bookings++
         this.tally.ratios += ratio
@@ -371,6 +482,7 @@ class Lean extends Strategy<LeanParams> {
       case 'gig_expired': {
         const post = books.posts.get(event.gigId)
         for (const stop of pickups(post?.stops ?? [])) {
+          if (this.chains.has(event.gigId)) this.single.add(stop.orderId)
           this.setback(stop.orderId, stop.leg, 'expired', books)
           this.floors.set(stop.orderId, feeAt(this.schedules.get(event.gigId) ?? post?.schedule ?? [], event.at))
         }
@@ -394,6 +506,16 @@ class Lean extends Strategy<LeanParams> {
   }
 
   override sent(action: Action, result: ActionResult): void {
+    const chain = action.type === 'post' ? this.planned.get(keyOf(action.stops)) : undefined
+    if (action.type === 'post' && chain) {
+      // A chain that the world refuses leaves its cars to single gigs.
+      if (!result.ok) for (const car of chain.cars) this.single.add(car.orderId)
+      else {
+        this.chains.set(result.id, chain)
+        this.chained.posted++
+        this.chained.cars += chain.cars.length
+      }
+    }
     if (!result.ok) return
     if (action.type === 'quote') {
       this.pending.set(action.requestId, action.prices)
@@ -407,7 +529,8 @@ class Lean extends Strategy<LeanParams> {
     const share = t.requests > 0 ? (100 * t.won) / t.requests : 0
     const multiple = t.won > 0 ? t.multiples / t.won : 0
     const paid = t.bookings > 0 ? t.ratios / t.bookings : 0
-    return `lean: won ${t.won} of ${t.requests} requests (${share.toFixed(1)}%) at ${multiple.toFixed(2)} × list, ${t.bookings} bookings at ${paid.toFixed(2)} × typical, capacity worth ${this.capacity.toFixed(2)} × typical at the end, ${this.late.size} late of ${this.done} done.`
+    const c = this.chained
+    return `lean: won ${t.won} of ${t.requests} requests (${share.toFixed(1)}%) at ${multiple.toFixed(2)} × list, ${t.bookings} bookings at ${paid.toFixed(2)} × typical, capacity worth ${this.capacity.toFixed(2)} × typical at the end, ${this.late.size} late of ${this.done} done. Chains: ${c.posted} posted with ${c.cars} cars, ${c.booked} booked with ${c.bookedCars} cars at ${(c.booked > 0 ? c.ratios / c.booked : 0).toFixed(2)} × their cars' typical, ${c.undone} taken apart.`
   }
 
   private context(tightening = 1): Context {
