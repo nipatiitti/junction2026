@@ -362,8 +362,11 @@ changed, with no tuned value changed on purpose:
 | 3 to 5 | One cost level (`costLevel`); the supply learns what the order model leaves; one test for "today"; `minMargin`, `overhead`, `spread` and `chainHours` removed; one planning-timed fee schedule and one urgent climb, in waking minutes; constants named or made params | +€183 ± 165 against 2, 387 orders against 395; no fault, no schedule that is empty, falls or starts in the past; every new param accepted by `pnpm bench` |
 
 `SPREAD_RESTART_AT=<minute>,<minute>` makes a practice week restart itself at those world minutes, and each week now
-prints its slowest strategy calls. The server check of the chain rules (checkpoint 1 against 2) is open: the team's
-practice slots were held by other worlds.
+prints its slowest strategy calls.
+
+The chain rules on the server, one seed (`rnd-16a57974`) played by checkpoint 1 and checkpoint 2 at the same time:
+€13,559 against €14,310 (+€751), 403 and 405 orders, 12 and 7 late orders, 55 of 85 and 60 of 91 chains booked. One
+week is a direction, not a measurement: it does not confirm the simulator's −€800.
 
 Left as they are, and worth their own measurement: the dealer middle of 1.40 (the recorded seeds say 1.25 at zero
 trust), the raises' sizes and times, a lost request that teaches the shared effects once per option, and the
