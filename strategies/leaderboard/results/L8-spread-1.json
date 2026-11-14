@@ -980,8 +980,8 @@
     "war_sweep": {
       "file": "strategies/war_sweep/dispatch.py",
       "fingerprint": "a88a8a0fd1ee4884",
-      "world_id": "w0bef2f6e5bf457c0a938",
-      "played_at": "2026-11-14T12:44:46+0200",
+      "world_id": "w02a407a9bb3124ed9c9e",
+      "played_at": "2026-11-14T16:05:42+0000",
       "score": {
         "marginCents": 1134968,
         "revenueCents": 2817407,
