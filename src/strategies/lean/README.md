@@ -164,6 +164,10 @@ Each batch is five fresh random seeds, with the baseline on the same seeds (leve
 | 2     | `holdHours` 1, `openGigs` 120                                      |  €9,675 |    200 | 93–100% |        0 |
 | 2     | that, `pairDiscount` 0.25, `pairCharge` 0.3                        |  €9,627 |    290 | 88–98%  |        1 |
 | 2     | that, `chainPatience` 6                                            |  €9,863 |    287 | 90–98%  |        0 |
+| 3     | baseline                                                           | €12,034 |    227 | 95–100% |        0 |
+| 3     | `holdHours` 1, `openGigs` 120, `chainPatience` 6                   | €12,399 |    227 | 95–98%  |        0 |
+| 3     | that, `chainBid`, `pairCharge` 0.3                                 | €12,146 |    259 | 95–97%  |        0 |
+| 3     | that, `chainBid`, `pairCharge` 0                                   | €11,306 |    424 | 86–97%  |        2 |
 
 - **Volume is ours to set, and it is worth little without cheap drivers.** 70% more orders made €598 more: the margin
   an order fell from €51 to €32, because every price fell (1.56 to 1.46 × list) and single gigs cost 1.16 × typical.
@@ -178,7 +182,13 @@ Each batch is five fresh random seeds, with the baseline on the same seeds (leve
   so the week takes more than it can move; `leadCost` prices a car ready tomorrow at 1.03 × typical, and big orders
   earned €35 against €69. Each needs its own batch.
 
-The defaults are unchanged: every param of this section is off.
+- **`chainBid` moves the right cars and still does not pay yet.** With `pairCharge` 0.3 it adds 32 orders a week and
+  95 cars ride in chains at 0.69 × typical, for €112 more than the baseline (ahead on 3 of 5 seeds), within what chance
+  gives. With no capacity charge at all it wins 424 orders, 106 of them in chains that come apart, and two weeks fall
+  under 90% on time. The hold with `chainPatience` 6 made €365 more on batch 3 and €17 less on batch 2.
+
+The defaults are unchanged: every param of this section is off. What is left to do for volume: stop chains from coming
+apart (a third of those posted do), then raise the chain share of the bids step by step.
 
 ## Params
 
