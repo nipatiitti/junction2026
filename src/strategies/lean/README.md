@@ -23,15 +23,8 @@ entry in [`LEAN_CHANGELOG.md`](../../../LEAN_CHANGELOG.md) in the same PR.
 - **What it costs.** The typical fee × what this week's bookings paid (0.84 before any booking), more when the gig
   has little time to find its driver, for a private address (+0.25 × typical), a trade-in, a weekend, a note that narrows the work, and × 3 for a premium
   car.
-- **What capacity is worth.** Drivers can move about a third of what dealers ask for, and the facts say that winning
-  more loses money. So each order also costs `capacity` × its typical fee, the worth of its place in the week. Half of
-  it is the same for every order (`flatShare` × `flatEuros`): a short hop takes a driver's place as a long one does.
-  That worth rises with each win and falls with each loss, so that we win `target` of the requests (0.30 × the
-  world's drivers over 777). The target falls when bookings cost more than planned, when more than 40 gigs wait without a
-  driver, and when orders arrive late. Requests that arrive together from one yard, as a bulk order, count more.
-- **The quote** is, for each option, the price with the highest chance × (price − cost − worth of capacity). With
-  the worth of capacity high, this prices the requests where the competitor is dear high and still wins them, and
-  loses the others: we win the dearest third, not the first third.
+- **The quote** is, for each option, the price with the highest chance × (price − cost). There is no charge for
+  capacity and no target share: both were 0 since the wider noise, and their code is removed.
 
 ## 2. The fee (`fees.ts`)
 
@@ -59,10 +52,10 @@ delivery to the first pickup, so a loop pays no trip home. A chain is posted whe
 cars' typical fees: on the strategy's tick the cars' own gigs are withdrawn and one gig carries them. A chain that no
 driver took `chainHours` (5) before its last start is withdrawn, and its cars go back to single gigs for good.
 
-`holdHours` (0, off) lets a new car wait for a partner before it is posted alone, `chainPatience` takes a chain apart
-that no driver took after so many waking hours, and `chainBid` plans the chain before the bid; the batches below
-played them. `chains.ts` is the search and holds no state. `planner.ts` holds every piece of chain state (the chains
-posted, the cars that wait, the claims of pending bids), so a new chain policy changes that one file.
+A new car that may join a chain waits `holdHours` (2) for a partner before it is posted alone. Only the kind of chain
+that books is posted: from Monday to Thursday, with 20 hours or more to its first last pickup, and with a car that no
+driver has seen. A chain that no driver took after `chainPatience` (1) waking hour is taken apart. `chains.ts` is the
+search and holds no state; `planner.ts` holds every piece of chain state, so a new chain policy changes that one file.
 
 ## 4. The service (`src/ops`)
 
@@ -298,12 +291,33 @@ On top of the current defaults, ten server seeds (the five above and five fresh 
 The simulator had it €388 ± 176 behind with the same gain in orders and on-time share: it counts a late order too
 cheaply.
 
+## Clean-up and the fixes of the open problems (14 November, night, #320)
+
+From 28 server weeks of the defaults above (372 orders a week, 11,108 orders):
+
+| Change | What the weeks showed |
+| --- | --- |
+| The cost in `order.json` is fitted again (`uv run --with numpy python -m analysis.lean_cost --write`) | The model predicted 1.03 × typical for a private pickup that paid 1.35, and 0.98 for a Friday that paid 1.06. It charged +0.37 for a last pickup within 8 hours; the fees say +0.09. Cars ready today were right already (0.99 against 1.00) |
+| Only chains that book are posted, and a car waits only for such a chain | Chains posted on a Friday, with under 20 hours to the first last pickup or without a new car booked 23% of the time (11 a week); the others 69% (76 a week) |
+| `chainPatience` 1 | 51% of the chains book within one waking hour. One still open then books 24% of the time, and its cars waited a median 16 hours and then paid 1.06 × typical |
+| `lateOpen` 1.25 | 8 cars a week opened at 1.5 to 2 × typical because the time of their raises was over; 5 of them were booked within 3 minutes at 1.98 × |
+| The early fee compares a fee with a fee (#327) | A gig posted again after its window ended could open under the fee it had reached |
+
+Not changed, because the weeks gave no reason: the price rule (where a quote was higher only for its cost, the
+wins fell as a noise of 0.28 says), and the opening fee (40% of the single gigs for a later day book at the early fee
+within minutes, 31% at 0.88).
+
+Removed as dead or lost: `target`, `capacity`, `gain`, `flatShare`, `flatEuros`, `feeBrake`, `lateSoft`, `openGigs`
+(all part of the capacity charge, which was 0), `offers` and `offers.ts`, `maxShare`, `chainBid`, `pairCharge`,
+`chainRaise`, `chainTop`, and the switches `supply`, `order` and `chainPick`, which are now how `lean` works.
+
+On the simulator (40 seeds) the whole set is even with the defaults before it: −€57 ± 158 with 377 orders against
+403. The cost fit alone is +€328, `lateOpen` +€114, and the chain rules −€385; the simulator books 85 to 90% of the
+chains where the server books 63%, so it cannot judge those. The server check follows below.
+
 ## Params
 
-`target` 0.3, `capacity` 0 (its start), `gain` 0, `noise` 0.28, `flatShare` 0.5, `flatEuros` 60, `open` 0.88, `jitter` 1, `spread` true, `early` 0.8, `offers` 0, `order` true, `lateCost` 1,
-`premium` 3, `privatePickup` 0.25, `privateDelivery` 0.25, `feeRatio` 0.84, `supply` true, `overhead` 0.06, `minHours` 4, `minMargin` 1.05, `trust` 0.7,
-`feeBrake` 1.5, `lateSoft` 0.04, `lateHard` 0.05, `openGigs` 40, `urgentTop` 2, `lateTop` 1.7, `chains` true,
-`maxHop` 60, `maxCars` 4, `minSaving` 0.15, `chainHours` 5, `holdHours` 2, `chainPatience` 0, `chainBid` false,
-`pairCharge` 1. Override one
-with `--set key=value`. The end of a week prints the share won, the mean price × list, the mean fee × typical, the
-late orders and the chains posted, booked and taken apart.
+`open` 0.88, `jitter` 1, `spread` true, `lateOpen` 1.25, `early` 0.8, `feeRatio` 0.84, `lateCost` 1, `premium` 3,
+`privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `overhead` 0.06, `minHours` 4, `minMargin` 1.05,
+`noise` 0.28, `trust` 0.7, `lateHard` 0.05, `urgentTop` 2, `lateTop` 1.7, `chains` true, `maxHop` 60, `maxCars` 4,
+`minSaving` 0.15, `chainHours` 5, `chainLast` 3, `holdHours` 2, `chainPatience` 1.

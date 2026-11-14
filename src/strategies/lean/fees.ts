@@ -79,7 +79,7 @@ export function stepped(
   const points: [number, number][] = [[now, Math.max(open, floor)]]
   // A gig for a later day shows `early` × typical for its first hour: the cheapest driver for tomorrow needs less
   // than the opening fee, and takes about that long to see it.
-  if (early > 0 && early < open && Math.floor(lastPickup / DAY) > Math.floor(now / DAY) && floor < early * typical) {
+  if (early > 0 && early < open && Math.floor(lastPickup / DAY) > Math.floor(now / DAY) && floor < early) {
     points[0] = [now, early]
     points.push([now + EARLY, open])
   }

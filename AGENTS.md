@@ -266,6 +266,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the slack-budget week: `uv run strategies/slack_budget/dispatch.py --level 8 --seed spread-1`
 - Play the snow-aware week: `uv run strategies/snow_aware/dispatch.py --level 8 --seed spread-1`
 - Measure the lead-cost table: `uv run python -m strategies.lead_cost.fit`
+- Fit lean's cost weights again (`--write` saves them): `uv run --with numpy python -m analysis.lean_cost`
 - Fit the lane fees: `uv run python -m strategies.lane_fee.fit`
 - Fit the lane priors: `uv run python -m strategies.lane_prior.fit`
 - Play the scarcity-ceiling week: `uv run strategies/scarcity_ceiling/dispatch.py --level 8 --seed spread-1`
