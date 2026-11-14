@@ -28,7 +28,8 @@ export async function playPractice(world: World, desk: Desk): Promise<void> {
     // One request a step: the advance applies the outbox, then moves the clock.
     await desk.settle()
     const actions = desk.outbox.splice(0)
-    const max = Math.min(desk.endsAt, midnight, desk.nextTick)
+    const wake = Math.max(desk.now + 1, desk.guard.run('tick', () => desk.strategy.wakeAt(desk)) ?? Infinity)
+    const max = Math.min(desk.endsAt, midnight, desk.nextTick, wake)
     const step = await world.advance({ untilEvent: WAKE_ON, max, actions })
     desk.readResults(actions, step.results)
     desk.now = step.now

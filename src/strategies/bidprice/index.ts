@@ -78,6 +78,7 @@ import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees
 import { lateRiskOf, newLateRisk } from './late.ts'
 import { legsOf, WeekLog } from './log.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
+import { Requoter } from './requote.ts'
 
 /** A quote at this many times the list price or more is a decline. */
 const DECLINED = 5
@@ -98,6 +99,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
   /** Why each request got no quote, and how many options each admission rule left out of the quotes. */
   readonly declines: Record<string, number> = {}
+  readonly requoter: Requoter
 
   constructor(setup: Setup, params: BidPriceParams) {
     super(setup, params)
@@ -108,6 +110,8 @@ export class BidPrice extends Strategy<BidPriceParams> {
     this.cost = newCostState(this.costPrior)
     this.learning = { learn: params.costLearn, pseudoGigs: params.costPseudo }
     this.lateRisk = newLateRisk(setup.roster, setup.map)
+    const p = params
+    this.requoter = new Requoter(p.requoteLeadMinutes, p.requoteMinChange, p.requoteBudget, DECLINED)
   }
 
   observe(event: DeskEvent): void {
@@ -117,6 +121,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
     learn(this.fees, event, this.feeParams)
     this.learnCost(event)
     this.count(event)
+    if (this.params.requote) this.requoter.observe(event)
   }
 
   /** What the desk sent for us, as sent, and the world's answer: the quotes the quote learner waits on, and our gigs
@@ -124,6 +129,8 @@ export class BidPrice extends Strategy<BidPriceParams> {
   sent(action: Action, result: ActionResult, books: Books): void {
     if (!result.ok) return
     if (action.type === 'quote') this.quoted(action.requestId, action.prices)
+    if (action.type === 'quote' && this.params.requote)
+      this.requoter.sent(this.log.requests.get(action.requestId), action.prices)
     const event = this.feeEventOf(action, result.id, books.now)
     if (event) learn(this.fees, event, this.feeParams)
   }
@@ -133,6 +140,19 @@ export class BidPrice extends Strategy<BidPriceParams> {
     const decision = this.decide(request, books.now)
     this.audit(request, books.now, decision)
     return decision.decline ? null : decision.prices
+  }
+
+  override wakeAt(books: Books): number {
+    return this.params.requote ? this.requoter.wakeAt(books.now) : Number.POSITIVE_INFINITY
+  }
+
+  /** The re-quotes due now, priced with the belief of now. */
+  override soon(books: Books): Action[] {
+    if (!this.params.requote) return []
+    return this.requoter.due(books.now, (request) => {
+      const decision = this.decide(request, books.now)
+      return decision.decline ? null : decision.prices
+    })
   }
 
   /** The decline log: the reason a request got no quote (or `quoted`), and each option an admission rule left out.
@@ -329,6 +349,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
       booked > 0
         ? `fees paid ${(paidOverTypical / booked).toFixed(2)} × typical over ${booked} bookings`
         : 'no fee paid',
+      ...(this.params.requote ? [this.requoter.summary()] : []),
       `declines ${Object.entries(this.declines)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([k, v]) => `${k} ${v}`)
@@ -410,7 +431,9 @@ export class BidPrice extends Strategy<BidPriceParams> {
   private quoted(requestId: string, prices: Prices): void {
     const request = this.log.requests.get(requestId)
     if (!request) return
+    const again = this.params.requote && this.requoter.kind.has(requestId)
     recordQuote(this.quotes, request, prices, this.quoteParams)
+    if (again) return
     const real = request.options.some((o) => (prices[o.kind] ?? Infinity) < DECLINED * o.listPriceCents)
     if (real) this.tally.quoted++
   }

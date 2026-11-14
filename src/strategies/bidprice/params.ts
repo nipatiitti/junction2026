@@ -71,6 +71,12 @@ export type BidPriceParams = {
   climbStep: number
   climbTop: number
   repriceMax: number
+  /** Quote again `requoteLeadMinutes` before each open request's deadline, with the belief of then, when a price
+   * moves by `requoteMinChange` or the options offered change; at most `requoteBudget` re-quotes a call. */
+  requote: boolean
+  requoteLeadMinutes: number
+  requoteMinChange: number
+  requoteBudget: number
 }
 
 export const DEFAULTS: BidPriceParams = {
@@ -113,6 +119,10 @@ export const DEFAULTS: BidPriceParams = {
   climbStep: 0.1,
   climbTop: 3,
   repriceMax: 10,
+  requote: false,
+  requoteLeadMinutes: 3,
+  requoteMinChange: 0.03,
+  requoteBudget: 5,
 }
 
 /** The quote models' params from the strategy's. */

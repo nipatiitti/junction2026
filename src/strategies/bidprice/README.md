@@ -99,3 +99,7 @@ served option over `lateRiskMax`), `war` (the war-day rule), `minValue` (best va
 `underCost` (no price on the grid covers the cost); `opt-<rule>` counts the options each rule left out of a quote.
 Set `BIDPRICE_DECLINE_LOG=<file>` to append one JSON line per request (id, minute, reason, options left out, costs,
 value, win chance, prices).
+
+`requote` (default off): the first quote still goes out at once; `requoteLeadMinutes` (3) before each open request's
+deadline the request is priced again with the belief of then, and the new quote replaces the first when a price moves
+by `requoteMinChange` (3%) or the options change, at most once a request and `requoteBudget` (5) a call (`requote.ts`).

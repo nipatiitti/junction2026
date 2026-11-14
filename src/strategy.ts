@@ -104,6 +104,16 @@ export abstract class Strategy<P extends Params = Params> {
     return []
   }
 
+  /** The next minute the strategy wants `soon` called, before its tick; Infinity for never. */
+  wakeAt(_books: Books): number {
+    return Number.POSITIVE_INFINITY
+  }
+
+  /** Any actions at a minute that `wakeAt` asked for, or at any event: re-quotes of open requests. */
+  soon(_books: Books): Action[] {
+    return []
+  }
+
   /** One line on the strategy's week, printed at the end; empty for none. */
   summary(): string {
     return ''

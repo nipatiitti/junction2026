@@ -134,6 +134,8 @@ export class Desk implements Books {
   /** Puts the strategy's periodic actions in the outbox once `every` minutes have passed since the last time, and
    * sweeps. */
   async tick(): Promise<void> {
+    const soon = this.guard.run('tick', () => this.strategy.soon(this))
+    this.outbox.push(...this.guard.admit('tick', Array.isArray(soon) ? soon : []))
     if (this.now < this.nextTick) return
     this.nextTick = this.tickAfter(this.now)
     const actions = this.guard.run('tick', () => this.strategy.tick(this))
