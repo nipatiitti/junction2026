@@ -19,8 +19,6 @@ export type BidPriceParams = {
   feeSolver: boolean
   /** Scale fees by the learned multiplier of each gig feature. */
   feeExtras: boolean
-  /** Scale the cost `c` by the learned capacity multiplier `lambda`. */
-  capacity: boolean
   /** Scale the lateness cost by the learned on-time multiplier `mu`. */
   onTime: boolean
   /** Every prior neutral: the models learn the world from nothing. */
@@ -32,12 +30,20 @@ export type BidPriceParams = {
   /** A late order halves the dealer's trust: its lateness cost is scaled by 1 + lateTrust × the dealer's share of the
    * requests, over the same for an average dealer. 0 turns it off. */
   lateTrust: number
-  /** The learning rates of `lambda` and `mu`, and the late share that `mu` aims at. */
-  etaLambda: number
+  /** Learn this week's cost of each kind of order over the prior of src/params/cost.json; the prior weighs
+   * `costPseudo` gigs (orders, three times as many for the late cost). */
+  costLearn: boolean
+  costPseudo: number
+  /** Multiplies the cost `c` of every quote, for the bench and the tuner; 1 is the calibrated cost. */
+  costScale: number
+  /** The learning rate of `mu`, and the late share that it aims at. */
   etaMu: number
   lateTarget: number
-  /** Admission: offer an option only with this many hours to spare (more as `tightening` falls); with none that
-   * comfortable, only the slowest option we can serve. */
+  /** The booking hazard of the fee solver: each lead band and state scaled to what the saved bidprice weeks booked,
+   * and a seen gig shaped like a fresh one; false: the explore table as measured. */
+  hazardFit: boolean
+  /** Admission, off at 0: offer an option only with this many hours to spare (more as `tightening` falls); with none
+   * that comfortable, only the slowest option we can serve. `canServe`'s minimum holds always. */
   comfortHours: number
   /** The ramp: open at `openFee` × typical, raise early, and reach `topFee` × typical `topLeadHours` before the last
    * pickup. */
@@ -66,18 +72,22 @@ export const DEFAULTS: BidPriceParams = {
   ladder: true,
   lane: true,
   war: 'follow',
-  feeSolver: false,
+  feeSolver: true,
   feeExtras: true,
-  capacity: true,
   onTime: true,
   cold: false,
   minValueCents: 200,
-  trustValue: 1,
+  // No discount to build trust: big dealers reach the 25-order cap within two days at normal prices, and the
+  // discount pushed prices under cost. The win model still follows each dealer's trust (`trust`).
+  trustValue: 0,
   lateTrust: 5,
-  etaLambda: 0.1,
+  costLearn: true,
+  costPseudo: 10,
+  costScale: 1,
+  hazardFit: true,
   etaMu: 0.02,
   lateTarget: 0.05,
-  comfortHours: 9,
+  comfortHours: 0,
   openFee: 0.9,
   topFee: 2.5,
   topLeadHours: 8,
@@ -116,7 +126,8 @@ export function feeParamsOf(p: BidPriceParams, level: number): FeeParams {
   const base = feeParams(level, {
     solver: p.feeSolver,
     extras: p.feeExtras,
-    capacity: p.capacity,
+    capacity: false, // the cost learner prices capacity: what this week pays over the prior
+    hazardFit: p.hazardFit,
     onTime: p.onTime,
     cold: p.cold,
   })
@@ -128,6 +139,6 @@ export function feeParamsOf(p: BidPriceParams, level: number): FeeParams {
       topRatio: p.topRatio,
       topLeadMinutes: p.topLeadHours * HOUR,
     },
-    learn: { ...base.learn, etaLambda: p.etaLambda, etaMu: p.etaMu, lateTarget: p.lateTarget },
+    learn: { ...base.learn, etaMu: p.etaMu, lateTarget: p.lateTarget },
   }
 }

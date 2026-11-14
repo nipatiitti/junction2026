@@ -7,13 +7,28 @@ import type { FeeState } from './state.ts'
 const WAKE = 7 * HOUR // drivers read the app from 07:00
 const SLEEP = 23 * HOUR // to 23:00
 
-/** The prior: the table of src/params/fees.json, linear in the fee between its points, zero at no fee, flat
- * above the last point, and stepped in bands of the hours to the last pickup. `fee` is over the expected fee. */
-export function priorHazard(fee: number, leadMinutes: number, seen: boolean, params: FeeParams): number {
-  const { feeGrid, leadHours, fresh, seen: viewed } = params.priors.hazard
+/** The band of hours to the last pickup that `leadMinutes` falls in. */
+export function bandOf(leadMinutes: number, params: FeeParams): number {
+  const { leadHours } = params.priors.hazard
   let band = 0
   while (band + 1 < leadHours.length && leadMinutes >= leadHours[band + 1] * HOUR) band++
-  const row = (seen ? viewed : fresh)[band]
+  return band
+}
+
+/** The prior: the table of src/params/fees.json, linear in the fee between its points, zero at no fee, flat
+ * above the last point, and stepped in bands of the hours to the last pickup. `fee` is over the expected fee. With
+ * `hazardFit`, a seen gig follows the fresh row's shape too (the brief: "a fifth of it once viewed"), and each band
+ * and state takes its fitted scale, so a raise helps a seen gig and short leads are not overrated. */
+export function priorHazard(fee: number, leadMinutes: number, seen: boolean, params: FeeParams): number {
+  const { feeGrid, fresh, seen: viewed, fit } = params.priors.hazard
+  const band = bandOf(leadMinutes, params)
+  const fitted = params.flags.hazardFit && fit !== undefined
+  const scale = fitted ? ((seen ? fit.seen : fit.fresh)[band] ?? 1) : 1
+  return scale * shape(fee, (seen && !fitted ? viewed : fresh)[band], feeGrid)
+}
+
+/** A row of the table at `fee`. */
+function shape(fee: number, row: number[], feeGrid: number[]): number {
   if (!(fee > 0)) return 0
   if (fee <= feeGrid[0]) return (row[0] * fee) / feeGrid[0]
   for (let i = 1; i < feeGrid.length; i++) {
@@ -25,16 +40,18 @@ export function priorHazard(fee: number, leadMinutes: number, seen: boolean, par
   return row[row.length - 1]
 }
 
-/** What the week has taught: bookings seen over bookings the prior expected, starting from the prior. */
-export function hazardScale(seen: boolean, state: FeeState, params: FeeParams): number {
-  const { booked, expected } = seen ? state.hazard.seen : state.hazard.fresh
+/** What the week has taught: bookings seen over bookings the prior expected in the same lead band and state,
+ * starting from the prior. */
+export function hazardScale(seen: boolean, leadMinutes: number, state: FeeState, params: FeeParams): number {
+  const tally = (seen ? state.hazard.seen : state.hazard.fresh)[bandOf(leadMinutes, params)]
+  const { booked, expected } = tally ?? { booked: 0, expected: 0 }
   const k = params.learn.pseudoBookings
   return clamp((k + booked) / (k + expected), params.learn.hazardScale)
 }
 
 /** Bookings per open daytime hour at `fee` over the expected fee, `leadMinutes` before the last pickup. */
 export function acceptHazard(fee: number, leadMinutes: number, seen: boolean, state: FeeState, params: FeeParams) {
-  return priorHazard(fee, leadMinutes, seen, params) * hazardScale(seen, state, params)
+  return priorHazard(fee, leadMinutes, seen, params) * hazardScale(seen, leadMinutes, state, params)
 }
 
 /** The share of bookings that a driver drops or misses, learned from the prior rate. */

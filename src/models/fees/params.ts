@@ -23,6 +23,9 @@ export type FeePriors = {
     seen: number[][] // the same once drivers have viewed the order and left it
     night: number // the hazard from 23:00 to 07:00, as a share of the daytime one
     weekend: number // on Saturday and Sunday
+    /** With `hazardFit`: the hazard is the fresh row times this, [lead band], fresh or seen: what booked over the
+     * fresh row's expectation in the saved bidprice weeks (`analysis/hazard_check.py`). */
+    fit?: { fresh: number[]; seen: number[] }
   }
   extras: Record<Feature, { start: number; measured: number }>
   rates: { drop: number; noShow: number; cancel: number } // per booking, per booking, per order won
@@ -36,6 +39,7 @@ export type FeeFlags = {
   capacity: boolean // scale the cost by lambda
   onTime: boolean // scale the lateness cost by mu
   cold: boolean // every prior neutral
+  hazardFit: boolean // the fresh row times the fitted scale of each lead band, fresh or seen; false: the explore table
 }
 
 export type FeeParams = {
@@ -94,6 +98,7 @@ export const DEFAULT_FLAGS: FeeFlags = {
   capacity: true,
   onTime: true,
   cold: false,
+  hazardFit: true,
 }
 
 /** The parameters for one world. */
