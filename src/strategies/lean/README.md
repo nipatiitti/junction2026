@@ -227,7 +227,10 @@ What they showed:
   200 of 300 a week, at 0.69 × typical; 4 hours loses €780.
 - **Did nothing measurable, and are not in the code:** choosing chains by their chance to book (from driving time,
   trip home and drivers at the end town), limits on a chain's driving time and trip home, several chain tries per
-  car, the dealer tables (towns, hour, order size, the competitor's daily answer). **Lost or flat:** bidding lower for a dealer's trust (−€800 to −€1,100), `overhead` 0.12, `minHours` 2, the model's middle at 1.3 or 1.5, `trust` 0.4 or 1, a flat charge per order, `minMargin` 1.15, `holdHours` 1.5 or 3, `maxCars` 3, `chainBid`.
+  car, the dealer tables (towns, hour, order size, the competitor's daily answer). **Lost or flat:** bidding lower for a dealer's trust (−€800 to −€1,100), `overhead` 0.12, `minHours` 2, the model's middle at 1.3 or 1.5, `trust` 0.4 or 1, a flat charge per order, `minMargin` 1.15, `holdHours` 1.5 or 3, `maxCars` 3, `chainBid`, and (#331, 40 seeds) a lost quote moving the win
+  model down 1.25 to 3 times as far as a win moves it up (−€371 to −€1,605: more orders and more of Friday, at a lower
+  price on all of them) and a new day starting with 2 or 4 times its doubt (−€208, −€145, within chance).
+  `FAILED_APPROACHES.md` has the table.
 - **`spread` is the open question.** It cuts the fees of short-lead cars, which the old schedule opened at up to
   1.55 × typical, but 2.5 points more orders are late, and the simulator is weakest exactly there.
 

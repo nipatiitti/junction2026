@@ -1,0 +1,32 @@
+{
+  "seed": "p3f-5",
+  "level": 8,
+  "mode": "fee",
+  "worldId": "w7ae62814d0a35689e3d4",
+  "params": {
+    "qLo": 1,
+    "qHi": 1.7,
+    "qScale": 1,
+    "townScale": {},
+    "dealerSplit": false,
+    "fOpen": 0.9,
+    "fStep": 0.1,
+    "fCap": 1.6
+  },
+  "share": 0.5,
+  "window": 180,
+  "at": [],
+  "score": {
+    "marginCents": -2120082,
+    "revenueCents": 6275559,
+    "marginShare": -0.33783157803153474,
+    "wonOrders": 599,
+    "onTimeShare": 0.6911519198664441,
+    "undeliveredShare": 0.00333889816360601,
+    "ranked": false
+  },
+  "probes": 319,
+  "refused": 1,
+  "seconds": 959.755,
+  "requests": 14959
+}
