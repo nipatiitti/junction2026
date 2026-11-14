@@ -8,6 +8,8 @@
   },
   "scripts": {
     "dispatch": "NODE_USE_ENV_PROXY=1 node --env-file-if-exists=.env src/dispatch.ts",
+    "bench": "NODE_USE_ENV_PROXY=1 node --env-file-if-exists=.env src/bench.ts",
+    "tune": "NODE_USE_ENV_PROXY=1 node --env-file-if-exists=.env src/tune.ts",
     "starter": "NODE_USE_ENV_PROXY=1 node --env-file-if-exists=.env vendor/spread-typescript/starter.ts",
     "reveal-csv": "NODE_USE_ENV_PROXY=1 node --env-file-if-exists=.env vendor/spread-typescript/reveal-csv.ts",
     "check": "tsc --noEmit",

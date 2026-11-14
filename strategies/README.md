@@ -12,15 +12,20 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`offers/`](offers/README.md)       | `Offers`       | Direct offers to drivers near a gig's pickup                    |
 | [`bundling/`](bundling/README.md)   | `Bundler`      | Which orders' cars go together in one gig                       |
 
-Four folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played there
-is that system's, not `dispatch.py`'s. None changes the folders above.
+Nine folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
-| Folder                                    | Classes                                | What it is                                                |
-| ----------------------------------------- | -------------------------------------- | --------------------------------------------------------- |
-| [`baseline/`](baseline/README.md)         | `BaselineAdmission`, `BaselineFees`, … | The organisers' starter as strategies: our fixed baseline |
-| [`price_ladder/`](price_ladder/README.md) | `LadderPricing`, `ShadowAdmission`     | A clamped price ladder with a shadow price on capacity    |
-| [`baseline_ladder/`](baseline_ladder/README.md) | `BaselineLadderPricing`, `RampFees` | The baseline, with a quote ladder and a fee ramp       |
-| [`baseline_tiers/`](baseline_tiers/README.md) | `FixedMultiplePricing`, `TierFees` | The baseline, with a fixed quote multiple and fee tiers |
+| Folder                                            | Classes                                | What it is                                                                |
+| ------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------- |
+| [`baseline/`](baseline/README.md)                 | `BaselineAdmission`, `BaselineFees`, … | The organisers' starter as strategies: our fixed baseline                 |
+| [`price_ladder/`](price_ladder/README.md)         | `LadderPricing`, `ShadowAdmission`     | A clamped price ladder with a shadow price on capacity                    |
+| [`scarcity_cost/`](scarcity_cost/README.md)       | `ScarcityAdmission`                    | Admission with the town's quotas per driver priced in                     |
+| [`bundling_more/`](bundling_more/README.md)       | `WaitingBundler`                       | Every order waits for a chain, so more cars share a gig                   |
+| [`bundling_cheaper/`](bundling_cheaper/README.md) | `CheapBundler`                         | A bundle keeps a smaller share of its cars' solo bill                     |
+| [`ratchet/`](ratchet/README.md)                   | `RatchetPricing`, `TrustAdmission`, …  | A price ratchet per dealer and flat fees priced by risk                   |
+| [`ceiling/`](ceiling/README.md)                   | `CeilingPricing`, `ChainAdmission`     | Prices just under a maximum, over the driver cost, with timed return legs |
+| [`delivery_urgency/`](delivery_urgency/README.md) | `UrgencyPricing`, `UrgencyAdmission`   | The ladder's quote priced by the delivery option's kind                   |
+| [`scarcity_urgency/`](scarcity_urgency/README.md) | `ScarcityUrgencyAdmission`             | The town's scarcity and the urgency quote in one folder                   |
 
 [`bench/`](bench/README.md) is not a strategy either: it compares versions of `dispatch.py` on the same seeds.
 
@@ -56,3 +61,15 @@ Each strategy then has its own methods for the desk's questions, such as `Admiss
    ```
 
 3. Build it in `Desk.__init__` in `dispatch.py` and add it to `Desk.strategies`, so it sees every event.
+
+## The play loop of `dispatch.py`
+
+At the end of a practice week, `dispatch.py` prints two more lines. `Requests` counts the week's requests by route
+(`advance`, `actions`, `score`, …). `Stops` gives the reason for each `advance`: the kind of event that stopped the
+clock, `poll`, `midnight` or `end`. The request count sets how long a week takes: each request waits for the
+network's round trip, about 175 ms through a Claude Code cloud proxy. To keep the count low, the loop does not stop
+for every price request. The dealer decides at the request's `respondBy`, 15 minutes after the request, on our last
+quote. So while requests keep coming, the loop looks for new ones at least every 14 minutes (`poll`) and quotes them
+together with its answers to the other events. A quote sent anywhere before `respondBy` gets the same answer, so the
+week stays the same. On the level 8 starter week in `data/` (`smoke-1`), this cuts the stops of the clock from 1,725 to
+about 1,390.

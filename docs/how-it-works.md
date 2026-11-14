@@ -1,7 +1,7 @@
 # How it works (short)
 
 Condensed from [/how](https://spread.bahnexpress.com/how), the plain-words page
-for people. Exact numbers live in [rules.md](rules.md).
+for people. Exact numbers live in [RULES.md](spread/RULES.md).
 
 ## The world
 

@@ -6,8 +6,17 @@ baseline that our system is measured against. It is the code in the kit's wheel
 decisions are the organisers' and do not change; this folder only re-homes them, so a baseline week is built, fed and
 read the same way as every other strategy.
 
-README.md's [baseline to beat](../../README.md#the-baseline-to-beat) has its results: level 8 on the seed
-`spread-1` ends at −€72,612.51, with 949 orders won and 45.5% of them on time.
+The unchanged starter on the seed `spread-1`, the baseline to beat:
+
+| Level | Margin      | Orders won | On time | Ranked |
+| ----- | ----------- | ---------- | ------- | ------ |
+| 6     | -€1,172.51  | 555        | 95.9%   | yes    |
+| 7     | -€50,442.49 | 817        | 52.3%   | no     |
+| 8     | -€72,612.51 | 949        | 45.5%   | no     |
+
+They match the handbook to the cent. The first `dispatch.py`, an unchanged copy of the starter, gave the same level 8
+result. We measured levels 6 and 7 with the organisers' TypeScript starter, before we chose Python; the handbook says
+that both starters play alike.
 
 | File           | What it holds                                                                       |
 | -------------- | ----------------------------------------------------------------------------------- |
