@@ -106,6 +106,9 @@ export const DEFAULTS = {
    * markup: the best price keeps at least this share of itself over the cost it is chosen over. Until 15 November
    * it was 0.28 and did the work of the charge below as well: no price under 1.39 × cost. */
   noise: 0.11,
+  /** A lost request's quoted options share one world, day, dealer and route. True averages their contributions to
+   * those effects instead of training them once per option; each option effect still learns separately. */
+  sharedOutcome: false,
   /** What one more order costs the rest of the week's orders, in higher fees and late cars, added to the cost
    * that the price is chosen over: a request whose best price is under (cost + charge) ÷ (1 − `noise`) is not
    * worth its place. The charge is (`tax` + `taxLoad` × the orders per driver that the week is heading for) × the
@@ -373,6 +376,22 @@ class Lean extends Strategy<LeanParams> {
     }
     if (!quoted || !request) return
     const { prices, offset } = quoted
+    if (this.params.sharedOutcome && won === null) {
+      const outcomes = request.options.flatMap((option) => {
+        const cents = prices[option.kind]
+        if (cents === undefined) return []
+        return [
+          {
+            keys: this.demand.keys(request, option.kind),
+            offset,
+            multiple: cents / option.listPriceCents,
+            won: false,
+          },
+        ]
+      })
+      this.demand.learnShared(outcomes)
+      return
+    }
     for (const option of request.options) {
       const cents = prices[option.kind]
       if (cents === undefined || (won && option.kind !== won)) continue
