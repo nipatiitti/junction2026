@@ -49,6 +49,7 @@ import {
 import { type Car, type Chain, findChains } from './chains.ts'
 import { bestPrice, Demand } from './demand.ts'
 import { awake, BOOK_AHEAD, fast, feeAt, openingFor, SHORT, slow, stepped } from './fees.ts'
+import { type DealerState, loadPrior, type Prior, priorMu } from './prior.ts'
 
 export const DEFAULTS = {
   /** The share of the week's requests to win, in a world with 777 drivers (the median). */
@@ -86,6 +87,10 @@ export const DEFAULTS = {
   minMargin: 1.05,
   /** How much of the dealer's trust (1% for each order on time) goes into the price. */
   trust: 0.7,
+  /** Start each belief from the dealer prior fitted on the recorded quotes (prior.ts): the places, the lane, the
+   * list price and what the dealer knows of us are known before the week, and the week learns only its own level.
+   * It replaces `trust`. */
+  prior: false,
   /** The late share from which we win less, and the one from which options need twice the room. */
   lateSoft: 0.04,
   lateHard: 0.05,
@@ -117,6 +122,9 @@ const keyOf = (stops: readonly StopRef[]): string => stops.map((s) => `${s.order
 class Lean extends Strategy<LeanParams> {
   override readonly every = 15
   private readonly demand: Demand
+  private readonly prior: Prior | undefined
+  /** Dealer id -> its requests that we won and lost. */
+  private readonly decided = new Map<string, { won: number; lost: number }>()
   private readonly drivers: number
   private capacity: number
   private feeRatio: number
@@ -151,7 +159,8 @@ class Lean extends Strategy<LeanParams> {
 
   constructor(setup: Setup, params: LeanParams) {
     super(setup, params)
-    this.demand = new Demand(setup.level)
+    this.prior = params.prior && setup.level >= 7 ? loadPrior() : undefined
+    this.demand = new Demand(setup.level, this.prior)
     this.drivers = setup.roster.length > 0 ? setup.roster.length / 777 : 1
     this.capacity = params.capacity
     this.feeRatio = params.feeRatio
@@ -171,7 +180,7 @@ class Lean extends Strategy<LeanParams> {
       if (this.setup.level <= 3) return { [option.kind]: option.listPriceCents }
       const cost = this.cost(request, option, facts, now)
       if (cost === null) continue
-      const belief = this.demand.belief(this.demand.keys(request, option.kind), this.trustOffset(request.dealerId))
+      const belief = this.demand.belief(this.demand.keys(request, option.kind), this.offset(request, option))
       const crowd = 1 + 0.04 * Math.max(0, this.askedFrom(request) - 4)
       const p = this.params
       const place = (1 - p.flatShare) * request.referenceFeeCents + p.flatShare * p.flatEuros * 100
@@ -234,6 +243,23 @@ class Lean extends Strategy<LeanParams> {
     return this.params.trust * Math.log(1 + count / 100)
   }
 
+  /** What moves an option's belief before the week's own effects: the dealer's trust, or with the prior everything
+   * that it knows of the request and of the dealer. */
+  private offset(request: PriceRequest, option: DeliveryOption): number {
+    if (!this.prior) return this.trustOffset(request.dealerId)
+    return priorMu(this.prior, request, option, this.dealerState(request.dealerId))
+  }
+
+  private dealerState(dealerId: string): DealerState {
+    let onTime = 0
+    let late = 0
+    for (const id of this.delivered.get(dealerId) ?? []) {
+      if (this.late.has(id)) late++
+      onTime = this.late.has(id) ? Math.floor(onTime / 2) : Math.min(25, onTime + 1)
+    }
+    return { onTime, late, ...(this.decided.get(dealerId) ?? { won: 0, lost: 0 }) }
+  }
+
   /** The other requests from the same yard that wait for their dealer: a bulk order asks for 30 to 40 at once, and
    * one yard cannot find that many drivers. */
   private askedFrom(request: PriceRequest): number {
@@ -248,12 +274,11 @@ class Lean extends Strategy<LeanParams> {
     const request = books.requests.get(requestId)
     this.pending.delete(requestId)
     if (!prices || !request) return
-    const offset = this.trustOffset(request.dealerId)
     for (const option of request.options) {
       const cents = prices[option.kind]
       if (cents === undefined || (won && option.kind !== won)) continue
       const multiple = cents / option.listPriceCents
-      this.demand.learn(this.demand.keys(request, option.kind), offset, multiple, won !== null)
+      this.demand.learn(this.demand.keys(request, option.kind), this.offset(request, option), multiple, won !== null)
       if (won) this.tally.multiples += multiple
     }
     if (won) this.tally.won++
@@ -483,9 +508,11 @@ class Lean extends Strategy<LeanParams> {
         break
       case 'order_won':
         this.outcome(event.order.id, event.order.option, books)
+        this.count(event.order.dealerId, true)
         break
       case 'order_lost':
         this.outcome(event.requestId, null, books)
+        this.count(books.requests.get(event.requestId)?.dealerId, false)
         break
       case 'gig_booked': {
         this.dropped.delete(event.gigId)
@@ -536,6 +563,15 @@ class Lean extends Strategy<LeanParams> {
         break
       }
     }
+  }
+
+  /** One more request of a dealer decided. The belief of the request itself is learned before this counts it. */
+  private count(dealerId: string | undefined, won: boolean): void {
+    if (!dealerId) return
+    const tally = this.decided.get(dealerId) ?? { won: 0, lost: 0 }
+    if (won) tally.won++
+    else tally.lost++
+    this.decided.set(dealerId, tally)
   }
 
   override sent(action: Action, result: ActionResult): void {

@@ -5,6 +5,7 @@
  * and 12% of noise stays in every request. */
 import type { DeliveryOption, PriceRequest } from '../../../vendor/spread-typescript/spread.ts'
 import { DAY } from '../../ops/index.ts'
+import type { Prior } from './prior.ts'
 
 /** The noise that stays in one request's threshold, as a logistic scale in log price. */
 const NOISE = 0.08
@@ -27,6 +28,18 @@ const PRIOR: Record<string, { mean: number; variance: number; drift: number }> =
 }
 
 type Effect = { mean: number; variance: number }
+type Kind = { mean: number; variance: number; drift: number }
+
+/** With the fitted prior (prior.ts) the places, the option and the dealer's trust are in the offset of each belief,
+ * so the week learns only what is its own: the world's level, each day's level, and a small rest for each dealer
+ * and place. */
+const withPrior = (prior: Prior): Record<string, Kind> => ({
+  world: { mean: 0, variance: prior.worldVariance, drift: 0 },
+  day: { mean: 0, variance: prior.dayVariance, drift: 0 },
+  dealer: { mean: 0, variance: prior.placeVariance, drift: prior.placeDrift },
+  from: { mean: 0, variance: prior.placeVariance, drift: prior.placeDrift },
+  to: { mean: 0, variance: prior.placeVariance, drift: prior.placeDrift },
+})
 
 /** What we believe of one option's threshold: its log multiple of the list price, and the logistic scale of our
  * doubt about it (the request's own noise, widened by what the effects have not learned yet). */
@@ -35,23 +48,30 @@ export type Belief = { mu: number; scale: number; variance: number }
 export class Demand {
   private readonly effects = new Map<string, Effect>()
   private readonly base: number
+  private readonly kinds: Record<string, Kind>
+  private readonly noise: number
+  private readonly fitted: boolean
   private day = -1
 
-  constructor(level: number) {
-    this.base = Math.log(MIDDLE(level))
+  /** With `prior`, each belief's offset is `priorMu` of its option, and the effects start from the fitted spreads. */
+  constructor(level: number, prior?: Prior) {
+    this.fitted = prior !== undefined
+    this.base = prior ? 0 : Math.log(MIDDLE(level))
+    this.kinds = prior ? withPrior(prior) : PRIOR
+    this.noise = prior ? prior.scale : NOISE
   }
 
   /** The effects that an option of a request sums. */
   keys(request: PriceRequest, kind: DeliveryOption['kind']): string[] {
     const leg = request.legs[0]
-    return [
+    const keys = [
       'world',
       `day:${Math.floor(request.arrivedAt / DAY)}`,
       `dealer:${request.dealerId}`,
       `from:${leg?.pickup.placeId}`,
       `to:${leg?.delivery.placeId}`,
-      kind,
     ]
+    return this.fitted ? keys : [...keys, kind]
   }
 
   /** The belief for the effects `keys`, moved by `offset` (the dealer's trust). */
@@ -63,7 +83,7 @@ export class Demand {
       mu += effect.mean
       variance += effect.variance
     }
-    return { mu, variance, scale: NOISE * Math.sqrt(1 + (Math.PI * variance) / (8 * NOISE * NOISE)) }
+    return { mu, variance, scale: this.noise * Math.sqrt(1 + (Math.PI * variance) / (8 * this.noise * this.noise)) }
   }
 
   /** The chance that a price of `multiple` × list wins. */
@@ -93,7 +113,7 @@ export class Demand {
     if (day <= this.day) return
     this.day = day
     for (const [key, effect] of this.effects) {
-      const prior = PRIOR[key.split(':')[0]!]!
+      const prior = this.kinds[key.split(':')[0]!]!
       effect.variance = Math.min(prior.variance, effect.variance + prior.drift)
     }
   }
@@ -106,7 +126,7 @@ export class Demand {
   private effect(key: string): Effect {
     let effect = this.effects.get(key)
     if (!effect) {
-      const prior = PRIOR[key.split(':')[0]!]!
+      const prior = this.kinds[key.split(':')[0]!]!
       effect = { mean: prior.mean, variance: prior.variance }
       this.effects.set(key, effect)
     }

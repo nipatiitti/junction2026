@@ -1,0 +1,631 @@
+{
+  "flipError": {
+    "probes": {
+      "pr-1": {
+        "probes": 552,
+        "used": 548,
+        "unmatched": 0
+      },
+      "pr-2": {
+        "probes": 481,
+        "used": 481,
+        "unmatched": 0
+      },
+      "pr-3": {
+        "probes": 515,
+        "used": 510,
+        "unmatched": 0
+      },
+      "pr-4": {
+        "probes": 468,
+        "used": 457,
+        "unmatched": 0
+      }
+    },
+    "overall": {
+      "model": {
+        "n": 1996,
+        "bias": -0.0111,
+        "rmse": 0.2169,
+        "medAbs": 0.124
+      },
+      "constant": {
+        "n": 1996,
+        "bias": 0.1181,
+        "rmse": 0.2749,
+        "medAbs": 0.1562
+      }
+    },
+    "byWeek": {
+      "pr-1": {
+        "model": {
+          "n": 548,
+          "bias": -0.0196,
+          "rmse": 0.215,
+          "medAbs": 0.1179
+        },
+        "constant": {
+          "n": 548,
+          "bias": 0.1286,
+          "rmse": 0.2805,
+          "medAbs": 0.1632
+        }
+      },
+      "pr-2": {
+        "model": {
+          "n": 481,
+          "bias": -0.0322,
+          "rmse": 0.2089,
+          "medAbs": 0.1245
+        },
+        "constant": {
+          "n": 481,
+          "bias": 0.1157,
+          "rmse": 0.271,
+          "medAbs": 0.1425
+        }
+      },
+      "pr-3": {
+        "model": {
+          "n": 510,
+          "bias": 0.023,
+          "rmse": 0.213,
+          "medAbs": 0.1238
+        },
+        "constant": {
+          "n": 510,
+          "bias": 0.1053,
+          "rmse": 0.2724,
+          "medAbs": 0.1425
+        }
+      },
+      "pr-4": {
+        "model": {
+          "n": 457,
+          "bias": -0.0167,
+          "rmse": 0.2314,
+          "medAbs": 0.1306
+        },
+        "constant": {
+          "n": 457,
+          "bias": 0.1223,
+          "rmse": 0.2749,
+          "medAbs": 0.1603
+        }
+      }
+    },
+    "byDay": {
+      "0": {
+        "model": {
+          "n": 466,
+          "bias": -0.021,
+          "rmse": 0.2274,
+          "medAbs": 0.1373
+        },
+        "constant": {
+          "n": 466,
+          "bias": 0.1931,
+          "rmse": 0.3157,
+          "medAbs": 0.1872
+        }
+      },
+      "1": {
+        "model": {
+          "n": 455,
+          "bias": -0.0245,
+          "rmse": 0.2046,
+          "medAbs": 0.1222
+        },
+        "constant": {
+          "n": 455,
+          "bias": 0.0952,
+          "rmse": 0.2553,
+          "medAbs": 0.1355
+        }
+      },
+      "2": {
+        "model": {
+          "n": 372,
+          "bias": -0.0176,
+          "rmse": 0.2344,
+          "medAbs": 0.1336
+        },
+        "constant": {
+          "n": 372,
+          "bias": 0.1566,
+          "rmse": 0.2909,
+          "medAbs": 0.1603
+        }
+      },
+      "3": {
+        "model": {
+          "n": 415,
+          "bias": 0.0264,
+          "rmse": 0.2055,
+          "medAbs": 0.1131
+        },
+        "constant": {
+          "n": 415,
+          "bias": 0.1014,
+          "rmse": 0.2445,
+          "medAbs": 0.1246
+        }
+      },
+      "4": {
+        "model": {
+          "n": 288,
+          "bias": -0.0194,
+          "rmse": 0.2111,
+          "medAbs": 0.1139
+        },
+        "constant": {
+          "n": 288,
+          "bias": 0.0071,
+          "rmse": 0.2531,
+          "medAbs": 0.1611
+        }
+      }
+    },
+    "byOnTime": {
+      "0": {
+        "model": {
+          "n": 778,
+          "bias": -0.0413,
+          "rmse": 0.2277,
+          "medAbs": 0.1408
+        },
+        "constant": {
+          "n": 778,
+          "bias": 0.1627,
+          "rmse": 0.299,
+          "medAbs": 0.1851
+        }
+      },
+      "1-4": {
+        "model": {
+          "n": 689,
+          "bias": 0.0203,
+          "rmse": 0.2161,
+          "medAbs": 0.1166
+        },
+        "constant": {
+          "n": 689,
+          "bias": 0.1025,
+          "rmse": 0.2595,
+          "medAbs": 0.1314
+        }
+      },
+      "5-9": {
+        "model": {
+          "n": 277,
+          "bias": -0.0068,
+          "rmse": 0.2029,
+          "medAbs": 0.0986
+        },
+        "constant": {
+          "n": 277,
+          "bias": 0.1083,
+          "rmse": 0.2622,
+          "medAbs": 0.1268
+        }
+      },
+      "10+": {
+        "model": {
+          "n": 252,
+          "bias": -0.0085,
+          "rmse": 0.1993,
+          "medAbs": 0.1285
+        },
+        "constant": {
+          "n": 252,
+          "bias": 0.034,
+          "rmse": 0.2507,
+          "medAbs": 0.1829
+        }
+      }
+    }
+  },
+  "logLoss": {
+    "folders": 3854,
+    "step": 19,
+    "weeks": 200,
+    "policies": {
+      "dispatch": 28,
+      "delivery-urgency": 20,
+      "scarcity-urgency": 20,
+      "ceiling": 17,
+      "ts-bidprice": 16,
+      "scarcity-cost": 13,
+      "ts-recall": 10,
+      "price-ladder": 5,
+      "ts-lean": 5,
+      "all-in": 4,
+      "ts-bidboard": 4,
+      "flu-guard": 3,
+      "k-all": 3,
+      "ladder": 3,
+      "q-cap10": 3,
+      "q-high50": 3,
+      "soft-top": 3,
+      "eighty-cap40": 2,
+      "herd-competitor": 2,
+      "p-92": 2,
+      "q-108": 2,
+      "r-bundles": 2,
+      "ratchet": 2,
+      "slack-budget": 2,
+      "war-sweep": 2,
+      "a-lane": 1,
+      "c-top2": 1,
+      "contextual-mix": 1,
+      "drop-risk": 1,
+      "eighty": 1,
+      "eighty-cap40cw58": 1,
+      "eighty-cap55": 1,
+      "eighty-tw40": 1,
+      "g-flat90": 1,
+      "ifs": 1,
+      "joint-bid": 1,
+      "lane-prior": 1,
+      "option-menu": 1,
+      "q-prem15": 1,
+      "r-dawn105": 1,
+      "r-hold110": 1,
+      "r-top17": 1,
+      "r-top25": 1,
+      "scarcity-ceiling": 1,
+      "slack-fees": 1,
+      "snow-aware": 1,
+      "special-premium": 1,
+      "u-three": 1,
+      "x-cap-lane-town": 1
+    },
+    "skipped": [
+      {
+        "folder": "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/board/wee84cb83fdf11d1dd12b",
+        "policy": "ts-bidprice",
+        "why": "quotes 0 of 1031 requests"
+      }
+    ],
+    "single": {
+      "n": 122268,
+      "wonShare": 0.533,
+      "logLoss": 0.6108,
+      "logLossNoLearning": 0.7305,
+      "logLossBaseRate": 0.691,
+      "calibration": [
+        {
+          "bucket": "0.0-0.1",
+          "n": 4797,
+          "predicted": 0.054,
+          "won": 0.11
+        },
+        {
+          "bucket": "0.1-0.2",
+          "n": 7609,
+          "predicted": 0.154,
+          "won": 0.241
+        },
+        {
+          "bucket": "0.2-0.3",
+          "n": 11904,
+          "predicted": 0.253,
+          "won": 0.318
+        },
+        {
+          "bucket": "0.3-0.4",
+          "n": 15248,
+          "predicted": 0.352,
+          "won": 0.403
+        },
+        {
+          "bucket": "0.4-0.5",
+          "n": 17075,
+          "predicted": 0.451,
+          "won": 0.476
+        },
+        {
+          "bucket": "0.5-0.6",
+          "n": 17278,
+          "predicted": 0.549,
+          "won": 0.54
+        },
+        {
+          "bucket": "0.6-0.7",
+          "n": 16038,
+          "predicted": 0.649,
+          "won": 0.619
+        },
+        {
+          "bucket": "0.7-0.8",
+          "n": 13783,
+          "predicted": 0.749,
+          "won": 0.71
+        },
+        {
+          "bucket": "0.8-0.9",
+          "n": 11590,
+          "predicted": 0.848,
+          "won": 0.809
+        },
+        {
+          "bucket": "0.9-1.0",
+          "n": 6946,
+          "predicted": 0.94,
+          "won": 0.904
+        }
+      ]
+    },
+    "multi": {
+      "n": 14610,
+      "wonShare": 0.314,
+      "logLoss": 0.441,
+      "logLossNoLearning": 0.6553,
+      "logLossBaseRate": 0.6226,
+      "calibration": [
+        {
+          "bucket": "0.0-0.1",
+          "n": 3513,
+          "predicted": 0.043,
+          "won": 0.021
+        },
+        {
+          "bucket": "0.1-0.2",
+          "n": 2127,
+          "predicted": 0.149,
+          "won": 0.101
+        },
+        {
+          "bucket": "0.2-0.3",
+          "n": 1744,
+          "predicted": 0.249,
+          "won": 0.207
+        },
+        {
+          "bucket": "0.3-0.4",
+          "n": 1463,
+          "predicted": 0.35,
+          "won": 0.34
+        },
+        {
+          "bucket": "0.4-0.5",
+          "n": 1369,
+          "predicted": 0.451,
+          "won": 0.391
+        },
+        {
+          "bucket": "0.5-0.6",
+          "n": 1102,
+          "predicted": 0.549,
+          "won": 0.483
+        },
+        {
+          "bucket": "0.6-0.7",
+          "n": 1007,
+          "predicted": 0.649,
+          "won": 0.576
+        },
+        {
+          "bucket": "0.7-0.8",
+          "n": 893,
+          "predicted": 0.749,
+          "won": 0.705
+        },
+        {
+          "bucket": "0.8-0.9",
+          "n": 796,
+          "predicted": 0.85,
+          "won": 0.8
+        },
+        {
+          "bucket": "0.9-1.0",
+          "n": 596,
+          "predicted": 0.948,
+          "won": 0.893
+        }
+      ]
+    }
+  },
+  "sampled": [
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/nov-1/w05a1dac4a3d6b23d0410",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/nov-1/w6a36f55572da098c94ff",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/nov-1/wad5152c6f13a90bd6149",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/nov-2/w13c1ba752a6a7e0ce861",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/nov-2/w5e189e1f29cdae9cf22e",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/nov-2/we3710461cf1407b368cc",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/nov-3/wc632bdb03253285cf443",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/nov-4/wdd3e01879059a6468aff",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/nov-5/wf49f14704ef8f89006c1",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/nov-7/w0aeff7372d145fae1ed8",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/nov-8/w15b5abfffb65d9940f27",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/nov-9/w50e9c28799ef072027f4",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/rnd-0302be13/wd50022ca8040a499c2a8",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/rnd-59f671bd/wc341e061b2914d1215d6",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/rnd-a465ae0b/webbe94dde56ee230c63d",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/rnd-de5b2c3c/wac57ca70158fffe2ff06",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/rnd-e6da9d9c/w6982a9bf8d012be24de7",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w05e5d2fb4b19f0069a3b",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w0d355e67b58dee39d711",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w150a3a5d4e9763bd9576",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w20a2613c6fa7d2976256",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w283777f4d82119b93bba",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w31f10c70f5999959714f",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w3cb39f0f28f54875f8cd",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w4572344b71fc631ed859",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w4e4b62076fa6868727fc",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w545f02a5eb0565c73ca2",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w6383ba652381e3445040",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w6d7d7340ad7f74430054",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w74ddbfde11ad05a7bf9d",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w7cacedbf6073211769fe",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w85aac75a2cdd784daf08",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w8efdbd028fb5cd28d604",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/w978675186720b2bfb62b",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/wa2ff304ee95e22262990",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/waf42c2225b8a73d68677",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/wbb352bdf93150865bd0e",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/wc3c2145e70364f830800",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/wce352a3343a75230dc94",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/wdacaf38e9fe2abfe0c94",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/we59ef0d84bfffeddc5c0",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-1/wf4973a2eaca88396269e",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-10/w36bd6c6013f7c3772725",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-10/w810bac3a49f87b1375c7",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-10/wb7e576137c70691539c8",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-10/wfca4a90551938893ca47",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-11/wdabc48f799954da01ebc",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-12/wc503917afea9e43c005b",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-13/wabb8664ded2c50dd0f0d",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-14/w8f0547ed8c48d5594d1f",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-15/w801bd5110037ba3331fb",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-16/w93b6238a06c5ba1928e4",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-17/wa48ab233e1e6a300ad67",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-18/w470fbd0bd64171bb7108",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-19/w7e34ec1fe1bb8a4c0e91",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-2/w092a5802a3797536a5dd",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-2/w2203db007b0e93a0a7c9",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-2/w4431ad31439b2e895157",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-2/w5fc16793048651aea805",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-2/w7eda03e3abdcfb52fd1e",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-2/w9856b5e06ff088d32064",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-2/wacd05dbbbad0e14d80f2",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-2/wc27a090d520affea6d8d",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-2/wde0c84f7f81241af6e2c",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-2/wfc3b898125b7acb6e44d",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-20/wdabb0ae858dcd97c9443",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-21/wd5ce7603c01421a7dc99",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-22/wac2e2550fafb760cea7b",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-3/w178999e39b444d920471",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-3/w3e31cf184b393ecefa3f",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-3/w56ef7297fd2ea801e44e",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-3/w77c2478f3b8eedc3a29e",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-3/w92cbd466de68fc4be822",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-3/wa60f0af0e15de40be949",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-3/wcee5bf6adba5104d9bdf",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-3/wec5c8121892166b83228",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-4/w0667210a00874ed009a8",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-4/w2b7f249d2a39f984f132",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-4/w420fabd36a476ef423ff",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-4/w5979753c09ae2c122080",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-4/w7697a7ef9e99f1152df9",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-4/w92de0d036ddbc5b0ea63",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-4/wac97ebfbbb987c4217ee",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-4/wbdef59bacf19f1a8ddc2",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-4/wd600d0816d8854ee7e73",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-5/w02eeba4af8b329275e6e",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-5/w22057bed971f09302a32",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-5/w3e38458437fde2d80656",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-5/w68b20fa29344ac9b0e78",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-5/w94ae1a6edd500cee7340",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-5/wbaa138813077a9742b86",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-5/we46d81d469c4caa3d262",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-6/w0f118237f2ae270d1dc4",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-6/w5521140197b078b3bf26",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-6/w9117f033a211eed39884",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-6/wb762391dfd7cb2be65d8",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-6/we46e2d3a8b5499e238cc",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-7/w0fab14c35ec3ec62dc08",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-7/w3b5b5dc62194db7db450",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-7/w7638137a84cfb12354a9",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-7/wafd7c0662fb73be261aa",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-7/wee7efbeab6aeb46370f9",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-8/w32cb0d8c623d4b9e0542",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-8/w8e88a3f56ed528e8aa6b",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-8/wbde678347467cb950aa8",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-8/wf573dfbb88e7869ae8c4",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-9/w311b7b480629b75090ed",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-9/w6bed066bce4094b9311f",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-9/wa399b9057b03911d1ad3",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/spread-9/wc6c42d7eb6657f47055a",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-0017eccc/wc94874a14066d60060a8",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-0199a053/wd2e44fe5e6144194df54",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-03c81fa6/w95416a3e183a3196a30a",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-062fed83/w104561a84d4432ccf9aa",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-07284a81/wb5fffd22a6593437f458",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-08b87f84/w623f56525b1839c92cfb",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-0bf7770a/w976ff2eea450ce590cf4",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-0c606fcb/w8f64709850bb55dd6bbf",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-0e259aed/wdb1820f7f326f41978aa",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-0fd2ba60/w1de36742348090dc9dc4",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-1055ed2c/w449eda614c8803b9af18",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-115a561b/wdbb73f8ca13182539faf",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-11cdcf50/w8455dd259a6677b046f8",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-13d20b86/wb7d7b3b8a56a3e13605e",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-146f2e1b/wcf3df6c972fae08eac47",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-1765cd21/w078e82ece7e0200d3bd0",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-1aa0f6e8/w6f4e309650aea8140dc7",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-1b871497/w0a1bd0987af42bc59726",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-1d07a60e/w335d48f7c1c6518dfd8a",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-1e457dae/wa431475d8ddcda3a8616",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-1efd911f/wd35dd4bc2aa8a856441d",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-210a85f4/wf394305ce7e8fcfbe03e",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-2220e9e0/w13ab0fed33b9592331d2",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-22ab3da9/w2413f977421c79b6250e",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-23226745/w82768c1c8cabf5f8eb7b",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-23c100d6/w94203ef196969f956511",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-2568381b/wb6d8aa63bf52734e6eca",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-26178b55/wcc64fe73e1abe00df349",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-2802f4a0/w313d3bd23cb71a0b717a",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-298edfd6/w1b935102d6397ebe94d4",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-2bd5e1a0/w3e2df9e9446316ce7334",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-2e86e9ab/wb1e6d50b6b801c31d702",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-3075ca63/wde98ca81d5734ed07ce6",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-30f4cd4a/wf186aaa05343f56f08a9",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-33cbb5e0/w4982ccf7386d2e3be812",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-34808181/w51af24315ce95d3d3f15",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-3693610e/w6741ace07e4e3e4f5106",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-381a790b/w5f730dd3f0e0a2ad92b7",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-38ba64ca/wb5519e1c3f0eed5b14d7",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-397c2ef8/wf9d8c8de73e99179ea12",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-3ce314dd/w28e3a6fcb363545c9c68",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-3dfc1958/w6110b6dead210e8093a7",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-3ed47509/w4a5eb22e3658cf5ee2dc",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-40c53691/wa666756c512666d78fc5",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-43b29095/w9a3057e1fc76a97a6afa",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-45738e9a/wac1fd75c093587146681",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-46b422d2/w1ba62082eb03914cc0d3",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-479d4420/w4f754906b028f6671b4b",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-4899d533/w6f24827f2749e5c08b5d",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-4a012b8a/w70d827ea78e84de0293e",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-4ac76a59/wa17c224d49ba4357e714",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-4c7bbe76/wa12b02aecc4eeb82e47d",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-4de9d648/w13169559cbc2eab07202",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-4f241c5f/w6f47903f8b0256cc9dbc",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-51a53836/w0cfd3c13a77f39dd88c0",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-542d4f3a/w7160b8d5b82aa55b6bff",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-54ea1a25/w3701d615eb273cc1f2f7",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-573ba07d/w75551763e3dc95d3d1c8",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-58ab089e/wb8da35d91951c32f614d",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-5a258ec4/wfba0824172638b346f0a",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-5c495c0f/w08910295d3b96c088ada",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-5f58ddea/w2085d1c759a81cb816c5",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-620980db/wa701357001ff13f77d97",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-6494fa1e/w6a98c770d7c76e13c1a7",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-6522327a/wde0c945a813f0b481d74",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-6599f018/wfd50e63610fb0ca67ed6",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-682d01aa/w0a166a062742ac6353f0",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-69445163/w53b2c5b83f8a1ea02c39",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-6b2b1dfc/wa6bff0ad1b11cf05fff2",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-6d9fbc13/w882d94a15467e174ba60",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-6f4607a1/w9d4886c1adc6a41180c9",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-7072f9a4/wb6d31a122f208faac392",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-71ed1337/w0b6f8a1cd9b05b7a30f0",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-72a81273/w67390958d493217f3c17",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-765be1f5/w51f7920292bafb374f82",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-77224d8b/wc1e4024fb93bfc107576",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-79ac3af8/wc13156808cafcb52d2c1",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-7acb9f50/we64684adf2bfd792a510",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-7dd86f7c/w3186fddf89ea77096833",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-7f5056bd/w5cf15d40d14de9329b21",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-80c0c2b5/w60a46b0abbad0cf0bcf3",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-81ea9cc2/w667b418323f334f71d90",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-8389aba0/we8e7326639771b2726e1",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-84beb7b3/wd80cf6604d75c6738c86",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-8b0c1d81/w0fe40292b8facd7fef37",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-8b857beb/w138c0324578f4bc3d329",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-8ce63e18/w32d056c40c72c26e9b90",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-8e9b5cd5/wa4edc3131c28171b8014",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-8f5f2d8c/wd319fe7ec87bac0efa68",
+    "/home/nipatiitti/projects/hackathons/junction2026-data/runs/L8/sweep-911c780a/we84cc70d19aa6452afed"
+  ]
+}
