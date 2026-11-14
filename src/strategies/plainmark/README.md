@@ -9,5 +9,5 @@ A market-stall trader's strategy: three markups and one fee multiple, no learnin
   `flatHours`, then `feeRise` more each hour up to `feeMax`. After the deadline warning: `urgentOpen`, rising by
   `urgentRise` each half hour up to `urgentMax`.
 
-Params: `markupSameDay` 1.28, `markupNextDay` 1.3, `markupWithin3Days` 1.32, `trustStep` 0.01, `trustCap` 25,
-`feeOpen` 0.95, `flatHours` 2, `feeRise` 0.1, `feeMax` 1.5, `urgentOpen` 1.5, `urgentRise` 0.25, `urgentMax` 2.5.
+Params: `markupSameDay` 1.42, `markupNextDay` 1.45, `markupWithin3Days` 1.48, `trustStep` 0.01, `trustCap` 25,
+`feeOpen` 1.1, `flatHours` 1, `feeRise` 0.15, `feeMax` 1.8, `urgentOpen` 1.8, `urgentRise` 0.25, `urgentMax` 3.
