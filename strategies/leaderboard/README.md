@@ -123,7 +123,8 @@ fails is reported at the end and played again on the next run; it does not stop 
 
 The chart has one bar per strategy, best margin first. Blue bars are ranked weeks (90%+ on time); hatched grey bars are
 unranked, so their margin does not count; the orange bar is the root `dispatch.py`, the reference. A dashed outline
-marks a strategy whose code changed after its week. The axis spans the ranked weeks: a deeper loss is cut at the left
+marks a strategy whose code changed after its week. The "Made" time under the title is in Helsinki time, with its
+zone (EET, or EEST in summer), wherever the chart was drawn; a machine without time zone data writes UTC. The axis spans the ranked weeks: a deeper loss is cut at the left
 edge and labelled with its full value. Hover a bar for its orders, on-time share and world id. The table under the
 chart has the same numbers.
 
