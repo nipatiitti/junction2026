@@ -305,8 +305,8 @@
     "drop_risk": {
       "file": "strategies/drop_risk/dispatch.py",
       "fingerprint": "dfc64649e4f236d8",
-      "world_id": "w7772e520aa052bd97665",
-      "played_at": "2026-11-14T12:34:01+0200",
+      "world_id": "wa54780439095f7481007",
+      "played_at": "2026-11-14T16:03:33+0000",
       "score": {
         "marginCents": 1204081,
         "revenueCents": 3250652,
