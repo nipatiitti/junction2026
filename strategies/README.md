@@ -15,7 +15,7 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`lead_cost/`](lead_cost/README.md) | `LeadCostAdmission` | Which requests to take, by lead time, for `headroom` and up     |
 | [`lane_fee/`](lane_fee/README.md)   | `LaneFee`           | A lane's typical fee without one request's noise, for the same  |
 
-Thirty-six folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Thirty-eight folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                                              |
@@ -46,11 +46,13 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`tight_margin/`](tight_margin/README.md)         | `TightPricing`                         | Max margin's prices only once the week's drivers fall behind                            |
 | [`low_opening/`](low_opening/README.md)           | `LowOpeningPlanner`                    | Slack fees, opening a patient gig's first post at 0.8 x the typical fee                 |
 | [`headroom/`](headroom/README.md)                 | `HeadroomPricing`                      | Ceiling, with the lane fee, the cost by lead time, dawn fees and a maximum that moves   |
+| [`bulk_yard/`](bulk_yard/README.md)               | `BulkYardAdmission`, `BulkYardBundler` | Headroom, admitting a large yard batch as one and planning its chains from the yard      |
 | [`lane_prior/`](lane_prior/README.md)             | `PriorPricing`                         | Headroom, with a lift for each dear delivery place, fitted on the saved weeks           |
 | [`same_day/`](same_day/README.md)                 | `SameDayAdmission`                     | Headroom, quoting the fastest option that still pays                                    |
 | [`soft_top/`](soft_top/README.md)                 | `SoftTopPlanner`                       | Headroom, with a top fee of twice the lane fee, not 2.5 times                           |
 | [`flu_guard/`](flu_guard/README.md)               | `FluGuardAdmission`                    | Soft top, with a guard against the week's flu day, which shows at midnight               |
 | [`all_in/`](all_in/README.md)                     | `AllInAdmission`, `AllInPlanner`       | Soft top with the lane priors, same-day quotes, the flu guard and fees tuned on 22 weeks |
+| [`snow_aware/`](snow_aware/README.md)             | `SnowPlanner`, `SnowBundler`           | Headroom, stretching snowy legs and opening snowy pickup gigs earlier and dearer       |
 | [`opening_offers/`](opening_offers/README.md)     | `OpeningOffers`                        | Direct offers to nearby homes from a gig's first post, at the chain-offer fee           |
 | [`home_return/`](home_return/README.md)           | `HomeReturnFees`                       | A discounted fee where many drivers live at the delivery town                           |
 | [`adaptive_fees/`](adaptive_fees/README.md)       | `AdaptiveFees`                         | Cheaper fees while the running on-time share is above 95%, normal fees below it         |
