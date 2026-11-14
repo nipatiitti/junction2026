@@ -112,3 +112,18 @@ It withdraws the two single gigs and posts the pair at `pairOpen` × the sum of 
 A pair is also withdrawn when dropped or stale; the learners see its fee split across its two cars by typical fee, and an urgent pair is repriced at the sum of both orders' schedules.
 `pairCostCut` (default 0; 0.08 lost EUR 700 on spread-7) cuts `c` of a request that would pair with an open order of ours.
 The summary counts pairs found, posted, booked (fee over the two typical fees), split back, and quotes cut, won and paired.
+
+## Flags for the volume gap (#222)
+
+Three ideas for winning more orders at the same margin. Each is off by default, so the strategy decides as before.
+
+- `trustGuard` (default 0, `trust.ts`): a late order halves the dealer's trust count, and the top dealer sends 25–33% of a week's requests. With `trustGuard` over 0 a late order costs its refund plus the trust the halving loses: the points lost, summed over the orders we still expect to win from that dealer (each on-time win counts one back), times what a point adds to a price, times `trustGuard`.
+  It acts in two places. The quote adds the loss times the request's predicted late share (the table of `late.ts`) to `c`, so a risky request of a dealer with trust to lose is priced up or declined. Each gig of that dealer gets a late weight of 1 + loss / refunds (at most `trustGuardMax`, 4) in the fee solver, so its fees rise sooner. The summary reports the gigs it weighed and the mean and top weight.
+- `trustMinShare`, `trustUntil`, `trustLagHours` (defaults 0, 25, 0) focus the trust bonus of `trustValue`: only a dealer with at least `trustMinShare` of the requests so far, only while its count is under `trustUntil`, and counting only the requests that arrive `trustLagHours` after the win. An order counts when it is delivered, a median 24–28 hours after the win for every option. With the defaults `trustValue` works as before. The summary reports the quotes that carried a bonus.
+- `pairChains` (default off) lets `pairs` join a chain: B's pickup within `pairKm` of A's delivery, with B's delivery anywhere. A chain that is no round trip opens at `pairChainOpen` (0.92) × the two schedules, a round trip at `pairOpen`. The tick now takes the round trips first and then the pair with the shortest empty drive, and `pairCostCut` reaches chains when `pairChains` is on. The summary counts the chains among the pairs found.
+
+Params files for the bench, each `board.json` plus one idea: `trust-guard.json` (`trustGuard` 1), `trust-focus.json` (`trustValue` 1, `trustMinShare` 0.04, `trustUntil` 12, `trustLagHours` 24), `chains.json` (`pairs`, `pairChains`), `trust-both.json` (the two trust ideas) and `volume-all.json` (all three).
+
+```sh
+pnpm bench bidprice:src/strategies/bidprice/board.json bidprice:src/strategies/bidprice/trust-guard.json bidprice:src/strategies/bidprice/trust-focus.json bidprice:src/strategies/bidprice/chains.json bidprice:src/strategies/bidprice/trust-both.json bidprice:src/strategies/bidprice/volume-all.json --level 8 --seeds spread-6,spread-7,spread-8,spread-10
+```

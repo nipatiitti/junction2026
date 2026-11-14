@@ -14,15 +14,15 @@ import type {
   PriceRequest,
 } from '../../../vendor/spread-typescript/spread.ts'
 import { feeAt } from '../../models/fees/plan.ts'
-import { HOUR, minutes } from '../../ops/index.ts'
 import { MAX_SHARED_DRIVE } from '../../ops/gig.ts'
+import { HOUR, minutes } from '../../ops/index.ts'
 import { road } from '../../ops/map.ts'
 import type { Books, Setup } from '../../strategy.ts'
 import type { BidPriceParams } from './params.ts'
 
 type PairParams = Pick<
   BidPriceParams,
-  'pairChains' | 'pairCostCut' | 'pairKm' | 'pairOpen' | 'pairSlackHours' | 'pairGiveUpHours'
+  'pairChains' | 'pairChainOpen' | 'pairCostCut' | 'pairKm' | 'pairOpen' | 'pairSlackHours' | 'pairGiveUpHours'
 >
 
 /** The orders a post carries. */
@@ -78,6 +78,7 @@ export function sumSchedules(list: FeeStep[][], now: number, k: number, level: n
 export class Pairs {
   readonly tally = {
     found: 0,
+    chains: 0,
     posted: 0,
     booked: 0,
     split: 0,
@@ -146,35 +147,41 @@ export class Pairs {
       if (order.legs.length !== 1 || order.deliveredAt[0] != null || books.urgent.has(order.id)) continue
       singles.push({ order, gigId, post })
     }
+    // Every pair that fits, the round trips first and then the shortest empty drive: each order goes once.
+    const fits = singles.flatMap((a) =>
+      singles.flatMap((b) => {
+        if (b === a || !this.fits(a.order, b.order, now)) return []
+        return [{ a, b, round: this.round(a.order, b.order), empty: this.emptyKm(a.order, b.order) }]
+      }),
+    )
+    fits.sort((x, y) => Number(y.round) - Number(x.round) || x.empty - y.empty)
     const used = new Set<string>()
-    for (const a of singles) {
-      if (used.has(a.order.id)) continue
-      for (const b of singles) {
-        if (b === a || used.has(b.order.id) || !this.fits(a.order, b.order, now)) continue
-        used.add(a.order.id)
-        used.add(b.order.id)
-        this.tally.found++
-        actions.push(
-          { type: 'withdraw', gigId: a.gigId },
-          { type: 'withdraw', gigId: b.gigId },
-          {
-            type: 'post',
-            stops: [...a.post.stops, ...b.post.stops],
-            audience: {
-              experienced: a.post.audience.experienced || b.post.audience.experienced,
-              manualLicence: a.post.audience.manualLicence || b.post.audience.manualLicence,
-            },
-            schedule: this.schedule(a.post.schedule, b.post.schedule, now),
+    for (const { a, b, round } of fits) {
+      if (used.has(a.order.id) || used.has(b.order.id)) continue
+      used.add(a.order.id)
+      used.add(b.order.id)
+      this.tally.found++
+      if (!round) this.tally.chains++
+      actions.push(
+        { type: 'withdraw', gigId: a.gigId },
+        { type: 'withdraw', gigId: b.gigId },
+        {
+          type: 'post',
+          stops: [...a.post.stops, ...b.post.stops],
+          audience: {
+            experienced: a.post.audience.experienced || b.post.audience.experienced,
+            manualLicence: a.post.audience.manualLicence || b.post.audience.manualLicence,
           },
-        )
-        break
-      }
+          schedule: this.schedule(a.post.schedule, b.post.schedule, now, round),
+        },
+      )
     }
     return actions
   }
 
-  /** The quote side: 1 − `pairCostCut` for a one-car request that would make a round trip with one of our open
-   * one-car orders that no driver holds, by places and the 12-hour rule; 1 otherwise. */
+  /** The quote side: 1 − `pairCostCut` for a one-car request that would make a round trip (a chain too with
+   * `pairChains`) after one of our open one-car orders that no driver holds, by places and the 12-hour rule; 1
+   * otherwise. */
   costFactor(request: PriceRequest, books: Books): number {
     const cut = this.params.pairCostCut
     const lr = request.legs[0]
@@ -188,8 +195,8 @@ export class Pairs {
       if (!lo || order.legs.length !== 1 || gigs.length !== 1 || books.booked.has(gigs[0]!)) continue
       if (books.urgent.has(order.id) || order.deliveredAt[0] != null) continue
       if (order.lastPickupAt < now + (this.params.pairGiveUpHours + 2) * HOUR) continue
-      if (!this.near(lo.delivery.placeId, lr.pickup.placeId) || !this.near(lr.delivery.placeId, lo.pickup.placeId))
-        continue
+      if (!this.near(lo.delivery.placeId, lr.pickup.placeId)) continue
+      if (!this.params.pairChains && !this.near(lr.delivery.placeId, lo.pickup.placeId)) continue
       const driveO = minutes(map, lo.pickup.placeId, lo.delivery.placeId)
       if (driveO + minutes(map, lo.delivery.placeId, lr.pickup.placeId) + driveR > MAX_SHARED_DRIVE) continue
       this.cutIds.add(request.id)
@@ -199,15 +206,27 @@ export class Pairs {
   }
 
   summary(): string {
-    const { found, posted, booked, split, pairedPaid, pairedTypical } = this.tally
+    const { found, chains, posted, booked, split, pairedPaid, pairedTypical } = this.tally
     const ratio = pairedTypical > 0 ? (pairedPaid / pairedTypical).toFixed(2) : 'n/a'
     const { cut, cutWon, cutPaired } = this.tally
-    return `pairs found ${found}, posted ${posted}, booked ${booked} (${ratio} × typical), split ${split}, cut quotes ${cut}, won ${cutWon}, paired ${cutPaired}`
+    return `pairs found ${found} (${chains} chains), posted ${posted}, booked ${booked} (${ratio} × typical), split ${split}, cut quotes ${cut}, won ${cutWon}, paired ${cutPaired}`
   }
 
   /** Places within `pairKm`: by road, or the same place. */
   private near(from: string, to: string): boolean {
     return from === to || (road(this.setup.map, from, to)?.km ?? Infinity) <= this.params.pairKm
+  }
+
+  /** A round trip: B ends near where A starts, so the driver is home after the second car. */
+  private round(a: Order, b: Order): boolean {
+    return this.near(b.legs[0]?.delivery.placeId ?? '', a.legs[0]?.pickup.placeId ?? '')
+  }
+
+  /** The drive without a car between A's delivery and B's pickup, in km. */
+  private emptyKm(a: Order, b: Order): number {
+    const from = a.legs[0]?.delivery.placeId ?? ''
+    const to = b.legs[0]?.pickup.placeId ?? ''
+    return from === to ? 0 : (road(this.setup.map, from, to)?.km ?? Infinity)
   }
 
   /** The latest minute the driver can start at A and still reach B's last pickup. */
@@ -225,7 +244,7 @@ export class Pairs {
     const la = a.legs[0]!
     const lb = b.legs[0]!
     if (!this.near(la.delivery.placeId, lb.pickup.placeId)) return false
-    if (!this.params.pairChains && !this.near(lb.delivery.placeId, la.pickup.placeId)) return false
+    if (!this.params.pairChains && !this.round(a, b)) return false
     const map = this.setup.map
     const driveA = minutes(map, la.pickup.placeId, la.delivery.placeId)
     const between = minutes(map, la.delivery.placeId, lb.pickup.placeId)
@@ -243,8 +262,10 @@ export class Pairs {
     return now + (this.params.pairGiveUpHours + 2) * HOUR < this.latestStart(a, b)
   }
 
-  /** `pairOpen` × the sum of the two schedules from now on, never falling. */
-  private schedule(a: FeeStep[], b: FeeStep[], now: number): FeeStep[] {
-    return sumSchedules([a, b], now, this.params.pairOpen, this.setup.level)
+  /** `pairOpen` × the sum of the two schedules from now on (`pairChainOpen` × for a chain that is no round trip),
+   * never falling. */
+  private schedule(a: FeeStep[], b: FeeStep[], now: number, round: boolean): FeeStep[] {
+    const open = round ? this.params.pairOpen : this.params.pairChainOpen
+    return sumSchedules([a, b], now, open, this.setup.level)
   }
 }
