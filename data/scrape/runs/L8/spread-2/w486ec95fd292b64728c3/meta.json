@@ -1,0 +1,24 @@
+{
+  "seed": "spread-2",
+  "level": 8,
+  "policy": "hazard-fee",
+  "kind": "practice",
+  "worldId": "w486ec95fd292b64728c3",
+  "version": "d869ddfb1a13bb6a5e3ecfc4fa42d1389cc6b151",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 10032,
+  "score": {
+    "marginCents": 937879,
+    "revenueCents": 2927656,
+    "marginShare": 0.32035150304543974,
+    "wonOrders": 299,
+    "onTimeShare": 0.9765886287625418,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 38.1,
+  "requests": 537
+}

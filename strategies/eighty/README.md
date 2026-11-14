@@ -55,26 +55,27 @@ The new variables:
 Level 8, seeds `spread-1` to `spread-5`, four weeks at a time, 2026-11-14. Every week was ranked and is saved under
 `data/scrape/runs/L8/` with the policy `eighty-<tag>`.
 
-| Variant                                 | `spread-1` | `spread-2` | `spread-3` | `spread-4` | `spread-5` |   Total |
-| --------------------------------------- | ---------: | ---------: | ---------: | ---------: | ---------: | ------: |
-| **fees `open` 0.8 (the default)**       |    €12,857 |     €9,822 |     €5,712 |    €13,818 |     €8,159 | €50,369 |
-| admission `capacity_per_driver` 0.30    |    €12,541 |    €10,365 |     €5,551 |    €14,306 |     €7,517 | €50,280 |
-| `capacity_per_driver` 0.55              |    €12,838 |    €10,593 |     €5,471 |    €13,202 |     €7,874 | €49,978 |
-| `capacity_per_driver` 0.40              |    €12,537 |    €10,403 |     €5,551 |    €14,243 |     €6,859 | €49,593 |
-| fees `top` 1.7                          |    €12,654 |     €9,846 |     €5,444 |    €13,777 |     €7,236 | €48,960 |
-| v1: the three classes at their defaults |    €12,587 |    €10,062 |     €5,305 |    €13,454 |     €7,337 | €48,745 |
-| cost-aware 0.3, capacity 0.30           |    €12,405 |     €9,723 |     €5,756 |    €13,165 |     €7,458 | €48,507 |
-| `capacity_per_driver` 0.14              |    €11,655 |    €10,062 |     €5,290 |    €13,352 |     €7,293 | €47,652 |
-| per-key maximum 0.02, capacity 0.30     |    €12,347 |    €10,163 |     €5,512 |    €13,391 |     €6,234 | €47,647 |
-| capacity 0.40, `open` 0.8               |    €12,783 |     €9,378 |     €5,590 |    €12,633 |     €7,065 | €47,450 |
-| `target_win` 0.50                       |    €11,901 |     €8,475 |     €5,473 |    €13,278 |     €8,073 | €47,200 |
-| capacity 0.40, `cap_win` 0.42           |    €11,632 |     €9,587 |     €5,959 |    €13,427 |     €6,548 | €47,153 |
-| capacity 0.40, `cap_win` 0.58           |    €12,781 |     €8,721 |     €5,626 |    €13,613 |     €6,200 | €46,941 |
-| capacity 0.40, `cap_win` 0.66           |    €13,822 |     €8,611 |     €5,762 |    €12,622 |     €5,993 | €46,811 |
-| per-key maximum 0.04, capacity 0.30     |    €11,585 |     €8,782 |     €5,310 |    €13,594 |     €6,573 | €45,845 |
-| `target_win` 0.40                       |    €12,507 |     €8,069 |     €5,496 |    €12,757 |     €6,556 | €45,385 |
-| `cost_scale` 0.85, capacity 0.30        |    €11,874 |     €8,960 |     €5,195 |     €8,299 |     €6,249 | €40,576 |
-| `cost_scale` 1.15, capacity 0.30        |    €11,353 |     €7,760 |     €3,735 |    €10,464 |     €5,431 | €38,743 |
+| Variant                                                    | `spread-1` | `spread-2` | `spread-3` | `spread-4` | `spread-5` |   Total |
+| ---------------------------------------------------------- | ---------: | ---------: | ---------: | ---------: | ---------: | ------: |
+| **fees `open` 0.8 (the default)**                          |    €12,857 |     €9,822 |     €5,712 |    €13,818 |     €8,159 | €50,369 |
+| admission `capacity_per_driver` 0.30                       |    €12,541 |    €10,365 |     €5,551 |    €14,306 |     €7,517 | €50,280 |
+| `capacity_per_driver` 0.55                                 |    €12,838 |    €10,593 |     €5,471 |    €13,202 |     €7,874 | €49,978 |
+| `capacity_per_driver` 0.40                                 |    €12,537 |    €10,403 |     €5,551 |    €14,243 |     €6,859 | €49,593 |
+| fees `top` 1.7                                             |    €12,654 |     €9,846 |     €5,444 |    €13,777 |     €7,236 | €48,960 |
+| v1: the three classes at their defaults                    |    €12,587 |    €10,062 |     €5,305 |    €13,454 |     €7,337 | €48,745 |
+| cost-aware 0.3, capacity 0.30                              |    €12,405 |     €9,723 |     €5,756 |    €13,165 |     €7,458 | €48,507 |
+| `capacity_per_driver` 0.14                                 |    €11,655 |    €10,062 |     €5,290 |    €13,352 |     €7,293 | €47,652 |
+| per-key maximum 0.02, capacity 0.30                        |    €12,347 |    €10,163 |     €5,512 |    €13,391 |     €6,234 | €47,647 |
+| capacity 0.40, `open` 0.8                                  |    €12,783 |     €9,378 |     €5,590 |    €12,633 |     €7,065 | €47,450 |
+| `target_win` 0.50                                          |    €11,901 |     €8,475 |     €5,473 |    €13,278 |     €8,073 | €47,200 |
+| capacity 0.40, `cap_win` 0.42                              |    €11,632 |     €9,587 |     €5,959 |    €13,427 |     €6,548 | €47,153 |
+| capacity 0.40, `cap_win` 0.58                              |    €12,781 |     €8,721 |     €5,626 |    €13,613 |     €6,200 | €46,941 |
+| capacity 0.40, `cap_win` 0.66                              |    €13,822 |     €8,611 |     €5,762 |    €12,622 |     €5,993 | €46,811 |
+| per-key maximum 0.04, capacity 0.30                        |    €11,585 |     €8,782 |     €5,310 |    €13,594 |     €6,573 | €45,845 |
+| `target_win` 0.40                                          |    €12,507 |     €8,069 |     €5,496 |    €12,757 |     €6,556 | €45,385 |
+| `cost_scale` 0.85, capacity 0.30                           |    €11,874 |     €8,960 |     €5,195 |     €8,299 |     €6,249 | €40,576 |
+| `cost_scale` 1.15, capacity 0.30                           |    €11,353 |     €7,760 |     €3,735 |    €10,464 |     €5,431 | €38,743 |
+| pair-first admission (`back` unlimited, `return_leg` 0.85) |    €11,238 |     €8,447 |     €6,116 |     €8,497 |     €6,270 | €40,569 |
 
 ## What the bench shows
 
@@ -92,6 +93,12 @@ Level 8, seeds `spread-1` to `spread-5`, four weeks at a time, 2026-11-14. Every
 - **Little of the competitor's price carries between worlds.** Fitted leave-one-seed-out on the brackets, the places,
   distance, hour, option and drivers near both ends explain 6% to 9% of what the week and day do not; the lane of one
   world explains 48%, but a lane gets two quotes a week.
+
+**The other systems on the headroom desk add little.** The 17 merged on 2026-11-14 (issues #237 to #253) played
+spread-1 to spread-5 against `headroom` in one bench, stopped after 79 of 90 weeks: the best were `pair_first`
+(+€245 a week, ahead on 3 of 4 seeds), `robust_tune` (+€170), `bulk_yard` (+€159) and `herd_competitor` (+€123, ahead
+on 4 of 5); `joint_bid` lost €8,660 a week. `pair_first`'s admission on this desk lost €8,176 in total with 94.4% on
+time: with gigs opening at 0.8 × the lane fee, its extra pairs made more cars late.
 
 Every system the team has saved on all five seeds makes €48,000 to €52,000; the best was `r-sprint100` (€51,718). The
 only one near €80,000 is the TypeScript `recall` (€77,519), which remembers each seed's requests from earlier weeks
