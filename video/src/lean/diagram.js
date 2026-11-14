@@ -92,6 +92,7 @@ export const FUNCTIONS = [
   { id: 'actions', label: 'actions()', owner: 'Planner', rect: [-22.4, 13, -11, 14.8] },
   { id: 'hold', label: 'hold()', owner: 'Planner', rect: [-10, 12.4, 2.4, 15.4], tag: '+€826 a week (sim)' },
   { id: 'findChains', label: 'findChains()', system: 'lean', rect: [6, 11.2, 21, 14.2], tag: '+€1,560 a week' },
+  { id: 'bookChance', label: 'bookChance()', system: 'lean', rect: [22, 11.2, 34.5, 14.2], tag: '+€1,126 a week' },
   { id: 'readNote', label: 'readNote()', system: 'ops', rect: [-90.6, 7.4, -70.8, 9.2] },
   { id: 'canServe', label: 'canServe()', system: 'ops', rect: [-69.4, 7.4, -49.6, 9.2] },
   { id: 'gigShape', label: 'gigShape()', system: 'ops', rect: [-90.6, 11.4, -70.8, 13.2] },
@@ -103,6 +104,7 @@ export const FUNCTIONS = [
 /** Notes in the tag size: [text, x, z, align]. */
 export const NOTES = [
   ['order.json', -34.5, 14, 'left'],
+  ['chain.json', 22, 15.6, 'left'],
   ['→ noise 0.11 · taxLoad 0.47 · order.json', 47.4, 16.2, 'left'],
 ]
 
@@ -313,6 +315,12 @@ export const LINES = [
   },
   {
     points: [
+      [21, 12.7],
+      [22, 12.7],
+    ],
+  },
+  {
+    points: [
       [28.5, -33.2],
       [40, -33.2],
     ],
@@ -349,11 +357,11 @@ export const ROUTES = {
 /** Where a request stops for its price, and an order for its fee, on the lane above the centre. */
 export const STOPS = { price: [0, -8], fee: [23.75, -8] }
 
-/** The three framings of both zooms (height of the ground in the picture); whole × key = lean², so the middle of an
- * even zoom on a log scale is TS:LEAN. */
+/** The framings the zooms pass through: the whole diagram, only TS:LEAN, and bestPrice() (the height of the ground
+ * in the picture, and the point in its middle). */
 export const FRAMES = {
   whole: { centre: [0, -20.5], height: 160 },
-  lean: { centre: [0, -1.5], height: 56 },
+  lean: { centre: [0, -0.5], height: 56 },
   key: { centre: [0, 0], height: 19.6 },
 }
 
@@ -366,5 +374,5 @@ export const GROUPS = {
   saved: ['saved', 'analysis', 'sim', 'python'],
   price: ['Demand', 'Supply', 'outlook', 'cost', 'load', 'quote', 'bestPrice'],
   fee: ['gig', 'fees', 'stepped', 'planBy', 'rested'],
-  chains: ['tick', 'Planner', 'findChains'],
+  chains: ['tick', 'Planner', 'findChains', 'bookChance'],
 }
