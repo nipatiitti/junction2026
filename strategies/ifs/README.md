@@ -196,6 +196,14 @@ it while another run is going.
 file before the next run. The same command then goes on from `out/ifs/search.json`. Other seeds or another level
 need `--fresh`, or another `--state`.
 
+**Edit while it runs.** When a search starts, it copies the code that plays a week to `out/ifs/code/` and plays
+every week with that copy. So the rules can be edited while a search runs: the search in play keeps its code, and the
+next start plays the new code, beginning with the best values again.
+
+**Keep the computer awake.** A week that cannot reach the server fails, and the search plays its step again after a
+pause, up to eight times. A closed laptop lid stops it all the same. On a Mac, `caffeinate -i` in front of the command
+keeps the computer from idle sleep while the search runs.
+
 **What it writes**, all under `out/ifs/`, which is not committed:
 
 - `best.json`: every value of the best set so far, rewritten at each kept change. Play it with `--values`, or make it
@@ -204,6 +212,7 @@ need `--fresh`, or another `--state`.
 - `weeks.json`: the score of every week played, by seed and values, so the same week is never played twice, also by
   a later search. A week played before the code of the system changed is played again.
 - `trials/`: the values file of each set tried.
+- `code/`: the copies of the code, one for each version of it that a search played.
 
 **What it costs.** `--dry` prints the count: with the 54 values that have a step and three seeds, a pass is at most
 324 weeks. A saved week of the ceiling systems took about 30 seconds, so six at a time is about half an hour a pass
