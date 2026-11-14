@@ -58,7 +58,7 @@ MAX_FEE_LIST = 1.16  # decline when the typical fee is more than this times the 
 FEE_OPEN = 1.0  # post a gig at the typical fee times this
 FEE_TOP = 1.5  # and raise it to the typical fee times this
 FEE_STEPS = 6  # in this many even steps, the opening fee included
-TOP_BEFORE = 3 * HOUR  # the top fee is reached this long before the car's last pickup
+TOP_BEFORE = 2 * HOUR  # the top fee is reached this long before the car's last pickup
 DAWN = 6 * HOUR  # a gig with a morning to wait for holds its opening fee until this hour of its last morning
 
 NUMBERS = {
