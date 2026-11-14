@@ -84,11 +84,75 @@ fell under 90% on time: gigs expired unbooked (13 a week) because the flat fee r
 ranked. So `stepped` is the default: an unranked week scores nothing. Chains book at 0.66–0.78 × their cars' typical
 fees and carry about 30 cars a week; half of all single gigs book within 24 minutes, before a partner arrives.
 
+## Modifiers (`mods.ts`)
+
+The rules that the Python systems of [`strategies/`](../../../strategies/README.md) measured on their own weeks, as
+switches on `lean`. Each changes one decision and is off by default. **None has been played on `lean` yet.**
+
+| Param                 | From                     | What it does                                                                                                                                                                                                                                                      | What the Python weeks measured                                                                          |
+| --------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `dawn`, `dawnTop` 1.7 | `dawn_fees`, `all_in`    | Fees by the drivers' day: 0.9 × typical, 1.0 after an hour, held through every night; from the last 06:00 that leaves 3 hours, hourly steps from 1.05 to the top 7 hours before the last pickup; a gig with no morning opens at 1.1 and climbs in 15-minute steps | 74% of the gigs open at 06:00 book by 08:00, at any fee; +€1,772 on `spread-1` beside the lead cost     |
+| `leadCost`            | `lead_cost`              | The driver cost from a table by hours to the last pickup and to the ready time: 2.4 × typical under 8 hours, 1.77 under 14, 1.03 for a car ready the next day                                                                                                     | +€1,668 on `spread-1`; scaling the table by 0.85 or 1.15 lost €8,000 to €10,000 over five weeks         |
+| `bestOption`          | `lead_cost`, `same_day`  | Quotes only the option with the most expected margin                                                                                                                                                                                                              | A car ready tomorrow goes as `same_day` (8% dearer on the list, cost 1.03)                              |
+| `pairDiscount`        | `pair_first`             | This share off the cost of a request that can go on with one of our open cars (0.15 there)                                                                                                                                                                        | +€245 a week on headroom, ahead on 3 of 4 seeds; lost with a low opening fee                            |
+| `areaCap`             | `lead_cost`              | A pickup area holds this many open orders without a driver for each driver living within an hour (0.20 there, 2 at least)                                                                                                                                         | Half of it (0.10) lost €171 a week over 22 seeds                                                        |
+| `priceCap`            | `headroom`               | No price above a maximum that starts at 1.39 × list and moves 0.6% up on a win at it and down on a loss, between 1.20 and 1.62                                                                                                                                    | +€855 on `spread-1`; cheaper prices lose online because the competitor undercuts a dealer we mostly win |
+| `laneFee`             | `lane_fee`               | This share of the typical fee from the lane's road minutes instead of the request's own noisy figure                                                                                                                                                              | part of headroom's +€225                                                                                |
+| `shortDrive`          | `lead_cost`              | Added × typical for a drive under 30 minutes (0.12 there)                                                                                                                                                                                                         | a short drive costs 14% more over its typical fee                                                       |
+| `minEuros`            | `alignas` (another team) | The least margin a quote keeps (€8 there)                                                                                                                                                                                                                         |                                                                                                         |
+
+Left out: the flu guard, trust farming, the outage reserve and the town opening fee each moved a week by under €250,
+within what chance gives; `joint_bid` and lower opening fees under a ladder lost.
+
+### How `lean` compares
+
+- **`all_in`, the best Python system, is ahead.** Over 22 seeds it makes €12,268 a week, every week ranked, with 320
+  orders at about 98% on time. `lean` makes €11,653 on five fresh seeds with 203 orders at 91–97% on time, and
+  €9,497 against €13,592 on `spread-1`.
+- **What `lean` has that they do not**, none of it proven against them: the chain search over every path of up to four
+  cars with a loop priced without a trip home (their bundler appends or inserts greedily, three cars at most); the
+  raises drawn per gig (`jitter`); the win model that learns each dealer and place during the week; a practice week
+  in a few hundred requests.
+- **Same finding on both sides:** drivers wait for raises, so a low opening under a ladder loses (their 0.55 opening
+  lost €16,189 over three weeks; our slow climb lost €2,272 a week).
+
+### Why the leaders are ahead, and what to try
+
+The level 8 ranking round "Saturday 12:00" shows each team's orders. On its first world:
+
+| Team                  |  Margin | Orders | Margin an order | On time |
+| --------------------- | ------: | -----: | --------------: | ------: |
+| No Empty Miles        | €21,290 |    477 |           €44.6 |     99% |
+| Progresful            | €20,085 |    470 |           €42.7 |     97% |
+| DaVinci's Night Shift | €18,866 |    433 |           €43.6 |     97% |
+| House best            | €15,800 |    394 |           €40.1 |     96% |
+| `lean`                | €11,718 |    270 |           €43.4 |     94% |
+
+`lean` earns as much an order as the leaders. They win 430 to 500 orders a world, 45% of the requests, where `lean`
+wins 270 and `all_in` 320 to 370, and they still arrive on time. So the measured fact that "winning more is worse" holds
+only for a desk that cannot move the cars: the gap is volume at the same margin, and volume is bounded by lateness.
+
+Hypotheses, in the order to play them:
+
+1. **Admit by lead time** (`leadCost`, `bestOption`). Our late orders and dearest bookings are cars to collect the same
+   day; the Python table prices them at 1.8 to 2.4 × typical, which declines them, and takes cars ready tomorrow at
+   1.03. Fewer late orders lift the brake that holds our volume at 20–26% of the requests.
+2. **Fees by the drivers' day** (`dawn`). A gig booked the day before it starts cost us 0.89 × typical against 1.13 ×
+   on the day, and their weeks show the 06:00 planning hour takes what the app shows. Stepped fees count hours back
+   from the last pickup and ignore the hour of the day.
+3. **Then raise the target** (`target` 0.40 to 0.45) once weeks hold 97% on time. At 45% of the requests a quote must
+   win at about 1.40 × list, 6% under our 1.49, so the margin an order holds only if drivers cost about 0.75 × typical.
+4. **Chains for half of the cars, not an eighth** (`holdHours`, `pairDiscount`). A chain books at 0.66–0.78 × its cars'
+   typical fees and moves three cars with one driver, which is both the cost and the capacity that 45% needs. Half of
+   our single gigs book within 24 minutes, before a partner arrives, and 99% get a partner within a day.
+5. **A price maximum** (`priceCap`) to stop teaching the competitor to undercut the dealers we win most; our Friday
+   wins fall to 15% of the requests.
+
 ## Params
 
 `target` 0.3, `capacity` 0.4 (its start), `gain` 0.02, `flatShare` 0.5, `flatEuros` 60, `open` 0.88, `climbTo` 0.88,
 `stepped` true, `jitter` 1, `buffer` 0, `premium` 3, `privateAddress` 0.25, `feeRatio` 0.84, `overhead` 0.06,
 `minHours` 4, `minMargin` 1.05, `trust` 0.7, `lateSoft` 0.04, `lateHard` 0.05, `openGigs` 40, `urgentTop` 2,
-`lateTop` 1.7, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `chainHours` 5, `holdHours` 0. Override one
+`lateTop` 1.7, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `chainHours` 5, `holdHours` 0, and the modifiers above. Override one
 with `--set key=value`. The end of a week prints the share won, the mean price × list, the mean fee × typical, the
 late orders and the chains posted, booked and taken apart.
