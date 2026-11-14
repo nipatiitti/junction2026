@@ -887,6 +887,21 @@
         "ranked": true
       }
     },
+    "ts:atlas": {
+      "file": "src/dispatch.ts --strategy atlas",
+      "fingerprint": "148ff96ae1b08702",
+      "world_id": "wdf850e79294506ef7dc7",
+      "played_at": "2026-11-14T12:56:34+0200",
+      "score": {
+        "marginCents": 804499,
+        "revenueCents": 2309190,
+        "marginShare": 0.34839012814017034,
+        "wonOrders": 211,
+        "onTimeShare": 0.981042654028436,
+        "undeliveredShare": 0,
+        "ranked": true
+      }
+    },
     "war_guard": {
       "file": "strategies/war_guard/dispatch.py",
       "fingerprint": "c63dc01e0a460e95",
