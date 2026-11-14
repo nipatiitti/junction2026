@@ -71,15 +71,15 @@ licence of every gig, and a failed visit or an expired gig posts the car again w
 
 Each change was played alone against the defaults of its time, on the same seeds (level 8, margin a week).
 
-| Change                                     | Why (from the saved weeks)                                                |                      Mean difference | Seeds ahead |
-| ------------------------------------------ | ------------------------------------------------------------------------- | -----------------------------------: | ----------: |
-| Flat fee 0.88 instead of the climb         | 65% of bookers had waited for a rise                                      |                              +€2,272 |      5 of 5 |
-| `flatShare` 0.5                            | orders under €25 typical earned €13 each and were half of the late orders |                              +€1,314 |      5 of 5 |
-| `premium` 3, `privateAddress` 0.25         | premium cars 29% late at 1.37 × typical; private addresses 1.24 ×         |                              +€1,183 |      5 of 5 |
-| Chains                                     | every car paid its own trip out and home                                  |                                +€973 |      5 of 5 |
-| `flatShare` 1                              |                                                                           |             +€584, one week unranked |      3 of 5 |
-| `buffer` 0.12 (twice)                      | a third of late orders had a driver in time                               |                          +€117, −€42 |      2 of 5 |
-| `capacity` 0.7, `target` 0.36, `open` 0.80 |                                                                           | −€516, +€313 (one unranked), −€1,063 |             |
+| Change                                                    | Why (from the saved weeks)                                                |                      Mean difference | Seeds ahead |
+| --------------------------------------------------------- | ------------------------------------------------------------------------- | -----------------------------------: | ----------: |
+| Flat fee 0.88 instead of the climb                        | 65% of bookers had waited for a rise                                      |                              +€2,272 |      5 of 5 |
+| `flatShare` 0.5                                           | orders under €25 typical earned €13 each and were half of the late orders |                              +€1,314 |      5 of 5 |
+| `premium` 3, `privatePickup` 0.25, `privateDelivery` 0.25 | premium cars 29% late at 1.37 × typical; private addresses 1.24 ×         |                              +€1,183 |      5 of 5 |
+| Chains                                                    | every car paid its own trip out and home                                  |                                +€973 |      5 of 5 |
+| `flatShare` 1                                             |                                                                           |             +€584, one week unranked |      3 of 5 |
+| `buffer` 0.12 (twice)                                     | a third of late orders had a driver in time                               |                          +€117, −€42 |      2 of 5 |
+| `capacity` 0.7, `target` 0.36, `open` 0.80                |                                                                           | −€516, +€313 (one unranked), −€1,063 |             |
 
 On those five seeds the defaults then made €15,035. On five fresh seeds the same defaults made €11,161 and three weeks
 fell under 90% on time: gigs expired unbooked (13 a week) because the flat fee rises too late. Stepped fees made
@@ -257,10 +257,29 @@ at its last start. Same five seeds:
 off: in the simulator 0.2% of 2,000 to 3,500 offers a week are accepted and the margin does not move. The server
 has not played it.
 
+### Offers, the early fee and special orders
+
+Same five server seeds as above, against the default of that section (€14,065):
+
+| Variant                               | Server                                             | Simulator (40 seeds)       |
+| ------------------------------------- | -------------------------------------------------- | -------------------------- |
+| `offers` 1 / 0.9                      | +€826 ± 512 / +€611 ± 476, 1 to 28 accepted a week | +€19 ± 132 / −€75 ± 124    |
+| `early` 0.8 (**default**)             | +€686 ± 600, ahead on 4 of 5                       | +€403 ± 114, ahead on 29   |
+| `early` 0.7                           | −€56 ± 1,024                                       | +€361 ± 141 (at 0.74)      |
+| Special orders at their measured cost | not played                                         | −€495 ± 125, 1 point later |
+
+- **Offers do nothing.** Under 1% of 1,200 to 3,000 offers a week are accepted, on the server as in the simulator;
+  the server's gain hangs on one seed each time. They cost 2,500 requests a week, so `offers` stays 0.
+- **`early`**: a gig for a later day shows 0.8 × typical for its first hour. Two thirds of such gigs booked at the
+  opening fee of 0.88, half of them within 30 minutes.
+- **Special orders**: 257 saved weeks paid 0.40 × typical more for a private pickup, 0.12 for a private delivery
+  and 0.34 for a premium car than for a plain one. Pricing at those wins orders that then run late. The surcharges
+  stay; `privatePickup` and `privateDelivery` are now two params.
+
 ## Params
 
-`target` 0.3, `capacity` 0 (its start), `gain` 0, `noise` 0.28, `flatShare` 0.5, `flatEuros` 60, `open` 0.88, `jitter` 1, `spread` true, `offers` 0,
-`premium` 3, `privateAddress` 0.25, `feeRatio` 0.84, `supply` true, `overhead` 0.06, `minHours` 4, `minMargin` 1.05, `trust` 0.7,
+`target` 0.3, `capacity` 0 (its start), `gain` 0, `noise` 0.28, `flatShare` 0.5, `flatEuros` 60, `open` 0.88, `jitter` 1, `spread` true, `early` 0.8, `offers` 0, `order` false, `lateCost` 1,
+`premium` 3, `privatePickup` 0.25, `privateDelivery` 0.25, `feeRatio` 0.84, `supply` true, `overhead` 0.06, `minHours` 4, `minMargin` 1.05, `trust` 0.7,
 `feeBrake` 1.5, `lateSoft` 0.04, `lateHard` 0.05, `openGigs` 40, `urgentTop` 2, `lateTop` 1.7, `chains` true,
 `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `chainHours` 5, `holdHours` 2, `chainPatience` 0, `chainBid` false,
 `pairCharge` 1. Override one
