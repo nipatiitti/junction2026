@@ -103,6 +103,9 @@ export const DEFAULTS = {
   maxCars: 4,
   minSaving: 0.15,
   chainHours: 5,
+  /** A new car that may join a chain waits this many hours for a partner before it is posted alone: half of the
+   * single gigs book within half an hour, before a partner can arrive. 0 posts at once. */
+  holdHours: 0,
 }
 export type LeanParams = typeof DEFAULTS
 
@@ -141,6 +144,9 @@ class Lean extends Strategy<LeanParams> {
   private readonly chains = new Map<string, Chain>()
   /** The orders that were in a chain no driver took: they stay single. */
   private readonly single = new Set<string>()
+  /** Order id -> the minute it first waited for a partner; and the orders whose wait is over. */
+  private readonly heldSince = new Map<string, number>()
+  private readonly released = new Set<string>()
   private readonly chained = { posted: 0, cars: 0, booked: 0, bookedCars: 0, ratios: 0, undone: 0 }
 
   constructor(setup: Setup, params: LeanParams) {
@@ -372,7 +378,7 @@ class Lean extends Strategy<LeanParams> {
     for (const chain of found.filter((c) => c.startBy - now >= (p.chainHours + 3) * HOUR).slice(0, 5)) {
       const stops = chain.cars.flatMap((car) => car.stops)
       this.planned.set(keyOf(stops), chain)
-      for (const car of chain.cars) actions.push({ type: 'withdraw', gigId: car.gigId })
+      for (const car of chain.cars) if (car.gigId) actions.push({ type: 'withdraw', gigId: car.gigId })
       actions.push({
         type: 'post',
         stops,
@@ -383,22 +389,46 @@ class Lean extends Strategy<LeanParams> {
     return actions
   }
 
-  /** Our open cars that may join a chain: one car, one gig that no driver holds, no setback, no warning, a dealer's
-   * yard, any driver, and time left. */
+  /** Whether an order's car may join a chain: one car, no setback, no warning, a dealer's yard, any driver, and
+   * time left. */
+  private chainable(order: Order, books: Books): boolean {
+    const leg = order.legs[0]
+    if (!leg || order.legs.length !== 1 || order.deliveredAt[0] !== null || books.urgent.has(order.id)) return false
+    if (this.single.has(order.id) || this.retries.has(`${order.id} 0`)) return false
+    if (leg.car.premium || leg.pickup.privateAddress) return false
+    return books.now <= order.lastPickupAt - (this.params.chainHours + 3) * HOUR
+  }
+
+  /** A new car that may join a chain waits `holdHours` for a partner, while it has time to spare after the wait. */
+  override hold(need: GigNeed, books: Books): boolean {
+    const { order } = need
+    const p = this.params
+    if (!p.chains || !(p.holdHours > 0) || this.setup.level < 3) return false
+    if ((need.why !== 'won' && need.why !== 'lost') || this.released.has(order.id)) return false
+    if (!this.chainable(order, books) || books.gigsOf(order.id).length > 0) return false
+    const since = this.heldSince.get(order.id) ?? books.now
+    this.heldSince.set(order.id, since)
+    const holds = books.now < since + p.holdHours * HOUR && books.now < order.lastPickupAt - (p.chainHours + 6) * HOUR
+    if (!holds) this.released.add(order.id)
+    return holds
+  }
+
+  /** Our open cars that may join a chain: the cars that wait for a partner, and the single gigs that no driver
+   * holds. */
   private openCars(books: Books): Car[] {
     const now = books.now
     const cars: Car[] = []
     for (const order of books.orders.values()) {
       const leg = order.legs[0]
-      const [gigId, ...more] = books.gigsOf(order.id)
-      const post = gigId ? books.posts.get(gigId) : undefined
       const request = books.requests.get(order.id)
-      if (!leg || order.legs.length !== 1 || order.deliveredAt[0] !== null || !gigId || more.length > 0) continue
-      if (!post || !request || post.stops.length !== 2 || books.booked.has(gigId) || books.urgent.has(order.id))
-        continue
-      if (this.single.has(order.id) || this.retries.has(`${order.id} 0`) || this.dropped.has(gigId)) continue
-      if (leg.car.premium || post.audience.experienced || leg.pickup.privateAddress) continue
-      if (now > order.lastPickupAt - (this.params.chainHours + 3) * HOUR) continue
+      const [gigId, ...more] = books.gigsOf(order.id)
+      if (!leg || !request || more.length > 0 || !this.chainable(order, books)) continue
+      if (!gigId && !(this.heldSince.has(order.id) && !this.released.has(order.id))) continue
+      if (gigId && (books.booked.has(gigId) || this.dropped.has(gigId))) continue
+      const post = gigId
+        ? books.posts.get(gigId)
+        : gigShape(order, [0], readNote(request.note, request.arrivedAt), FIRST_TRY, now, this.context())[0]
+      if (!post || post.stops.length !== 2 || post.audience.experienced) continue
       const [pickup, delivery] = post.stops as [StopRef, StopRef]
       const drive = driveMinutes(this.setup.map, [leg])
       if (pickup.kind !== 'pickup' || delivery.kind !== 'delivery' || !Number.isFinite(drive)) continue
