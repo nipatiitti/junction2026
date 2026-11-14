@@ -80,6 +80,10 @@ export const DEFAULTS = {
   minMargin: 1.05,
   /** How much of the dealer's trust (1% for each order on time) goes into the price. */
   trust: 0.7,
+  /** Start the week's win model from the measured dealer facts (demand.ts): the middle without trust (1.27 × list,
+   * so set `trust` to 1 with it), the towns, the hour, the order's size, 2.1% off for each late order of the
+   * dealer, and the competitor's daily answer to the share of a dealer's requests that we win. */
+  facts: false,
   /** How much the target falls for each 1.0 × typical that bookings cost over `feeRatio`. 0 leaves volume to the
    * lateness alone: dear bookings are already in the price. */
   feeBrake: 1.5,
@@ -145,7 +149,7 @@ class Lean extends Strategy<LeanParams> {
   private readonly tally = { requests: 0, quoted: 0, won: 0, multiples: 0, bookings: 0, ratios: 0 }
   constructor(setup: Setup, params: LeanParams) {
     super(setup, params)
-    this.demand = new Demand(setup.level)
+    this.demand = new Demand(setup.level, params.facts)
     this.drivers = setup.roster.length > 0 ? setup.roster.length / 777 : 1
     this.capacity = params.capacity
     this.feeRatio = params.feeRatio
@@ -173,7 +177,7 @@ class Lean extends Strategy<LeanParams> {
       if (alone === null) continue
       const share = this.planner.share(request, option, facts, books)
       const cost = alone * share
-      const belief = this.demand.belief(this.demand.keys(request, option.kind), this.trustOffset(request.dealerId))
+      const belief = this.demand.belief(this.demand.keys(request, option.kind), this.trustOffset(request.dealerId, now))
       const crowd = 1 + 0.04 * Math.max(0, this.askedFrom(request) - 4)
       const place = (1 - p.flatShare) * request.referenceFeeCents + p.flatShare * p.flatEuros * 100
       const charge = cost + this.capacity * crowd * place * (share < 1 ? p.pairCharge : 1)
@@ -228,9 +232,13 @@ class Lean extends Strategy<LeanParams> {
     return (this.late.size + 0.5 * atRisk) / (this.done + atRisk + 20)
   }
 
-  /** The dealer's trust as a move of its threshold: each order on time adds 1%, a late one halves the count. */
-  private trustOffset(dealerId: string): number {
-    return this.params.trust * Math.log(1 + this.trustCount(dealerId) / 100)
+  /** What moves a dealer's threshold at minute `at`: its trust (each order on time adds 1%, a late one halves the
+   * count), and with `facts` 2.1% off for each late order and the competitor's answer to yesterday's wins. */
+  private trustOffset(dealerId: string, at: number): number {
+    const trust = this.params.trust * Math.log(1 + this.trustCount(dealerId) / 100)
+    if (!this.params.facts) return trust
+    const lates = (this.delivered.get(dealerId) ?? []).filter((id) => this.late.has(id)).length
+    return trust - 0.021 * lates + this.demand.rival(dealerId, Math.floor(at / DAY))
   }
 
   /** The dealer's count of orders on time, up to 25; a late one halves it. */
@@ -256,7 +264,8 @@ class Lean extends Strategy<LeanParams> {
     const request = books.requests.get(requestId)
     this.pending.delete(requestId)
     if (!prices || !request) return
-    const offset = this.trustOffset(request.dealerId)
+    const offset = this.trustOffset(request.dealerId, request.arrivedAt)
+    if (won) this.demand.count(request.dealerId, request.arrivedAt, true)
     for (const option of request.options) {
       const cents = prices[option.kind]
       if (cents === undefined || (won && option.kind !== won)) continue
@@ -366,6 +375,7 @@ class Lean extends Strategy<LeanParams> {
       case 'price_request':
         this.tally.requests++
         this.demand.dawn(Math.floor(event.at / DAY))
+        this.demand.count(event.request.dealerId, event.request.arrivedAt, false)
         this.asked = this.asked.filter((other) => other.respondBy > event.at)
         this.asked.push({
           id: event.request.id,
