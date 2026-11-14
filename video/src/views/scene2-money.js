@@ -98,6 +98,26 @@ function snore(g, t, x, y) {
 }
 
 export default {
+  /** Snores and typing, the rising finger, Enter, the slot machine, the cash, the printer, the chat. */
+  sounds(segment) {
+    const cues = [{ at: 0, sound: 'snore', length: 1.8, gain: 0.1 }]
+    for (let at = 0.1; at < 1.8; at += 0.09) cues.push({ at, sound: 'tap', gain: 0.07 })
+    cues.push(
+      { at: 1.8, sound: 'riser', length: 1.1, gain: 0.18 },
+      { at: ENTER, sound: 'boom', gain: 0.85 },
+      { at: ENTER, sound: 'slot', length: 0.33, gain: 0.12 },
+      { at: LAND, sound: 'kaching', gain: 0.3, wet: 0.3 },
+      { at: LAND, sound: 'boom', gain: 0.5, length: 0.6 },
+      { at: RUMBLE, sound: 'brrr', length: 3.4, gain: 0.25 },
+      { at: 7.9, sound: 'snore', length: 0.6, gain: 0.14 },
+      { at: 7.1, voice: 'scene2-chat' },
+      { at: 7.95, voice: 'scene2-back' },
+    )
+    segment.lines.feed.forEach((_, i) => {
+      cues.push({ at: 7.0 + i * 0.11, sound: 'tap', gain: 0.1 })
+    })
+    return cues
+  },
   build(segment) {
     const lines = segment.lines
     const rand = rng(21)
