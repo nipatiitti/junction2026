@@ -1,0 +1,24 @@
+{
+  "seed": "spread-12",
+  "level": 8,
+  "policy": "flu-guard",
+  "kind": "practice",
+  "worldId": "w5f1dcb2787e8c675acf5",
+  "version": "8c3eef3280f421baff215ee3fef8a9784138d108-dirty",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 20593,
+  "score": {
+    "marginCents": 1253129,
+    "revenueCents": 4914356,
+    "marginShare": 0.2549935332320247,
+    "wonOrders": 376,
+    "onTimeShare": 0.9361702127659575,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 18.2,
+  "requests": 627
+}
