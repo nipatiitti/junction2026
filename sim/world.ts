@@ -30,14 +30,14 @@ export const PRM = {
   level: [1.26, 1.54],
   thrBase: 0.925,
   daySd: 0.1,
-  laneSd: 0.06,
-  dealerSd: 0.04,
-  reqSd: 0.1,
-  optSd: 0.14,
+  laneSd: 0.084,
+  dealerSd: 0.1,
+  reqSd: 0.139,
+  optSd: 0.18,
   distK: 0.1,
-  optF: { same_day: 1.145, next_day: 1.0, within_3_days: 0.96 } as Record<string, number>,
-  hourLate: 0.04,
-  hourEarly: -0.02, // requests from 15:00 are accepted about 6% higher than morning ones
+  optF: { same_day: 1.123, next_day: 1.0, within_3_days: 0.986 } as Record<string, number>,
+  hourLate: 0.034,
+  hourEarly: -0.024, // requests from 15:00 are accepted about 6% higher than morning ones
   // 2.58M recorded quotes with a dealer effect per week: trust 1.09 x the rule's 1% (so the rule), -2.1% per late order, on-time orders win almost nothing back
   trustStep: 0.01,
   latePenalty: 0.021,
@@ -816,8 +816,8 @@ function plan(W: any, d: any, g: any): any {
     if (D === today && !ours && h(W.seed + d.id + 'td' + D) > PRM.pToday) continue
     let loc = d.home,
       free = Math.max(now, D * 1440 + dd.from),
-      n = 0,
-      chain = false
+      n = dd.done ?? 0,
+      chain = false // gigs already finished that day count against the day's limit
     if (D === today && d.locDay === today) {
       loc = d.loc
       free = Math.max(free, d.freeAt)
@@ -1032,6 +1032,10 @@ function nextStop(W: any, g: any, k: number, from: string, extra: number) {
   g.status = 'done'
   if (g.failed < 1) ledger(W, 'driver_fee', -g.feeCents * (1 - g.failed), g.orderIds[0], g.id, 'Driver fee')
   d.completed++
+  if (g.plan) {
+    const dd = d.days[g.plan.D]
+    if (dd) dd.done = (dd.done ?? 0) + 1
+  }
   d.freeAt = W.now + extra
   d.loc = from
   d.locDay = day(W.now)

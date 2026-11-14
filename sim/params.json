@@ -1,7 +1,7 @@
 {
-  "pWork": 0.19,
+  "pWork": 0.22,
   "pWorkSat": 0.08,
-  "pToday": 0.32,
+  "pToday": 0.4,
   "urgent": 0.45,
   "urgentTau": 240,
   "knowsWeek": 0.3,
