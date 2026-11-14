@@ -26,8 +26,13 @@ entry in [`LEAN_CHANGELOG.md`](../../../LEAN_CHANGELOG.md) in the same PR.
   to be late, and × 3 for a premium car. `costLevel` is the only level of the cost. The supply learns each booking
   over what the order model expected of that car when it was won, so a place effect holds only what the model does
   not say already.
-- **The quote** is, for each option, the price with the highest chance × (price − cost). There is no charge for
-  capacity, no target share and no least margin: with a noise of 0.28 the best price is never under 1.39 × cost.
+- **What an order costs the others.** Each order per driver more raises the fee of every booking by 0.355 × typical
+  and the refunds by €6.51 an order, so one more order costs the rest of the week €28.7 × the orders per driver:
+  0.47 of the mean order's cost (`taxLoad`). The week's load is the share of the requests won so far, over a week's
+  1,033 requests and the world's drivers.
+- **The quote** is, for each option, the price with the highest chance × (price − cost − that charge), on a win
+  curve of the dealers' measured scale (`noise` 0.11). A week that wins more raises its own charge, so it settles
+  where the next order earns nothing. [Supply and demand](#supply-and-demand-15-november) has the fit.
 
 ## 2. The fee (`fees.ts`)
 
@@ -337,11 +342,11 @@ chains where the server books 63%, so it cannot judge those. The server check fo
 
 Five fresh seeds, each version on the same seeds (level 8, a week):
 
-| Version | Margin | Orders | Late orders | Lowest week on time | Ranked |
-| --- | --- | --- | --- | --- | --- |
-| main | €12,546 | 338 | 10.6 | 93.2% | 5 of 5 |
-| The changes, with the cost level 8% up (a side effect of the first fit) | €12,605 | 310 | 6.6 | 95.8% | 5 of 5 |
-| The changes, with the cost level as before | €12,901 | 351 | 10.2 | 95.7% | 5 of 5 |
+| Version                                                                 | Margin  | Orders | Late orders | Lowest week on time | Ranked |
+| ----------------------------------------------------------------------- | ------- | ------ | ----------- | ------------------- | ------ |
+| main                                                                    | €12,546 | 338    | 10.6        | 93.2%               | 5 of 5 |
+| The changes, with the cost level 8% up (a side effect of the first fit) | €12,605 | 310    | 6.6         | 95.8%               | 5 of 5 |
+| The changes, with the cost level as before                              | €12,901 | 351    | 10.2        | 95.7%               | 5 of 5 |
 
 +€355 ± 335 a week against main, ahead on 3 of 5 seeds: inside what chance gives. Gigs whose raises are over book at
 1.32 × typical against 1.78, the cars of failed chains are late 1.7% of the time against 3.9%, and Fridays cost
@@ -354,12 +359,12 @@ Three reviews of the code found state that a restart lost, rules written several
 cost level set in four places, and most constants where `pnpm bench` and `pnpm tune` could not reach them. What
 changed, with no tuned value changed on purpose:
 
-| Checkpoint | Change | Check on the simulator (40 seeds) |
-| --- | --- | --- |
-| 0 | Baseline | €18,614, 402 orders, 97.3% on time; slowest tick 3.2 seconds (over the 3-second budget); 65 chains withdrawn within 30 minutes of their post |
-| 1 | The planner's state, the drops, the floors and the supply's inputs come from the events and the journal | +€74 ± 121 against 0. A week restarted twice ends within a few hundred euros of the same week uninterrupted, with the same chain counts |
-| 2 | One rule for when a chain may be open; chains that would be refused no longer block others; a path is judged from its first start that works; the search is ordered and bounded | Slowest tick 0.2 seconds; 3 chains withdrawn within 30 minutes. The margin (−€800 ± 127) does not count: the simulator books 82 to 93% of the chains, the server 60% |
-| 3 to 5 | One cost level (`costLevel`); the supply learns what the order model leaves; one test for "today"; `minMargin`, `overhead`, `spread` and `chainHours` removed; one planning-timed fee schedule and one urgent climb, in waking minutes; constants named or made params | +€183 ± 165 against 2, 387 orders against 395; no fault, no schedule that is empty, falls or starts in the past; every new param accepted by `pnpm bench` |
+| Checkpoint | Change                                                                                                                                                                                                                                                                 | Check on the simulator (40 seeds)                                                                                                                                    |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0          | Baseline                                                                                                                                                                                                                                                               | €18,614, 402 orders, 97.3% on time; slowest tick 3.2 seconds (over the 3-second budget); 65 chains withdrawn within 30 minutes of their post                         |
+| 1          | The planner's state, the drops, the floors and the supply's inputs come from the events and the journal                                                                                                                                                                | +€74 ± 121 against 0. A week restarted twice ends within a few hundred euros of the same week uninterrupted, with the same chain counts                              |
+| 2          | One rule for when a chain may be open; chains that would be refused no longer block others; a path is judged from its first start that works; the search is ordered and bounded                                                                                        | Slowest tick 0.2 seconds; 3 chains withdrawn within 30 minutes. The margin (−€800 ± 127) does not count: the simulator books 82 to 93% of the chains, the server 60% |
+| 3 to 5     | One cost level (`costLevel`); the supply learns what the order model leaves; one test for "today"; `minMargin`, `overhead`, `spread` and `chainHours` removed; one planning-timed fee schedule and one urgent climb, in waking minutes; constants named or made params | +€183 ± 165 against 2, 387 orders against 395; no fault, no schedule that is empty, falls or starts in the past; every new param accepted by `pnpm bench`            |
 
 `SPREAD_RESTART_AT=<minute>,<minute>` makes a practice week restart itself at those world minutes, and each week now
 prints its slowest strategy calls.
@@ -372,11 +377,57 @@ Left as they are, and worth their own measurement: the dealer middle of 1.40 (th
 trust), the raises' sizes and times, a lost request that teaches the shared effects once per option, and the
 premium factor of 3.
 
+## Supply and demand (15 November)
+
+Until now `noise` 0.28 did two jobs. It was the scale of the win curve, and, because the best price keeps at least
+`noise` of itself over the cost, the only limit on volume: no price under 1.39 × cost. The dealers' own scale is
+0.12, so the model read every lost quote as a far lower middle than the real one and then added a large markup.
+
+The split: `noise` is the dealers' scale, and a charge on the cost says what an order costs the others. The fit is
+`uv run python -m analysis.supply_curve`, on 60 server weeks of ten fresh seeds (`supply-1` to `supply-10`, level 8)
+that differ only in a fixed `tax`, with one level per seed. The load is the orders won per driver (0.36 to 0.75):
+
+| Function                | Fit                                 | R²   |
+| ----------------------- | ----------------------------------- | ---- |
+| Fee paid × typical      | +0.355 ± 0.038 per order per driver | 0.64 |
+| Refunds per order       | +€6.51 ± 0.98 per order per driver  | 0.47 |
+| Late share              | +0.143 ± 0.016 per order per driver | 0.62 |
+| Demand's logistic scale | 0.122 ± 0.006                       | 0.90 |
+
+One more order raises the load by 1 ÷ drivers for every order of the week, so it costs the others
+load × (typical × 0.355 + €6.51) = €28.7 × load, or 0.47 × load of the mean order's cost (€61.7). The trust that a
+late order loses with its dealer is not in it.
+
+The same ten seeds, every week ranked (mean margin a week, against the defaults before, `noise` 0.28):
+
+| Variant (`noise` 0.11 but the first) | Margin  | Orders | On time | Against `noise` 0.28   |
+| ------------------------------------ | ------- | ------ | ------- | ---------------------- |
+| `noise` 0.28, no charge              | €15,903 | 362    | 97.3%   |                        |
+| `tax` 0.04                           | €15,425 | 523    | 95.1%   | −€478 ± 579, 3 of 10   |
+| `tax` 0.12                           | €15,607 | 487    | 95.1%   | −€296 ± 474, 4 of 10   |
+| `tax` 0.24                           | €16,626 | 437    | 97.0%   | +€724 ± 330, 8 of 10   |
+| `tax` 0.28                           | €16,416 | 420    | 97.0%   | +€513 ± 504, 6 of 10   |
+| `tax` 0.32                           | €16,632 | 406    | 97.3%   | +€729 ± 316, 7 of 10   |
+| `tax` 0.40                           | €15,907 | 367    | 97.6%   | +€4 ± 250, 5 of 10     |
+| `taxEuros` 8                         | €15,653 | 465    | 95.1%   | −€249 ± 489, 5 of 10   |
+| `taxEuros` 16                        | €16,051 | 378    | 96.1%   | +€148 ± 630, 6 of 10   |
+| `taxLoad` 0.47 (**default**)         | €16,875 | 436    | 96.6%   | +€972 ± 386, 7 of 10   |
+| `taxLoad` 0.56                       | €16,946 | 421    | 97.1%   | +€1,043 ± 344, 7 of 10 |
+
+- **The split is the gain.** With the real scale and the same lowest price (`tax` 0.24), `lean` wins 75 more orders
+  at the same on-time share.
+- **A fixed charge peaks at 0.24 to 0.32**, where the fitted one is at these loads (0.21 to 0.28).
+- **The charge by load is €248 ± 322 ahead of `tax` 0.24**, on 7 of 10 seeds: within chance, and the default because
+  it is the fitted function and not a number read off these seeds. 0.56 is level with it.
+- **A flat charge in euros is worse than a share of the cost**: it turns away the short orders.
+- An earlier check on four seeds, on the code before #335 (`noisechk-1` to `noisechk-4`): `noise` 0.20 without a
+  charge made +€264 and 0.14 −€554 with one week unranked.
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
 `early` 0.8, `lateWithin` 60, `lateOpen` 1.25, `urgentOpen` 1.15, `urgentStep` 0.125, `urgentEvery` 15, `urgentTop` 2,
 `lateFrom` 1.1, `lateStep` 0.05, `lateEvery` 30, `lateTop` 1.7, `feeRatio` 0.84, `lateCost` 1, `premium` 3,
-`privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 0.98, `minHours` 4, `noise` 0.28,
-`middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
+`privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 0.98, `minHours` 4, `noise` 0.11,
+`tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
 `pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1.
