@@ -635,6 +635,31 @@ SPREAD_URL=http://localhost:8787 SPREAD_KEY=sim SPREAD_RECORD=0 SPREAD_JOURNAL_D
   --level 8 --seeds lean-so-validate-1..lean-so-validate-40 --jobs 12
 ```
 
+### Shared outcomes on today's defaults (15 November, #360)
+
+The server check above was on the code before the weekend rule and the chain model. On today's defaults,
+`supply-1` to `supply-20` (level 8, mean a week, every week ranked):
+
+| 20 paired server seeds | `sharedOutcome` false | true (**default**) |
+| ---------------------- | --------------------- | ------------------ |
+| Mean margin            | €17,189               | €17,494            |
+| Mean orders            | 453                   | 431                |
+| Price × list           | 1.450                 | 1.488              |
+| Fee × typical          | 0.916                 | 0.918              |
+| Late orders            | 4.8%                  | 4.4%               |
+| Margin an order        | €39.1                 | €41.8              |
+| Lowest week on time    | 92.5%                 | 91.2%              |
+
++€305 ± 203 a week, ahead on 13 of 20. With the 15 seeds above (+€447 ± 213) that is about +€366 ± 147 over 35
+seeds, so `sharedOutcome` is now true. The gain is the price: 22 fewer orders at 2.6% more, won less on Monday
+to Wednesday (40%, 47% and 41% of the requests against 44%, 51% and 44%) and as much after.
+
+Two biases of the same kind on the cost side were checked on those 20 weeks and are too small to act on. The
+supply learns from every booking, also one that the driver gives back: 30 gigs a week are booked twice, at 0.88 ×
+typical and then at 1.09 ×, but over all bookings that is 0.955 × learned against 0.961 × paid. And a car that
+cannot ride in a chain is priced by places whose bookings are half chains: the 16 a week with under 22 hours of
+lead pay 1.17 × typical and earn €26 an order against €38, which is €200 a week at most.
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
