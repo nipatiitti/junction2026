@@ -29,6 +29,19 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-15: the chain model (issue #351)
+
+- **Version changed**: TypeScript.
+- **What changed**: `chainModel` (true) gives each chain the fee level from 0.85 to 1.3 that earns the most by its
+  chance to book (`chain.json`, fitted by `analysis.chain_model`), ranks the chains by what they earn a car and
+  posts none that earns nothing; `chainTries` (3, was always 1) lets the cars of a failed chain join two more. 20
+  server seeds: +€1,126 a week, 71% of the chains book where 53% did. New params that are off: `chainFit`,
+  `chainOpen`, `chainAlone`, `chainSpread` and `chainOffers` with `chainOfferSpread` (direct offers of an open
+  chain, which lost €372 a week). The tables:
+  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#the-chain-model-a-fee-for-each-chain-by-its-chance-to-book-351).
+- **In step**: no (#329). The Python version has neither the model nor the params, so it posts other chains at
+  other fees.
+
 ### 2026-11-14: shared learning of a lost request (PR #358, issue #357)
 
 - **Version changed**: TypeScript.
