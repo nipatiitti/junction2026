@@ -104,6 +104,11 @@ export abstract class Strategy<P extends Params = Params> {
     return []
   }
 
+  /** The minute to send an order's first post, for a strategy that holds it; the desk's sweep posts it then. */
+  holdUntil(_order: Order, now: number): number {
+    return now
+  }
+
   /** One line on the strategy's week, printed at the end; empty for none. */
   summary(): string {
     return ''

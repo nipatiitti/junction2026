@@ -50,6 +50,7 @@ export class Desk implements Books {
   readonly urgent = new Set<string>() // the orders whose deadline warning has come
   readonly refused = new Map<string, number>() // "post: <reason>" -> how many actions the world refused
   readonly swept = new Map<string, number>() // "<order id> <leg>" -> when the sweep last posted the leg
+  readonly held = new Map<string, number>() // order id -> when the strategy wants its first post (`holdUntil`)
 
   constructor(world: World, strategy: Strategy, guard: Guard, snapshot: DeskSnapshot, journal = new Journal(world.id)) {
     this.world = world
@@ -202,7 +203,7 @@ export class Desk implements Books {
   /** The world has stopped a cancelled order's car and told each of its gigs what happens. A withdrawn gig that also
    * carried another order's cars leaves them to the sweep. */
   cancel(event: OrderCancelledEvent): void {
-    for (const books of [this.orders, this.legGigs]) books.delete(event.orderId)
+    for (const books of [this.orders, this.legGigs, this.held]) books.delete(event.orderId)
     for (const gig of event.gigs) if (gig.outcome === 'withdrawn') this.forget(gig.gigId)
   }
 
@@ -242,6 +243,7 @@ export class Desk implements Books {
   /** Posts the strategy's gigs for the legs. A leg that none of them got, as a trade-in over the 12-hour limit for a
    * gig with two cars, goes again as a gig of its own. */
   async post(why: GigNeed['why'], order: Order, legs: number[], failed?: GigNeed['failed']): Promise<void> {
+    if ((why === 'won' || why === 'lost') && this.hold(order)) return
     const plans = this.plan({ why, order, legs, failed })
     this.outbox.push(...plans)
     if (legs.length === 1) return
@@ -255,13 +257,21 @@ export class Desk implements Books {
    * leg goes again at most once an hour, so a post that the world keeps refusing does not eat the action tokens. */
   async sweep(): Promise<void> {
     for (const order of [...this.orders.values()]) {
+      if ((this.held.get(order.id) ?? -Infinity) > this.now) continue // its first post waits for its minute
       const due = (leg: number) => !(this.now < (this.swept.get(`${order.id} ${leg}`) ?? -Infinity) + HOUR)
       const legs = undelivered(order).filter(
         (leg) => !this.legGigs.get(order.id)?.has(leg) && !this.waiting(order.id, leg) && due(leg),
       )
       for (const leg of legs) this.swept.set(`${order.id} ${leg}`, this.now)
-      if (legs.length > 0) await this.post('lost', order, legs)
+      if (legs.length > 0) await this.post(this.held.delete(order.id) ? 'won' : 'lost', order, legs)
     }
+  }
+
+  /** Whether the strategy holds the order's first post to a later minute: the sweep posts it then. */
+  hold(order: Order): boolean {
+    const at = this.guard.run('gig', () => this.strategy.holdUntil(order, this.now)) ?? this.now
+    if (at > this.now) this.held.set(order.id, at)
+    return at > this.now
   }
 
   /** The gigs that carry the order's undelivered legs: one, or one for each leg of a split trade-in. */

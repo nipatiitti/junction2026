@@ -99,3 +99,7 @@ served option over `lateRiskMax`), `war` (the war-day rule), `minValue` (best va
 `underCost` (no price on the grid covers the cost); `opt-<rule>` counts the options each rule left out of a quote.
 Set `BIDPRICE_DECLINE_LOG=<file>` to append one JSON line per request (id, minute, reason, options left out, costs,
 value, win chance, prices).
+
+`postTiming` (off by default; `timing.ts`): an order whose first pickup is two or more days away has its first post held
+until `postHour` (7) on `postDaysAhead` (1) days before the pickup day, never 23:00-07:00 and never later than
+`postLeadHours` (24) before the last pickup; the desk's sweep posts it then (`holdUntil`), with the fee schedule from that minute. The summary says how many first posts were held and for how long.

@@ -71,6 +71,13 @@ export type BidPriceParams = {
   climbStep: number
   climbTop: number
   repriceMax: number
+  /** postTiming (timing.ts): hold the first post of an order whose first pickup is two or more days away until
+   * `postHour` o'clock `postDaysAhead` days before the pickup day, never at night, never under `postLeadHours`
+   * before the last pickup. */
+  postTiming: boolean
+  postHour: number
+  postDaysAhead: number
+  postLeadHours: number
 }
 
 export const DEFAULTS: BidPriceParams = {
@@ -113,6 +120,10 @@ export const DEFAULTS: BidPriceParams = {
   climbStep: 0.1,
   climbTop: 3,
   repriceMax: 10,
+  postTiming: false,
+  postHour: 7,
+  postDaysAhead: 1,
+  postLeadHours: 24,
 }
 
 /** The quote models' params from the strategy's. */

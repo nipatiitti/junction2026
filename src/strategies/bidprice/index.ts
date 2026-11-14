@@ -76,6 +76,7 @@ import {
 } from './cost.ts'
 import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees.ts'
 import { lateRiskOf, newLateRisk } from './late.ts'
+import { firstPostAt } from './timing.ts'
 import { legsOf, WeekLog } from './log.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
 
@@ -98,6 +99,9 @@ export class BidPrice extends Strategy<BidPriceParams> {
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
   /** Why each request got no quote, and how many options each admission rule left out of the quotes. */
   readonly declines: Record<string, number> = {}
+  /** postTiming: order id -> the minute its first post waits for, and how many were held for how many minutes. */
+  readonly holds = new Map<string, number>()
+  readonly held = { posts: 0, minutes: 0 }
 
   constructor(setup: Setup, params: BidPriceParams) {
     super(setup, params)
@@ -117,6 +121,19 @@ export class BidPrice extends Strategy<BidPriceParams> {
     learn(this.fees, event, this.feeParams)
     this.learnCost(event)
     this.count(event)
+    if (this.params.postTiming && event.kind === 'order_won') {
+      const at = firstPostAt(event.order, event.at, this.params)
+      if (at > event.at) {
+        this.holds.set(event.order.id, at)
+        this.held.posts++
+        this.held.minutes += at - event.at
+      }
+    }
+  }
+
+  /** postTiming: the minute the order's first post waits for, set when it was won. */
+  override holdUntil(order: Order, now: number): number {
+    return Math.max(now, this.holds.get(order.id) ?? now)
   }
 
   /** What the desk sent for us, as sent, and the world's answer: the quotes the quote learner waits on, and our gigs
@@ -333,6 +350,11 @@ export class BidPrice extends Strategy<BidPriceParams> {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([k, v]) => `${k} ${v}`)
         .join(' ')}`,
+      ...(this.params.postTiming
+        ? [
+            `held ${this.held.posts} first posts ${(this.held.minutes / HOUR / Math.max(1, this.held.posts)).toFixed(1)} h on average`,
+          ]
+        : []),
     ].join(', ')
   }
 
