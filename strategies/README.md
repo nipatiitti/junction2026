@@ -61,6 +61,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`opening_offers/`](opening_offers/README.md)     | `OpeningOffers`                        | Direct offers to nearby homes from a gig's first post, at the chain-offer fee           |
 | [`home_return/`](home_return/README.md)           | `HomeReturnFees`                       | A discounted fee where many drivers live at the delivery town                           |
 | [`adaptive_fees/`](adaptive_fees/README.md)       | `AdaptiveFees`                         | Cheaper fees while the running on-time share is above 95%, normal fees below it         |
+| [`hazard_fee/`](hazard_fee/README.md)             | `HazardFeePlanner`                     | Headroom, opening at the cheapest fee whose observed booking hazard meets a target      |
 | [`hazard_admission/`](hazard_admission/README.md) | `LeadCostAdmission`                    | The root system with admission's driver cost fitted by lead time                        |
 | [`ifs/`](ifs/README.md)                           | `IfRules`, `IfFees`                    | Plain if rules with every number in one file, and a search that plays for better ones   |
 | [`joint_bid/`](joint_bid/README.md)               | `JointPricing`, `JointFeePlanner`      | Headroom, quoting over the expected fee of the schedule the fee planner will post       |
@@ -70,7 +71,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`offer_probe/`](offer_probe/README.md)           | `ProbeOffers`                          | Headroom, offering only to active drivers and learning acceptance by fee ratio           |
 | [`outage_harvest/`](outage_harvest/README.md)     | `OutageAdmission`, `OutagePricing`     | Headroom, reserving shared driver capacity for the flagged outage region               |
 | [`contextual_mix/`](contextual_mix/README.md)     | `ContextualPricing`                   | Headroom, switching to a lower price cap where a pickup town's gigs book slowly          |
-Fifty folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Fifty-one folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                                               |
