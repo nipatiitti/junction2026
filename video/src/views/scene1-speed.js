@@ -37,7 +37,7 @@ export default {
       { at: 5.0, sound: 'whoosh', length: 0.6, from: 5000, to: 300, gain: 0.35 },
       { at: 5.0, sound: 'engine', length: 0.6, from: 240, to: 120, gain: 0.25 },
       { at: 6.55, sound: 'whoosh', length: 0.8, from: 200, to: 600, gain: 0.12 },
-      { at: 3.7, voice: 'scene1-speed' },
+      { at: 3.55, voice: 'scene1-speed' },
       { at: 6.6, voice: 'scene1-whisper' },
     )
     return cues

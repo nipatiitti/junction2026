@@ -16,9 +16,9 @@ import { NUMBERS } from '../timeline.js'
 //   0–1.8     over his shoulder: the loss in red on the screen, the team asleep around him
 //   1.8–2.95  slow motion: he lifts one finger… and slams Enter at 2.95
 //   2.95–3.3  the number spins like a slot machine and lands on our margin; at 3.6 the laptop starts to rumble
-//   3.9–7.0   wide: notes shoot out of the laptop, cover the floor and rise; the sleepers float up; "BRRRR"
-//   7.0–7.9   through the laptop's webcam: "Chat… is this real?" with the stream chat
-//   7.9–8.5   a sleeper floating on the money: "we're so back."
+//   3.9–6.6   wide: notes shoot out of the laptop, cover the floor and rise; the sleepers float up; "BRRRR";
+//             5.2 a sleeper mumbles "we're so back."
+//   6.6–8.5   through the laptop's webcam: "Chat… is this real?" with the stream chat
 
 const ENTER = 2.95 // the Enter key hits
 const LAND = 3.3 // the number lands on our margin
@@ -109,12 +109,11 @@ export default {
       { at: LAND, sound: 'kaching', gain: 0.3, wet: 0.3 },
       { at: LAND, sound: 'boom', gain: 0.5, length: 0.6 },
       { at: RUMBLE, sound: 'brrr', length: 3.4, gain: 0.25 },
-      { at: 7.9, sound: 'snore', length: 0.6, gain: 0.14 },
-      { at: 7.1, voice: 'scene2-chat' },
-      { at: 7.95, voice: 'scene2-back' },
+      { at: 6.9, voice: 'scene2-chat' },
+      { at: 5.2, voice: 'scene2-back', rate: 1.1 },
     )
     segment.lines.feed.forEach((_, i) => {
-      cues.push({ at: 7.0 + i * 0.11, sound: 'tap', gain: 0.1 })
+      cues.push({ at: 6.6 + i * 0.11, sound: 'tap', gain: 0.1 })
     })
     return cues
   },
@@ -307,7 +306,7 @@ export default {
         cyan.intensity = 80 + 40 * party * Math.cos(t * 8)
 
         // The laptop rumbles while it prints
-        const rumble = progress(t, RUMBLE, RUMBLE + 0.2) * (1 - progress(t, 7.0, 7.2))
+        const rumble = progress(t, RUMBLE, RUMBLE + 0.2) * (1 - progress(t, 6.6, 6.8))
         laptop.position.set(
           noise(t * 45, 3) * 0.015 * rumble,
           1.05 + Math.abs(noise(t * 45, 9)) * 0.012 * rumble,
@@ -342,7 +341,7 @@ export default {
             armL: [-1.15, 0, -0.15],
             armR: [-1.15, 0, 0.15],
           }
-        } else if (t < 7) {
+        } else if (t < 6.6) {
           const wave = Math.sin(t * 12) * 0.2
           angles = {
             torso: [-0.2, 0, Math.sin(t * 6) * 0.08],
@@ -352,7 +351,7 @@ export default {
           }
         } else angles = { torso: [0.1, 0, 0], head: [-0.15, 0, 0.12], armR: [-1.6, 0, 0.3], armL: [-1.2, 0, -0.2] }
         pose(dev, { ...POSES.sit, ...angles })
-        dev.eyes.scale.y = t >= 7 && t < 7.9 ? 1.6 : 1
+        dev.eyes.scale.y = t >= 6.6 ? 1.6 : 1
 
         // The cans fall when the rumble starts
         for (const { can, home, delay, vx, vz } of cans) {
@@ -400,26 +399,19 @@ export default {
           position = [0, 1.45, 0.95 - 0.12 * progress(t, ENTER, 3.9)]
           target = [0, 1.41, -0.52]
           fov = 62
-        } else if (t < 7) {
-          const k = ease.inOutQuad(progress(t, 3.9, 7))
+        } else if (t < 6.6) {
+          const k = ease.inOutQuad(progress(t, 3.9, 6.6))
           position = mixed([0.4, 4.6, 10.8], [1.2, 6.8, 12.0], k)
           target = mixed([0, 1.3, -0.5], [0, 0.9, -1.2], k)
-        } else if (t < 7.9) {
+        } else {
           // the laptop's webcam
           position = [0, 1.88, -0.6]
           target = [0, 1.5, 1.25]
           fov = 64
-        } else {
-          // close on the first sleeper's face, floating on the money
-          const { holder, sleeper } = sleepers[0]
-          holder.updateMatrixWorld(true)
-          sleeper.head.getWorldPosition(spot)
-          position = [spot.x + 0.9, spot.y + 1.0, spot.z + 1.6]
-          target = [spot.x, spot.y + 0.2, spot.z]
         }
         const hit = shake(t, ENTER, 0.3, 0.05)
         const land = shake(t, LAND, 0.4, 0.07, { seed: 4 })
-        const roar = t >= 3.9 && t < 7 ? 0.04 : 0
+        const roar = t >= 3.9 && t < 6.6 ? 0.04 : 0
         camera.position.set(
           position[0] + hit[0] + land[0] + noise(t * 30, 1) * roar,
           position[1] + hit[1] + land[1] + noise(t * 30, 2) * roar,
@@ -432,7 +424,7 @@ export default {
         }
       },
       overlay(g, t) {
-        if (t < 1.8 || t >= 7.9) {
+        if (t < 1.8 || (t >= 5.0 && t < 6.6)) {
           for (const [i, { sleeper }] of sleepers.entries()) {
             sleeper.head.getWorldPosition(spot)
             spot.y += 0.5
@@ -455,9 +447,9 @@ export default {
           outlined(g, shown, 0, 0, 120, { fill: '#7dff9a', line: 20, alpha: 1 - progress(t, 5.6, 5.9) })
           g.restore()
         }
-        liveChat(g, t, lines.feed, { t0: 7.0, t1: 7.9, every: 0.11, viewers: lines.viewers })
-        caption(g, t, lines.chat, { t0: 7.1, t1: 7.9, y: 1010, size: 84 })
-        caption(g, t, lines.back, { t0: 7.95, t1: 8.5, y: 1250, size: 76, italic: true, fill: '#cfe3ff' })
+        liveChat(g, t, lines.feed, { t0: 6.6, t1: 8.5, every: 0.11, viewers: lines.viewers })
+        caption(g, t, lines.chat, { t0: 6.9, t1: 8.5, y: 1010, size: 84 })
+        caption(g, t, lines.back, { t0: 5.2, t1: 6.6, y: 1250, size: 76, italic: true, fill: '#cfe3ff' })
       },
     }
   },

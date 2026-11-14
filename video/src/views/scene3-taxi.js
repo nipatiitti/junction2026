@@ -200,8 +200,8 @@ export default {
       { at: 8.4, sound: 'whoosh', length: 0.35, from: 3000, to: 300, gain: 0.4 },
       { at: 8.45, sound: 'splat', gain: 0.35 },
       { at: 1.5, voice: 'scene3-bro' },
-      { at: 3.25, voice: 'scene3-sixseven' },
-      { at: 7.75, voice: 'scene3-chews' },
+      { at: 3.0, voice: 'scene3-sixseven', rate: 1.1 },
+      { at: 7.55, voice: 'scene3-chews', rate: 1.2 },
     )
     for (let at = 7.75; at < 8.3; at += 0.13) cues.push({ at, sound: 'tap', gain: 0.08 })
     return cues
@@ -564,7 +564,7 @@ export default {
           outlined(g, lines.cooked, 0, 6, 150, { fill: '#ff2d2d', line: 18 })
           g.restore()
         }
-        caption(g, t, lines.chews, { t0: 7.75, t1: 8.3, y: 1300, size: 100 })
+        caption(g, t, lines.chews, { t0: 7.6, t1: 8.3, y: 1300, size: 100 })
 
         // notes from the tiny violin
         if (t >= 8.3) {

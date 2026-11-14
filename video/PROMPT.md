@@ -4,7 +4,7 @@ Copy everything below the line into a new Claude Code session opened in this rep
 
 ---
 
-Build a 44.5-second vertical joke video (1080×1920, 30 fps) about our Spread dispatcher, with Three.js, in a new
+Build a 45-second vertical joke video (1080×1920, 30 fps) about our Spread dispatcher, with Three.js, in a new
 `video/` folder of this repository. Do the work in one go; you can go fast at first and polish later.
 
 ## The joke
@@ -38,7 +38,7 @@ number) and the consequences get bigger each time, ending in space.
 | 20.9  | 29.9 | scene3 | TAXI IS COOKED                             |
 | 29.9  | 31.1 | card   | **LIGHT SPEED** · "a driver said no"       |
 | 31.1  | 41.1 | scene4 | NAH, I'D WIN                               |
-| 41.1  | 44.5 | end    | NOVEMBER 2026                              |
+| 41.1  | 45.0 | end    | NOVEMBER 2026                              |
 
 Cards: the number slams in (scale from 1.6 to 1 with ease-out-back), the line types in, speed streaks fly past behind.
 No scene is longer than 10 s. Recurring cast: a developer in a red hoodie (sunglasses when cool) and our bright red
@@ -86,7 +86,7 @@ low-poly hatchback.
   a satellite, "BOMBOCLAAAT" fading, and becomes a twinkling star; text "−∞ AURA". 8–10 back on the lot the scared
   driver taps accept again and again: "accepted accepted ACCEPTED."
 
-### End – NOVEMBER 2026 (3.4 s)
+### End – NOVEMBER 2026 (3.9 s)
 
 - Set: a snowy fell at night under northern lights.
 - Cast: a low-poly polar bear holding a calendar page "NOVEMBER 2026".
