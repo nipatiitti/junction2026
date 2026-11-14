@@ -18,8 +18,10 @@ and the root system stay as they are.
 
 `HeadroomPricing` is a subclass of `Strategy` ([`strategies/strategy.py`](../strategy.py)) through `CeilingPricing`,
 with the same constructor `(roster, world_map, level=8, params=None)` and a frozen `Params`. The systems
-[`lane_prior`](../lane_prior/README.md), [`town_open`](../town_open/README.md), [`same_day`](../same_day/README.md)
-and [`soft_top`](../soft_top/README.md) each add one strategy to this desk.
+[`lane_prior`](../lane_prior/README.md), [`same_day`](../same_day/README.md) and [`soft_top`](../soft_top/README.md)
+each
+add one strategy to this desk, [`flu_guard`](../flu_guard/README.md) adds one to `soft_top`, and
+[`all_in`](../all_in/README.md) plays them together.
 
 ## Run it
 
@@ -84,25 +86,23 @@ cost plus its risk premium, dealer trust, the outage and the price war.
 
 ## Bench
 
-Level 8, seeds `spread-1`, `spread-2` and `spread-4`, the code of this branch, with
+Level 8, seeds `spread-1`, `spread-2` and `spread-4`, with
 `uv run python -m strategies.bench strategies/<system>/dispatch.py --seeds spread-1,spread-2,spread-4`. Every week is
 ranked, and each is saved in `data/scrape/runs/L8/` under its system's policy. `ceiling` is the saved week of
 `strategies/ceiling` on the same seed.
 
-| Seed       | `ceiling`      | `headroom`     | `lane_prior`   | `town_open`    | `same_day`     | `soft_top`     |
-| ---------- | -------------- | -------------- | -------------- | -------------- | -------------- | -------------- |
-| `spread-1` | €9,831.09      | €12,670.71     | €12,170.85     | €12,137.41     | €12,283.73     | €13,297.12     |
-| `spread-2` | €6,673.95      | €9,378.79      | €10,492.81     | €8,320.56      | €9,371.17      | €9,816.59      |
-| `spread-4` | €8,147.90      | €13,089.25     | €13,086.78     | €12,604.28     | €13,975.61     | €13,658.73     |
-| **Total**  | **€24,652.94** | **€35,138.75** | **€35,750.44** | **€33,062.25** | **€35,630.51** | **€36,772.44** |
-| On time    | 97.9%          | 98.2%          | 98.6%          | 97.8%          | 98.4%          | 98.4%          |
+| Seed       | `ceiling`      | `headroom`     | `lane_prior`   | `same_day`     | `soft_top`     |
+| ---------- | -------------- | -------------- | -------------- | -------------- | -------------- |
+| `spread-1` | €9,831.09      | €12,670.71     | €12,170.85     | €12,283.73     | €13,297.12     |
+| `spread-2` | €6,673.95      | €9,378.79      | €10,492.81     | €9,371.17      | €9,816.59      |
+| `spread-4` | €8,147.90      | €13,089.25     | €13,086.78     | €13,975.61     | €13,658.73     |
+| **Total**  | **€24,652.94** | **€35,138.75** | **€35,750.44** | **€35,630.51** | **€36,772.44** |
+| On time    | 97.9%          | 98.2%          | 98.6%          | 98.4%          | 98.4%          |
 
-All five systems are over €12,000 on `spread-1` and on `spread-4`. No system is on `spread-2`: that world's prices
-are low (the price that wins half of a day's quotes is 1.03 to 1.39 times the list price there, against 1.23 to 1.50
-on `spread-1`), and `ceiling` makes €6,674 in it.
-
-**One week proves little.** The same seed moves by several hundred euros between two versions with little in common:
+**Three weeks prove little.** The same seed moves by several hundred euros between two versions with little in common:
 a booking a minute earlier changes which driver is free for the next car, and the rest of the week with it.
+[`strategies/all_in/README.md`](../all_in/README.md) compares the systems over 22 weeks, where a difference of €200 a
+week is still within what chance gives.
 
 What the four strategies of this desk are worth, from single weeks on `spread-1` that differ in one of them (each
 saved under the policy named):
@@ -126,4 +126,6 @@ Tried on this desk and left out, each over `spread-1`, `spread-2` and `spread-4`
 - **The trust an order buys, taken off its driver cost** (`strategies/trust_value` on this admission): €10,757 on
   `spread-1` against €12,346 without (`x-cap-lane-trust`): 420 orders, and driver fees up by a fifth.
 - **A warm start at 1.30 times the list price** instead of the maximum: €12,360 on `spread-1` (`c-warm`).
-- **Bundles on the dawn schedule**: €35,506 (`c-bundles`), €367 more, within what one week moves by.
+- **An opening fee for each pickup town**, learned from how fast its gigs book (0.8 to 1.0 times the lane fee, lower
+  after a quick booking, higher after a raise): €33,062 (`town-open`), less than `headroom` on each seed. The opening
+  fees did fall, but lower openings mean more raises, and drivers learn to wait for them (`strategies/dawn_fees`).
