@@ -12,27 +12,34 @@ car dealers and pays freelance drivers to move the cars, for one simulated week.
 
 - The system is `dispatch.py`, in Python, run with uv. Before you change it, read
   `docs/spread/HANDBOOK.md`. `RULES.md` and `API.md` next to it are the full references.
-  `README.md` has the setup, the dates and the baseline to beat.
+  `README.md` has the setup and the dates.
 - Practice weeks are free and repeatable: the same seed and level give the same week.
   Compare two versions of the system on the same seeds.
 - Ask for approval before you play a ranking run (`--board`) or a final (`--final`). Each
   ranking world can be played once, and its score stays on the public rankings.
 - Every online run is saved. When `dispatch.py` finishes a week on the server (a practice week,
-  the bench's weeks, a ranking run or a final), `record.py` saves it to
+  the bench's weeks, a ranking run or a final), `tools/record.py` saves it to
   `data/scrape/runs/L<level>/<seed>/<world id>/` and to the database `out/spread.sqlite`.
   Commit the new folders under `data/scrape/runs` in your PR, so the team keeps the data; each
   world has its own folder, so they never conflict. Keep the saving on, and make any new script
-  that plays online save its weeks with `record.Recorder` too.
+  that plays online save its weeks with `tools.record.Recorder` too.
 - Run against the saved data, not online. Before you play a week to answer a question, build the
-  database from every committed week with `uv run db.py` and query `out/spread.sqlite`
-  (`README.md` lists the tables). Play online only to measure a changed system, or for data that
+  database from every committed week with `uv run python -m tools.db` and query `out/spread.sqlite`
+  (`tools/README.md` lists the tables). Play online only to measure a changed system, or for data that
   no saved week has.
 - **One online run at a time.** An online run is any command that plays or reads
-  worlds on the Spread server: `dispatch.py`, `pnpm dispatch`, `strategies.bench`,
+  worlds on the Spread server: `dispatch.py`, `pnpm dispatch`, `pnpm bench`, `pnpm tune`, `strategies.bench`,
   the scrape and reveal tools. Start a run only when your previous one has
-  finished: no second run in the background or in another terminal. A bench is
-  one run, whatever its `--jobs`. Every system on our key shares one rate limit,
+  finished: no second run in the background or in another terminal. A bench or a tune is
+  one run, whatever its `--jobs` or `--keys`. Every system on our key shares one rate limit,
   so parallel runs slow down the whole team.
+
+## Active models
+
+Before you play anything on the live server, read [`active-models.md`](active-models.md). It lists the models worth a
+practice week, taken from the last comparison of every system, and says how to refresh the list. Play one of those —
+with the root `dispatch.py` beside it as the week's reference — rather than a model the team has already left behind,
+so the eight shared practice slots and the rate limit go to the models that are ahead.
 
 ---
 
@@ -118,7 +125,7 @@ running tests.
 
 ## 5. Documentation
 
-- Document the feature in the same PR: update `README.md` or the relevant page
+- Document the feature in the same PR: update the `README.md` next to the code, or the relevant page
   under `docs/`. Say what it does and how to use it — keep it short.
 - If you change how the project is run or built, update the Commands
   list below in the same PR.
@@ -197,22 +204,32 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the price-ladder week: `uv run strategies/price_ladder/dispatch.py --level 8 --seed spread-1`
 - Play the baseline-ladder week: `uv run python strategies/baseline_ladder/baseline_ladder.py --level 8 --seed spread-1`
 - Play the baseline-tiers week: `uv run python strategies/baseline_tiers/baseline_tiers.py --level 2 --seed spread-1`
+- Play the scarcity-priced week: `uv run strategies/scarcity_cost/dispatch.py --level 8 --seed spread-1`
+- Play the more-chains week: `uv run strategies/bundling_more/dispatch.py --level 8 --seed spread-1`
+- Play the cheaper-bundles week: `uv run strategies/bundling_cheaper/dispatch.py --level 8 --seed spread-1`
+- Play the urgency-priced week: `uv run strategies/delivery_urgency/dispatch.py --level 8 --seed spread-1`
+- Play the scarcity-urgency week: `uv run strategies/scarcity_urgency/dispatch.py --level 8 --seed spread-1`
+- Play the ratchet week: `uv run strategies/ratchet/dispatch.py --level 8 --seed spread-1`
+- Play the ceiling-pricing week: `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1`
 - Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
 - Measure the note reader: `uv run python -m strategies.notes.check reveal-<world id>`
 - Compare two versions: `uv run python -m strategies.bench dispatch.py origin/main`
-- Build the saved-weeks DB: `uv run db.py`
+- Build the saved-weeks DB: `uv run python -m tools.db`
 - Lint / format Python: `uv run ruff check --fix . && uv run ruff format .`
 - Play a week in TypeScript: `pnpm dispatch --level 8 --seed spread-1`
 - Write a week to CSV (TS): `pnpm reveal-csv <world id>`
+- Compare TypeScript strategies: `pnpm bench starter --level 8 --seeds spread-1..spread-5`
+- Tune a TypeScript strategy's params: `pnpm tune <strategy> --space <space.json> --holdout spread-6..spread-10`
 - Build the facts tables: `uv run python -m analysis.facts`
+- Export the fee model priors: `uv run python -m analysis.priors_fees`
 - Margin gap report (oracle): `uv run python -m analysis.oracle`
 - Get the team's scraped data: `mkdir -p out && gh release download --pattern 'spread-data-*.tar.gz' --output - | tar -xz -C out`
 - Build and serve the report: `uv run python -m analysis.report`
 - Build the report file only: `uv run python -m analysis.report --no-serve`
-- Play a week with the ladder: `uv run ladder/play.py --level 8 --seed spread-1`
-- Rehearse the final (ladder): `uv run ladder/rehearse.py --seed spread-1`
 - Replay the strategies offline and serve the charts: `uv run python -m analysis.replay`
 - Write the replay files only: `uv run python -m analysis.replay --no-serve`
+- Export the quote priors: `uv run python -m analysis.priors_quote`
+- Replay the quote models on the probes: `node analysis/replay_quote.ts`
 
 ## Definition of done
 
