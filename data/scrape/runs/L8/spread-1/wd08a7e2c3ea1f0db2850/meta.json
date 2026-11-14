@@ -1,0 +1,24 @@
+{
+  "seed": "spread-1",
+  "level": 8,
+  "policy": "eighty-cap30cost115",
+  "kind": "practice",
+  "worldId": "wd08a7e2c3ea1f0db2850",
+  "version": "321c4ceb15170889960beb46756b30029751bf83",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 9350,
+  "score": {
+    "marginCents": 1135325,
+    "revenueCents": 2595885,
+    "marginShare": 0.4373556609788184,
+    "wonOrders": 300,
+    "onTimeShare": 0.9866666666666667,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 37.5,
+  "requests": 510
+}
