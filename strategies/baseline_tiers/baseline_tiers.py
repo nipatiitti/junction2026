@@ -14,17 +14,17 @@ import sys
 from functools import partial
 from pathlib import Path
 
-# Run as a file, Python looks for modules next to it; record.py, spread_proxy.py and strategies/ are at the root.
+# Run as a file, Python looks for modules next to it; tools/ and strategies/ are at the root.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from spread.client import World
 from spread.types import DeskEvent, Order
 
-import record
 from strategies.baseline import baseline
 from strategies.baseline.retry import FIRST_TRY, Retry
 from strategies.baseline_tiers.fees import TierFees
 from strategies.baseline_tiers.pricing import FixedMultiplePricing
+from tools import record
 
 POLICY = "baseline-tiers"  # the policy of the weeks this system saves, so they form their own group in the data
 
