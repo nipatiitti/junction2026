@@ -1,0 +1,24 @@
+{
+  "seed": "spread-1",
+  "level": 8,
+  "policy": "outage-harvest",
+  "kind": "practice",
+  "worldId": "w798060dbbc3d2bc4e349",
+  "version": "1ebcd28e8190dd3d6acc2f11bdb1e16380cedb14-dirty",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 13652,
+  "score": {
+    "marginCents": 1267071,
+    "revenueCents": 3238635,
+    "marginShare": 0.3912361226257358,
+    "wonOrders": 360,
+    "onTimeShare": 0.9916666666666667,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 115.5,
+  "requests": 581
+}

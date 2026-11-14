@@ -125,6 +125,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`hazard_admission/`](hazard_admission/README.md) | `LeadCostAdmission`                    | The root system with admission's driver cost fitted by lead time                         |
 | [`ifs/`](ifs/README.md)                           | `IfRules`, `IfFees`                    | Plain if rules with every number in one file, and a search that plays for better ones    |
 | [`simply_jack/`](simply_jack/README.md)           | `Desk`                                 | The simplest system: one price rule and one fee rule, improved one small step at a time  |
+| [`lean/`](lean/README.md)                         | `Lean`, `Desk`                         | The TypeScript `lean` and its harness, ported: it plays the same weeks action for action |
 
 [`bench/`](bench/README.md) is not a strategy either: it compares versions of `dispatch.py` on the same seeds.
 [`tournament/`](tournament/README.md) plays the ceiling system with several of the folders built on it at once, and

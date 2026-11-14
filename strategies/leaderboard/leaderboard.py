@@ -20,7 +20,9 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from spread.client import SpreadError
 
@@ -443,7 +445,7 @@ def chart_html(chart_rows: list[dict], level: int, seed: str) -> str:
 <title>Strategy leaderboard</title><style>{STYLE}</style></head>
 <body><main>
 <h1>Margin of every strategy</h1>
-<p class="sub">{sub} Made {time.strftime("%Y-%m-%d %H:%M")}.</p>
+<p class="sub">{sub} Made {made_at()}.</p>
 <div class="legend">
 <span><i class="sw" style="background:var(--ranked)"></i>Ranked (90%+ on time)</span>
 <span><i class="sw hatch"></i>Unranked: the week does not count</span>
@@ -456,6 +458,15 @@ def chart_html(chart_rows: list[dict], level: int, seed: str) -> str:
 <th>Code</th><th>World</th></tr></thead><tbody>{table_rows}</tbody></table></div></details>
 </main><div id="tip"></div><script>{TIP_SCRIPT}</script></body></html>
 """
+
+
+def made_at() -> str:
+    """When the chart was drawn, on the team's clock in Helsinki and with its zone (EET or EEST), so a chart drawn in
+    a cloud session, whose clock is UTC, reads the same as one drawn on a laptop."""
+    try:
+        return datetime.now(ZoneInfo("Europe/Helsinki")).strftime("%Y-%m-%d %H:%M %Z")
+    except ZoneInfoNotFoundError:  # no time zone data on this machine, as on Windows without the tzdata package
+        return datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
 
 def nice_step(raw: float) -> int:
