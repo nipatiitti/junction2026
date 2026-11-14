@@ -36,6 +36,8 @@ export type ThompsonParams = {
   premiumCost: number
   /** Least expected margin in euros cents to quote at all. */
   minValueCents: number
+  /** Least slack in minutes that an option must leave (canServe's slack). */
+  minSlack: number
   /** Fee schedule: opening and top multiple of the typical fee, steps, minutes between steps. */
   feeOpen: number
   feeTop: number
@@ -61,14 +63,15 @@ const DEFAULTS: ThompsonParams = {
   trustMid: 5,
   trustHigh: 15,
   dayDecay: 0.6,
-  costMult: 1.25,
+  costMult: 1.35,
   premiumCost: 1.25,
   minValueCents: 300,
-  feeOpen: 1.0,
-  feeTop: 1.45,
+  minSlack: 240,
+  feeOpen: 1.15,
+  feeTop: 1.7,
   feeSteps: 8,
-  feeStepMinutes: 60,
-  repostOpen: 1.2,
+  feeStepMinutes: 40,
+  repostOpen: 1.4,
   premiumFee: 1.3,
 }
 
@@ -213,7 +216,8 @@ class Thompson extends Strategy<ThompsonParams> {
     let best: { kind: DeliveryOption['kind']; price: number; sampled: number; mean: number; quoted: Quoted } | null =
       null
     for (const option of request.options) {
-      if (!canServe(request, option, books.now, { map: this.setup.map, level: this.setup.level }).ok) continue
+      const service = canServe(request, option, books.now, { map: this.setup.map, level: this.setup.level })
+      if (!service.ok || service.slack < p.minSlack) continue
       const scale = trustScale * (capital ? p.capitalScale : p.otherScale) * this.optionScale(option.kind)
       const context = `${this.bucket(trust)}|${option.kind}|${capital ? 'c' : 'o'}`
       const arms = this.armsOf(context)
