@@ -82,6 +82,32 @@ export function findChains(cars: Car[], map: WorldMap, now: number, p: ChainPara
   })
 }
 
+/** The chain that saves the most among those that hold `car` and some of `others`: what a request is worth to us
+ * before we bid on it. Null when the car fits no chain. */
+export function bestChainWith(car: Car, others: Car[], map: WorldMap, now: number, p: ChainParams): Chain | null {
+  const cars = [car, ...others]
+  const near = (a: Car, b: Car): boolean => minutes(map, a.to, b.from) <= p.maxHop && b.due > a.ready
+  let best: Chain | null = null
+  const walk = (path: Car[], drive: number): void => {
+    if (path.length >= 2 && path.includes(car)) {
+      const chain = judge(path, drive, map, now)
+      const good = chain && chain.typical <= (1 - p.minSaving) * chain.singles
+      if (chain && good && (!best || chain.typical / chain.singles < best.typical / best.singles)) best = chain
+    }
+    if (path.length >= Math.min(p.maxCars, 3)) return
+    const last = path.at(-1) as Car
+    for (const b of cars) {
+      if (path.includes(b) || !near(last, b)) continue
+      const more = drive + minutes(map, last.to, b.from) + b.drive
+      if (more <= MAX_DRIVE) walk([...path, b], more)
+    }
+  }
+  // Only the paths through the car: it leads one, or follows a partner that can reach it.
+  walk([car], car.drive)
+  for (const other of others) if (near(other, car)) walk([other], other.drive)
+  return best
+}
+
 /** The chain of a path, or null when no driver can do it inside every window. */
 function judge(path: Car[], drive: number, map: WorldMap, now: number): Chain | null {
   const first = path[0] as Car

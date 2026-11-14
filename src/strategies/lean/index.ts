@@ -47,7 +47,7 @@ import {
   Strategy,
   type StrategyKind,
 } from '../../strategy.ts'
-import { type Car, type Chain, findChains } from './chains.ts'
+import { bestChainWith, type Car, type Chain, findChains } from './chains.ts'
 import { bestPrice, Demand } from './demand.ts'
 import { awake, BOOK_AHEAD, fast, feeAt, openingFor, SHORT, slow, stepped } from './fees.ts'
 import { dawn, leadCost, PriceCap } from './mods.ts'
@@ -117,6 +117,9 @@ export const DEFAULTS = {
   /** The share of the capacity charge that a request pays when it can go on with one of our open cars
    * (`pairDiscount`): a chained car shares its driver, so it takes less of the week's capacity. */
   pairCharge: 1,
+  /** Plan the chain before the bid: a request that completes a chain with a car we hold or have open is costed at
+   * its share of the chain and pays `pairCharge` of the capacity charge. Each of our cars backs one bid at a time. */
+  chainBid: false,
   /** Modifiers (mods.ts): rules that the Python systems measured, each off by default. `dawn`: their fee schedule by
    * the drivers' day, to `dawnTop` × typical. `leadCost`: the driver cost from their table by lead time. `bestOption`:
    * quote only the option with the most expected margin. `pairDiscount`: this share off the cost of a request that
@@ -174,6 +177,8 @@ class Lean extends Strategy<LeanParams> {
   private readonly planned = new Map<string, Chain>()
   private readonly chains = new Map<string, Chain>()
   private readonly chainPosted = new Map<string, number>()
+  /** Our car's order id -> the pending request whose bid counts on it as a chain partner. */
+  private readonly claims = new Map<string, string>()
   /** The orders that were in a chain no driver took: they stay single. */
   private readonly single = new Set<string>()
   /** Order id -> the minute it first waited for a partner; and the orders whose wait is over. */
@@ -219,10 +224,12 @@ class Lean extends Strategy<LeanParams> {
       let cost = this.cost(request, option, facts, now)
       if (cost === null) continue
       if (paired) cost *= 1 - p.pairDiscount
+      const share = p.chainBid ? this.chainShare(request, option, facts, books) : 1
+      cost *= share
       const belief = this.demand.belief(this.demand.keys(request, option.kind), this.trustOffset(request.dealerId))
       const crowd = 1 + 0.04 * Math.max(0, this.askedFrom(request) - 4)
       const place = (1 - p.flatShare) * this.typ(request) + p.flatShare * p.flatEuros * 100
-      const charge = cost + this.capacity * crowd * place * (paired ? p.pairCharge : 1)
+      const charge = cost + this.capacity * crowd * place * (paired || share < 1 ? p.pairCharge : 1)
       const best = bestPrice(belief, option.listPriceCents, charge)
       if (best === null) continue
       let cents = Math.max(best, cost * p.minMargin)
@@ -235,6 +242,37 @@ class Lean extends Strategy<LeanParams> {
     if (quotes.length === 0) return null
     const kept = p.bestOption ? [quotes.reduce((a, b) => (b.value > a.value ? b : a))] : quotes
     return Object.fromEntries(kept.map((quote) => [quote.kind, quote.cents]))
+  }
+
+  /** What an option's car costs as part of the best chain with the cars we hold or have open, over its cost alone:
+   * the chain's worth to a driver over its cars' typical fees, or 1 when it fits no chain. The partners are claimed
+   * for this request until the dealer answers, so one car of ours does not cheapen several bids. */
+  private chainShare(request: PriceRequest, option: DeliveryOption, facts: NoteFacts, books: Books): number {
+    const leg = request.legs[0]
+    if (!leg || request.legs.length !== 1 || leg.car.premium || leg.pickup.privateAddress) return 1
+    const drive = driveMinutes(this.setup.map, [leg])
+    const due = Math.min(option.deadline, facts.deadline ?? Infinity)
+    if (!Number.isFinite(drive) || due - drive < books.now + (this.params.chainHours + 4) * HOUR) return 1
+    const car: Car = {
+      gigId: undefined,
+      orderId: request.id,
+      from: leg.pickup.placeId,
+      to: leg.delivery.placeId,
+      ready: Math.max(leg.pickup.window.from, earliestPickup(facts) ?? 0),
+      collectBy: Math.min(leg.pickup.window.to, due - drive),
+      due: leg.delivery.privateAddress ? Math.min(due, leg.delivery.window.to) : due,
+      drive,
+      typical: this.typ(request),
+      pickupHours: leg.pickup.hours,
+      deliveryHours: leg.delivery.hours,
+      stops: [],
+      audience: { experienced: false, manualLicence: facts.manual },
+    }
+    const free = this.openCars(books).filter((other) => (this.claims.get(other.orderId) ?? request.id) === request.id)
+    const chain = bestChainWith(car, free, this.setup.map, books.now, this.params)
+    if (!chain || chain.startBy - books.now < (this.params.chainHours + 4) * HOUR) return 1
+    for (const other of chain.cars) if (other !== car) this.claims.set(other.orderId, request.id)
+    return chain.typical / chain.singles
   }
 
   /** Whether the request's car can go on with one of our open cars: collected within half an hour's drive of where
@@ -345,6 +383,7 @@ class Lean extends Strategy<LeanParams> {
   /** A quote won (with the option the dealer took) or lost: the demand learns, and the worth of capacity follows
    * the share won. */
   private outcome(requestId: string, won: OptionKind | null, books: Books): void {
+    for (const [orderId, by] of this.claims) if (by === requestId) this.claims.delete(orderId)
     const prices = this.pending.get(requestId)
     const request = books.requests.get(requestId)
     this.pending.delete(requestId)
