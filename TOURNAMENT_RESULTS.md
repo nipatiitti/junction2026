@@ -520,3 +520,32 @@ Readings:
 
 Not built from the review's list: fewer and later fee raises, offers to our own working drivers, re-quoting before
 the response deadline, the bulk order from one yard, flu and snow days, a per-dealer value of speed.
+
+## Study of the public rankings (level 8, round "Saturday 00:00": 373 runs by 75 teams on five secret worlds)
+
+| Group, per world | Margin | Orders | Margin per order | On time |
+| --- | --- | --- | --- | --- |
+| top 10 | €15,100-17,100 | 399-447 | €36-41 | 95.5-98.1% |
+| ranks 21-40 | €11,500-13,400 | 299-338 | €36-41 | 92.2-97.3% |
+| bottom 15 | €5,500-6,300 | 217-249 | €23-27 | 94.6-98.1% |
+| us, run 1 | €10,871 | 323 | €33.70 | 96.0% |
+
+Margin correlates 0.72-0.81 with orders won, about 0 with on-time share, 0.55-0.66 with margin per order.
+The leaders earn the same per order as the mid-table and win about 110 more orders. `house-strong` (the organisers'
+system): €12,225-15,491 a run with 301-409 orders. Only summary numbers are public: no quotes, gigs or code.
+
+## Round 5: three attempts at the volume gap (four untested seeds, baseline €10,724; none merged)
+
+| Idea (flag or strategy) | spread-6 | spread-7 | spread-8 | spread-10 | Mean | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| Cost scale that follows spare driver capacity (`posture`) | €9,258 | €9,741 | €12,308 | €9,328 | €10,159 | loss (−€565); helps only the thin world. Roster size (704/691 against 640/642 drivers) is the only early signal that separates the worlds |
+| Build trust faster with big dealers (`trustRush`) | €6,250 | €11,052 | €11,498 | €10,586 | €9,846 | loss (−€880); its stricter admission turned away early orders |
+| Hold one price per option whatever the trust (`steady`, on the base) | €4,351 | €3,726 | €6,590 | not played | €4,889 | hypothesis fails: the win rate does not climb through the week, mean trust of quoted dealers never passes 12 |
+
+Trust in our own baseline weeks (analysis/trust_timing.py, worktree agent-af8c2b2d33d476237): 64-78% of requests
+arrive while their dealer has under 10 on-time orders, 89-94% under 25; the biggest dealer reaches 10 by hour 36-57
+and 25 by hour 57-84; our quote over list rises from 1.39-1.47 at trust 0-4 to 1.73-1.89 at trust 25 with win rates
+of 32-40% and 47-67%; the five biggest dealers were halved by late orders 6, 19, 3 and 16 times a week.
+
+Where this leaves the general system: about €10,700 on unseen worlds. How the leaders win 110 more orders at the same
+margin per order is still not explained; holding price for trust is ruled out in its simple form.
