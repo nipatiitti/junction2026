@@ -65,8 +65,8 @@
     "all_in": {
       "file": "strategies/all_in/dispatch.py",
       "fingerprint": "1b5611cd4c645196",
-      "world_id": "w3b74a46db7f6cf233638",
-      "played_at": "2026-11-14T12:27:58+0200",
+      "world_id": "wec754f7367b5036b0a91",
+      "played_at": "2026-11-14T15:53:39+0000",
       "score": {
         "marginCents": 1359171,
         "revenueCents": 3309683,
@@ -770,8 +770,8 @@
     "slack_budget": {
       "file": "strategies/slack_budget/dispatch.py",
       "fingerprint": "db6da0e8bcd3ec8e",
-      "world_id": "wf33fd664df3f3172f76e",
-      "played_at": "2026-11-14T12:41:00+0200",
+      "world_id": "wab8b7e5cb18de25572df",
+      "played_at": "2026-11-14T15:53:45+0000",
       "score": {
         "marginCents": 1333624,
         "revenueCents": 3639513,
@@ -815,8 +815,8 @@
     "soft_top": {
       "file": "strategies/soft_top/dispatch.py",
       "fingerprint": "440002cbfc71e05a",
-      "world_id": "w8f263101f7dcb0abbb03",
-      "played_at": "2026-11-14T12:43:21+0200",
+      "world_id": "w68268786c7205501a382",
+      "played_at": "2026-11-14T15:53:38+0000",
       "score": {
         "marginCents": 1329712,
         "revenueCents": 3273375,
