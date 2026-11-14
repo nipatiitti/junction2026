@@ -73,13 +73,14 @@ import {
   unbooked,
 } from './cost.ts'
 import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees.ts'
+import { lateRiskOf, newLateRisk } from './late.ts'
 import { legsOf, WeekLog } from './log.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
 
 /** A quote at this many times the list price or more is a decline. */
 const DECLINED = 5
 
-class BidPrice extends Strategy<BidPriceParams> {
+export class BidPrice extends Strategy<BidPriceParams> {
   override readonly every = 30
   readonly quoteParams: QuoteParams
   readonly feeParams: FeeParams
@@ -89,6 +90,7 @@ class BidPrice extends Strategy<BidPriceParams> {
   readonly cost: CostState
   readonly learning: CostLearning
   readonly log = new WeekLog()
+  readonly lateRisk: ReturnType<typeof newLateRisk>
   /** The latest minute an event or action has told, for the summary. */
   private now = 0
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
@@ -101,6 +103,7 @@ class BidPrice extends Strategy<BidPriceParams> {
     this.fees = newFeeState(this.feeParams)
     this.cost = newCostState(this.costPrior)
     this.learning = { learn: params.costLearn, pseudoGigs: params.costPseudo }
+    this.lateRisk = newLateRisk(setup.roster, setup.map)
   }
 
   observe(event: DeskEvent): void {
@@ -143,7 +146,13 @@ class BidPrice extends Strategy<BidPriceParams> {
    * times `mu` and the dealer's late weight. */
   costOf(request: PriceRequest, option: DeliveryOption, now: number): number {
     const { fee, late } = this.costParts(request, option, now)
-    return (fee + late) * this.params.costScale
+    const risk = this.params.lateRisk ? this.riskOf(request, option, now) * this.params.lateRiskCents : 0
+    return (fee + late) * this.params.costScale + risk
+  }
+
+  /** The late share the late-risk table predicts for this option if we win it now. */
+  riskOf(request: PriceRequest, option: DeliveryOption, now: number): number {
+    return lateRiskOf(this.lateRisk, request, option, now, this.setup.map)
   }
 
   /** The two parts of `costOf`, in cents. */
@@ -167,6 +176,7 @@ class BidPrice extends Strategy<BidPriceParams> {
     const served = options
       .map((option) => ({ option, ...canServe(request, option, now, context) }))
       .filter((verdict) => verdict.ok)
+      .filter((verdict) => !this.params.lateRisk || this.riskOf(request, verdict.option, now) < this.params.lateRiskMax)
     if (this.params.comfortHours <= 0) return served.map((verdict) => verdict.option)
     const comfortable = served.filter((v) => v.slack >= (this.params.comfortHours * HOUR) / (context.tightening ?? 1))
     return (comfortable.length > 0 ? comfortable : served.slice(-1)).map((verdict) => verdict.option)
