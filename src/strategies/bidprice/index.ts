@@ -76,6 +76,7 @@ import {
 } from './cost.ts'
 import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees.ts'
 import { lateRiskOf, newLateRisk } from './late.ts'
+import { keepSeen, newUnseen } from './unseen.ts'
 import { pushed, pushFee } from './ontime.ts'
 import { legsOf, WeekLog } from './log.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
@@ -94,6 +95,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   readonly learning: CostLearning
   readonly log = new WeekLog()
   readonly lateRisk: ReturnType<typeof newLateRisk>
+  readonly unseen: ReturnType<typeof newUnseen>
   /** The latest minute an event or action has told, for the summary. */
   private now = 0
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
@@ -109,6 +111,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
     this.cost = newCostState(this.costPrior)
     this.learning = { learn: params.costLearn, pseudoGigs: params.costPseudo }
     this.lateRisk = newLateRisk(setup.roster, setup.map)
+    this.unseen = newUnseen(setup.roster, setup.map, params.unseenKm)
   }
 
   observe(event: DeskEvent): void {
@@ -248,7 +251,8 @@ export class BidPrice extends Strategy<BidPriceParams> {
    * the slowest one we can serve. Up to level 3 every quote wins the first option, so only that one counts. */
   offered(request: PriceRequest, now: number): DeliveryOption[] {
     const context = this.context()
-    const options = this.setup.level <= 3 ? request.options.slice(0, 1) : request.options
+    const all = this.setup.level <= 3 ? request.options.slice(0, 1) : request.options
+    const options = this.params.unseenRule ? keepSeen(this.unseen, request, all, this.params) : all
     const served = options
       .map((option) => ({ option, ...canServe(request, option, now, context) }))
       .filter((verdict) => verdict.ok)
@@ -343,6 +347,9 @@ export class BidPrice extends Strategy<BidPriceParams> {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([k, v]) => `${k} ${v}`)
         .join(' ')}`,
+      ...(this.params.unseenRule
+        ? [`unseen removed ${this.unseen.removed.options} options of ${this.unseen.removed.quotes} requests`]
+        : []),
     ].join(', ')
   }
 

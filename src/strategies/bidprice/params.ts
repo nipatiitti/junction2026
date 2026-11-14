@@ -75,6 +75,12 @@ export type BidPriceParams = {
   onTimeOps: boolean
   onTimeLeadHours: number
   onTimeFee: number
+  /** See `unseen.ts`: leave out a request whose leg is `unseenLegKm`+ km and whose pickup has fewer than `unseenMin`
+   * roster drivers within `unseenKm`. */
+  unseenRule: boolean
+  unseenKm: number
+  unseenMin: number
+  unseenLegKm: number
 }
 
 export const DEFAULTS: BidPriceParams = {
@@ -120,6 +126,10 @@ export const DEFAULTS: BidPriceParams = {
   onTimeOps: false,
   onTimeLeadHours: 14,
   onTimeFee: 2,
+  unseenRule: false,
+  unseenKm: 30,
+  unseenMin: 10,
+  unseenLegKm: 400,
 }
 
 /** The quote models' params from the strategy's. */

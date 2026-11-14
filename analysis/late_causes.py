@@ -30,6 +30,7 @@ CAUSES = {
 SLACK_A = 60  # minutes of slack beyond the drive at the win below which it is (a)
 POST_B = 60  # minutes between win and first post beyond which it is (b)
 BOOK_C = 90  # booked later than this before the latest pickup is (c)
+CAUSE_OF = {}  # (world, order id) -> cause letter, filled by main() for analysis/unseen.py
 
 
 def load_gz(path):
@@ -206,6 +207,7 @@ def main():
                     "booked_lead": round(latest_pick - booked[0]["at"]),
                     "picked_late_by": None if picked is None else round(picked - latest_pick),
                 }
+            CAUSE_OF[(world, oid)] = c
             table[grp][c] += 1
             refunds[grp][c] += refund.get(oid, 0)
             detail[grp][c].append(info)
