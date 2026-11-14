@@ -22,6 +22,8 @@ ranking runs (`--board`) and finals (`--final`). When a week of `dispatch.py` en
   `dispatch`. `meta.json` also says `kind` (`practice`, `board` or `final`), `version` (the git commit, `-dirty` with
   changes) and `revealed` (ranking runs have no reveal, so their requests come from the events). The seed is `random`
   without `--seed`, and `board` or `final` for those runs. A played week takes about 0.4 MB.
+  Another system names its weeks by setting `record.POLICY` before it plays, as the folders under `strategies/` do;
+  `Recorder(..., policy="x")` overrides it for one week.
 - its rows in the SQLite database `out/spread.sqlite` (see the tables below).
 
 The run prints `Saved the week to ...` at the end. A week stopped with Ctrl-C or an error is not saved, and a failure

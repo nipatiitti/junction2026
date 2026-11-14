@@ -28,11 +28,18 @@ car dealers and pays freelance drivers to move the cars, for one simulated week.
   (`tools/README.md` lists the tables). Play online only to measure a changed system, or for data that
   no saved week has.
 - **One online run at a time.** An online run is any command that plays or reads
-  worlds on the Spread server: `dispatch.py`, `pnpm dispatch`, `strategies.bench`,
+  worlds on the Spread server: `dispatch.py`, `pnpm dispatch`, `pnpm bench`, `pnpm tune`, `strategies.bench`,
   the scrape and reveal tools. Start a run only when your previous one has
-  finished: no second run in the background or in another terminal. A bench is
-  one run, whatever its `--jobs`. Every system on our key shares one rate limit,
+  finished: no second run in the background or in another terminal. A bench or a tune is
+  one run, whatever its `--jobs` or `--keys`. Every system on our key shares one rate limit,
   so parallel runs slow down the whole team.
+
+## Active models
+
+Before you play anything on the live server, read [`active-models.md`](active-models.md). It lists the models worth a
+practice week, taken from the last comparison of every system, and says how to refresh the list. Play one of those —
+with the root `dispatch.py` beside it as the week's reference — rather than a model the team has already left behind,
+so the eight shared practice slots and the rate limit go to the models that are ahead.
 
 ---
 
@@ -195,11 +202,16 @@ on one line, so two PRs that each add a command do not conflict.
 - Play a Spread practice week: `uv run dispatch.py --level 8 --seed spread-1`
 - Play the baseline week: `uv run python strategies/baseline/baseline.py --level 8 --seed spread-1`
 - Play the price-ladder week: `uv run strategies/price_ladder/dispatch.py --level 8 --seed spread-1`
+- Play the baseline-ladder week: `uv run python strategies/baseline_ladder/baseline_ladder.py --level 8 --seed spread-1`
+- Play the baseline-tiers week: `uv run python strategies/baseline_tiers/baseline_tiers.py --level 2 --seed spread-1`
+- Play the streak-ladder week: `uv run strategies/streak_ladder/dispatch.py --level 8 --seed spread-1`
 - Play the scarcity-priced week: `uv run strategies/scarcity_cost/dispatch.py --level 8 --seed spread-1`
 - Play the more-chains week: `uv run strategies/bundling_more/dispatch.py --level 8 --seed spread-1`
 - Play the cheaper-bundles week: `uv run strategies/bundling_cheaper/dispatch.py --level 8 --seed spread-1`
 - Play the urgency-priced week: `uv run strategies/delivery_urgency/dispatch.py --level 8 --seed spread-1`
+- Play the scarcity-urgency week: `uv run strategies/scarcity_urgency/dispatch.py --level 8 --seed spread-1`
 - Play the ratchet week: `uv run strategies/ratchet/dispatch.py --level 8 --seed spread-1`
+- Play the ceiling-pricing week: `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1`
 - Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
 - Measure the note reader: `uv run python -m strategies.notes.check reveal-<world id>`
 - Compare two versions: `uv run python -m strategies.bench dispatch.py origin/main`
@@ -208,6 +220,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Play a week in TypeScript: `pnpm dispatch --level 8 --seed spread-1`
 - Write a week to CSV (TS): `pnpm reveal-csv <world id>`
 - Compare TypeScript strategies: `pnpm bench starter --level 8 --seeds spread-1..spread-5`
+- Tune a TypeScript strategy's params: `pnpm tune <strategy> --space <space.json> --holdout spread-6..spread-10`
 - Build the facts tables: `uv run python -m analysis.facts`
 - Export the fee model priors: `uv run python -m analysis.priors_fees`
 - Margin gap report (oracle): `uv run python -m analysis.oracle`
