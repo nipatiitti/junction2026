@@ -31,7 +31,7 @@ The 31 saved level 8 weeks that used the schedule of `strategies/fees` (policies
 
 ## The schedule
 
-`dawn_plan` in `fees.py`, a pure function of the gig's facts and the time. A gig has a *last dawn* when 06:00 comes
+`dawn_plan` in `fees.py`, a pure function of the gig's facts and the time. A gig has a _last dawn_ when 06:00 comes
 after the post and at least 3 hours (`reach`) before its `lastPickupAt`.
 
 1. **A gig with a last dawn** opens at 0.9 times the typical fee (`open`) and rises once, to 1.0 (`hold`), 2 hours
@@ -108,14 +108,14 @@ sprint ladder added €1,425 over `spread-1`, `spread-2` and `spread-4` (`y-spri
 Each on the soft-top desk (`strategies/soft_top`), over `spread-1`, `spread-2` and `spread-4`, where that desk made
 €36,772. The weeks are saved under the policies named.
 
-| Shape                                                             | Policy           | Margin  | Against soft top |
-| ----------------------------------------------------------------- | ---------------- | ------- | ---------------- |
-| Opens at 0.75, climbs to 0.9 in 60 minutes, steps of 10           | `l-75`           | €36,753 | −€19             |
-| Opens at 0.65, climbs to 0.9 in 90 minutes                        | `l-65`           | €30,839 | −€5,933          |
-| Opens at 0.55, climbs to 0.9 in 120 minutes                       | `l-55`           | €20,584 | −€16,189         |
-| No raise before the last dawn: 0.9 held                           | `g-flat90`       | €35,072 | −€1,701          |
-| Opens at 1.0 and holds it                                         | `g-flat100`      | €31,730 | −€5,043          |
-| Opens at 0.95 and holds it, dawn ladder in steps of 2 hours       | `g-flat95-2step` | €33,599 | −€3,174          |
+| Shape                                                       | Policy           | Margin  | Against soft top |
+| ----------------------------------------------------------- | ---------------- | ------- | ---------------- |
+| Opens at 0.75, climbs to 0.9 in 60 minutes, steps of 10     | `l-75`           | €36,753 | −€19             |
+| Opens at 0.65, climbs to 0.9 in 90 minutes                  | `l-65`           | €30,839 | −€5,933          |
+| Opens at 0.55, climbs to 0.9 in 120 minutes                 | `l-55`           | €20,584 | −€16,189         |
+| No raise before the last dawn: 0.9 held                     | `g-flat90`       | €35,072 | −€1,701          |
+| Opens at 1.0 and holds it                                   | `g-flat100`      | €31,730 | −€5,043          |
+| Opens at 0.95 and holds it, dawn ladder in steps of 2 hours | `g-flat95-2step` | €33,599 | −€3,174          |
 
 The lower a gig opens under a ladder, the more the week pays: drivers learn how far our fees rise and wait for it
 (the handbook: "a system that always raises its fees teaches drivers to wait"), and the saving on the first bookings
