@@ -49,7 +49,17 @@ import {
 import { type Car, type Chain, findChains } from './chains.ts'
 import { bestPrice, Demand } from './demand.ts'
 import { awake, BOOK_AHEAD, fast, feeAt, openingFor, SHORT, slow, stepped } from './fees.ts'
-import { loadNeed, type Need, type NeedModel, need, openingOf, paidOf, type Work } from './need.ts'
+import {
+  need as feeNeed,
+  loadNeed,
+  loadOrders,
+  type NeedModel,
+  type OrderModel,
+  openingOf,
+  outlook,
+  paidOf,
+  type Work,
+} from './need.ts'
 import { type DealerState, loadPrior, type Prior, priorMu } from './prior.ts'
 
 export const DEFAULTS = {
@@ -101,6 +111,14 @@ export const DEFAULTS = {
   needOpen: false,
   openZ: 0.3,
   risk: 0.5,
+  /** With `needOpen`: each later raise goes at least to the fee that books such a gig with 84%, 95% and 99%
+   * chance, so a gig that needs more than the table reaches it the day before its last pickup. */
+  needSteps: false,
+  /** Price each request by its own outlook (need.ts, the order model fitted on the saved weeks' real orders): its
+   * cost as a share of the mean order's, and `lateCost` x its list price for each unit of chance to be late. The
+   * level of the cost stays the week's own (`feeRatio`); the model only says which requests are dear. */
+  order: false,
+  lateCost: 1,
   /** The late share from which we win less, and the one from which options need twice the room. */
   lateSoft: 0.04,
   lateHard: 0.05,
@@ -137,6 +155,9 @@ class Lean extends Strategy<LeanParams> {
   private readonly decided = new Map<string, { won: number; lost: number }>()
   private readonly drivers: number
   private readonly needs: NeedModel | undefined
+  private readonly outlooks: OrderModel | undefined
+  /** Day -> the orders won on it. */
+  private readonly wonOn = new Map<number, number>()
   /** Place id -> the drivers of the list who live there. */
   private readonly homes = new Map<string, number>()
   /** Order id -> what its gig was planned to pay, x typical; and how this week's bookings compare with the plan. */
@@ -179,6 +200,7 @@ class Lean extends Strategy<LeanParams> {
     this.demand = new Demand(setup.level, this.prior)
     this.drivers = setup.roster.length > 0 ? setup.roster.length / 777 : 1
     this.needs = (params.need || params.needOpen) && setup.level >= 7 ? loadNeed() : undefined
+    this.outlooks = params.order && setup.level >= 7 ? loadOrders() : undefined
     for (const driver of setup.roster) this.homes.set(driver.homePlaceId, (this.homes.get(driver.homePlaceId) ?? 0) + 1)
     this.capacity = params.capacity
     this.feeRatio = params.feeRatio
@@ -223,13 +245,24 @@ class Lean extends Strategy<LeanParams> {
     const ready = Math.max(request.legs[0]?.pickup.window.from ?? now, earliestPickup(facts) ?? 0)
     const time = awake(Math.max(now + 15, this.climbFrom(ready, now)), lastPickup - BOOK_AHEAD)
     if (time < this.params.minHours * HOUR) return null // too little time for the climb to find a driver
+    const work = this.workOf(request.legs, request.referenceFeeCents, now, ready, lastPickup, books, deadline, request)
+    const view = this.outlooks ? outlook(this.outlooks, work) : undefined
+    const late = view ? view.late * this.params.lateCost * option.listPriceCents : 0
     if (this.needs && this.params.need) {
-      const n = this.needOf(request.legs, request.referenceFeeCents, now, ready, lastPickup, books)
+      const n = feeNeed(this.needs, work)
       const open = this.params.needOpen ? openingOf(n, this.params.openZ) : this.params.open
       const paid = this.bias * paidOf(n, open) + this.params.overhead
-      return request.referenceFeeCents * (paid + this.params.risk * n.never) * (f.premium ? this.params.premium : 1)
+      const fee =
+        request.referenceFeeCents * (paid + this.params.risk * n.never) * (f.premium ? this.params.premium : 1)
+      return fee + late
     }
     let ratio = this.feeRatio + openingFor(time, this.params) - this.params.open + this.params.overhead
+    if (view) {
+      // The week's own level, and from the model which requests are dear: it knows the address, the drive, the day.
+      ratio *= view.cost
+      if (f.premium) ratio *= this.params.premium
+      return request.referenceFeeCents * ratio + late
+    }
     if (f.privatePickup || f.privateDelivery) ratio += this.params.privateAddress
     if (f.tradeIn) ratio += 0.05
     if (f.weekendDelivery) ratio += 0.05
@@ -238,20 +271,22 @@ class Lean extends Strategy<LeanParams> {
     return request.referenceFeeCents * ratio
   }
 
-  /** What the fee model says of a gig for these legs, posted now. */
-  private needOf(
+  /** A gig for these legs as the models see it, at `now`. */
+  private workOf(
     legs: readonly Order['legs'][number][],
     typicalCents: number,
     now: number,
     readyAt: number,
     lastPickupAt: number,
     books: Books,
-  ): Need {
+    deadline: number,
+    request: PriceRequest | undefined,
+  ): Work {
     const first = legs[0]
     let open = 0
     for (const order of books.orders.values())
       for (const gigId of books.gigsOf(order.id)) if (!books.booked.has(gigId)) open++
-    const work: Work = {
+    return {
       typicalCents,
       at: now,
       readyAt,
@@ -267,8 +302,11 @@ class Lean extends Strategy<LeanParams> {
       drivers: this.setup.roster.length || 777,
       booked: this.tally.bookings,
       open,
+      deadline,
+      hasNote: Boolean(request?.note),
+      won: this.tally.won,
+      wonToday: this.wonOn.get(Math.floor(now / DAY)) ?? 0,
     }
-    return need(this.needs!, work)
   }
 
   /** The share of the requests to win now: less when bookings cost more than planned, when gigs wait without a
@@ -344,7 +382,11 @@ class Lean extends Strategy<LeanParams> {
       this.demand.learn(this.demand.keys(request, option.kind), this.offset(request, option), multiple, won !== null)
       if (won) this.tally.multiples += multiple
     }
-    if (won) this.tally.won++
+    if (won) {
+      this.tally.won++
+      const day = Math.floor(books.now / DAY)
+      this.wonOn.set(day, (this.wonOn.get(day) ?? 0) + 1)
+    }
     this.capacity = clamp(this.capacity + this.params.gain * ((won ? 1 : 0) - this.target(books)), 0, 2)
   }
 
@@ -371,12 +413,24 @@ class Lean extends Strategy<LeanParams> {
       const ready = first.window?.from ?? order.legs[first.leg]?.pickup.window.from ?? now
       const floor = this.floors.get(order.id) ?? 0
       let open = this.params.open
+      let lift: number[] = []
       if (this.needs && order.legs.length === legs.length) {
-        const n = this.needOf(order.legs, typical(stops), now, ready, order.lastPickupAt, books)
+        const work = this.workOf(
+          order.legs,
+          typical(stops),
+          now,
+          ready,
+          order.lastPickupAt,
+          books,
+          order.deadline,
+          request,
+        )
+        const n = feeNeed(this.needs, work)
         if (this.params.needOpen) open = openingOf(n, this.params.openZ)
+        if (this.params.needOpen && this.params.needSteps) lift = [1, 1.65, 2.3].map((z) => Math.exp(n.mu + z * n.sd))
         this.plans.set(order.id, paidOf(n, open))
       }
-      const schedule = this.fees(order, typical(stops), now, floor, this.climbFrom(ready, now), false, open)
+      const schedule = this.fees(order, typical(stops), now, floor, this.climbFrom(ready, now), false, open, lift)
       return { stops: this.buffered(order, stops, now), audience, schedule }
     })
   }
@@ -406,6 +460,7 @@ class Lean extends Strategy<LeanParams> {
     from: number,
     warned = false,
     open = this.params.open,
+    lift: readonly number[] = [],
   ): FeeStep[] {
     const p = this.params
     const shown = floor / typical
@@ -413,7 +468,7 @@ class Lean extends Strategy<LeanParams> {
     const bookBy = order.lastPickupAt - BOOK_AHEAD
     if (warned || awake(Math.max(now, from), bookBy) < SHORT)
       return fast(now, typical, Math.max(shown + 0.05, 1.15), 0.12, 15, Math.max(p.urgentTop, shown + 0.05))
-    if (p.stepped) return stepped(now, typical, order.lastPickupAt, open, shown, p.jitter, order.id)
+    if (p.stepped) return stepped(now, typical, order.lastPickupAt, open, shown, p.jitter, order.id, lift)
     return slow(now, typical, bookBy, p, from, shown, p.urgentTop)
   }
 

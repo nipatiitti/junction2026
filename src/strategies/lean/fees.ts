@@ -96,10 +96,13 @@ export function stepped(
   floor = 0,
   jitter = 0,
   seed = '',
+  lift: readonly number[] = [],
 ): FeeStep[] {
   const random = rng(seed)
   const points: [number, number][] = [[now, Math.max(open, floor)]]
-  for (const [hours, ratio] of STEPS) {
+  for (const [index, [hours, table]] of STEPS.entries()) {
+    // `lift`: what this gig needs at each raise, where the fee model says it needs more than the table.
+    const ratio = Math.max(table, lift[index] ?? 0)
     // Each gig raises at its own minutes and by its own size, so a driver cannot plan a second look for the raise.
     const at = lastPickup - hours * HOUR + (random() - 0.5) * 3 * HOUR * jitter
     const to = ratio * (1 + (random() - 0.5) * 0.1 * jitter)
