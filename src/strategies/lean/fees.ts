@@ -1,16 +1,13 @@
-/** Fee schedules. The measured fact: the lowest fee that books a gig within three hours is 0.76 × the typical fee
- * at the median, 0.59 to 1.02 for four gigs in five, and nothing but who happens to be free explains the rest. So a
- * gig opens low and climbs slowly through that range while drivers are awake, and pays what its own driver needs,
- * not what the dearest one does. Only when the time runs out does it climb fast. */
+/** Fee schedules. The measured facts: the lowest fee that books a gig within three hours is 0.76 × the typical fee
+ * at the median, and two bookers in three had seen the gig before at a lower fee and waited for the rise. So a gig
+ * holds one fee and raises it only at a few hours of its own (`stepped`); a chain holds and then creeps (`slow`);
+ * and only when the time runs out does a fee climb fast (`fast`). */
 import type { FeeStep } from '../../../vendor/spread-typescript/spread.ts'
 import { DAY, HOUR } from '../../ops/index.ts'
 
-/** The opening fee and the end of the slow climb, × typical. With both the same, the fee holds flat until the
- * creep: drivers who learn that our fees rise wait for the rise. */
-export type Shape = { open: number; climbTo: number }
-/** The slow climb takes this long, in minutes that drivers are awake; a gig with less time opens higher. */
-export const CLIMB = 6 * HOUR
-/** After the climb, the fee creeps on to this × typical, and from there to the top by the last minute to book. */
+/** The slow schedule holds its opening fee for half of the time a gig has, this long at most. */
+const HOLD = 6 * HOUR
+/** After the hold, the fee creeps on to this × typical, and from there to the top by the last minute to book. */
 const LAST = 1.3
 /** Minutes between two steps of the climb. */
 const STEP = 20
@@ -42,40 +39,19 @@ function later(from: number, minutes: number): number {
   return from + minutes
 }
 
-/** The slow climb takes half of the time a gig has, CLIMB at most. */
-const climbOf = (time: number): number => Math.min(time / 2, CLIMB)
-
-/** The fee, × typical, that a gig opens at when it has `time` awake minutes to find its driver: `open` with a
- * full climb ahead, higher with less. */
-export const openingFor = (time: number, shape: Shape): number =>
-  shape.open + Math.max(0, shape.climbTo - 0.1 - shape.open) * Math.max(0, 1 - climbOf(time) / CLIMB)
-
-/** The slow schedule from `now`: the opening fee until `from` (for a car that is ready days later), then up to
- * `climbTo` over the climb, on to LAST when four fifths of the time are gone, and to `top` at `bookBy`. One gig in ten
- * needs more than the climb gives, and it must find its driver before the last pickup, not at it. */
-export function slow(
-  now: number,
-  typical: number,
-  bookBy: number,
-  shape: Shape,
-  from = now,
-  floor = 0,
-  top = 2,
-): FeeStep[] {
-  const start = Math.max(now, from)
-  const time = awake(start, bookBy)
-  const open = Math.max(openingFor(time, shape), floor)
+/** The slow schedule from `now`, for chains: `open` × typical for half of the awake time to `bookBy` (HOLD at most),
+ * then up to LAST when four fifths of the time are gone, and to `top` at `bookBy`. */
+export function slow(now: number, typical: number, bookBy: number, open: number, top: number): FeeStep[] {
+  const time = awake(now, bookBy)
   const points: [number, number][] = [[now, open]]
   const phase = (begin: number, end: number, low: number, high: number, most: number, every: number) => {
     const steps = high > low ? Math.min(most, Math.floor((end - begin) / every)) : 0
     for (let i = 1; i <= steps; i++)
-      points.push([later(start, begin + ((end - begin) * i) / steps), low + ((high - low) * i) / steps])
+      points.push([later(now, begin + ((end - begin) * i) / steps), low + ((high - low) * i) / steps])
   }
-  const climb = climbOf(time)
-  const climbed = Math.max(open, shape.climbTo)
-  phase(0, climb, open, climbed, 18, STEP)
-  phase(climb, 0.8 * time, climbed, Math.max(climbed, LAST), 10, STEP)
-  phase(0.8 * time, time, Math.max(climbed, LAST), Math.max(climbed, LAST, top), 12, 10)
+  const last = Math.max(open, LAST)
+  phase(Math.min(time / 2, HOLD), 0.8 * time, open, last, 10, STEP)
+  phase(0.8 * time, time, last, Math.max(last, top), 12, 10)
   return schedule(points, typical)
 }
 
