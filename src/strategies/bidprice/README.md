@@ -102,4 +102,4 @@ value, win chance, prices).
 
 `geoCost` (default off, `geo.ts`): multiplies the cost `c` of a request by `1 + geoDel × doublings of drivers near the
 delivery + geoPick × doublings near the pickup` (over the median place, ±2 capped), plus `geoChain` when an open order of ours chains with it
-(delivers within `chainKm` of the pickup in the `chainHours` before, a return leg, or the same yard that day), kept in [`geoMin`, `geoMax`]; sizes are not fitted.
+(delivers within `chainKm` of the pickup in the `chainHours` before, a return leg among them, or the same yard within `chainHours`), kept in [`geoMin`, `geoMax`]; sizes are not fitted.

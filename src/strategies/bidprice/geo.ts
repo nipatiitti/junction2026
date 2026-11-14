@@ -3,10 +3,10 @@
  * - per doubling of the roster drivers within 30 km of the delivery (pickup) over the world's median place,
  *   `geoDel` (`geoPick`) of `c`, the log ratio capped at ±2 doublings;
  * - `geoChain` of `c` once when one of our open orders delivers within `chainKm` of the pickup in the `chainHours`
- *   before its pickup window, or is the return leg of this request, or is a second car from the same yard that day;
+ *   before its pickup window (a return leg among them), or picks up at the same yard within `chainHours`;
  * kept inside [`geoMin`, `geoMax`]. Not fitted: sensible starting sizes. Plain data, from the setup and the orders. */
 import type { DriverProfile, Order, Place, PriceRequest, WorldMap } from '../../../vendor/spread-typescript/types.ts'
-import { DAY, HOUR } from '../../time.ts'
+import { HOUR } from '../../time.ts'
 
 export type GeoParams = {
   geoDel: number
@@ -58,22 +58,20 @@ export function chains(geo: Geo, request: PriceRequest, orders: Iterable<Order>,
   const leg = request.legs[0]
   if (!leg) return false
   const pickup = geo.places.get(leg.pickup.placeId)
-  const delivery = geo.places.get(leg.delivery.placeId)
   const from = leg.pickup.window.from
   for (const order of orders) {
     for (const [i, theirs] of order.legs.entries()) {
       if (order.deliveredAt[i] != null) continue
-      const theirPickup = geo.places.get(theirs.pickup.placeId)
       const theirDelivery = geo.places.get(theirs.delivery.placeId)
       const before =
         km(theirDelivery, pickup) <= p.chainKm &&
         theirs.delivery.window.from <= leg.pickup.window.to &&
         theirs.delivery.window.to >= from - p.chainHours * HOUR
-      const returnLeg = km(theirDelivery, pickup) <= p.chainKm && km(theirPickup, delivery) <= p.chainKm
+      // A return leg is a chain that also ends near their pickup: the timing test of `before` covers it.
       const sameYard =
         theirs.pickup.placeId === leg.pickup.placeId &&
-        Math.floor(theirs.pickup.window.from / DAY) === Math.floor(from / DAY)
-      if (before || returnLeg || sameYard) return true
+        Math.abs(theirs.pickup.window.from - from) <= p.chainHours * HOUR
+      if (before || sameYard) return true
     }
   }
   return false
