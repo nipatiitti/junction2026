@@ -575,3 +575,34 @@ Readings:
 After six rounds the general system stays at about €10,700 on unseen worlds. Kept changes: `minValueCents` 60 and
 the lateness rule (in `board.json`). Small candidates not merged: outage detection (+€157), mild sweep (−€161 with
 better on-time share).
+
+## Round 7: gigs with several cars (round trips), the one game mechanic the TypeScript system did not use
+
+Measurement (branch `feat/pairs-measure`, analysis/pairs.py and 16 forked probes on spread-8):
+
+| Seed | Orders won | Round trips (15 km) | Chains | Same yard | Orders that could sit in a pair |
+| --- | --- | --- | --- | --- | --- |
+| spread-6 | 228 | 22 | 79 | 53 | 175 (77%) |
+| spread-7 | 363 | 36 | 125 | 93 | 300 (83%) |
+| spread-8 | 348 | 31 | 114 | 82 | 264 (76%) |
+| spread-10 | 324 | 21 | 103 | 81 | 256 (79%) |
+
+Upper bounds (opening hours ignored). Forked probes: both round trips booked 17% and 19% under their two single
+gigs; of 14 chains, 7 were 11-21% cheaper, 5 dearer, 2 never booked. Estimated €500-1,700 a week in fees and 60-120
+fewer gigs a week for the same orders.
+
+Build (`pairs` flag, worktree agent-a97c1abc2ef8aada1, not merged): round trips of two unbooked one-car orders
+posted as one gig at 0.85 × the two schedules, split back to single gigs when urgent or unbooked 6 h before the start.
+
+| Version | spread-6 | spread-7 | spread-8 | spread-10 | Mean (baseline €10,724) |
+| --- | --- | --- | --- | --- | --- |
+| first build (a pair's fee booked on one order) | not played | €10,153 | €12,812 | not played | two-seed −€648 |
+| accounting fixed, 25 km | €8,025 | €11,091 | €12,797 | €9,099 | €10,253 (−€471; all of it spread-10) |
+| pairKm=40 | | €10,940 | | | |
+| pairCostCut=0.08 (cheaper quotes for requests that pair) | | €10,374 | | | |
+
+Pair gigs posted / booked / split back: spread-6 3/3/0, spread-7 18/18/3, spread-8 16/15/1, spread-10 16/12/3.
+Paired cars booked at 0.83-0.87 × typical against 1.04-1.08 × for the whole week: about 20% cheaper, as measured.
+
+Reading: the mechanic works and saves what the probes said per pair, but only 7-10% of orders end up paired, so
+the week's total does not move yet. It is the first idea that frees driver capacity instead of moving price.
