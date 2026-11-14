@@ -1,0 +1,24 @@
+{
+  "seed": "spread-9",
+  "level": 8,
+  "policy": "r-top17",
+  "kind": "practice",
+  "worldId": "w2bf174e3816edf66885a",
+  "version": "295df7fe14521154a80f1b2b996b1cc2dc13d319",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 9204,
+  "score": {
+    "marginCents": 1568773,
+    "revenueCents": 3786980,
+    "marginShare": 0.41425436627602996,
+    "wonOrders": 320,
+    "onTimeShare": 0.9875,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 15.1,
+  "requests": 541
+}
