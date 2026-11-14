@@ -31,7 +31,8 @@ browser has no AAC encoder). It needs a Chromium-based browser, which has WebCod
 | `src/audio/synth.js` | the sound kit: drums, 808, cowbell, pads, and effects such as boom, whoosh and ding   |
 | `src/audio/score.js` | the beat under each scene, and where it rests for big moments                         |
 | `src/audio/mix.js`   | renders all the sound of the video into one track                                     |
-| `audio/voice/`       | recorded voice lines, if any (see below)                                              |
+| `audio/voice/`       | the voice lines (see below)                                                           |
+| `voices.ts`          | makes the voice lines with ElevenLabs                                                 |
 | `src/main.js`        | the player                                                                            |
 | `src/export.js`      | the MP4 export                                                                        |
 | `serve.ts`           | the static server, the reload signal and the endpoint that saves the MP4              |
@@ -50,10 +51,20 @@ effects at the same local times as its beats, for example `{ at: 2.25, sound: 'b
 from oscillators, filters and seeded noise, rendered once when the page loads (about a second), so every render
 sounds the same and the MP4 gets exactly what the preview plays.
 
-Voice lines are optional. Record a line, name the file after its cue and put it in `video/audio/voice/`
-(`.mp3`, `.m4a`, `.wav` or `.ogg`); the page mixes it in at the line's time. The names are `scene1-speed`,
-`scene1-whisper`, `scene2-chat`, `scene2-back`, `scene3-bro`, `scene3-sixseven`, `scene3-chews`, `scene4-accepted`,
-`scene4-nah`, `scene4-scream`, `scene4-panic`, `end-remember` and `end-us`.
+Voice lines come from ElevenLabs text to speech, with meme voices cast in `voices.ts` (which voice says which line,
+and its delivery tags such as `[whispers]`); the words themselves come from `timeline.js`. Each line is saved as
+`video/audio/voice/<name>.mp3` and committed, so rendering needs no key; the page mixes it in at the line's cue.
+
+```bash
+node --env-file=.env.local video/voices.ts
+```
+
+makes the lines that have no file yet; `--force` makes every line again, and names (`scene1-speed scene4-nah`) make
+just those again. It needs `pnpm install` (for the ElevenLabs SDK) and an ElevenLabs key in `.env.local`, which
+`npx -y @elevenlabs/cli@latest onboard init` sets up once (the key is never committed). A recording of your own with
+the same name (`.mp3`, `.m4a`, `.wav` or `.ogg`) works too. The names are `scene1-speed`, `scene1-whisper`,
+`scene2-chat`, `scene2-back`, `scene3-bro`, `scene3-sixseven`, `scene3-chews`, `scene4-accepted`, `scene4-nah`,
+`scene4-scream`, `scene4-panic`, `end-remember` and `end-us`.
 
 ## Repeatable frames
 
