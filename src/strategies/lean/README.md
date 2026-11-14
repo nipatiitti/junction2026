@@ -428,6 +428,23 @@ The same ten seeds, every week ranked (mean margin a week, against the defaults 
 - An earlier check on four seeds, on the code before #335 (`noisechk-1` to `noisechk-4`): `noise` 0.20 without a
   charge made +€264 and 0.14 −€554 with one week unranked.
 
+## No raises over the weekend (15 November, #347)
+
+Cars due on the last Monday were booked at 0.84 to 0.91 × typical on the Friday and the Saturday (46 a week), 2 a
+week on the Sunday, and 31 a week on the Monday at 1.54 ×: the raises had come on Saturday and Sunday, and Monday's
+first drivers took what the app showed between 06:00 and 09:00. With `rest` such a gig raises on the Monday.
+
+Server check, the ten `supply-*` seeds, both schedules on the same seeds (level 8, a week). Both win the same
+orders, so the difference is fees and refunds alone:
+
+| Variant                   | Margin  | Orders | On time, mean and lowest week | Ranked   |
+| ------------------------- | ------- | ------ | ----------------------------- | -------- |
+| `rest` false (before)     | €16,861 | 436    | 96.7%, 94.7%                  | 10 of 10 |
+| `rest` true (**default**) | €17,485 | 436    | 96.4%, 94.3%                  | 10 of 10 |
+
++€624 ± 130 a week, ahead on 10 of 10 seeds (+€172 to +€1,375), with 0.3 points fewer orders on time. The `rest`
+false week of `supply-1` is the saved week of the old schedule to the cent.
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
