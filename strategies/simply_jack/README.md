@@ -12,12 +12,12 @@ offers, the final) is the root [`dispatch.py`](../../dispatch.py), unchanged.
 
 **1. The price.** For each price request:
 
-- **Each dealer has its own price**, a factor on the list price. It starts at `PRICE` (1.55). A request of that dealer
-  that we win raises it by `LADDER_UP` (2%); one that we lose lowers it by `LADDER_DOWN` (1%); it stays between
-  `PRICE_MIN` (1.30) and `PRICE_MAX` (2.00). So Jack wins about a third of what he quotes, and a dealer who trusts us
+- **Each dealer has its own price**, a factor on the list price. It starts at `PRICE` (1.50). A request of that dealer
+  that we win raises it by `LADDER_UP` (2%); one that we lose lowers it by `LADDER_DOWN` (1.5%); it stays between
+  `PRICE_MIN` (1.25) and `PRICE_MAX` (2.00). So Jack wins about a third of what he quotes, and a dealer who trusts us
   pays more.
 - **Earn trust first.** In the first `TRUST_DAYS` (1: Monday) the two steps swap: a loss cuts 2% and a win adds
-  1%. Jack wins most requests at a small margin then, to earn the dealers' trust (at level 8 each order on time
+  1.5%. Jack wins most requests at a small margin then, to earn the dealers' trust (at level 8 each order on time
   lets a dealer accept 1% more from us), and takes the bigger margin later in the week.
 - **Each morning** every dealer's price falls by `MORNING_STEP` (2%): overnight the competitor cuts its prices for the
   dealers we won most from.
@@ -26,7 +26,7 @@ offers, the final) is the root [`dispatch.py`](../../dispatch.py), unchanged.
 - **Too few drivers.** Each car that got the deadline warning (no driver 3 hours before its last pickup) in the last
   24 hours adds `WARN_STEP` (2%) to every price, so Jack takes fewer cars while his drivers are behind.
 - **The price war.** Once a week the competitor quotes 20% less for a day. When Jack wins at most one of his last
-  `WAR_WINDOW` (15) quotes, he quotes `WAR_PRICE` (0.85) times his prices until 18:00, and the prices learn nothing
+  `WAR_WINDOW` (20) quotes, he quotes `WAR_PRICE` (0.85) times his prices until 18:00, and the prices learn nothing
   that day. It comes once a week, never on the day after the trust days (when Jack's new prices lose a lot anyway),
   and the window counts every quote (step 76).
 - **Leave out** every option that gives a driver less than `MIN_LEAD` (8 hours) to reach the car: the option's
@@ -195,6 +195,16 @@ as it is, and each later change is judged against it on that seed. For reference
 |  121 | spread-9  | FRIDAY_PRICE 0.92 → 0.86                                                         | €16,722 |    377 |              97.9% | no   |
 |  122 | spread-9  | WAR_PRICE 0.85 → 0.80                                                            | €15,780 |    373 |              96.2% | no   |
 |  123 | spread-9  | outage rule kept out of the war window                                           | €14,351 |    347 |              98.0% | no   |
+|  124 | spread-4  | new seed: v120 as it is                                                          | €11,194 |    287 |              92.0% | base |
+|  125 | spread-4  | MIN_LEAD 8h → 10h (+€244 but 90.6% on time)                                      | €11,438 |    267 |              90.6% | no   |
+|  126 | spread-4  | WAR_WINDOW 15 → 20 (the war is seen on the right day)                            | €11,638 |    272 |              93.4% | yes  |
+|  127 | spread-4  | FEE_TOP 1.5 → 1.6                                                                | €10,450 |    259 |              91.1% | no   |
+|  128 | spread-4  | MORNING_STEP 0.02 → 0.01                                                         | €11,260 |    277 |              94.2% | no   |
+|  129 | spread-1  | new seed: v126 as it is                                                          |  €9,522 |    312 |              93.6% | base |
+|  130 | spread-1  | LADDER_DOWN 0.01 → 0.015                                                         |  €9,923 |    325 |              92.9% | yes  |
+|  131 | spread-1  | PRICE_MIN 1.30 → 1.25                                                            | €10,674 |    338 |              95.9% | yes  |
+|  132 | spread-1  | PRICE start 1.55 → 1.50                                                          | €10,736 |    342 |              96.2% | yes  |
+|  133 | spread-1  | MAX_FEE_LIST 1.16 → 1.25                                                         | €10,529 |    365 |              93.4% | no   |
 
 What the steps taught:
 
@@ -216,6 +226,8 @@ What the steps taught:
 - **Seeds pull the numbers apart.** A weak brake on warnings and more volume suit `spread-9`, where drivers are many,
   and leave `spread-4` and `spread-16` unranked (steps 89, 99). A ranked week beats an unranked one, so the brake
   stays at 2%.
+- **A change that leaves a week under 91% on time is kept only if it adds more than €500** (steps 77, 93, 125): a
+  few late cars more and the week is not ranked at all.
 - **One week is noisy.** A small change moves what every driver does for the rest of the week, so two versions that
   differ by a few hundred euros are within the noise of one week. Step 77 was undone although it made €37 more: it
   left the week at 90.2% on time, a few cars from not being ranked.
