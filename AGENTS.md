@@ -223,18 +223,36 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the ratchet week: `uv run strategies/ratchet/dispatch.py --level 8 --seed spread-1`
 - Play the ceiling-pricing week: `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1`
 - Play the headroom week: `uv run strategies/headroom/dispatch.py --level 8 --seed spread-1`
+- Play the chain-optimised week: `uv run strategies/chain_opt/dispatch.py --level 8 --seed spread-1`
+- Play the trust-farm week: `uv run strategies/trust_farm/dispatch.py --level 8 --seed spread-1`
+- Play the hazard-fee week: `uv run strategies/hazard_fee/dispatch.py --level 8 --seed spread-1`
+- Play the learned-hold week: `uv run strategies/learned_hold/dispatch.py --level 8 --seed spread-1`
+- Play the joint-bid week: `uv run strategies/joint_bid/dispatch.py --level 8 --seed spread-1`
+- Play the pair-first week: `uv run strategies/pair_first/dispatch.py --level 8 --seed spread-1`
+- Play the robust-tune week: `uv run strategies/robust_tune/dispatch.py --level 8 --seed spread-1`
+- Play the herd-competitor week: `uv run strategies/herd_competitor/dispatch.py --level 8 --seed spread-1`
+- Play the offer-probe week: `uv run strategies/offer_probe/dispatch.py --level 8 --seed spread-1`
+- Play the outage-harvest week: `uv run strategies/outage_harvest/dispatch.py --level 8 --seed spread-1`
+- Play the contextual-mix week: `uv run strategies/contextual_mix/dispatch.py --level 8 --seed spread-1`
+- Play the bulk-yard week: `uv run strategies/bulk_yard/dispatch.py --level 8 --seed spread-1`
 - Play the lane-prior week: `uv run strategies/lane_prior/dispatch.py --level 8 --seed spread-1`
-- Play the town-opening week: `uv run strategies/town_open/dispatch.py --level 8 --seed spread-1`
 - Play the same-day week: `uv run strategies/same_day/dispatch.py --level 8 --seed spread-1`
 - Play the soft-top week: `uv run strategies/soft_top/dispatch.py --level 8 --seed spread-1`
+- Play the drop-risk week: `uv run strategies/drop_risk/dispatch.py --level 8 --seed spread-1`
+- Play the flu-guard week: `uv run strategies/flu_guard/dispatch.py --level 8 --seed spread-1`
+- Play the all-in week: `uv run strategies/all_in/dispatch.py --level 8 --seed spread-1`
+- Play the slack-budget week: `uv run strategies/slack_budget/dispatch.py --level 8 --seed spread-1`
+- Play the snow-aware week: `uv run strategies/snow_aware/dispatch.py --level 8 --seed spread-1`
 - Measure the lead-cost table: `uv run python -m strategies.lead_cost.fit`
 - Fit the lane fees: `uv run python -m strategies.lane_fee.fit`
 - Fit the lane priors: `uv run python -m strategies.lane_prior.fit`
 - Play the scarcity-ceiling week: `uv run strategies/scarcity_ceiling/dispatch.py --level 8 --seed spread-1`
 - Play the profit-max week: `uv run strategies/profit_max/dispatch.py --level 8 --seed spread-1`
 - Play the learned-cost week: `uv run strategies/learned_cost/dispatch.py --level 8 --seed spread-1`
+- Play the learned-notes week: `uv run strategies/learned_notes/dispatch.py --level 8 --seed spread-1`
 - Play the trust-value week: `uv run strategies/trust_value/dispatch.py --level 8 --seed spread-1`
 - Play the war-guard week: `uv run strategies/war_guard/dispatch.py --level 8 --seed spread-1`
+- Play the war-sweep week: `uv run strategies/war_sweep/dispatch.py --level 8 --seed spread-1`
 - Play the option-menu week: `uv run strategies/option_menu/dispatch.py --level 8 --seed spread-1`
 - Play the slack-fees week: `uv run strategies/slack_fees/dispatch.py --level 8 --seed spread-1`
 - Play the tempo week: `uv run strategies/tempo/dispatch.py --level 8 --seed spread-1`
