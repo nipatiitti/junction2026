@@ -103,3 +103,7 @@ value, win chance, prices).
 - `onTimeOps` (default off, `ontime.ts`): most late orders are gigs that sat open with few views until past their last pickup
   (`analysis/late_causes.py`). From `onTimeLeadHours` (14) before the last pickup an open, unheld gig goes at once to
   `onTimeFee` (2) x typical, at most three prices, and climbs from there.
+
+- `unseenRule` (default off, `unseen.ts`): leaves out a request whose leg is `unseenLegKm` (400) km or more in a straight line and whose pickup has fewer than `unseenMin` (10) roster drivers within `unseenKm` (30) km, the gigs no driver is notified of.
+- `analysis/unseen.py` found these are where cause-c late orders (no booking until close to pickup) gather, but the good orders sharing the features earn more than the late ones lose, so on the saved weeks every decline threshold nets negative.
+- The summary line reports `unseen removed N options of M requests` (counted per admission call).
