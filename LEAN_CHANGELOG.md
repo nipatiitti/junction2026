@@ -29,6 +29,16 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-15: supply and demand (PR #342)
+
+- **Version changed**: TypeScript.
+- **What changed**: `noise` is the dealers' measured scale (0.11, was 0.28), and a charge on the cost says what an
+  order costs the others: `taxLoad` 0.47 × the orders per driver that the week is heading for × the order's cost
+  (`tax` and `taxEuros`, both 0, are a fixed share and a flat amount). Ten server seeds: +€972 ± 386 a week, 74 more
+  orders. The fit and the table:
+  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#supply-and-demand-15-november).
+- **In step**: no (#329). The Python version still has `noise` 0.28 and no charge.
+
 ### 2026-11-14: straightening (PR #330, issue #335)
 
 - **Version changed**: TypeScript.

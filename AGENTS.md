@@ -269,6 +269,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Fit lean's cost weights again (`--write` saves them): `uv run --with numpy python -m analysis.lean_cost`
 - Fit the lane fees: `uv run python -m strategies.lane_fee.fit`
 - Fit the lane priors: `uv run python -m strategies.lane_prior.fit`
+- Fit lean's supply and demand functions: `uv run python -m analysis.supply_curve`
 - Play the scarcity-ceiling week: `uv run strategies/scarcity_ceiling/dispatch.py --level 8 --seed spread-1`
 - Play the profit-max week: `uv run strategies/profit_max/dispatch.py --level 8 --seed spread-1`
 - Play the learned-cost week: `uv run strategies/learned_cost/dispatch.py --level 8 --seed spread-1`
