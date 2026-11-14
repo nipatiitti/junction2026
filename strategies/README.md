@@ -39,6 +39,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`learned_cost/`](learned_cost/README.md)         | `LearnedCostAdmission`                 | Ceiling, with the driver cost corrected by our own bookings, by town                    |
 | [`trust_value/`](trust_value/README.md)           | `TrustValueAdmission`                  | Ceiling, counting the dealer trust that an order on time buys                           |
 | [`war_guard/`](war_guard/README.md)               | `WarGuardPricing`, `WarGuardAdmission` | Ceiling, undoing the price war's lessons and widening the outage                        |
+| [`war_sweep/`](war_sweep/README.md)               | `WarSweepPricing`                      | Headroom, capping quotes in a detected price war without adding capacity                |
 | [`option_menu/`](option_menu/README.md)           | `OptionMenu`                           | Ceiling, quoting admission's option and every slower one                                |
 | [`slack_fees/`](slack_fees/README.md)             | `SlackFeePlanner`                      | Ceiling, with the early fee held for cars that have a day to wait                       |
 | [`tempo/`](tempo/README.md)                       | `TempoAdmission`                       | Ceiling, with each area's capacity set by how fast our gigs book there                  |
@@ -46,7 +47,11 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`tight_margin/`](tight_margin/README.md)         | `TightPricing`                         | Max margin's prices only once the week's drivers fall behind                            |
 | [`low_opening/`](low_opening/README.md)           | `LowOpeningPlanner`                    | Slack fees, opening a patient gig's first post at 0.8 x the typical fee                 |
 | [`headroom/`](headroom/README.md)                 | `HeadroomPricing`                      | Ceiling, with the lane fee, the cost by lead time, dawn fees and a maximum that moves   |
+<<<<<<< HEAD
 | [`offer_probe/`](offer_probe/README.md)           | `ProbeOffers`                          | Headroom, offering only to active drivers and learning acceptance by fee ratio           |
+=======
+| [`contextual_mix/`](contextual_mix/README.md)     | `ContextualPricing`                   | Headroom, switching to a lower price cap where a pickup town's gigs book slowly          |
+>>>>>>> origin/main
 | [`bulk_yard/`](bulk_yard/README.md)               | `BulkYardAdmission`, `BulkYardBundler` | Headroom, admitting a large yard batch as one and planning its chains from the yard      |
 | [`lane_prior/`](lane_prior/README.md)             | `PriorPricing`                         | Headroom, with a lift for each dear delivery place, fitted on the saved weeks           |
 | [`town_open/`](town_open/README.md)               | `TownOpening`, `TownFeePlanner`        | Headroom, with the opening fee of each pickup town learned from its bookings            |
