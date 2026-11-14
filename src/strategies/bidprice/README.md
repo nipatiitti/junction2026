@@ -99,3 +99,7 @@ served option over `lateRiskMax`), `war` (the war-day rule), `minValue` (best va
 `underCost` (no price on the grid covers the cost); `opt-<rule>` counts the options each rule left out of a quote.
 Set `BIDPRICE_DECLINE_LOG=<file>` to append one JSON line per request (id, minute, reason, options left out, costs,
 value, win chance, prices).
+
+`flatFees` (flat.ts, default off): drivers learn from our raises and then wait, so each gig holds one fee, `flatOpen` (1.08) × the
+solver's expected fee, until `flatUntilHours` (5) before the last pickup, then one step to `flatTop` (1.5) × typical. A repost
+keeps the order's first per-car fee and a dropped gig is not repriced; the quote's `c` follows the booked fees through the cost learner.

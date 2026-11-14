@@ -71,6 +71,12 @@ export type BidPriceParams = {
   climbStep: number
   climbTop: number
   repriceMax: number
+  /** flatFees (flat.ts): one fee, `flatOpen` × the solver's expected fee, held to `flatUntilHours` before the last
+   * pickup, then one step to `flatTop` × typical; no raise on reposts or drops. */
+  flatFees: boolean
+  flatOpen: number
+  flatUntilHours: number
+  flatTop: number
 }
 
 export const DEFAULTS: BidPriceParams = {
@@ -113,6 +119,10 @@ export const DEFAULTS: BidPriceParams = {
   climbStep: 0.1,
   climbTop: 3,
   repriceMax: 10,
+  flatFees: false,
+  flatOpen: 1.08,
+  flatUntilHours: 5,
+  flatTop: 1.5,
 }
 
 /** The quote models' params from the strategy's. */

@@ -75,6 +75,7 @@ import {
   unbooked,
 } from './cost.ts'
 import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees.ts'
+import { flatCount, flatSchedule } from './flat.ts'
 import { lateRiskOf, newLateRisk } from './late.ts'
 import { legsOf, WeekLog } from './log.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
@@ -277,7 +278,12 @@ export class BidPrice extends Strategy<BidPriceParams> {
   schedule(order: Order, stops: GigPlan['stops'], experienced: boolean, books: Books): FeeStep[] {
     const gig = this.orderGig(order, legsOf(stops, order.id), experienced, books.now)
     if (!gig) throw new Error(`no request for order ${order.id}`) // the harness posts the starter's gig
-    const { schedule } = this.plan(gig, books.now)
+    const plan = this.plan(gig, books.now)
+    const { level } = this.setup
+    const legs = legsOf(stops, order.id)
+    const schedule = this.params.flatFees
+      ? flatSchedule(gig, books.now, plan.feeCents, legs.length, order.id, this.log.gigs, this.params, level)
+      : plan.schedule
     if (!books.urgent.has(order.id)) return schedule
     return higher(schedule, urgentRamp(books.now, gig.typicalCents, this.params), this.setup.level)
   }
@@ -292,6 +298,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
       if (!order || books.urgent.has(order.id) || books.booked.has(gigId)) return []
       if (!books.gigsOf(order.id).includes(gigId)) return []
       const ended = (gig.schedule.at(-1)?.at ?? now) + this.params.staleHours * HOUR <= now
+      if (this.params.flatFees && gig.dropped && !ended) return (flatCount.skipped++, [])
       return gig.dropped || ended ? [{ gigId, gig, order }] : []
     })
     due.sort((a, b) => a.order.lastPickupAt - b.order.lastPickupAt)
@@ -325,6 +332,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
     const share = (part: number, whole: number) => (whole > 0 ? `${((100 * part) / whole).toFixed(0)}%` : 'n/a')
     return [
       `bidprice: level ${level.toFixed(3)}, cost over prior: fees ${fees}, late ${late}, mu ${this.fees.mu.toFixed(2)}`,
+      ...(this.params.flatFees ? [`flatFees: ${JSON.stringify(flatCount)}`] : []),
       `quoted ${quoted} of ${requests} requests (${share(quoted, requests)}), won ${won} (${share(won, quoted)} of quoted)`,
       booked > 0
         ? `fees paid ${(paidOverTypical / booked).toFixed(2)} × typical over ${booked} bookings`
@@ -337,10 +345,10 @@ export class BidPrice extends Strategy<BidPriceParams> {
   }
 
   /** The schedule for a gig from now, and its expected cost `c`: the ramp, or the fee model's solver behind its flag. */
-  private plan(gig: FeeGig, now: number): { schedule: FeeStep[]; costCents: number } {
+  private plan(gig: FeeGig, now: number): { schedule: FeeStep[]; costCents: number; feeCents: number } {
     if (this.params.feeSolver) return planFees(gig, now, this.fees, this.feeParams)
     const schedule = ramp(gig, now, this.params, this.setup.level)
-    return { schedule, costCents: costOf(schedule, gig, now, this.fees, this.feeParams).costCents }
+    return { schedule, ...costOf(schedule, gig, now, this.fees, this.feeParams) }
   }
 
   /** Whether the cars' delivery place has few drivers near. */
