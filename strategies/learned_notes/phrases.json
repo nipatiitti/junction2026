@@ -1,0 +1,44 @@
+{
+  "phrases": [
+    {
+      "literal": "auto valmistuu huomenna kymmeenltä",
+      "facts": {
+        "ready_at": {
+          "days": 1,
+          "minute": 600
+        }
+      },
+      "support": 1
+    },
+    {
+      "literal": "mottagning till kl 18",
+      "facts": {
+        "delivery_hours": {
+          "opens": 540,
+          "closes": 1080
+        }
+      },
+      "support": 1
+    },
+    {
+      "literal": "mottgning till kl 16.",
+      "facts": {
+        "delivery_hours": {
+          "opens": 420,
+          "closes": 960
+        }
+      },
+      "support": 1
+    },
+    {
+      "literal": "nouto ennen neljaa.",
+      "facts": {
+        "pickup_hours": {
+          "opens": 420,
+          "closes": 960
+        }
+      },
+      "support": 1
+    }
+  ]
+}
