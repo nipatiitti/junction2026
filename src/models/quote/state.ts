@@ -114,11 +114,12 @@ export function trustOf(state: QuoteState, dealer: string, params: QuoteParams):
   return Math.min(params.trustCap, state.trust[dealer] ?? 0)
 }
 
-/** Requests still to come this week: the rate so far, leaning on the prior early in the week. */
-export function requestsLeft(state: QuoteState, now: number, params: QuoteParams): number {
+/** Requests still to come this week from the minute `from` on: the rate so far, leaning on the prior early in the
+ * week. */
+export function requestsLeft(state: QuoteState, now: number, params: QuoteParams, from: number = now): number {
   const done = weekShare(now)
   const prior = 0.1 // the prior counts as a tenth of a week
-  return ((state.requestTotal + prior * params.requestsPerWeek) / (done + prior)) * (1 - done)
+  return ((state.requestTotal + prior * params.requestsPerWeek) / (done + prior)) * (1 - weekShare(Math.max(now, from)))
 }
 
 /** The share of the week's request hours (Monday to Friday, 08:00 to 18:00) that has passed. */

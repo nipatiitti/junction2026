@@ -205,6 +205,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Type check: `pnpm check`
 - Install Python dependencies: `uv sync`
 - Play a Spread practice week: `uv run dispatch.py --level 8 --seed spread-1`
+- Play an admission scenario: `uv run python strategies/admission_scenarios/capacity.py --level 8 --seed spread-1`
 - Play the baseline week: `uv run python strategies/baseline/baseline.py --level 8 --seed spread-1`
 - Play the price-ladder week: `uv run strategies/price_ladder/dispatch.py --level 8 --seed spread-1`
 - Play the city-ladder week: `uv run strategies/city_ladder/dispatch.py --level 8 --seed spread-1`
@@ -217,6 +218,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the more-chains week: `uv run strategies/bundling_more/dispatch.py --level 8 --seed spread-1`
 - Play the cheaper-bundles week: `uv run strategies/bundling_cheaper/dispatch.py --level 8 --seed spread-1`
 - Play the urgency-priced week: `uv run strategies/delivery_urgency/dispatch.py --level 8 --seed spread-1`
+- Play the special-premium week: `uv run strategies/special_premium/dispatch.py --level 8 --seed spread-1`
 - Play the scarcity-urgency week: `uv run strategies/scarcity_urgency/dispatch.py --level 8 --seed spread-1`
 - Play the ratchet week: `uv run strategies/ratchet/dispatch.py --level 8 --seed spread-1`
 - Play the ceiling-pricing week: `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1`
@@ -240,6 +242,12 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the max-margin week: `uv run strategies/max_margin/dispatch.py --level 8 --seed spread-1`
 - Play the tight-margin week: `uv run strategies/tight_margin/dispatch.py --level 8 --seed spread-1`
 - Play the low-opening week: `uv run strategies/low_opening/dispatch.py --level 8 --seed spread-1`
+- Play the opening-offers week: `uv run strategies/opening_offers/dispatch.py --level 8 --seed spread-1`
+- Play the home-return week: `uv run strategies/home_return/dispatch.py --level 8 --seed spread-1`
+- Play the adaptive-fees week: `uv run strategies/adaptive_fees/dispatch.py --level 8 --seed spread-1`
+- Play the hazard-admission week: `uv run strategies/hazard_admission/dispatch.py --level 8 --seed spread-1`
+- Play the ifs week: `uv run strategies/ifs/dispatch.py --level 8 --seed spread-1`
+- Search the ifs values for better weeks: `uv run python -m strategies.ifs.search --target 20000`
 - Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
 - Measure the note reader: `uv run python -m strategies.notes.check reveal-<world id>`
 - Compare two versions: `uv run python -m strategies.bench dispatch.py origin/main`
@@ -247,6 +255,7 @@ on one line, so two PRs that each add a command do not conflict.
 - See what a tournament would play (plays nothing): `uv run python -m strategies.tournament --plan`
 - Play the tournament of ceiling's layers: `uv run python -m strategies.tournament --seeds spread-1..spread-3`
 - Play the active models on fresh seeds until stopped: `uv run python -m tools.sweep`
+- List open worlds older than 15 minutes (`--yes` deletes them): `uv run --env-file .env python -m tools.kill_old_worlds`
 - Build the saved-weeks DB: `uv run python -m tools.db`
 - Lint / format Python: `uv run ruff check --fix . && uv run ruff format .`
 - Play a week in TypeScript: `pnpm dispatch --level 8 --seed spread-1`
@@ -264,6 +273,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Write the replay files only: `uv run python -m analysis.replay --no-serve`
 - Export the quote priors: `uv run python -m analysis.priors_quote`
 - Replay the quote models on the probes: `node analysis/replay_quote.ts`
+- Split saved weeks' margin by the hour an order was won: `uv run python -m analysis.phases`
 
 ## Definition of done
 

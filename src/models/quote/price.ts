@@ -110,7 +110,9 @@ export function bestQuote(
 
 /** The value of the trust that a win adds, in cents: each order on time lifts the price this dealer accepts by
  * `trustPerOrder` on its later requests, which is worth that share of their expected revenue (the envelope
- * theorem), until the dealer's count would have reached the cap anyway. */
+ * theorem), until the dealer's count would have reached the cap anyway. With `trustMinShare`, `trustUntil` and
+ * `trustLagHours` the bonus is kept to the dealers who send most of the requests, to the start of their count, and to
+ * the requests that come after the order is delivered. */
 export function trustBonus(
   request: PriceRequest,
   state: QuoteState,
@@ -119,9 +121,11 @@ export function trustBonus(
   revenue: number,
 ): number {
   const trust = trustOf(state, request.dealerId, params)
-  if (!params.flags.trust || params.trustValue <= 0 || trust >= params.trustCap) return 0
+  if (!params.flags.trust || params.trustValue <= 0 || trust >= Math.min(params.trustCap, params.trustUntil)) return 0
+  const weight = dealerWeight(state, request.dealerId, params)
+  if (weight < params.trustMinShare) return 0
   const perOrder = Math.max(0, state.belief.trust?.[0] ?? params.trustPerOrder)
-  const later = dealerWeight(state, request.dealerId, params) * requestsLeft(state, now, params)
+  const later = weight * requestsLeft(state, now, params, now + params.trustLagHours * 60)
   const winShare = Math.min(1, Math.max(0.1, (state.wins + 1) / (state.answers + 3)))
   return params.trustValue * perOrder * revenue * Math.min(later, (params.trustCap - trust) / winShare)
 }
