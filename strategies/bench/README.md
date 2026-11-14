@@ -31,6 +31,8 @@ uv run python -m strategies.bench my_copy.py dispatch.py --jobs 4 --csv out/my-c
 A version is either:
 
 - a Python file, such as `dispatch.py` or a copy of it: the bench runs `python <file> --level <level> --seed <seed>`;
+- a TypeScript file, such as `src/dispatch.ts`: the bench runs `node <file> --level <level> --seed <seed>`, which
+  plays the TypeScript system's default strategy (the [leaderboard](../leaderboard/README.md) adds `--strategy`);
 - a git ref, such as `origin/main`, a branch or a commit: the bench checks it out into a temporary worktree and plays
   its `dispatch.py`. `<ref>:<file>` plays another file of that ref, such as `origin/main:strategies/x.py`.
 
