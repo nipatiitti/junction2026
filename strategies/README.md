@@ -15,7 +15,7 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`lead_cost/`](lead_cost/README.md) | `LeadCostAdmission` | Which requests to take, by lead time, for `headroom` and up     |
 | [`lane_fee/`](lane_fee/README.md)   | `LaneFee`           | A lane's typical fee without one request's noise, for the same  |
 
-Thirty-five folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Thirty-six folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                                              |
@@ -28,6 +28,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`streak_ladder/`](streak_ladder/README.md)       | `StreakLadderPricing`                  | The price ladder with a step that grows with the run of wins and losses, more on a loss |
 | [`scarcity_cost/`](scarcity_cost/README.md)       | `ScarcityAdmission`                    | Admission with the town's quotas per driver priced in                                   |
 | [`bundling_more/`](bundling_more/README.md)       | `WaitingBundler`                       | Every order waits for a chain, so more cars share a gig                                 |
+| [`learned_hold/`](learned_hold/README.md)         | `AdaptiveHoldBundler`                  | Headroom, with each order's wait learned from its pickup town's bookings                |
 | [`bundling_cheaper/`](bundling_cheaper/README.md) | `CheapBundler`                         | A bundle keeps a smaller share of its cars' solo bill                                   |
 | [`ratchet/`](ratchet/README.md)                   | `RatchetPricing`, `TrustAdmission`, …  | A price ratchet per dealer and flat fees priced by risk                                 |
 | [`ceiling/`](ceiling/README.md)                   | `CeilingPricing`, `ChainAdmission`     | Prices just under a maximum, over the driver cost, with timed return legs               |
