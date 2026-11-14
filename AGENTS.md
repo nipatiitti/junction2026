@@ -239,6 +239,10 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the max-margin week: `uv run strategies/max_margin/dispatch.py --level 8 --seed spread-1`
 - Play the tight-margin week: `uv run strategies/tight_margin/dispatch.py --level 8 --seed spread-1`
 - Play the low-opening week: `uv run strategies/low_opening/dispatch.py --level 8 --seed spread-1`
+- Play the opening-offers week: `uv run strategies/opening_offers/dispatch.py --level 8 --seed spread-1`
+- Play the home-return week: `uv run strategies/home_return/dispatch.py --level 8 --seed spread-1`
+- Play the adaptive-fees week: `uv run strategies/adaptive_fees/dispatch.py --level 8 --seed spread-1`
+- Play the hazard-admission week: `uv run strategies/hazard_admission/dispatch.py --level 8 --seed spread-1`
 - Play the ifs week: `uv run strategies/ifs/dispatch.py --level 8 --seed spread-1`
 - Search the ifs values for better weeks: `uv run python -m strategies.ifs.search --target 20000`
 - Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
