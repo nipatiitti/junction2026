@@ -140,3 +140,34 @@ functions: see [its README](ops/README.md).
 
 The `bidprice` strategy (`strategies/bidprice/`) joins the three: it quotes at the expected cost of moving the car and
 posts each gig with the fee schedule from the same function. See [its README](strategies/bidprice/README.md).
+
+## Write a strategy on the base
+
+`src/strategies/base/` has `PricedStrategy`, which does everything but the price; `src/strategies/flat/` is a
+20-line example. Subclass it, implement `price(ctx)`, and register `priced(OWN_DEFAULTS, MyClass)` in
+`src/strategies/index.ts`. Your defaults merge over the base's, flat, so the bench overrides any of them
+(`mine:comfortHours=6`).
+
+What the base does: admits only the options `canServe` says are on time with `comfortHours` of slack (more as the late
+share rises; else only the slowest servable option); a **capacity brake** (an option whose pickup day has
+`maxOpenPerDay` open unbooked gigs plus `pendingWeight` × pending quotes, or any option while the projected late share
+is over `lateBrake`, is declined, or priced × `brakeMarkup` when that is over 0); posts every gig (stops and audience
+from `src/ops/`, bidprice's fee ramp, the urgent ramp after the deadline warning); reprices dropped and stale gigs each
+30-minute tick; never quotes under `costCents × minMargin`; prints a brake summary at the end of the week.
+
+`price(ctx)` is called once per admitted option and returns a multiple of the list price, or null to leave that option
+out (all null: a decline). `ctx` fields: `request`, `option`, `listCents`, `costCents` (expected driver cost: typical
+fee × `costFactor` × feature multipliers), `dealerId`, `trust` (+1 per on-time order, halved on a late one, cap 25),
+`dealerShare` (share of the requests so far), `nearPickup`, `nearDelivery` (drivers living near), `now`, `weekday`
+(0 = Monday), `hour`, `slack` (minutes), `lateShare`, `load` (of the pickup day), `t` (trackers: `trust`, `requests`,
+`total`, `byDealer` / `byOption` / `byDay` wins and losses, `delivered`, `late`) and `random` (seeded by `seed` and
+the request: the same on a rebuild).
+
+Optional overrides: `feePlan(ctx)` returns a gig's schedule (ctx: `need`, `order`, `legs`, `gig` as a `FeeGig`, `now`,
+`urgent`); `onOutcome(outcome, won)` when a quote wins or passes `respondBy`; `extraActions(books)` adds actions to the
+tick. Keep your own state rebuildable from `observe` and `sent` (call `super`).
+
+Base params (defaults): `comfortHours` 9, `maxOpenPerDay` 18, `pendingWeight` 0.4, `lateBrake` 0.05, `riskWeight` 0.5,
+`brakeMarkup` 0, `openFee` 0.9, `topFee` 2.5, `topLeadHours` 8, `topRatio` 1.5, `urgentTop` 2.5, `staleHours` 2,
+`dropStep` 0.15, `climbStep` 0.1, `climbTop` 3, `repriceMax` 10, `costFactor` 1.3, `minMargin` 1.1, `seed` 1.
+`flat` on spread-1 (level 8): 315 orders, 95.9% on time, EUR 7,251.
