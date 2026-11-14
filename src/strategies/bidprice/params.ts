@@ -36,6 +36,13 @@ export type BidPriceParams = {
   costPseudo: number
   /** Multiplies the cost `c` of every quote, for the bench and the tuner; 1 is the calibrated cost. */
   costScale: number
+  /** widen.ts: quote instead of declining for a value reason, at the honest cost `quoteAllCostScale` and never under
+   * cost x (1 + `quoteAllMargin`), on the first `quoteAllDays` days; `allOptions` prices every offered option. */
+  quoteAll: boolean
+  quoteAllCostScale: number
+  quoteAllMargin: number
+  quoteAllDays: number
+  allOptions: boolean
   /** Late-risk rule (src/params/late.json, from analysis/late_risk.py): drop an option whose predicted late share
    * (slack bucket x drivers near the pickup x evening win) is at or above `lateRiskMax`, and add the expected late
    * cost `p x lateRiskCents` to the cost of the rest. */
@@ -91,6 +98,11 @@ export const DEFAULTS: BidPriceParams = {
   costLearn: true,
   costPseudo: 10,
   costScale: 1,
+  quoteAll: false,
+  quoteAllCostScale: 1.05,
+  quoteAllMargin: 0.12,
+  quoteAllDays: 7,
+  allOptions: false,
   lateRisk: false,
   lateRiskMax: 0.4,
   lateRiskCents: 0,

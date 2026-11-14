@@ -99,3 +99,7 @@ served option over `lateRiskMax`), `war` (the war-day rule), `minValue` (best va
 `underCost` (no price on the grid covers the cost); `opt-<rule>` counts the options each rule left out of a quote.
 Set `BIDPRICE_DECLINE_LOG=<file>` to append one JSON line per request (id, minute, reason, options left out, costs,
 value, win chance, prices).
+
+`quoteAll` (widen.ts): a request declined for value (under `minValueCents`, or no price covers the inflated cost) that has an offerable option is quoted at the honest cost `quoteAllCostScale` (1.05), never under cost x (1 + `quoteAllMargin`, 0.12), on the first `quoteAllDays` (7) days.
+`allOptions` (widen.ts): every offered option a quote leaves out gets its own profit-maximising price; faster options are never cheaper than slower ones.
+The summary's `widen:` part counts quoteAll quotes / wins and added options / taken, per weekday.

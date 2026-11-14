@@ -78,6 +78,7 @@ import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees
 import { lateRiskOf, newLateRisk } from './late.ts'
 import { legsOf, WeekLog } from './log.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
+import { Widen } from './widen.ts'
 
 /** A quote at this many times the list price or more is a decline. */
 const DECLINED = 5
@@ -98,6 +99,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
   /** Why each request got no quote, and how many options each admission rule left out of the quotes. */
   readonly declines: Record<string, number> = {}
+  readonly widen = new Widen(this)
 
   constructor(setup: Setup, params: BidPriceParams) {
     super(setup, params)
@@ -132,6 +134,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   quote(request: PriceRequest, books: Books): Prices | null {
     const decision = this.decide(request, books.now)
     this.audit(request, books.now, decision)
+    if (this.params.quoteAll || this.params.allOptions) return this.widen.prices(request, books.now, decision)
     return decision.decline ? null : decision.prices
   }
 
@@ -333,6 +336,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([k, v]) => `${k} ${v}`)
         .join(' ')}`,
+      ...(this.params.quoteAll || this.params.allOptions ? [this.widen.summary()] : []),
     ].join(', ')
   }
 
@@ -439,8 +443,10 @@ export class BidPrice extends Strategy<BidPriceParams> {
 
   private count(event: DeskEvent): void {
     if (event.kind === 'price_request') this.tally.requests++
-    else if (event.kind === 'order_won') this.tally.won++
-    else if (event.kind === 'gig_booked') {
+    else if (event.kind === 'order_won') {
+      this.tally.won++
+      this.widen.won(event.order.id, event.order.option, event.at)
+    } else if (event.kind === 'gig_booked') {
       const gig = this.log.gigs.get(event.gigId)
       const typical = gig && this.log.requests.get(gig.orderId)?.referenceFeeCents
       const order = gig && this.log.orders.get(gig.orderId)
