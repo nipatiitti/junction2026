@@ -1,7 +1,7 @@
 """Refits the cost weights of lean's order model (`src/strategies/lean/order.json`) on the saved server weeks of
 lean's current defaults: what each won order paid its driver over its typical fee, against what the desk saw at the
-quote. Prints the weights next to the old ones and what both predict for some groups; `--write` saves them to both
-copies of order.json. The chance to be late is not refitted.
+quote. Prints the weights next to the old ones and what both predict for some groups; `--write` saves them there. The Python
+version's copy (`strategies/lean/order.json`) changes only together with its code (LEAN_CHANGELOG.md). The chance to be late is not refitted.
 
     uv run --with numpy python -m analysis.lean_cost
 """
@@ -19,8 +19,7 @@ from pathlib import Path
 import numpy as np
 
 DAY = 1440
-LEVEL = 0.92
-MODELS = ["src/strategies/lean/order.json", "strategies/lean/order.json"]
+MODEL = "src/strategies/lean/order.json"
 
 
 def current(params: dict) -> bool:
@@ -130,7 +129,7 @@ def main() -> None:
     ridge = np.eye(a.shape[1]) * 5
     ridge[0, 0] = 0
     weights = dict(zip(["base", *keys], np.linalg.solve(a.T @ a + ridge, a.T @ y), strict=True))
-    old = json.loads(Path(MODELS[0]).read_text())
+    old = json.loads(Path(MODEL).read_text())
     was = np.array([old["cost"]["base"] + sum(old["cost"].get(k, 0) * x[k] for k in keys) for x in xs])
     was *= y.mean() / was.mean()
     now = a @ np.array(list(weights.values()))
@@ -152,11 +151,9 @@ def main() -> None:
         for key in ("premium", "open_gigs"):
             weights[key] = old["cost"][key] * y.mean() / old["meanCost"]
         old["cost"] = {key: round(float(weights[key]), 4) for key in old["cost"]}
-        # The mean order costs LEVEL of what the week's bookings pay, as with the weights before: at 1 every quote
-        # rose 5% and 29 orders a week were lost for the same margin (server, five seeds).
-        old["meanCost"] = round(float(y.mean()) / LEVEL, 4)
-        for path in MODELS:
-            Path(path).write_text(json.dumps(old, indent=2) + "\n")
+        # The model's mean is 1: the level of the cost is `costLevel` in src/strategies/lean/index.ts alone.
+        old["meanCost"] = round(float(y.mean()), 4)
+        Path(MODEL).write_text(json.dumps(old, indent=2) + "\n")
 
 
 if __name__ == "__main__":

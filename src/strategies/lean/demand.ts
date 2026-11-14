@@ -1,18 +1,25 @@
 /** The dealers' side, learned while the week runs: for one option of one request, the highest multiple of the list
  * price that wins. Its log is a sum of effects (the world, the day, the dealer, the pickup place, the delivery place,
  * the option), each a mean and a variance, updated from every quote that wins or loses. The priors are the measured
- * level 8 facts: half of the quotes win at 1.40 × list, worlds differ by 7%, days by 15%, same-day takes 13% more,
- * and 20 to 25% of noise stays in every request. */
+ * level 8 facts: half of the quotes win at `middle` × list, worlds differ by 8% and a day by 14% around its week
+ * (349 recorded seeds, sim/market.json), same-day takes 12% more (the quote probes). */
 import type { DeliveryOption, PriceRequest } from '../../../vendor/spread-typescript/spread.ts'
 import { DAY } from '../../ops/index.ts'
 
-/** The most that one outcome moves an estimate, in log price. */
+/** The most that one outcome moves an estimate, in log price. Not measured. */
 const MAX_STEP = 0.12
-/** Half of the quotes win at this multiple of the list price, by level (RULES.md, "Practice and the final"). */
-const MIDDLE = (level: number): number => (level >= 8 ? 1.4 : level === 7 ? 1.25 : 1)
+/** Half of the quotes win at this multiple of the list price below level 8 (RULES.md, "Practice and the final");
+ * at level 8 it is the param `middle`. */
+const MIDDLE = (level: number, middle: number): number => (level >= 8 ? middle : level === 7 ? 1.25 : 1)
+/** The prices that `bestPrice` tries, in hundredths of the list price. A cost over the top declines the option. */
+const PRICE_FROM = 90
+const PRICE_TO = 300
+/** No effect is ever surer than this variance. */
+const LEAST_DOUBT = 1e-5
 
 /** Each kind of effect: its prior mean and variance in log price, and the variance it gains back each morning,
- * because the competitor moves its prices by place and by dealer during the week. */
+ * because the competitor moves its prices by place and by dealer during the week. The world, the day and same-day
+ * are measured (above). The dealer and place variances (9% each), the options' (4%) and the drifts are not. */
 const PRIOR: Record<string, { mean: number; variance: number; drift: number }> = {
   world: { mean: 0, variance: 0.006, drift: 0.0005 },
   day: { mean: 0, variance: 0.0225, drift: 0 },
@@ -37,9 +44,9 @@ export class Demand {
   /** The noise that stays in one request's threshold, as a logistic scale in log price. */
   private readonly noise: number
 
-  constructor(level: number, noise: number) {
+  constructor(level: number, noise: number, middle: number) {
     this.noise = noise
-    this.base = Math.log(MIDDLE(level))
+    this.base = Math.log(MIDDLE(level, middle))
   }
 
   /** The effects that an option of a request sums. */
@@ -85,7 +92,7 @@ export class Demand {
     for (const key of keys) {
       const effect = this.effect(key)
       effect.mean += effect.variance * gradient * gain * damp
-      effect.variance = Math.max(1e-5, effect.variance - effect.variance * effect.variance * curve * gain)
+      effect.variance = Math.max(LEAST_DOUBT, effect.variance - effect.variance * effect.variance * curve * gain)
     }
   }
 
@@ -97,11 +104,6 @@ export class Demand {
       const prior = PRIOR[key.split(':')[0]!]!
       effect.variance = Math.min(prior.variance, effect.variance + prior.drift)
     }
-  }
-
-  /** The multiple of the list price at which half of the quotes win, for the world and today. */
-  level(day: number): number {
-    return Math.exp(this.base + this.effect('world').mean + this.effect(`day:${day}`).mean)
   }
 
   private effect(key: string): Effect {
@@ -120,7 +122,8 @@ export class Demand {
 export function bestPrice(belief: Belief, listCents: number, costCents: number): number | null {
   let best = 0
   let price: number | null = null
-  for (let multiple = 0.9; multiple <= 3.001; multiple += 0.01) {
+  for (let hundredths = PRICE_FROM; hundredths <= PRICE_TO; hundredths++) {
+    const multiple = hundredths / 100
     const value = Demand.chance(belief, multiple) * (multiple * listCents - costCents)
     if (value > best) {
       best = value
