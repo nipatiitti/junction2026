@@ -1,0 +1,41 @@
+{
+  "seed": "spread-9",
+  "level": 8,
+  "policy": "simply-jack",
+  "kind": "practice",
+  "worldId": "wf735bd6a43b0dab24cc1",
+  "version": "1af9e684d53d43d4f9a0d21ca87a4507ce8e1398-dirty",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 28189,
+  "score": {
+    "marginCents": 1527388,
+    "revenueCents": 4231556,
+    "marginShare": 0.3609518578981349,
+    "wonOrders": 310,
+    "onTimeShare": 0.9161290322580645,
+    "undeliveredShare": 0.0032258064516129032,
+    "ranked": true
+  },
+  "seconds": 47.2,
+  "requests": 603,
+  "settings": {
+    "strategy": "simply-jack",
+    "values": {
+      "PRICE": 1.55,
+      "LADDER_UP": 0.02,
+      "LADDER_DOWN": 0.01,
+      "PRICE_MIN": 1.4,
+      "PRICE_MAX": 2.0,
+      "MIN_LEAD": 360,
+      "MAX_FEE_SHARE": 0.75,
+      "FEE_OPEN": 0.8,
+      "FEE_TOP": 1.4,
+      "FEE_STEPS": 6,
+      "TOP_BEFORE": 180,
+      "DAWN": 360
+    }
+  }
+}
