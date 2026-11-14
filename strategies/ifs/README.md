@@ -243,4 +243,17 @@ Of the orders declined for cost, 17 a week are private pickups, which lost €7.
 
 ## Results
 
-Not played online yet: the system and the search are new. The first search adds its weeks and this section's table.
+Level 8, seeds `spread-1` to `spread-3`, the values of `values.json` at commit `59b3855`, played on 2026-11-14 as the
+first step of a search. Beside them are the saved weeks of `ceiling` and `slack_fees` on the same seeds, from their
+READMEs. The three weeks are in `data/scrape/runs/L8/`, with the policy `ifs`.
+
+| Seed       | Ifs margin | Ifs orders | Ifs on time | Ceiling margin | Slack fees margin |
+| ---------- | ---------: | ---------: | ----------: | -------------: | ----------------: |
+| `spread-1` | €10,546.00 |        346 |       98.3% |      €9,831.09 |        €10,206.83 |
+| `spread-2` |  €7,374.60 |        283 |       98.6% |      €6,673.95 |         €6,891.04 |
+| `spread-3` |  €4,330.40 |        205 |       99.5% |      €4,312.02 |         €4,077.60 |
+| Total      | €22,251.00 |        834 |       98.7% |     €20,817.06 |        €21,175.47 |
+
+With its starting values the system earns €1,434 more than `ceiling` over the three weeks and €1,076 more than
+`slack_fees`, more than both on each seed, and every week is ranked. Three seeds prove little: the search's own
+result, and a comparison on seeds it did not see, belong here once it has run.
