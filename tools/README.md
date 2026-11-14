@@ -59,8 +59,9 @@ A round that fails is logged and the sweep goes on; three failed rounds in a row
 all night. The sweep is one online run, however many `--jobs` weeks it plays at once.
 
 A full night is about 3,000 weeks, near 1 GB, which is a release asset rather than a commit (`data/scrape/runs`
-holds only small batches). Publish them as `spread-runs-<stamp>.tar.gz`, the `data/scrape/runs/L8/sweep-*` folders
-alone, and get them back with `gh release download` into `data/scrape` (see "Get the team's scraped data").
+holds only small batches). Publish them as `spread-runs-<stamp>-partNN.tar.gz` parts — a single 1 GB asset fails
+through the sandbox proxy — of the `data/scrape/runs/L8/sweep-*` folders alone, and get them back with
+`gh release download` into `data/scrape` (see "Get the team's scraped data").
 
 ## Get the team's scraped data
 
