@@ -115,6 +115,11 @@ The folder's important files:
 - `LEADERBOARD.md`: the same ordering for a human review;
 - `logs/`: each entrant's bench output. This is a shadow board, not a performance ranking to delete systems from.
 
+The runner also writes **`SHELVED.md`** at the repository root after each entrant. It contains every shelved system and
+its measured mean margin. Before spending an online run on a listed system, read that table instead of replaying it
+merely to evaluate it. `AGENTS.md` has the same instruction. Only a changed version, with a reason for retesting,
+justifies a new online week.
+
 ## Get the team's scraped data
 
 The team's scraped weeks (`out/scrape`) and probe rows (`out/probe`) are too big for git, so each batch goes up as

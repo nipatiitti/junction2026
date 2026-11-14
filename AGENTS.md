@@ -20,6 +20,10 @@ car dealers and pays freelance drivers to move the cars, for one simulated week.
   `out/spread.sqlite` instead. Only an explicit request in the current conversation lifts this.
 - Practice weeks are free and repeatable: the same seed and level give the same week.
   Compare two versions of the system on the same seeds.
+- **Shelved strategies.** Check `SHELVED.md` before any online test with one of them: use its recorded mean margins
+  instead of replaying it to evaluate it. `tools.roster_tournament` keeps the list current. Shelving only excludes
+  strategies from later tournament rounds; it does not delete code. To study a changed version, explain what changed
+  and why a fresh measured week is necessary rather than relying on the old snapshot.
 - Ask for approval before you play a ranking run (`--board`) or a final (`--final`). Each
   ranking world can be played once, and its score stays on the public rankings.
 - Every online run is saved. When `dispatch.py` finishes a week on the server (a practice week,
