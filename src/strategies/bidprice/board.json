@@ -3,7 +3,7 @@
   "trust": true,
   "ladder": true,
   "lane": true,
-  "war": "decline",
+  "war": "follow",
   "feeSolver": true,
   "feeExtras": true,
   "onTime": true,
