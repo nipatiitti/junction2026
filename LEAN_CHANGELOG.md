@@ -29,6 +29,14 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-15: shared outcomes on (issue #360)
+
+- **Version changed**: TypeScript.
+- **What changed**: `sharedOutcome` is true by default. On today's defaults, 20 server seeds: +€305 ± 203 a week,
+  ahead on 13 of 20, with 22 fewer orders at a price 2.6% higher; about +€366 ± 147 with the 15 seeds of #358. The
+  table: [`src/strategies/lean/README.md`](src/strategies/lean/README.md#shared-outcomes-on-todays-defaults-15-november-360).
+- **In step**: no (#329). The Python version does not have `sharedOutcome`.
+
 ### 2026-11-15: the chain model (issue #351)
 
 - **Version changed**: TypeScript.
