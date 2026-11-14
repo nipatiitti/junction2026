@@ -51,8 +51,11 @@ Several of us build dispatch systems in parallel; the team picks one for the fin
 The runner, `uv run dispatch.py --fast-mode --level 8 --seed spread-1`, only wakes for urgent events
 (`visit_failed`, `gig_expired`, `deadline_close`) and the quote polls. `order_won`, `order_changed` and
 `order_cancelled` are handled at the next poll rather than on a separate stop, and the midnight `/score` reads are
-skipped. Actions still ride the next `advance`, one request per stop. In a saved `spread-1` week the normal loop
-takes 583 stops and fast mode 117 (a timeline-replay estimate, not a played comparison; the organisers target ~350).
+skipped. Actions still ride the next `advance`, one request per stop. When no batch is in flight a price request
+still wakes it, so pending quotes cannot expire. In a saved `spread-1` week the normal loop takes 583 stops and fast
+mode 280 (a timeline-replay estimate, not a played comparison; the organisers target ~350). On the actual
+`strategies/all_in` week `allin-fast-05c02870` it used 288 requests against 554 normally (−48%), but scored
+€8,359.45 against €11,163.99 (−25%), so the latency can cost more than the requests it saves.
 
 **It is a different week**: orders are posted and retried up to one `POLL` later, so it can score differently. Use
 it for cheap broad comparisons, not for adopting a change without a normal-mode bench on the same seeds. It is a

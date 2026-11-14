@@ -67,6 +67,9 @@ POLL = 14  # a request that comes a minute after a stop is quoted at the latest 
 # --fast-mode: only an event that costs money when it waits stops the loop. A new order, a change of plan and a
 # cancellation are handled at the quote poll, like a price request, instead of getting a stop each.
 FAST_WAKE: list[DeskEventKind] = ["visit_failed", "gig_expired", "deadline_close"]
+# When there is no batch in flight, a price request must still wake it: otherwise a week of pending quotes expires
+# at midnight. `deadline_close` also covers the remaining order events on the same stop.
+FAST_IDLE_WAKE: list[DeskEventKind] = [*FAST_WAKE, "price_request"]
 
 
 class Retry(NamedTuple):
@@ -614,7 +617,7 @@ def play_practice(world: World, level: int, fast_mode: bool = False) -> Counter[
     while desk.now < ends_at:
         day, midnight = desk.now // DAY, (desk.now // DAY + 1) * DAY
         if fast_mode:  # order_won, order_changed and order_cancelled are answered at this stop instead
-            until, poll_at = (FAST_WAKE, desk.now + POLL) if busy else (FAST_WAKE, ends_at)
+            until, poll_at = (FAST_WAKE, desk.now + POLL) if busy else (FAST_IDLE_WAKE, ends_at)
         else:
             until, poll_at = (WAKE_ON_BUSY, desk.now + POLL) if busy else (WAKE_ON, ends_at)
         held_until = desk.bundler.next_due()  # an order waiting for a bundle must go when its wait ends
