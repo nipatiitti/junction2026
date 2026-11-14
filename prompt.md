@@ -79,7 +79,8 @@ is as in the code, and only the functions that every decision runs through or wh
   `observe()` in `Lean`; `belief()` and `learn()` in `Demand`; `ratio()` (`+€769 a week (sim)`) and `learn()` in
   `Supply`; `outlook()` (`+€771 a week`) with `order.json`; `stepped()` (`every week ranked`), `planBy()` and
   `rested()` (`+€624 a week`); `actions()` and `hold()` (`+€826 a week (sim)`) in `Planner`; `findChains()`
-  (`+€1,560 a week`); and `bestPrice()`, whose tile is the chart.
+  (`+€1,560 a week`) and `bookChance()` (`+€1,126 a week`, the chain model of #351, with `chain.json`); and
+  `bestPrice()`, whose tile is the chart.
 - The chart inside `bestPrice()`: on the left, the win chance `chance(p) = 1/(1 + e^((ln p − μ)/s))` with μ = ln 1.40
   and s = 0.11, the margin `p − cost` for an example cost of 1.00 × list, and their product with its peak marked:
   `quote 1.35 × list`, where 58% of such quotes win. On the right, the legend and the formula
@@ -104,12 +105,13 @@ Times inside a scene are its local seconds.
 - **It did not (4.0 s), joke 2.** Hour 2, the developer's desk; the screen reads `STRATEGY #1: quote the list price`.
   "This will definitely work." Enter at 1.4, a hard cut to black at 1.8, the narrator on black: "It did not." At 3.2
   the screen shows `−€72,456`, the laptop smokes and the head drops.
-- **Zoom in (15.0 s), chapter 02.** One move with no cut. At 0 the whole diagram, seen tilted and slightly turned;
-  the camera levels out by 6.5 and comes down on a log scale, so that at 7.5 only TS:LEAN fills the frame and at 15
-  `bestPrice()` does. The systems light up as the voice names them (1.0–3.4), event tokens (`price_request`,
+- **Zoom in (15.0 s), chapter 02.** One move with no cut, its height on a log scale. At 0 the whole diagram, seen
+  tilted and slightly turned; the camera levels out by 6.5 and comes down so that at 7.5 only TS:LEAN fills the frame,
+  lingers there while the three decisions light up, and dives from 11 until `bestPrice()` fills it at 15. The systems light up as the voice names them (1.0–3.4), event tokens (`price_request`,
   `order_won`, `gig_booked`, `delivered`) run down into TS:LEAN (3.4–7.6), the price, fee and chain functions light
   up in turn (8.5–11.6), and the chart draws in from 11.6, its peak marked at 14.6.
-- **Zoom out (10.0 s), chapter 02.** The same path backwards, tilting again from 6.0. A grey car is a price request:
+- **Zoom out (10.0 s), chapter 02.** The way back: up to TS:LEAN by 3.6, lingering while the chain waits, then out
+  to the whole diagram by 10, tilting again from 6.0. A grey car is a price request:
   it comes down the loop, stops on the lane over `bestPrice()` for its price tag, and goes back out. A red car is a
   won order: it stops over `stepped()` while a fee sign ticks 0.88, 1.05, 1.25 × typical, and a driver gets in. Three
   red cars wait behind one driver and leave together under `chain · 1 driver`. Green sparks run back from

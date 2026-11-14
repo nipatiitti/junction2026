@@ -61,28 +61,48 @@ function plate(text, { bg = '#f8fafc', fg = '#0f172a', size = 0.9, w = 7, h = 1.
 
 /**
  * The camera at local time t: the point it looks at, the height of the ground in the picture, its tilt from straight
- * down and its turn. The height moves on a log scale so that the zoom feels even; FRAMES put TS:LEAN at its middle.
+ * down and its turn. Keys are [time, frame, easing into it]: the height moves between them on a log scale, so that
+ * every doubling of the zoom takes the same time. The zoom in comes down to TS:LEAN by 7.5, lingers there while the
+ * three decisions light up, and dives into bestPrice() from 11; the zoom out runs the other way, lingering on TS:LEAN
+ * while the chain waits for its driver.
  */
-function frameAt(direction, t, duration) {
-  const { whole, lean, key } = FRAMES
-  const half = duration / 2
-  const between = (a, b, k) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k)]
-  const k = ease.inOutQuad(progress(t, 0, duration))
+const PATHS = {
+  in: [
+    [0, 'whole'],
+    [7.5, 'lean', 'inOutQuad'],
+    [11, 'linger', 'linear'],
+    [15, 'key', 'inOutCubic'],
+  ],
+  out: [
+    [0, 'key'],
+    [3.6, 'lean', 'inOutCubic'],
+    [5.8, 'lingerOut', 'linear'],
+    [10, 'whole', 'inOutQuad'],
+  ],
+}
+const SPOTS = {
+  ...FRAMES,
+  // TS:LEAN whole between the chapter tag and the subtitles, so the lit blocks are never under them
+  linger: { centre: [0, -0.5], height: FRAMES.lean.height * 0.97 },
+  lingerOut: { centre: [0, -1], height: FRAMES.lean.height * 1.08 },
+}
+
+function frameAt(direction, t) {
+  const keys = PATHS[direction]
+  let i = 1
+  while (i < keys.length - 1 && t > keys[i][0]) i++
+  const [t0, from] = keys[i - 1]
+  const [t1, to, easing] = keys[i]
+  const k = ease[easing](progress(t, t0, t1))
+  const a = SPOTS[from]
+  const b = SPOTS[to]
+  const height = Math.exp(lerp(Math.log(a.height), Math.log(b.height), k))
+  const centre = [lerp(a.centre[0], b.centre[0], k), lerp(a.centre[1], b.centre[1], k)]
   if (direction === 'in') {
-    const height = Math.exp(lerp(Math.log(whole.height), Math.log(key.height), k))
-    const centre =
-      t < half
-        ? between(whole.centre, lean.centre, ease.inOutQuad(progress(t, 0, half)))
-        : between(lean.centre, key.centre, ease.inOutQuad(progress(t, half, duration)))
     const level = ease.inOutCubic(progress(t, 0, 6.5))
     return { centre, height, tilt: deg(28) * (1 - level), turn: deg(-7) * (1 - level) }
   }
-  const height = Math.exp(lerp(Math.log(key.height), Math.log(whole.height), k))
-  const centre =
-    t < half
-      ? between(key.centre, lean.centre, ease.inOutQuad(progress(t, 0, half)))
-      : between(lean.centre, whole.centre, ease.inOutQuad(progress(t, half, duration)))
-  const rise = ease.inOutCubic(progress(t, 6, duration))
+  const rise = ease.inOutCubic(progress(t, 6, 10))
   return { centre, height, tilt: deg(32) * rise, turn: deg(6) * rise }
 }
 
@@ -270,7 +290,7 @@ export default {
       scene,
       camera,
       update(t) {
-        const { centre, height, tilt, turn } = frameAt(direction, t, segment.duration)
+        const { centre, height, tilt, turn } = frameAt(direction, t)
         const distance = height / (2 * TAN)
         const lift = distance * Math.cos(tilt)
         const away = distance * Math.sin(tilt)
