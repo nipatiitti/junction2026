@@ -101,10 +101,17 @@ export const DEFAULTS = {
   costLevel: 0.98,
   /** An option needs this many waking hours between now and the last minute to book, or we do not quote it. */
   minHours: 4,
-  /** The noise that stays in one request's threshold, as a logistic scale in log price. It is also the markup: the
-   * best price keeps at least this share of itself over the cost, so no price is under 1.39 × cost at 0.28. On the
-   * simulator 0.22 and 0.33 were both worse. */
+  /** The noise that stays in one request's threshold, as a logistic scale in log price. It is also a markup: the
+   * best price keeps at least this share of itself over the cost, so no price is under 1.39 × cost at 0.28. The
+   * dealers' own scale is 0.10 to 0.12 (per-day fits, 266 weeks of the same seed at different volumes, the server
+   * check of 15 November), so at 0.28 the rest of the markup stands for what an order costs the others. `tax` and
+   * `taxEuros` say that openly: with `noise` 0.11, a `tax` of 0.24 gives the same lowest price as `noise` 0.28. */
   noise: 0.28,
+  /** What one more order costs the rest of the week's orders, in higher fees and late cars: `tax` × its cost plus
+   * `taxEuros` euros, added to the cost that the price is chosen over. A request whose best price is under
+   * (cost + tax) ÷ (1 − `noise`) is not worth its place. 0 and 0: no charge. */
+  tax: 0,
+  taxEuros: 0,
   /** The multiple of the list price at which half of the quotes win at level 8, before the week's wins and losses
    * say (demand.ts). Measured over whole weeks, so with some trust in it: at zero trust the 349 recorded seeds
    * give 1.25. On the simulator 1.3 and 1.5 were flat or worse. */
@@ -226,7 +233,7 @@ class Lean extends Strategy<LeanParams> {
       const cost = this.cost(request, option, facts, now, open)
       if (cost === null) continue
       const belief = this.demand.belief(this.demand.keys(request, option.kind), this.trustOffset(request.dealerId))
-      const best = bestPrice(belief, option.listPriceCents, cost)
+      const best = bestPrice(belief, option.listPriceCents, cost * (1 + this.params.tax) + this.params.taxEuros * 100)
       if (best === null) continue
       quotes.push([option.kind, Math.round(best)])
     }
