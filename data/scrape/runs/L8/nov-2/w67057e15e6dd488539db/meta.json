@@ -1,0 +1,24 @@
+{
+  "seed": "nov-2",
+  "level": 8,
+  "policy": "dealer-ladder",
+  "kind": "practice",
+  "worldId": "w67057e15e6dd488539db",
+  "version": "69bec23df8dac30452edef9380604ca21f2f18bb",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 18307,
+  "score": {
+    "marginCents": 750571,
+    "revenueCents": 4285924,
+    "marginShare": 0.17512466389977985,
+    "wonOrders": 411,
+    "onTimeShare": 0.9440389294403893,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 43.7,
+  "requests": 648
+}
