@@ -3,10 +3,10 @@
 A dispatch system built on [`strategies/soft_top`](../soft_top/README.md): its `Desk` is a subclass of the soft-top
 desk whose admission guards against the week's flu day. Issue #200. The systems it builds on stay as they are.
 
-| File           | Class               | Builds on           | What it decides                                              |
-| -------------- | ------------------- | ------------------- | ------------------------------------------------------------ |
-| `admission.py` | `FluGuardAdmission` | `LaneCostAdmission` | Which options stay off a quote while the flu day is a risk   |
-| `dispatch.py`  | `Desk`              | the soft-top desk   | The system: the soft-top desk with the admission above       |
+| File           | Class               | Builds on           | What it decides                                            |
+| -------------- | ------------------- | ------------------- | ---------------------------------------------------------- |
+| `admission.py` | `FluGuardAdmission` | `LaneCostAdmission` | Which options stay off a quote while the flu day is a risk |
+| `dispatch.py`  | `Desk`              | the soft-top desk   | The system: the soft-top desk with the admission above     |
 
 `FluGuardAdmission` is a subclass of `Strategy` ([`strategies/strategy.py`](../strategy.py)) through
 `LaneCostAdmission`, with the constructor `(roster, world_map, level=8, params=None)` and a frozen `Params`.
@@ -60,9 +60,25 @@ Up to level 6 the flu comes only in some weeks, and the guard is off.
 
 `Params` in `admission.py`, exported as `FluGuardParams`, next to those of `strategies/lead_cost`.
 
-| Variable       | Default | What it does                                                               |
-| -------------- | ------- | -------------------------------------------------------------------------- |
-| `night`        | 1 hour  | Bookings given back within this of midnight are the flu's                  |
-| `storm`        | 5       | This many of them in one night is the flu day                              |
-| `friday_share` | 1.0     | Friday holds this share of the week's busiest earlier day, until it shows  |
-| `friday_least` | 40      | Friday always holds at least this many orders                              |
+| Variable       | Default | What it does                                                              |
+| -------------- | ------- | ------------------------------------------------------------------------- |
+| `night`        | 1 hour  | Bookings given back within this of midnight are the flu's                 |
+| `storm`        | 5       | This many of them in one night is the flu day                             |
+| `friday_share` | 1.0     | Friday holds this share of the week's busiest earlier day, until it shows |
+| `friday_least` | 40      | Friday always holds at least this many orders                             |
+
+## Bench
+
+`spread-1` to `spread-22` at level 8, one week each, against `soft_top` on the same seeds
+([`strategies/all_in/README.md`](../all_in/README.md) has every week).
+
+| System      | Mean week  | Weeks over €12,000 | Ranked   | Lowest on-time share |
+| ----------- | ---------- | ------------------ | -------- | -------------------- |
+| `soft_top`  | €11,272.48 | 9 of 22            | 21 of 22 | 88.5%                |
+| `flu_guard` | €11,276.76 | 9 of 22            | 22 of 22 | 92.3%                |
+
+The guard changed 8 of the 22 weeks (`spread-1`, `spread-5`, `spread-6`, `spread-15`, `spread-18`, `spread-19`,
+`spread-20`, `spread-21`): in the others the flu had shown
+before Thursday, or Friday never reached the week's busiest day. Over the 22 weeks it made €4 a week more
+(standard error 74), which is nothing, and that is the point: it costs nothing in the mean week and keeps
+`spread-21` ranked, at 92.3% on time and €11,693.15 against 88.5% and €10,588.55.
