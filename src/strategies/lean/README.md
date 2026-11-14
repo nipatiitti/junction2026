@@ -276,9 +276,28 @@ Same five server seeds as above, against the default of that section (€14,065)
   and 0.34 for a premium car than for a plain one. Pricing at those wins orders that then run late. The surcharges
   stay; `privatePickup` and `privateDelivery` are now two params.
 
+### The order model of #305
+
+PR #308 fitted three models on the saved weeks, on the old `lean`. On its own server weeks (`ab-1` to `ab-8`) the
+dealer prior changed nothing, the fee-need models lost €1,100 to €1,400 a week, and the order model in the quote
+won €1,984 a week. `outlook.ts` and `order.json` are that order model: for each request its cost as a share of the
+mean order's (from the drive, the lead time, the day, the address, the drivers who live at each end, our load) and
+its chance to be late, priced at the list price × that chance.
+
+On top of the current defaults, ten server seeds (the five above and five fresh ones):
+
+| Variant                    | Margin  | Orders | On time, mean and lowest week | Ranked   |
+| -------------------------- | ------- | ------ | ----------------------------- | -------- |
+| Defaults without the model | €14,566 | 325    | 95.5%, 92.3%                  | 10 of 10 |
+| `order` (**default**)      | €15,337 | 365    | 97.6%, 94.6%                  | 10 of 10 |
+
++€771 ± 385 a week, ahead on 6 of 10 seeds, 40 more orders, and more orders on time in every one of the ten weeks.
+The simulator had it €388 ± 176 behind with the same gain in orders and on-time share: it counts a late order too
+cheaply.
+
 ## Params
 
-`target` 0.3, `capacity` 0 (its start), `gain` 0, `noise` 0.28, `flatShare` 0.5, `flatEuros` 60, `open` 0.88, `jitter` 1, `spread` true, `early` 0.8, `offers` 0, `order` false, `lateCost` 1,
+`target` 0.3, `capacity` 0 (its start), `gain` 0, `noise` 0.28, `flatShare` 0.5, `flatEuros` 60, `open` 0.88, `jitter` 1, `spread` true, `early` 0.8, `offers` 0, `order` true, `lateCost` 1,
 `premium` 3, `privatePickup` 0.25, `privateDelivery` 0.25, `feeRatio` 0.84, `supply` true, `overhead` 0.06, `minHours` 4, `minMargin` 1.05, `trust` 0.7,
 `feeBrake` 1.5, `lateSoft` 0.04, `lateHard` 0.05, `openGigs` 40, `urgentTop` 2, `lateTop` 1.7, `chains` true,
 `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `chainHours` 5, `holdHours` 2, `chainPatience` 0, `chainBid` false,
