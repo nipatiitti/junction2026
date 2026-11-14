@@ -919,16 +919,16 @@
     },
     "ts:lean": {
       "file": "src/dispatch.ts --strategy lean",
-      "fingerprint": "001e95a6e4877207",
-      "world_id": "wab55932adc3f209f08b3",
-      "played_at": "2026-11-14T12:59:56+0200",
+      "fingerprint": "2504c689f590ec7f",
+      "world_id": "wb38bb14fa72cb7bc227b",
+      "played_at": "2026-11-14T15:44:32+0000",
       "score": {
-        "marginCents": 949653,
-        "revenueCents": 2252310,
-        "marginShare": 0.4216351212754905,
-        "wonOrders": 212,
-        "onTimeShare": 0.9669811320754716,
-        "undeliveredShare": 0,
+        "marginCents": 1416393,
+        "revenueCents": 3333434,
+        "marginShare": 0.4249050678669504,
+        "wonOrders": 382,
+        "onTimeShare": 0.9712041884816754,
+        "undeliveredShare": 0.002617801047120419,
         "ranked": true
       }
     },

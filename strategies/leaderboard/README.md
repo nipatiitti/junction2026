@@ -127,5 +127,11 @@ marks a strategy whose code changed after its week. The axis spans the ranked we
 edge and labelled with its full value. Hover a bar for its orders, on-time share and world id. The table under the
 chart has the same numbers.
 
+The latest chart, level 8 on `spread-1` (2026-11-14, every strategy on main played for its current code):
+
+![Margin of every strategy, level 8, seed spread-1](../../docs/images/leaderboard/L8-spread-1.png)
+
+After a new run, refresh the picture with a screenshot of the chart in `out/leaderboard.html`, without the table.
+
 **One seed proves little.** Read the order as a guide; compare the leaders on more seeds with
 [`strategies.bench`](../bench/README.md) or `pnpm bench`.
