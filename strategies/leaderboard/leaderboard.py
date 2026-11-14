@@ -14,10 +14,12 @@ import hashlib
 import html
 import json
 import os
+import re
 import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from spread.client import SpreadError
@@ -38,14 +40,31 @@ OTHER_ENTRIES = [
     "strategies/admission_scenarios/cost.py",
     "strategies/admission_scenarios/both.py",
 ]
-SKIP_SUFFIXES = {".md", ".pyc"}
-
-
 # Strategies and their fingerprints
 
+TS_DISPATCH = ROOT / "src" / "dispatch.ts"
+TS_REGISTRY = ROOT / "src" / "strategies" / "index.ts"
+CODE_SUFFIXES = {".py", ".ts"}
+LANGUAGES = ("python", "typescript")
+SKIP_SUFFIXES = {".md", ".pyc"}
+TS_IMPORT = re.compile(r"""(?:\bfrom|\bimport)\s*\(?\s*['"](\.{1,2}/[^'"]+)['"]""")
+TS_URL = re.compile(r"""new URL\(\s*['"](\.{1,2}/[^'"]+)['"]""")
 
-def entries() -> dict[str, Path]:
-    """Every strategy: its label, and the file that plays one week."""
+
+@dataclass
+class Entry:
+    """One strategy: how to play a week of it (`version`), and where the scan of its code starts (`roots`)."""
+
+    version: Version
+    roots: list[Path]
+    language: str  # python or typescript
+    hashed: list[Path] = field(default_factory=list)  # files hashed as they are, without following their imports
+
+    def command_line(self) -> str:
+        return " ".join([str(self.version.file.relative_to(ROOT)), *self.version.args])
+
+
+def python_entries() -> dict[str, Entry]:
     found = {"dispatch.py": ROOT / "dispatch.py"}
     for file in sorted(ROOT.glob("strategies/*/dispatch.py")):
         found[file.parent.name] = file
@@ -54,7 +73,40 @@ def entries() -> dict[str, Path]:
         if file.is_file():
             label = file.parent.name if file.stem == file.parent.name or file.stem == "baseline" else name[11:-3]
             found[label] = file
-    return dict(sorted(found.items()))
+    return {label: Entry(Version(label, file), [file], "python") for label, file in found.items()}
+
+
+def typescript_entries() -> dict[str, Entry]:
+    """Every strategy of the TypeScript registry, src/strategies/index.ts, as ts:<name>. A week is
+    `node src/dispatch.ts --strategy <name>`. A strategy's code is the harness (src/dispatch.ts and what it imports)
+    and its own folder with what that imports, but not the other strategies that the registry imports, so a change
+    to one TypeScript strategy does not replay the others."""
+    if not TS_REGISTRY.is_file() or not TS_DISPATCH.is_file():
+        return {}
+    text = TS_REGISTRY.read_text()
+    block = re.search(r"STRATEGIES[^=]*=\s*\{(.*?)\n\}", text, re.DOTALL)
+    if block is None:
+        return {}
+    names = re.findall(r"^\s*(\w+)\s*[,:]", block[1], re.MULTILINE)
+    folders = {name: folder for name, folder in re.findall(r"import \{ (\w+) \} from '\./(\w+)/index\.ts'", text)}
+    found = {}
+    for name in names:
+        if name in folders:
+            roots, hashed = [TS_REGISTRY.parent / folders[name] / "index.ts"], []
+        else:  # a variant defined in the registry, such as bidboard: the strategies it names, and the registry itself
+            line = re.search(rf"^const {name}\b.*$", text, re.MULTILINE)
+            used = set(re.findall(r"\w+", line[0])) if line else set()
+            roots = [TS_REGISTRY.parent / folders[other] / "index.ts" for other in sorted(used & folders.keys())]
+            hashed = [TS_REGISTRY]
+        label = f"ts:{name}"
+        version = Version(label, TS_DISPATCH, args=("--strategy", name))
+        found[label] = Entry(version, [TS_DISPATCH, *roots], "typescript", hashed)
+    return found
+
+
+def entries() -> dict[str, Entry]:
+    """Every strategy, Python and TypeScript: its label, and how to play it."""
+    return dict(sorted({**python_entries(), **typescript_entries()}.items()))
 
 
 def module_file(name: str, near: Path) -> Path | None:
@@ -65,14 +117,19 @@ def module_file(name: str, near: Path) -> Path | None:
         for candidate in (stem.with_suffix(".py"), stem / "__init__.py"):
             if not candidate.is_file() or ".venv" in candidate.parts or "vendor" in candidate.parts:
                 continue
-            # Match names exactly, also on a case-insensitive disk (macOS), so every machine gets the same fingerprint.
-            if all(part.name in os.listdir(part.parent) for part in (candidate, candidate.parent)):
+            if exact(candidate):
                 return candidate
     return None
 
 
-def imports(file: Path) -> set[Path]:
-    """The files of this repository that one file imports directly."""
+def exact(file: Path) -> bool:
+    """Whether the path's last two names are spelled as on disk, also on a case-insensitive disk (macOS), so every
+    machine gets the same fingerprint."""
+    return all(part.name in os.listdir(part.parent) for part in (file, file.parent))
+
+
+def python_imports(file: Path) -> set[Path]:
+    """The files of this repository that one Python file imports directly."""
     try:
         tree = ast.parse(file.read_text(), filename=str(file))
     except SyntaxError:
@@ -103,29 +160,45 @@ def imports(file: Path) -> set[Path]:
     return found
 
 
-def code_files(entry: Path) -> list[Path]:
-    """The entry file and every file of this repository that it imports, directly or not, with the data files
-    (anything but .py and .md) in the folders of those modules under strategies/."""
+def typescript_imports(file: Path) -> set[Path]:
+    """The files of this repository that one TypeScript file imports by a relative path, or reads with
+    `new URL('./x.json', import.meta.url)`. The vendored kit and the strategy registry are not followed."""
+    text = file.read_text()
+    found: set[Path] = set()
+    for spec in TS_IMPORT.findall(text) + TS_URL.findall(text):
+        target = (file.parent / spec).resolve()
+        if not target.is_file() or "vendor" in target.parts or target == TS_REGISTRY or not exact(target):
+            continue
+        found.add(target)
+    return found
+
+
+def code_files(entry: Entry) -> list[Path]:
+    """The entry's files and every file of this repository that they import, directly or not, with the data files
+    (anything but code and .md) in the folders of those modules under strategies/."""
     seen: set[Path] = set()
-    todo = [entry]
+    todo = list(entry.roots)
     while todo:
         file = todo.pop()
         if file in seen:
             continue
         seen.add(file)
-        todo += imports(file) - seen
+        if file.suffix == ".py":
+            todo += python_imports(file) - seen
+        elif file.suffix == ".ts":
+            todo += typescript_imports(file) - seen
     data: set[Path] = set()
     for file in seen:
-        if "strategies" in file.relative_to(ROOT).parts:
+        if file.suffix in CODE_SUFFIXES and "strategies" in file.relative_to(ROOT).parts:
             data |= {
                 other
                 for other in file.parent.iterdir()
-                if other.is_file() and other.suffix != ".py" and other.suffix not in SKIP_SUFFIXES
+                if other.is_file() and other.suffix not in CODE_SUFFIXES and other.suffix not in SKIP_SUFFIXES
             }
-    return sorted(seen | data)
+    return sorted(seen | data | set(entry.hashed))
 
 
-def fingerprint(entry: Path) -> str:
+def fingerprint(entry: Entry) -> str:
     digest = hashlib.sha256()
     for file in code_files(entry):
         digest.update(str(file.relative_to(ROOT)).encode())
@@ -161,7 +234,7 @@ def save(level: int, seed: str, results: dict[str, dict]) -> None:
 # Playing
 
 
-def play(todo: dict[str, tuple[Path, str]], results: dict[str, dict], level: int, seed: str, jobs: int) -> list[str]:
+def play(todo: dict[str, tuple[Entry, str]], results: dict[str, dict], level: int, seed: str, jobs: int) -> list[str]:
     """Plays one week of each strategy in `todo`, at most `jobs` at once, and saves each result as it ends.
     Returns the strategies that failed; a failure does not stop the others."""
     bench = Bench([], [seed], level, jobs)
@@ -169,11 +242,11 @@ def play(todo: dict[str, tuple[Path, str]], results: dict[str, dict], level: int
     failed: list[str] = []
     print(f"Playing {len(todo)} practice weeks at level {level}, seed {seed}, {jobs} at a time.", flush=True)
 
-    def one(label: str, file: Path, print_: str) -> None:
-        result = bench.play_one(Version(label, file), seed)
+    def one(label: str, entry: Entry, print_: str) -> None:
+        result = bench.play_one(entry.version, seed)
         with lock:
             results[label] = {
-                "file": str(file.relative_to(ROOT)),
+                "file": entry.command_line(),
                 "fingerprint": print_,
                 "world_id": result.world_id,
                 "played_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
@@ -182,7 +255,7 @@ def play(todo: dict[str, tuple[Path, str]], results: dict[str, dict], level: int
             save(level, seed, results)
 
     pool = ThreadPoolExecutor(max_workers=jobs)
-    futures = {pool.submit(one, label, file, print_): label for label, (file, print_) in todo.items()}
+    futures = {pool.submit(one, label, entry, print_): label for label, (entry, print_) in todo.items()}
     try:
         for future in as_completed(futures):
             label = futures[future]
@@ -419,13 +492,19 @@ def main() -> None:
     )
     parser.add_argument("--only", help="play only these strategies, comma-separated, also when their code is unchanged")
     parser.add_argument("--fresh", action="store_true", help="play every strategy again")
+    parser.add_argument(
+        "--language",
+        choices=("all", "python", "typescript"),
+        default="all",
+        help="play only the Python or only the TypeScript strategies (default all); the chart shows every one",
+    )
     parser.add_argument("--plan", action="store_true", help="print what would be played, and play nothing")
     parser.add_argument("--no-play", action="store_true", help="only redraw the chart from the online results")
     parser.add_argument("--html", type=Path, default=Path("out/leaderboard.html"), help="where to write the chart")
     args = parser.parse_args()
 
     found = entries()
-    current = {label: fingerprint(file) for label, file in found.items()}
+    current = {label: fingerprint(entry) for label, entry in found.items()}
     results = load(args.level, args.seed)
     if args.only:
         wanted = [name.strip() for name in args.only.split(",") if name.strip()]
@@ -435,15 +514,19 @@ def main() -> None:
         todo = {label: (found[label], current[label]) for label in wanted}
     else:
         todo = {
-            label: (file, current[label])
-            for label, file in found.items()
-            if args.fresh or label not in results or results[label]["fingerprint"] != current[label]
+            label: (entry, current[label])
+            for label, entry in found.items()
+            if args.language in ("all", entry.language)
+            and (args.fresh or label not in results or results[label]["fingerprint"] != current[label])
         }
 
     if args.plan or args.no_play:
         new = [label for label in todo if label not in results]
         changed = [label for label in todo if label in results]
-        print(f"{len(found)} strategies; {len(found) - len(todo)} have an online week for their current code.")
+        languages = {language: sum(1 for e in found.values() if e.language == language) for language in LANGUAGES}
+        counts = ", ".join(f"{n} {language}" for language, n in languages.items())
+        up_to_date = sum(1 for label in found if label in results and results[label]["fingerprint"] == current[label])
+        print(f"{len(found)} strategies ({counts}); {up_to_date} have an online week for their current code.")
         print(f"To play: {len(new)} new: {', '.join(new) or 'none'}")
         print(f"         {len(changed)} changed: {', '.join(changed) or 'none'}")
         if args.plan:
