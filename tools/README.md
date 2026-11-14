@@ -11,6 +11,7 @@ from the repository root, for example `uv run python -m tools.db`.
 | `scrape.py`       | Plays weeks on the server only to collect data                                    |
 | `sweep.py`        | Plays the models of `active-models.md` on fresh seeds until stopped ([below](#play-many-fresh-seeds)) |
 | `probe.py`        | Forks a world to find the price or fee where an outcome flips                     |
+| `kill_old_worlds.py` | Deletes the team's open practice worlds older than 15 minutes ([below](#delete-forgotten-worlds)) |
 | `spread_proxy.py` | The kit's client through `HTTPS_PROXY` ([below](#claude-code-cloud-environments)) |
 
 ## Every online run is saved
@@ -61,6 +62,30 @@ all night. The sweep is one online run, however many `--jobs` weeks it plays at 
 A full night is about 3,000 weeks, near 1 GB, which is a release asset rather than a commit (`data/scrape/runs`
 holds only small batches). Publish them as `spread-runs-<stamp>.tar.gz`, the `data/scrape/runs/L8/sweep-*` folders
 alone, and get them back with `gh release download` into `data/scrape` (see "Get the team's scraped data").
+
+## Delete forgotten worlds
+
+`kill_old_worlds.py` finds the team's practice worlds that are still open and older than 15 minutes, and deletes them,
+so a world that a stopped run left behind stops holding one of the team's 8 practice slots. By default it only lists
+them and changes nothing; `--yes` deletes them.
+
+```sh
+uv run --env-file .env python -m tools.kill_old_worlds                # list the open worlds older than 15 minutes
+uv run --env-file .env python -m tools.kill_old_worlds --yes          # delete them
+uv run --env-file .env python -m tools.kill_old_worlds --minutes 30   # another age limit
+```
+
+Each listed world shows its id, level, seed (when a saved week of it or of its parent names one, else `?`), age, kind
+(practice, copy or ranking run), its world clock, and whether that clock moved since the tool last looked: a moving
+clock means someone is still playing it.
+
+The server gives no creation time for a world (`GET /v1/worlds` has none, and the snapshot has only world minutes),
+so the age counts from the first time this tool saw the world open, kept in `out/world_ages.json` on this machine. The
+first run therefore finds nothing old: run it again after the age limit, or use `--minutes 0` to take every open
+world. Ranking runs are skipped unless `--include-board` asks for them, because each can be played only once and a
+deleted run still counts on the rankings with its score at its end. Finals are always skipped: the server answers 403
+to `DELETE` on a final. A run costs one practice request for the list, one per listed world and one per deletion; it
+is an online run like any other, so run it only when asked and not beside another run.
 
 ## Get the team's scraped data
 
