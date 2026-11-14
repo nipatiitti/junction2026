@@ -21,6 +21,9 @@ export type PlannerParams = ChainParams & {
   chainOfferSpread: number
   pickLead: number
   chainLast: number
+  chainStart: number
+  chainRamp: number
+  chainDays: number
 }
 
 /** A chain books 69% of the time when it is posted from Monday to Thursday, has `pickLead` hours to its first
@@ -28,10 +31,10 @@ export type PlannerParams = ChainParams & {
  * A chain that fails costs its cars 1.06 × typical and their one notification, so only the first kind is posted,
  * and a car waits for a partner only while such a chain is still possible. Requests end on Friday evening, so
  * from Friday on no new car comes. */
-const FRIDAY = 4
-/** Whether a chain whose first last pickup is `collectBy` is of that kind when posted at the minute `at`. */
-const postable = (collectBy: number, at: number, pickLead: number): boolean =>
-  Math.floor(at / DAY) < FRIDAY && collectBy - at >= pickLead * HOUR
+/** Whether a chain whose first last pickup is `collectBy` is of that kind when posted at the minute `at`: on one of
+ * the first `days` days of the week (`chainDays`: 4 ends on Thursday). */
+const postable = (collectBy: number, at: number, pickLead: number, days: number): boolean =>
+  Math.floor(at / DAY) < days && collectBy - at >= pickLead * HOUR
 /** The fee levels of a chain that `chainSpread` draws from, × `chainOpen`. */
 const LEVELS = [0.78, 0.88, 1, 1.12]
 /** A number from 0 to 1 that depends only on the text (FNV-1a), so the same chain draws the same level. */
@@ -104,7 +107,7 @@ export class Planner {
     for (const [gigId, { orders, startBy, at }] of this.posted) {
       const live = orders.some((orderId) => books.gigsOf(orderId).includes(gigId))
       if (!live) this.posted.delete(gigId)
-      const patient = !(p.chainPatience > 0) || awake(at, now) < p.chainPatience * HOUR // hours drivers could see it
+      const patient = !(p.chainPatience > 0) || awake(at, now) < this.patience() * HOUR // hours drivers could see it
       if (!live || books.booked.has(gigId) || (patient && this.mayBeOpen(startBy, now))) continue
       // The harness posts each car again, as a single gig. `sent` marks the cars once the world has taken the gig out.
       actions.push({ type: 'withdraw', gigId })
@@ -112,9 +115,9 @@ export class Planner {
     const leaving = new Set(actions.map((action) => (action.type === 'withdraw' ? action.gigId : '')))
     actions.push(...this.offers(books, leaving))
     // A chain needs a car that no driver has seen, so without one there is nothing to search.
-    const cars = this.openCars(books).filter((car) => postable(car.collectBy, now, p.pickLead))
+    const cars = this.openCars(books).filter((car) => postable(car.collectBy, now, p.pickLead, p.chainDays))
     if (!cars.some((car) => !car.gigId)) return actions
-    const worth = (c: Chain) => this.likely(c, now) && this.mayBeOpen(c.startBy, now, p.chainPatience)
+    const worth = (c: Chain) => this.likely(c, now) && this.mayBeOpen(c.startBy, now, this.patience())
     for (const chain of findChains(cars, this.map, now, p, worth, this.scene()).slice(0, MAX_POSTS)) {
       // The first pickup ends at the chain's last start: a driver who starts later misses a later car's window.
       // `sent` reads the last start back from this window.
@@ -127,7 +130,14 @@ export class Planner {
         type: 'post',
         stops,
         audience: { experienced: false, manualLicence: chain.cars.some((car) => car.audience.manualLicence) },
-        schedule: slow(now, chain.typical * this.level(chain), chain.startBy - BOOK_AHEAD, p.open),
+        schedule: slow(
+          now,
+          chain.typical * this.level(chain),
+          chain.startBy - BOOK_AHEAD,
+          p.open,
+          this.start(),
+          p.chainRamp,
+        ),
       })
     }
     return actions
@@ -174,6 +184,16 @@ export class Planner {
     return actions
   }
 
+  /** What a chain opens at × its fee: `chainStart` when it ramps, 1 otherwise. */
+  private start(): number {
+    return this.p.chainStart < 1 && this.p.chainRamp > 0 ? this.p.chainStart : 1
+  }
+
+  /** The waking hours a chain stays in the app before it is taken apart: `chainPatience` after its ramp. */
+  private patience(): number {
+    return this.p.chainPatience + (this.start() < 1 ? this.p.chainRamp / 60 : 0)
+  }
+
   /** A driver viewed a gig. */
   viewed(gigId: string, driverId: string, at: number): void {
     if (!this.posted.has(gigId)) return
@@ -203,7 +223,7 @@ export class Planner {
   /** Whether a chain is of the kind that books (see `postable`). */
   private likely(chain: Chain, now: number): boolean {
     const collectBy = Math.min(...chain.cars.map((car) => car.collectBy))
-    return postable(collectBy, now, this.p.pickLead) && chain.cars.some((car) => !car.gigId)
+    return postable(collectBy, now, this.p.pickLead, this.p.chainDays) && chain.cars.some((car) => !car.gigId)
   }
 
   /** Whether a chain with the last start `startBy` may be in the app at `now`, and for `more` waking hours after:
@@ -233,8 +253,8 @@ export class Planner {
     // Only while a chain with this car could still be posted, and stay its `chainPatience`, after the wait.
     const collectBy = Math.min(order.legs[0]?.pickup.window.to ?? Infinity, order.lastPickupAt)
     return (
-      postable(collectBy, books.now + p.holdHours * HOUR, p.pickLead) &&
-      this.mayBeOpen(order.lastPickupAt, books.now, p.holdHours + p.chainPatience)
+      postable(collectBy, books.now + p.holdHours * HOUR, p.pickLead, p.chainDays) &&
+      this.mayBeOpen(order.lastPickupAt, books.now, p.holdHours + this.patience())
     )
   }
 
@@ -266,8 +286,9 @@ export class Planner {
       for (const orderId of orders) this.failed(orderId)
       return
     }
-    // The opening fee is `open` × the chain's worth, and the first pickup's window ends at its last start.
-    const typical = (action.schedule[0]?.feeCents ?? 0) / this.p.open
+    // The opening fee is `open` × the chain's worth (× `chainStart` with a ramp), and the first pickup's window ends
+    // at its last start.
+    const typical = (action.schedule[0]?.feeCents ?? 0) / (this.p.open * this.start())
     const lastPickups = orders.map((orderId) => books.orders.get(orderId)?.lastPickupAt ?? Infinity)
     const startBy = action.stops[0]?.window?.to ?? Math.min(...lastPickups)
     this.posted.set(result.id, { orders, startBy, typical, at: books.now })

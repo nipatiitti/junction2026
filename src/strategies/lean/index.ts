@@ -103,6 +103,9 @@ export const DEFAULTS = {
    * one that the server played (five seeds, 351 orders a week); at 1.07 every quote rose 5% and 29 orders a week
    * were lost for the same margin. */
   costLevel: 0.98,
+  /** × what the order model adds to the cost of a long drive (outlook.ts: over three hours of driving, up to 0.21 ×
+   * typical). 1 is the fit; the chance to be late keeps its long-drive terms, and `lateCost` prices them. */
+  longCost: 1,
   /** An option needs this many waking hours between now and the last minute to book, or we do not quote it. */
   minHours: 4,
   /** The noise that stays in one request's threshold, as a logistic scale in log price: 0.12 ± 0.006 on 60 server
@@ -182,6 +185,13 @@ export const DEFAULTS = {
    * experiment that measures what such offers do. */
   chainOffers: 0,
   chainOfferSpread: 0,
+  /** A chain opens at `chainStart` × its fee and reaches the fee in steps over `chainRamp` waking minutes; its
+   * `chainPatience` counts from the end of the ramp. 97% of the chains book at their opening fee, after 3 minutes
+   * at the median (five ranking runs). 1 opens at the fee. */
+  chainStart: 1,
+  chainRamp: 20,
+  /** Chains are posted on the first `chainDays` days of the week: 4 is Monday to Thursday, 5 adds Friday. */
+  chainDays: 4,
 }
 export type LeanParams = typeof DEFAULTS
 
@@ -345,26 +355,30 @@ class Lean extends Strategy<LeanParams> {
     if (!this.outlooks) return undefined
     const leg = request.legs[0]
     const f = features(request, this.setup.map)
-    return outlook(this.outlooks, {
-      typicalCents: request.referenceFeeCents,
-      at,
-      readyAt,
-      lastPickupAt,
-      deadline,
-      driveMinutes: leg ? driveMinutes(this.setup.map, [leg]) : 0,
-      privatePickup: f.privatePickup,
-      privateDelivery: f.privateDelivery,
-      premium: f.premium,
-      electric: request.legs.some((l) => l.car.electric),
-      tradeIn: f.tradeIn,
-      hasNote: Boolean(request.note),
-      homePickup: this.homes.get(leg?.pickup.placeId ?? '') ?? 0,
-      homeDelivery: this.homes.get(leg?.delivery.placeId ?? '') ?? 0,
-      drivers: this.setup.roster.length || MEDIAN_DRIVERS,
-      won: this.tally.won,
-      wonToday: this.wonOn.get(Math.floor(at / DAY)) ?? 0,
-      open,
-    })
+    return outlook(
+      this.outlooks,
+      {
+        typicalCents: request.referenceFeeCents,
+        at,
+        readyAt,
+        lastPickupAt,
+        deadline,
+        driveMinutes: leg ? driveMinutes(this.setup.map, [leg]) : 0,
+        privatePickup: f.privatePickup,
+        privateDelivery: f.privateDelivery,
+        premium: f.premium,
+        electric: request.legs.some((l) => l.car.electric),
+        tradeIn: f.tradeIn,
+        hasNote: Boolean(request.note),
+        homePickup: this.homes.get(leg?.pickup.placeId ?? '') ?? 0,
+        homeDelivery: this.homes.get(leg?.delivery.placeId ?? '') ?? 0,
+        drivers: this.setup.roster.length || MEDIAN_DRIVERS,
+        won: this.tally.won,
+        wonToday: this.wonOn.get(Math.floor(at / DAY)) ?? 0,
+        open,
+      },
+      this.params.longCost,
+    )
   }
 
   /** Our gigs that wait for a driver. */
