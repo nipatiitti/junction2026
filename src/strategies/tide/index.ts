@@ -17,21 +17,21 @@ const OWN = {
   fri: 1.1,
   wkd: 1.1,
   /** Target win rate: `targetMon` on Monday, falling linearly to `targetFri` from Friday on. */
-  targetMon: 0.55,
-  targetFri: 0.35,
+  targetMon: 0.4,
+  targetFri: 0.22,
   /** PI controller on log(level): window of recent quotes, gains per outcome, clamps. */
   window: 40,
   kp: 0.35,
   ki: 0.015,
   iMax: 14,
-  levelMin: 0.8,
-  levelMax: 1.35,
+  levelMin: 0.97,
+  levelMax: 1.5,
   /** Price-war day: today's win rate under `warRatio` × target after `warMin` quotes. Prices × `warCut` that day. */
   warRatio: 0.45,
   warMin: 15,
-  warCut: 0.85,
+  warCut: 0.9,
   /** Trust premium: +`trustStep` per trust point, up to `trustCap`. */
-  trustStep: 0.012,
+  trustStep: 0.015,
   trustCap: 22,
   /** Friday premium on options whose deadline falls Friday from `friHour` on, or the weekend. */
   friPremium: 1.08,
