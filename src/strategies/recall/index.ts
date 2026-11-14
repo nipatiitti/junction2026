@@ -54,7 +54,7 @@ export const DEFAULTS: RecallParams = {
   rescue: true,
   matchMin: 3,
   matchShare: 0.8,
-  plan: true,
+  plan: false,
   planDriftMinute: 720,
   planDriftShare: 0.5,
   planDriftMin: 8,

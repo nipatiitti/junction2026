@@ -1,5 +1,11 @@
 # recall
 
+prophet (`plan`, default false): `node src/strategies/recall/plan.ts <seed> [feeScale=1.15] [dayCap] [totalCap]
+[minMarginCents=300]` values each remembered request at its bracket price less reference fee × feeScale, adds a trust
+bonus (1% of the dealer's later planned wins), keeps the best within the caps and writes `plan-<seed>.json`. With
+`plan=true` recall declines the requests the plan leaves out, unless by `planDriftMinute` (720) under
+`planDriftShare` (0.5) of the day's planned requests (at least `planDriftMin`, 8) were won.
+
 bidprice plus a memory of earlier practice weeks of the same seed. **It is overfit to practice seeds**: practice
 weeks with the same seed have the same requests, so it remembers each request's price bracket. On an unknown week
 (a ranking world, a final, a seed with no memory) nothing matches and it is plain bidprice with `tuned-16.json`.
