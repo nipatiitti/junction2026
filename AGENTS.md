@@ -223,6 +223,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the ratchet week: `uv run strategies/ratchet/dispatch.py --level 8 --seed spread-1`
 - Play the ceiling-pricing week: `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1`
 - Play the headroom week: `uv run strategies/headroom/dispatch.py --level 8 --seed spread-1`
+- Play the chain-optimised week: `uv run strategies/chain_opt/dispatch.py --level 8 --seed spread-1`
 - Play the trust-farm week: `uv run strategies/trust_farm/dispatch.py --level 8 --seed spread-1`
 - Play the hazard-fee week: `uv run strategies/hazard_fee/dispatch.py --level 8 --seed spread-1`
 - Play the learned-hold week: `uv run strategies/learned_hold/dispatch.py --level 8 --seed spread-1`
