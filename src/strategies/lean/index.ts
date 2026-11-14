@@ -59,11 +59,11 @@ export const DEFAULTS = {
   gain: 0.02,
   /** How much of that worth is the same for every order (`flatEuros` × `capacity`), not in proportion to its typical
    * fee: a short hop takes a driver's place in the day as a long one does. */
-  flatShare: 0,
+  flatShare: 0.5,
   flatEuros: 60,
   /** The fee a gig opens at and the end of its slow climb, × typical. */
-  open: 0.68,
-  climbTo: 1.04,
+  open: 0.88,
+  climbTo: 0.88,
   /** Instead of the climb: hold `open` × typical and raise only 24, 16, 10 and 6 hours before the last pickup (to
    * 1.05, 1.25, 1.55 and 2 × typical). */
   stepped: false,
@@ -74,8 +74,8 @@ export const DEFAULTS = {
    * the road minutes, and real drives run longer. 0 leaves the deadline as the window. */
   buffer: 0,
   /** A premium car's cost × this, and what a private address adds × typical. */
-  premium: 1.5,
-  privateAddress: 0.08,
+  premium: 3,
+  privateAddress: 0.25,
   /** What a booking costs × typical before this week's bookings say: the measured median with the climb's steps. */
   feeRatio: 0.84,
   /** Added to the cost × typical for drops, failed visits and refunds. */
