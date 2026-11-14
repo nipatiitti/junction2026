@@ -15,7 +15,7 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`lead_cost/`](lead_cost/README.md) | `LeadCostAdmission` | Which requests to take, by lead time, for `headroom` and up     |
 | [`lane_fee/`](lane_fee/README.md)   | `LaneFee`           | A lane's typical fee without one request's noise, for the same  |
 
-Thirty-six folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Thirty-seven folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                                              |
