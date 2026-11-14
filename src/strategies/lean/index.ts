@@ -26,6 +26,7 @@ import {
   canServe,
   DAY,
   driveMinutes,
+  earliestPickup,
   FIRST_TRY,
   features,
   gigShape,
@@ -49,6 +50,7 @@ import {
 import { bestPrice, Demand } from './demand.ts'
 import { awake, BOOK_AHEAD, fast, feeAt, SHORT, stepped } from './fees.ts'
 import { Offers } from './offers.ts'
+import { loadOrders, type OrderModel, outlook } from './outlook.ts'
 import { Planner } from './planner.ts'
 import { Supply } from './supply.ts'
 
@@ -81,12 +83,17 @@ export const DEFAULTS = {
   privatePickup: 0.25,
   privateDelivery: 0.25,
   /** The fee a gig for a later day shows in its first hour, × typical; 0 opens at `open`. */
-  early: 0,
+  early: 0.8,
   /** What a booking costs × typical before this week's bookings say: the measured median with the climb's steps. */
   feeRatio: 0.84,
   /** Learn what a booking costs by pickup place, delivery place and whether the car goes today (supply.ts), not
    * as one figure for the week. */
   supply: true,
+  /** Price each request by its own outlook (outlook.ts, fitted on the saved weeks' real orders): its cost as a
+   * share of the mean order's, in place of the surcharges for private addresses, trade-ins, weekends and notes, and
+   * `lateCost` × its list price for each unit of chance to be late. */
+  order: false,
+  lateCost: 1,
   /** Added to the cost × typical for drops, failed visits and refunds. */
   overhead: 0.06,
   /** An option needs this many waking hours between now and the last minute to book, or we do not quote it. */
@@ -145,6 +152,10 @@ class Lean extends Strategy<LeanParams> {
   private readonly planner: Planner
   private readonly supply: Supply
   private readonly offers: Offers
+  private readonly outlooks: OrderModel | undefined
+  /** Place id -> the drivers who live there; day -> the orders won on it. */
+  private readonly homes = new Map<string, number>()
+  private readonly wonOn = new Map<number, number>()
   private readonly drivers: number
   private capacity: number
   private feeRatio: number
@@ -170,6 +181,8 @@ class Lean extends Strategy<LeanParams> {
   constructor(setup: Setup, params: LeanParams) {
     super(setup, params)
     this.supply = new Supply(params.feeRatio)
+    this.outlooks = params.order && setup.level >= 7 ? loadOrders() : undefined
+    for (const d of setup.roster) this.homes.set(d.homePlaceId, (this.homes.get(d.homePlaceId) ?? 0) + 1)
     this.offers = new Offers(setup.map, setup.roster)
     this.demand = new Demand(setup.level, params.noise)
     this.drivers = setup.roster.length > 0 ? setup.roster.length / 777 : 1
@@ -195,7 +208,7 @@ class Lean extends Strategy<LeanParams> {
     for (const option of options) {
       if (!canServe(request, option, now, context).ok) continue
       if (this.setup.level <= 3) return { [option.kind]: option.listPriceCents }
-      const alone = this.cost(request, option, facts, now)
+      const alone = this.cost(request, option, facts, now, books)
       if (alone === null) continue
       const share = this.planner.share(request, option, facts, books)
       const cost = alone * share
@@ -212,7 +225,13 @@ class Lean extends Strategy<LeanParams> {
 
   /** What the drivers of an option cost: the typical fee × what bookings pay this week, more when the gig has
    * little time to find its driver or is work that drivers ask more for. */
-  private cost(request: PriceRequest, option: DeliveryOption, facts: NoteFacts, now: number): number | null {
+  private cost(
+    request: PriceRequest,
+    option: DeliveryOption,
+    facts: NoteFacts,
+    now: number,
+    books: Books,
+  ): number | null {
     const f = features(request, this.setup.map, option)
     const deadline = Math.min(option.deadline, facts.deadline ?? Infinity)
     const lastPickup = deadline - 1.1 * driveMinutes(this.setup.map, request.legs) - 30
@@ -222,6 +241,34 @@ class Lean extends Strategy<LeanParams> {
     const today = lastPickup < (Math.floor(now / DAY) + 1) * DAY
     const learned = this.supply.ratio(this.supply.keys(leg?.pickup.placeId, leg?.delivery.placeId, today))
     let ratio = (this.params.supply ? learned : this.feeRatio) + this.params.overhead
+    if (this.outlooks) {
+      let open = 0
+      for (const order of books.orders.values())
+        for (const gigId of books.gigsOf(order.id)) if (!books.booked.has(gigId)) open++
+      const view = outlook(this.outlooks, {
+        typicalCents: request.referenceFeeCents,
+        at: now,
+        readyAt: Math.max(leg?.pickup.window.from ?? now, earliestPickup(facts) ?? 0),
+        lastPickupAt: lastPickup,
+        deadline,
+        driveMinutes: leg ? driveMinutes(this.setup.map, [leg]) : 0,
+        privatePickup: f.privatePickup,
+        privateDelivery: f.privateDelivery,
+        premium: f.premium,
+        electric: request.legs.some((l) => l.car.electric),
+        tradeIn: f.tradeIn,
+        hasNote: Boolean(request.note),
+        homePickup: this.homes.get(leg?.pickup.placeId ?? '') ?? 0,
+        homeDelivery: this.homes.get(leg?.delivery.placeId ?? '') ?? 0,
+        drivers: this.setup.roster.length || 777,
+        won: this.tally.won,
+        wonToday: this.wonOn.get(Math.floor(now / DAY)) ?? 0,
+        open,
+      })
+      ratio *= view.cost
+      if (f.premium) ratio *= this.params.premium
+      return request.referenceFeeCents * ratio + view.late * this.params.lateCost * option.listPriceCents
+    }
     if (f.privatePickup) ratio += this.params.privatePickup
     else if (f.privateDelivery) ratio += this.params.privateDelivery
     if (f.tradeIn) ratio += 0.05
@@ -294,7 +341,11 @@ class Lean extends Strategy<LeanParams> {
       this.demand.learn(this.demand.keys(request, option.kind), offset, multiple, won !== null)
       if (won) this.tally.multiples += multiple
     }
-    if (won) this.tally.won++
+    if (won) {
+      this.tally.won++
+      const day = Math.floor(books.now / DAY)
+      this.wonOn.set(day, (this.wonOn.get(day) ?? 0) + 1)
+    }
     this.capacity = clamp(this.capacity + this.params.gain * ((won ? 1 : 0) - this.target(books)), 0, 2)
   }
 
