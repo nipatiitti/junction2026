@@ -423,6 +423,33 @@ The same ten seeds, every week ranked (mean margin a week, against the defaults 
 - An earlier check on four seeds, on the code before #335 (`noisechk-1` to `noisechk-4`): `noise` 0.20 without a
   charge made +€264 and 0.14 −€554 with one week unranked.
 
+## What chains earn (15 November, #349)
+
+`chains=false` on `supply-1` to `supply-10`, against the saved weeks of the defaults on the same seeds (level 8, mean
+margin a week, every week ranked):
+
+| Variant        | Margin  | Orders | On time | Fees × typical |
+| -------------- | ------- | ------ | ------- | -------------- |
+| Defaults       | €16,875 | 436    | 96.6%   | 0.96           |
+| `chains=false` | €15,314 | 395    | 97.3%   | 1.00           |
+
+Chains make €1,560 ± 495 a week, ahead on 8 of 10 seeds, with 41 more orders and 0.7 points fewer on time.
+
+What the 15 saved weeks of the defaults (these ten and five ranking runs) say of the chains:
+
+- **Half of them book.** 94 chains a week are posted and 53% book. 123 cars a week ride in booked chains at 0.68 ×
+  typical; 133 a week were in a chain that failed or was dropped and then paid 1.04 to 1.10 × as single gigs. All of
+  those at 0.68 would be €2,500 a week: the most that better chains can earn.
+- **A failed chain costs time, not fees.** Its cars pay 1.04 × typical where cars that were never in a chain pay 1.03.
+- **The fee does not decide it.** A chain that did not book was seen by a median 14 drivers. Booked and unbooked
+  chains opened at the same 0.67 × their cars' typical fees, and in the 89 older weeks where chains stayed open
+  through their raises, a view at 0.75 to 1.00 × booked 1% of the time against 3% at 0.60 to 0.75.
+- **The shape decides it.** A chain that 200 or more drivers can do as a round from home (home to the first pickup
+  and the last delivery to home in 90 road minutes together) books 80% of the time; 74% of the chains have no such
+  driver and book 48%. A trip from the last delivery to the first pickup of over 3 hours books 36%, one of 31 to 60
+  minutes 77%.
+- **A chain books at once or not at all.** Half of the bookings come within 4 minutes and 90% within 37.
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
