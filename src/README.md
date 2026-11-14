@@ -1,22 +1,24 @@
 # The TypeScript system
 
-[`BRIEF.md`](BRIEF.md) is the design that this system is being built to.
+`src/dispatch.ts` plays a Spread week with one strategy on a harness. The strategy that plays by default is
+[`lean`](strategies/lean/README.md): one online win model, one worth of capacity and one slow fee climb, built from the
+measured level 8 facts. [`BRIEF.md`](BRIEF.md) is the brief of the system before it, kept for its measurements.
 
-The same kit exists for TypeScript, so half of the team can work there. `vendor/spread-typescript/` holds the
-organisers' TypeScript kit of 13 November, unchanged: the client (`spread.ts`), its types, the starter and
-`reveal-csv.ts`. Lint and format skip `vendor/`. `src/dispatch.ts` is our TypeScript system: a harness
-that plays a week with one strategy. The `starter` strategy decides exactly as the organisers' starter, so it gives the starter's
-[baseline](../strategies/baseline/README.md).
+`vendor/spread-typescript/` holds the organisers' TypeScript kit of 13 November, unchanged: the client (`spread.ts`),
+its types, the starter and `reveal-csv.ts`. Lint and format skip `vendor/`. The `starter` strategy decides exactly as
+the organisers' starter, so it gives the starter's [baseline](../strategies/baseline/README.md); the harness also posts
+its gig when a strategy fails.
 
 ```sh
-pnpm dispatch --level 8 --seed spread-1   # a whole practice week with the starter strategy
-pnpm dispatch --strategy starter --set markup=1.3 --seed spread-1   # another strategy or other params
+pnpm dispatch --level 8 --seed spread-1   # a whole practice week with the lean strategy
+pnpm dispatch --set target=0.26 --seed spread-1   # other params
+pnpm dispatch --strategy starter --seed spread-1   # another strategy
 pnpm starter --level 8 --seed spread-1    # the same week with the organisers' unchanged starter
 pnpm reveal-csv <world id>                # write an ended week and its reveal to CSV files
 pnpm dispatch --final                     # play our copy of a test final or of the final
 ```
 
-`--strategy <name>` picks the strategy (`starter` by default). `--params <file>` overrides its params with the values
+`--strategy <name>` picks the strategy (`lean` by default). `--params <file>` overrides its params with the values
 of a JSON file, and `--set key=value` overrides one; both can be given more than once, and a key that the strategy
 does not have is an error. `--board` plays a ranking run and `--final` the final, as before.
 
@@ -40,11 +42,15 @@ practice week (`advance`) or a final (the event stream) runs:
   seen, in `out/journal/<world id>.jsonl` (`SPREAD_JOURNAL_DIR` changes the folder). On a rebuild the new strategy gets
   the event log and the journal merged in order, so it ends in the state of the one that played. Without the file, as
   on another machine, it gets the events only.
-- `loops.ts` holds the practice and the live loop, `week.ts` plays one week and saves it. There is one way into a
-  week, for the first start, our own restart, a server that went away and a broken stream alike: rebuild the books
-  and a new strategy from the snapshot, the event log and the journal, then run the loop. An unreachable server is
-  retried every second for as long as it takes; both loops skip an event they have handled. The client sends at most
-  50 actions a request and waits for the tokens that the `RateLimit-*` headers name.
+- `loops.ts` holds the practice and the live loop, `week.ts` plays one week and saves it. The practice loop sends
+  one request a step: the `advance` carries the actions of the step before. While dealers ask for prices (weekdays,
+  08:00 to 18:15) a step is 10 minutes, so every request is quoted inside its 15 minutes; outside those hours the
+  world runs to the next event that needs an answer, an hour at most. Forty level 8 weeks, eight at once, take about
+  11 minutes. There is one way into a week, for the first start, our own restart, a server that went away and a
+  broken stream alike: rebuild the books and a new strategy from the snapshot, the event log and the journal, then
+  run the loop. An unreachable server is retried every second for as long as it takes; both loops skip an event they
+  have handled. The client sends at most 50 actions a request and waits for the tokens that the `RateLimit-*`
+  headers name.
 
 **What the harness guarantees in the final** (`--final`): it never exits on an error. Any error is printed and the
 week is rebuilt a second later. The live loop keeps one request in flight while the outbox collects: quotes go
@@ -62,6 +68,8 @@ params (defaults in its `StrategyKind`), and answers these calls, each with a re
   them. `need.why` says why (a won order, a change, a split trade-in, a retry after `need.failed`, a repost or an
   urgent reprice of `need.previous`, or `lost`: a car that no gig carries). The desk posts every plan, and posts any
   leg of `need.legs` that no plan carries with the starter's gig; an empty answer counts as a fault.
+- `hold(need, books)`, optional: true to wait with the gig for these legs, as when the cars may join a gig with cars
+  still to come. The desk asks again on every sweep.
 - `observe(event, books)`: every event of the week, before the desk acts on it.
 - `sent(action, result, books)`, optional: every action the desk sent for the strategy (quote, post, reprice,
   withdraw, offer), as it went out (also the safe one that replaced an invalid answer), with the world's answer: `ok`
@@ -82,14 +90,14 @@ the world in play. A week that throws still prints the table of the weeks before
 ranking run or a final.
 
 ```sh
-pnpm bench starter starter:markup=1.3 --level 8 --seeds spread-1..spread-5
+pnpm bench lean lean:target=0.26 --level 8 --seeds spread-1..spread-5
 ```
 
 **Tune a strategy's params** with `pnpm tune`, a search by successive halving on practice weeks. A space file names
 each param to search with a list of values or a range; the other params keep their defaults:
 
 ```json
-{ "trustValue": [0, 0.5, 1, 2], "minValueCents": { "min": 100, "max": 1500, "log": true, "int": true } }
+{ "target": [0.24, 0.27, 0.3, 0.33], "capacity": { "min": 0.2, "max": 0.8 } }
 ```
 
 A range is drawn evenly, or on a log scale with `"log": true` (its min above 0); a drawn number keeps three
@@ -97,8 +105,8 @@ significant digits, or is whole with `"int": true`. The candidates are drawn wit
 the same candidates, and candidate `#0` is always the defaults.
 
 ```sh
-pnpm tune bidprice --space space.json --holdout spread-6..spread-10 --dry   # the candidates and the rounds, no world
-pnpm tune bidprice --space space.json --holdout spread-6..spread-10 --keys SPREAD_KEY,SPREAD_KEY_2
+pnpm tune lean --space space.json --holdout spread-6..spread-10 --dry   # the candidates and the rounds, no world
+pnpm tune lean --space space.json --holdout spread-6..spread-10 --keys SPREAD_KEY,SPREAD_KEY_2
 pnpm tune --resume out/tune-<date>-<time>.json --keys SPREAD_KEY,SPREAD_KEY_2   # go on with a stopped search
 ```
 
@@ -130,51 +138,5 @@ must name the proxy's CA (cloud sessions set it). Without `HTTPS_PROXY` they con
 turns on pnpm's `shell-emulator`, so the variable works on Windows too. The `--final` WebSocket stream does not go
 through the proxy yet.
 
-The quote side of the brief's design (win probability, level learning, expected-profit pricing) is in
-`models/quote/`, with its priors in `params/quote.json`: see [its README](models/quote/README.md).
-
-The fee and capacity side (booking hazard, fee schedule solver, fee extras, `lambda` and `mu`) is in `models/fees/`,
-with its priors in `params/fees.json`: see [its README](models/fees/README.md).
-
 `dispatch.py`'s order handling (note reader, gig shape, admission's time rules, retries) is in `ops/` as pure
-functions: see [its README](ops/README.md).
-
-The `bidprice` strategy (`strategies/bidprice/`) joins the three: it quotes at the expected cost of moving the car and
-posts each gig with the fee schedule from the same function. See [its README](strategies/bidprice/README.md).
-
-## Write a strategy on the base
-
-`src/strategies/base/` has `PricedStrategy`, which does everything but the price; `src/strategies/flat/` is a
-20-line example. Subclass it, implement `price(ctx)`, and register `priced(OWN_DEFAULTS, MyClass)` in
-`src/strategies/index.ts`. Your defaults merge over the base's, flat, so the bench overrides any of them
-(`mine:comfortHours=6`).
-
-What the base does: admits only the options `canServe` says are on time with `comfortHours` of slack (more as the late
-share rises; else only the slowest servable option); a **capacity brake** (an option whose pickup day has
-`maxOpenPerDay` open unbooked gigs plus `pendingWeight` × pending quotes, or any option while the projected late share
-is over `lateBrake`, is declined, or priced × `brakeMarkup` when that is over 0); posts every gig (stops and audience
-from `src/ops/`, fees from bidprice's fee solver and learned booking hazard of `src/models/fees/` with `feeSolver`, else
-bidprice's ramp, the urgent ramp after the deadline warning); reprices dropped and stale gigs each 30-minute tick (with
-the solver: the solver again from now, never under the fee in the app); never quotes under `costCents × minMargin`;
-prints a summary at the end of the week (brakes, and fees paid × typical over the bookings).
-
-`price(ctx)` is called once per admitted option and returns a multiple of the list price, or null to leave that option
-out (all null: a decline). `ctx` fields: `request`, `option`, `listCents`, `costCents` (expected driver cost: typical
-fee × `costFactor` × feature multipliers; with `costPseudo` over 0 and the solver, `costFactor` learned towards
-this week's fees paid over typical), `dealerId`, `trust` (+1 per on-time order, halved on a late one, cap 25),
-`dealerShare` (share of the requests so far), `nearPickup`, `nearDelivery` (drivers living near), `now`, `weekday`
-(0 = Monday), `hour`, `slack` (minutes), `lateShare`, `load` (of the pickup day), `t` (trackers: `trust`, `requests`,
-`total`, `byDealer` / `byOption` / `byDay` wins and losses, `delivered`, `late`) and `random` (seeded by `seed` and
-the request: the same on a rebuild).
-
-Optional overrides: `feePlan(ctx)` returns a gig's schedule (ctx: `need`, `order`, `legs`, `gig` as a `FeeGig`, `now`,
-`urgent`); `onOutcome(outcome, won)` when a quote wins or passes `respondBy`; `extraActions(books)` adds actions to the
-tick. Keep your own state rebuildable from `observe` and `sent` (call `super`).
-
-Base params (defaults): `comfortHours` 9, `maxOpenPerDay` 18, `pendingWeight` 0.4, `lateBrake` 0.05, `riskWeight` 0.5,
-`brakeMarkup` 0, `feeSolver` true, `feeFloor` 1.03, `feeExtras` true, `hazardFit` true, `onTime` true, `etaMu` 0.02,
-`lateTarget` 0.05 (the solver's, passed through bidprice's `feeParamsOf`), `openFee` 0.9, `topFee` 2.5 (the ramp),
-`topLeadHours` 11.8, `topRatio` 1.58 (both), `urgentTop` 2.5, `staleHours` 2, `dropStep` 0.15, `climbStep` 0.1,
-`climbTop` 3, `repriceMax` 10, `costFactor` 1.3, `costPseudo` 0, `minMargin` 1.1, `seed` 1.
-`flat` on spread-1 (level 8): with the solver 319 orders, 95.6% on time, EUR 9,199, fees 1.16 × typical; with the
-ramp (`feeSolver=false`, `topLeadHours` 8, `topRatio` 1.5) 315 orders, 95.9% on time, EUR 7,251, fees 1.23 × typical.
+functions: see [its README](ops/README.md). The `lean` strategy uses it for every gig and for which options it quotes.
