@@ -14,15 +14,15 @@ from functools import partial
 from pathlib import Path
 from typing import ClassVar
 
-# Run as a file, Python looks for modules next to it; record.py, spread_proxy.py and strategies/ are at the root.
+# Run as a file, Python looks for modules next to it; tools/ and strategies/ are at the root.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from spread.client import World
 
-import record
 from strategies.baseline import baseline
 from strategies.baseline_ladder.fees import RampFees
 from strategies.baseline_ladder.pricing import BaselineLadderPricing
+from tools import record
 
 POLICY = "baseline-ladder"  # the policy of the weeks this system saves, so they form their own group in the data
 
