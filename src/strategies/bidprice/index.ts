@@ -77,6 +77,7 @@ import {
 import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees.ts'
 import { lateRiskOf, newLateRisk } from './late.ts'
 import { legsOf, WeekLog } from './log.ts'
+import { newPosture, observePosture, postureScale } from './posture.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
 
 /** A quote at this many times the list price or more is a decline. */
@@ -93,6 +94,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   readonly learning: CostLearning
   readonly log = new WeekLog()
   readonly lateRisk: ReturnType<typeof newLateRisk>
+  readonly posture: ReturnType<typeof newPosture>
   /** The latest minute an event or action has told, for the summary. */
   private now = 0
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
@@ -108,6 +110,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
     this.cost = newCostState(this.costPrior)
     this.learning = { learn: params.costLearn, pseudoGigs: params.costPseudo }
     this.lateRisk = newLateRisk(setup.roster, setup.map)
+    this.posture = newPosture(setup.roster.length, params)
   }
 
   observe(event: DeskEvent): void {
@@ -117,6 +120,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
     learn(this.fees, event, this.feeParams)
     this.learnCost(event)
     this.count(event)
+    if (this.params.posture) observePosture(this.posture, event, (g) => this.log.gigs.get(g)?.orderId, this.params)
   }
 
   /** What the desk sent for us, as sent, and the world's answer: the quotes the quote learner waits on, and our gigs
@@ -222,7 +226,8 @@ export class BidPrice extends Strategy<BidPriceParams> {
   costOf(request: PriceRequest, option: DeliveryOption, now: number): number {
     const { fee, late } = this.costParts(request, option, now)
     const risk = this.params.lateRisk ? this.riskOf(request, option, now) * this.params.lateRiskCents : 0
-    return (fee + late) * this.params.costScale + risk
+    const scale = this.params.posture ? postureScale(this.posture, now, this.params) : this.params.costScale
+    return (fee + late) * scale + risk
   }
 
   /** The late share the late-risk table predicts for this option if we win it now. */
@@ -333,6 +338,11 @@ export class BidPrice extends Strategy<BidPriceParams> {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([k, v]) => `${k} ${v}`)
         .join(' ')}`,
+      ...(this.params.posture
+        ? [
+            `posture start ${this.posture.start.toFixed(3)} days ${this.posture.days.map((d) => d.toFixed(3)).join(' ')} now ${postureScale(this.posture, this.now, this.params).toFixed(3)}`,
+          ]
+        : []),
     ].join(', ')
   }
 

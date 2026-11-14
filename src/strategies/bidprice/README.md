@@ -99,3 +99,7 @@ served option over `lateRiskMax`), `war` (the war-day rule), `minValue` (best va
 `underCost` (no price on the grid covers the cost); `opt-<rule>` counts the options each rule left out of a quote.
 Set `BIDPRICE_DECLINE_LOG=<file>` to append one JSON line per request (id, minute, reason, options left out, costs,
 value, win chance, prices).
+
+**Price posture (`posture`, off by default).** With it on, the fixed `costScale` gives way to a scale between `postureMin` and `postureMax` that follows the world's spare driver capacity (`posture.ts`).
+It starts at `postureStart` − `postureRosterK` × (roster / `postureRoster` − 1), so a world with more drivers than average prices lower, then rises by `postureLoadK` per won order still waiting for a booking beyond `postureComfort`, and by `postureWarnK` × the deadline warnings over the orders won in the last day (the late brake).
+It only ever pushes up on lateness, the same way as `mu`, so the two do not fight; the summary line shows the start and the scale at the end of each day.

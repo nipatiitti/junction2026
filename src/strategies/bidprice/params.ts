@@ -3,8 +3,9 @@
 import { type FeeParams, feeParams } from '../../models/fees/index.ts'
 import { type QuoteParams, quoteParams } from '../../models/quote/index.ts'
 import { HOUR } from '../../time.ts'
+import { POSTURE_DEFAULTS, type PostureParams } from './posture.ts'
 
-export type BidPriceParams = {
+export type BidPriceParams = PostureParams & {
   /** `profit`: the price that maximises the expected profit; `median`: the price that wins half the time. */
   pricing: string
   /** Count each dealer's trust in the win chance, and value the trust a win adds. */
@@ -113,6 +114,7 @@ export const DEFAULTS: BidPriceParams = {
   climbStep: 0.1,
   climbTop: 3,
   repriceMax: 10,
+  ...POSTURE_DEFAULTS,
 }
 
 /** The quote models' params from the strategy's. */
