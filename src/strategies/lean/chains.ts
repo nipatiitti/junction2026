@@ -63,7 +63,13 @@ export const loadChains = (): ChainModel =>
 
 /** What the model needs of the week: place id -> the drivers who live there, the bookings so far per driver, and
  * the opening fee × a chain's worth (`open`). Without `model` a chain keeps level 1. */
-export type Scene = { homes: ReadonlyMap<string, number>; load: number; open: number; model?: ChainModel | undefined }
+export type Scene = {
+  homes: ReadonlyMap<string, number>
+  load: number
+  open: number
+  alone?: number // × what the cars pay as single gigs: over 1 pays chains more to book more of them
+  model?: ChainModel | undefined
+}
 
 /** What a chain's cars pay as single gigs × their typical fees when chains are off (ten server weeks: 0.94 for
  * cars won on the Monday, 0.99 from Tuesday to Thursday), and what a failed chain costs its cars on top (1.04
@@ -127,7 +133,7 @@ function score(path: Car[], drive: number, typical: number, map: WorldMap, now: 
 /** The fee level that earns the most, with its chance to book and what it earns over the cars as single gigs:
  * chance × (what the cars pay alone − the chain's fee) − (1 − chance) × what a failed chain costs them. */
 function priced(odds: number, singles: number, typical: number, now: number, scene: Scene) {
-  const alone = (Math.floor(now / DAY) === 0 ? ALONE_MONDAY : ALONE) * singles
+  const alone = (Math.floor(now / DAY) === 0 ? ALONE_MONDAY : ALONE) * (scene.alone ?? 1) * singles
   const slope = scene.model?.weights.level ?? 0
   let best = { level: 1, chance: 0, worth: -Infinity }
   for (const level of LEVELS) {

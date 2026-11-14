@@ -167,6 +167,14 @@ export const DEFAULTS = {
    * 0.85 to 1.3 that earns the most over its cars as single gigs, by its chance to book at that level, the best
    * chain earns the most a car, and a chain that earns nothing is not posted. */
   chainModel: false,
+  /** With the model: × what a chain's cars are taken to pay as single gigs (0.94 on the Monday, 0.99 after). Over
+   * 1 the model pays chains more, so more of them book. */
+  chainAlone: 1,
+  /** Direct offers of an open chain to the drivers who viewed it and did not book, at this × the fee in the app
+   * (planner.ts). 0 sends none. `chainOfferSpread` 1 draws each chain's offer level from 1, 1.15 and 1.3: an
+   * experiment that measures what such offers do. */
+  chainOffers: 0,
+  chainOfferSpread: 0,
 }
 export type LeanParams = typeof DEFAULTS
 
@@ -519,6 +527,12 @@ class Lean extends Strategy<LeanParams> {
 
   override observe(event: DeskEvent, books: Books): void {
     switch (event.kind) {
+      case 'gig_viewed':
+        this.planner.viewed(event.gigId, event.driverId, event.at)
+        break
+      case 'offer_answered':
+        if (event.answer === 'accepted') this.planner.took(event.gigId)
+        break
       case 'price_request':
         this.tally.requests++
         this.demand.dawn(Math.floor(event.at / DAY))

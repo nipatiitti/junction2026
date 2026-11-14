@@ -16,6 +16,9 @@ export type PlannerParams = ChainParams & {
   chainTries: number
   chainOpen: number
   chainSpread: number
+  chainAlone: number
+  chainOffers: number
+  chainOfferSpread: number
   pickLead: number
   chainLast: number
 }
@@ -37,6 +40,12 @@ export function draw(text: string): number {
   for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193) >>> 0
   return hash / 2 ** 32
 }
+/** Direct offers of an open chain (the rules: an offer is open 10 minutes, three open per gig, three per driver
+ * per day, none read at night). A driver gets one `OFFER_AFTER` minutes after their view, and only once per chain. */
+const [OFFER_OPEN, OFFERS_PER_GIG, OFFERS_PER_DAY, OFFER_AFTER] = [10, 3, 3, 3]
+const [OFFER_FROM, OFFER_TO] = [7 * HOUR, 21 * HOUR]
+/** The offer levels that `chainOfferSpread` draws from, × the fee that the app shows. */
+const OFFER_LEVELS = [1, 1.15, 1.3]
 /** The most chains posted in one tick. */
 const MAX_POSTS = 5
 
@@ -66,7 +75,12 @@ export class Planner {
   private readonly fails = new Map<string, number>()
   /** Order id -> the minute it was won: its wait for a partner counts from there. */
   private readonly wonAt = new Map<string, number>()
-  private readonly tally = { posted: 0, cars: 0, booked: 0, bookedCars: 0, ratios: 0, undone: 0 }
+  /** Gig id of a posted chain -> the drivers who viewed it and the minute, and the drivers we offered it to. */
+  private readonly views = new Map<string, Map<string, number>>()
+  private readonly offered = new Map<string, Map<string, number>>()
+  /** Driver id and day -> the offers we sent them that day. */
+  private readonly asked = new Map<string, number>()
+  private readonly tally = { posted: 0, cars: 0, booked: 0, bookedCars: 0, ratios: 0, undone: 0, offers: 0, taken: 0 }
 
   private readonly p: PlannerParams
   private readonly map: WorldMap
@@ -95,6 +109,8 @@ export class Planner {
       // The harness posts each car again, as a single gig. `sent` marks the cars once the world has taken the gig out.
       actions.push({ type: 'withdraw', gigId })
     }
+    const leaving = new Set(actions.map((action) => (action.type === 'withdraw' ? action.gigId : '')))
+    actions.push(...this.offers(books, leaving))
     // A chain needs a car that no driver has seen, so without one there is nothing to search.
     const cars = this.openCars(books).filter((car) => postable(car.collectBy, now, p.pickLead))
     if (!cars.some((car) => !car.gigId)) return actions
@@ -117,6 +133,60 @@ export class Planner {
     return actions
   }
 
+  /** Direct offers of the open chains to drivers who viewed them and did not book, at `chainOffers` × the fee in
+   * the app: a driver who holds out for more gets it, and the app's fee stays for the others. With
+   * `chainOfferSpread` each chain draws its offer level from `OFFER_LEVELS`, which measures what such offers do. */
+  private offers(books: Books, leaving: ReadonlySet<string>): Action[] {
+    const p = this.p
+    const now = books.now
+    const actions: Action[] = []
+    if (!(p.chainOffers > 0 || p.chainOfferSpread > 0) || now % DAY < OFFER_FROM || now % DAY >= OFFER_TO)
+      return actions
+    for (const [gigId, chain] of this.posted) {
+      const post = books.posts.get(gigId)
+      if (
+        !post ||
+        leaving.has(gigId) ||
+        books.booked.has(gigId) ||
+        !chain.orders.some((id) => books.gigsOf(id).includes(gigId))
+      )
+        continue
+      const sent = this.offered.get(gigId) ?? new Map<string, number>()
+      let free = OFFERS_PER_GIG - [...sent.values()].filter((at) => now < at + OFFER_OPEN).length
+      const drawn = OFFER_LEVELS[Math.floor(draw(`${chain.orders.join(' ')} offer`) * OFFER_LEVELS.length)] ?? 1
+      const level = p.chainOfferSpread > 0 ? drawn : p.chainOffers
+      const shown = post.schedule.reduce(
+        (fee, step) => (step.at <= now ? step.feeCents : fee),
+        post.schedule[0]?.feeCents ?? 0,
+      )
+      for (const [driverId, at] of this.views.get(gigId) ?? []) {
+        if (free <= 0) break
+        const day = `${driverId} ${Math.floor(now / DAY)}`
+        if (sent.has(driverId) || now < at + OFFER_AFTER || (this.asked.get(day) ?? 0) >= OFFERS_PER_DAY) continue
+        actions.push({ type: 'offer', gigId, driverId, feeCents: Math.round(shown * level) })
+        this.asked.set(day, (this.asked.get(day) ?? 0) + 1)
+        sent.set(driverId, now)
+        free--
+      }
+      this.offered.set(gigId, sent)
+    }
+    this.tally.offers += actions.length
+    return actions
+  }
+
+  /** A driver viewed a gig. */
+  viewed(gigId: string, driverId: string, at: number): void {
+    if (!this.posted.has(gigId)) return
+    const seen = this.views.get(gigId) ?? new Map<string, number>()
+    if (!seen.has(driverId)) seen.set(driverId, at)
+    this.views.set(gigId, seen)
+  }
+
+  /** A driver took our direct offer of a chain. */
+  took(gigId: string): void {
+    if (this.posted.has(gigId)) this.tally.taken++
+  }
+
   /** What a chain's fees are × its worth to a driver: `chainOpen`, and with `chainSpread` one of `LEVELS` drawn
    * from its cars' orders, which measures how the fee moves the chance to book. */
   private level(chain: Chain): number {
@@ -126,7 +196,8 @@ export class Planner {
   }
 
   private scene() {
-    return { homes: this.host.homes, load: this.host.load(), open: this.p.open, model: this.host.model }
+    const { homes, model } = this.host
+    return { homes, load: this.host.load(), open: this.p.open, alone: this.p.chainAlone, model }
   }
 
   /** Whether a chain is of the kind that books (see `postable`). */
@@ -227,7 +298,7 @@ export class Planner {
   summary(): string {
     const c = this.tally
     const ratio = (c.booked > 0 ? c.ratios / c.booked : 0).toFixed(2)
-    return `Chains: ${c.posted} posted with ${c.cars} cars, ${c.booked} booked with ${c.bookedCars} cars at ${ratio} × their cars' typical, ${c.undone} taken apart.`
+    return `Chains: ${c.posted} posted with ${c.cars} cars, ${c.booked} booked with ${c.bookedCars} cars at ${ratio} × their cars' typical, ${c.undone} taken apart${c.offers > 0 ? `, ${c.offers} offers with ${c.taken} taken` : ''}.`
   }
 
   /** Whether an order's car may join a chain: one car, no setback, no warning, and a dealer's yard. */
