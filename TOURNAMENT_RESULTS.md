@@ -643,3 +643,14 @@ Readings:
 - With the rule, lower prices reach 400 orders on time (spread-8: 401 orders at 98.0%), but total margin does not
   rise: the extra orders bring almost nothing. So on-time capacity was not what stopped volume from paying; the
   marginal orders are simply thin at our prices. The leaders' extra orders must come at full margin.
+
+## Lower fee floors on `board-safe.json` (four untested seeds): worse
+
+| feeFloor | spread-6 | spread-7 | spread-8 | spread-10 | Mean | Fees paid over typical |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0.96 (`board-safe.json`) | €8,554 | €11,472 | €12,130 | €9,660 | €10,454 | about 1.04-1.08 |
+| 0.85 | €9,201 | €10,384 | €10,796 | €7,615 | €9,499 | 1.06, 1.10, 1.07, 1.11 |
+| 0.75 | €8,966 | €7,795 | €8,062 | €8,807 | €8,408 | 1.06, 1.19, 1.16, 1.07 |
+
+Reading: opening lower raises what we pay. Gigs that miss the first step age and book after raises. About 1.05 ×
+typical is near the floor for single-car gigs with this schedule; only round trips book under it (0.83-0.87 ×).
