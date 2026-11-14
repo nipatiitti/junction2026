@@ -398,3 +398,53 @@ Ranking worlds are secret seeds, so recall's memory cannot apply; the entry is p
 For scale, run 1 of the round's leaders: freya €17,211 (453 orders), skadi €17,292 (480), razors €16,535, ppo
 €16,318; the top total over five runs is €85,925. Our run 1 sits around 35th-40th of 62 ranked teams.
 Runs 2-5 are held until the general strategy wins more orders: each is one-shot and stays public.
+
+## Holdout: practice seeds no config was tuned on (no memory exists for them)
+
+| Seed | bidprice `board.json` | Orders | On time | recall params `champion3-safe` without memory |
+| --- | --- | --- | --- | --- |
+| spread-6 | €8,003 | 199 | 97.0% | €9,175 (97.7%) |
+| spread-7 | €11,245 | 306 | 94.4% | €9,612 (90.7%) |
+| spread-8 | €12,215 | 316 | 97.8% | €12,660 (97.1%) |
+| spread-10 | €9,993 | 289 | 91.7% | €8,590 (90.8%) |
+| mean | €10,364 | | | €10,009 |
+
+Reading: on unseen worlds the general strategy is a €10-11k system (ranking run 1: €10,871). It quotes 48-64% of
+requests and wins about half of those: 200-320 orders, where the ranking leaders win 430-480 at 96-99% on time.
+
+## General search of plain bidprice on spread-6, 7, 8, 10, 2 (24 candidates around `board.json`): no robust gain
+
+| # | spread-6 | spread-7 | spread-8 | spread-10 | spread-2 | Mean |
+| --- | --- | --- | --- | --- | --- | --- |
+| 11 | €10,716 (96.9%) | €9,358 (88.5%, UNRANKED) | €13,090 (97.2%) | €10,821 (92.4%) | €11,043 (95.4%) | €11,006 |
+| `board.json` | €8,003 | €11,245 (94.4%) | €12,215 | €9,993 | €8,608 (tuned-6b) | about €10,000, all ranked |
+
+#11: war=follow minValueCents=85 lateTrust=5 costScale=1.21 lateRiskMax=0.4 lateTarget=0.0263 comfortHours=3
+topLeadHours=7.89 feeFloor=0.92 topRatio=1.29 staleHours=3.55. The two trustValue=0.5 candidates (a trust discount)
+did worse: €9,331 and €8,934. Params are not the lever on unseen worlds.
+
+## Generalising what the overfit strategy fits to: results on untested seeds
+
+`recall` with its highest-margin params but no memory (the seeds are new to it), and the cross-world threshold model:
+
+| Seed | `board.json` (general baseline) | recall `champion3`, no memory | bidprice + threshold model |
+| --- | --- | --- | --- |
+| spread-6 | €8,003 (97.0%) | €10,167 (97.7%) | €7,566 (99.0%) |
+| spread-7 | €11,245 (94.4%) | €8,705 (87.1%, UNRANKED) | €10,356 (94.8%) |
+| spread-8 | €12,215 (97.8%) | €11,656 (94.9%) | €11,044 (96.2%) |
+| spread-10 | €9,993 (91.7%) | €9,501 (91.3%) | €9,835 (94.5%) |
+| mean | **€10,364** | €10,007, one week unranked | €9,700 |
+
+What each part of the overfit strategy turned into:
+
+| recall fits to | General version | Result |
+| --- | --- | --- |
+| each request's price threshold | cross-world model (delivery and pickup town, list over typical fee, premium, private address) | removes 15-28% of the scatter offline, but €660 a week WORSE online: discarded |
+| the same, per dealer | a dealer level learned inside the week | no signal: between-dealer variance is at chance level on all six seeds, the online version removes at most 0.9%. Not built. The 0.9-2.2 × list dealer levels of `haggle` were trust plus noise. |
+| requests that go late every week | lateness rule from slack and drivers within 100 km of the pickup | margin level, on-time +2 points: kept, in `board.json` |
+| params tuned on rich seeds | search on other seeds | no robust gain |
+
+Conclusion: recall's €5,000-10,000 a week over plain bidprice comes from knowing each request's own threshold, and
+that part is noise from one world to the next: it does not generalise. On unseen worlds we are a €10-11k system.
+The ranking leaders make €16-17k there with 430-480 orders at 96-99% on time, against our 200-320 orders; we quote
+only 48-64% of requests. The open question is how they serve 40% more orders on time, not how they price.
