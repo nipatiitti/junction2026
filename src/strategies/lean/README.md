@@ -660,10 +660,11 @@ typical and then at 1.09 ×, but over all bookings that is 0.955 × learned agai
 cannot ride in a chain is priced by places whose bookings are half chains: the 16 a week with under 22 hours of
 lead pay 1.17 × typical and earn €26 an order against €38, which is €200 a week at most.
 
-## Five decision algorithms, all off (15 November, #354)
+## Five decision algorithms (tried and removed, 15 November, #354)
 
-Five well-known decision algorithms were tried in place of `lean`'s fixed rules, each as a param that is off by
-default. None is a measured gain, so the week is played as before.
+Five well-known decision algorithms were tried in place of `lean`'s fixed rules, each as a param. None was a
+measured gain, so none is in the code: it is on the branch of the closed PR #355. The results stay here, so that
+nobody plays them again.
 
 **What the saved weeks said first** (157 `lean` weeks of 15 seeds, level 8, mean €16,269 at 96.5% on time):
 
@@ -674,31 +675,26 @@ default. None is a measured gain, so the week is played as before.
 - 59% of the single gigs booked after a raise, and 20% at 1.31 to 2 × typical.
 - The win share of Monday morning's quotes differs by 0.17 between weeks, and Tuesday's by 0.07.
 
-**The params:**
+**What was tried** (the names are the params they had):
 
-- **`value`** (0 is off; `value.ts`, `value.json`): dynamic programming for the quote. The `taxLoad` charge gives
-  way to `value` × the charge of a value table: what one more order takes from the rest of the week, read by the
-  minute of the week, the orders won so far per driver and the late share so far. Crowding makes an order dear on
-  Monday (about €25 for a mean order) and cheap on Friday (€4 to €6); the 90% rule charges an order for what it adds
-  to the risk of an unranked week. At 1 its mean equals the `taxLoad` charge. Refit:
-  `uv run python -m analysis.lean_value --write`, then `pnpm format`.
-- **`feeTable`** (false): dynamic programming for the fee. A single gig's opening fee and planned raises come from
-  `feetable.json`: a program over (share of the planning time, fee shown) for six classes of gig, with a charge on a
-  booking above the opening fee for teaching drivers to wait. The table opens at 0.8 to 1.15 × typical, holds for
-  two thirds of the planning time and then raises two to four times. Refit:
-  `uv run --with numpy python -m analysis.lean_fee_table --write`.
-- **`pace`** (0 is off; `pace.ts`): pacing. A controller holds a plan from the 40 best saved weeks (0.52 orders per
-  driver, in day shares of 23%, 25%, 19%, 20% and 13%), lowers the planned volume when bookings pay more than planned
-  or over 4% of the orders are late, and moves the charge between 0.5 and 2 × the plan's as the wins run ahead of
-  the plan or behind it. 1 is its own gain.
-- **`sample`** (0 is off; `sample.ts`, `Demand.sampled`): Thompson sampling. Each quote is the best price for one
-  draw of the win model's effects, × `sample` of each effect's standard deviation, seeded by the request id.
-- **`rollout`** (0 is off; `rollout.ts`): lookahead in the offline simulator. Before Monday and on the evenings of
-  Monday to Wednesday it plays `lean` on the 8 recorded simulator weeks most like this one with the charge × 1, 1.5
-  and 2.5, and keeps the scale in force unless another earns €500 a week more, clearly and over 92% on time. It
-  adds about 70 seconds to a practice week and never calls the server. `rolloutPlan` sets the scales by hand
-  (`"minute:scale;minute:scale"`). Rebuild its table of weeks with `node src/strategies/lean/rollout_fit.ts` when
-  `lean` or the simulator changes.
+- **`value`**: dynamic programming for the quote. The `taxLoad` charge gave way to `value` × the charge of a value
+  table: what one more order takes from the rest of the week, read by the minute of the week, the orders won so far
+  per driver and the late share so far. Crowding made an order dear on Monday (about €25 for a mean order) and
+  cheap on Friday (€4 to €6); the 90% rule charged an order for what it adds to the risk of an unranked week. At 1
+  its mean equalled the `taxLoad` charge.
+- **`feeTable`**: dynamic programming for the fee. A single gig's opening fee and planned raises came from a
+  program over (share of the planning time, fee shown) for six classes of gig, with a charge on a booking above the
+  opening fee for teaching drivers to wait. The table opened at 0.8 to 1.15 × typical, held for two thirds of the
+  planning time and then raised two to four times.
+- **`pace`**: pacing. A controller held a plan from the 40 best saved weeks (0.52 orders per driver, in day shares
+  of 23%, 25%, 19%, 20% and 13%), lowered the planned volume when bookings paid more than planned or over 4% of the
+  orders were late, and moved the charge between 0.5 and 2 × the plan's as the wins ran ahead of the plan or behind
+  it. 1 was its own gain.
+- **`sample`**: Thompson sampling. Each quote was the best price for one draw of the win model's effects, × `sample`
+  of each effect's standard deviation, seeded by the request id.
+- **`rollout`**: lookahead in the offline simulator. Before Monday and on the evenings of Monday to Wednesday it
+  played `lean` on the 8 recorded simulator weeks most like the live one with the charge × 1, 1.5 and 2.5, and kept
+  the scale in force unless another earned €500 a week more, clearly and over 92% on time.
 
 **Server, the same ten random seeds for all** (`dp-a22ce2`, `dp-0742db`, `dp-ab2341`, `dp-57e1da`, `dp-42b22f`,
 `dp-1f571c`, `dp-b49cf6`, `dp-c384ef`, `dp-8038fe`, `dp-200005`; level 8; every week ranked; ± is one standard
@@ -749,5 +745,4 @@ Every week of both rounds is in [`decision-algorithms-server.csv`](decision-algo
 `privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 0.98, `minHours` 4, `noise` 0.11,
 `sharedOutcome` true, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
 `pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1, `chainTries` 3, `chainFit` 0,
-`chainModel` true, `chainAlone` 1, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0,
-`sample` 0, `pace` 0, `value` 0, `rollout` 0, `rolloutPlan` '', `feeTable` false.
+`chainModel` true, `chainAlone` 1, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0.

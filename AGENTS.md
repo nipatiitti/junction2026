@@ -271,9 +271,6 @@ on one line, so two PRs that each add a command do not conflict.
 - Fit the lane fees: `uv run python -m strategies.lane_fee.fit`
 - Fit the lane priors: `uv run python -m strategies.lane_prior.fit`
 - Fit lean's supply and demand functions: `uv run python -m analysis.supply_curve`
-- Fit lean's value table (`--write` saves it): `uv run python -m analysis.lean_value`
-- Fit lean's fee table (`--write` saves it): `uv run --with numpy python -m analysis.lean_fee_table`
-- Rebuild the rollout's table of simulator weeks: `node src/strategies/lean/rollout_fit.ts`
 - Play the scarcity-ceiling week: `uv run strategies/scarcity_ceiling/dispatch.py --level 8 --seed spread-1`
 - Play the profit-max week: `uv run strategies/profit_max/dispatch.py --level 8 --seed spread-1`
 - Play the learned-cost week: `uv run strategies/learned_cost/dispatch.py --level 8 --seed spread-1`
