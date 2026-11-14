@@ -15,7 +15,7 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`lead_cost/`](lead_cost/README.md) | `LeadCostAdmission` | Which requests to take, by lead time, for `headroom` and up     |
 | [`lane_fee/`](lane_fee/README.md)   | `LaneFee`           | A lane's typical fee without one request's noise, for the same  |
 
-Twenty-six folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Twenty-nine folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                                              |
@@ -41,6 +41,9 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`option_menu/`](option_menu/README.md)           | `OptionMenu`                           | Ceiling, quoting admission's option and every slower one                                |
 | [`slack_fees/`](slack_fees/README.md)             | `SlackFeePlanner`                      | Ceiling, with the early fee held for cars that have a day to wait                       |
 | [`tempo/`](tempo/README.md)                       | `TempoAdmission`                       | Ceiling, with each area's capacity set by how fast our gigs book there                  |
+| [`max_margin/`](max_margin/README.md)             | `MaxPricing`                           | Slack fees and the war guard, pricing up to 2.0 x the list price by option and lane     |
+| [`tight_margin/`](tight_margin/README.md)         | `TightPricing`                         | Max margin's prices only once the week's drivers fall behind                            |
+| [`low_opening/`](low_opening/README.md)           | `LowOpeningPlanner`                    | Slack fees, opening a patient gig's first post at 0.8 x the typical fee                 |
 | [`headroom/`](headroom/README.md)                 | `HeadroomPricing`                      | Ceiling, with the lane fee, the cost by lead time, dawn fees and a maximum that moves   |
 | [`lane_prior/`](lane_prior/README.md)             | `PriorPricing`                         | Headroom, with a lift for each dear delivery place, fitted on the saved weeks           |
 | [`town_open/`](town_open/README.md)               | `TownOpening`, `TownFeePlanner`        | Headroom, with the opening fee of each pickup town learned from its bookings            |
@@ -48,6 +51,8 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`soft_top/`](soft_top/README.md)                 | `SoftTopPlanner`                       | Headroom, with a top fee of twice the lane fee, not 2.5 times                           |
 
 [`bench/`](bench/README.md) is not a strategy either: it compares versions of `dispatch.py` on the same seeds.
+[`tournament/`](tournament/README.md) plays the ceiling system with several of the folders built on it at once, and
+finds the best mix of them in rounds.
 
 ## The base class
 
