@@ -40,6 +40,8 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`tempo/`](tempo/README.md)                       | `TempoAdmission`                       | Ceiling, with each area's capacity set by how fast our gigs book there                  |
 
 [`bench/`](bench/README.md) is not a strategy either: it compares versions of `dispatch.py` on the same seeds.
+[`tournament/`](tournament/README.md) plays the ceiling system with several of the folders built on it at once, and
+finds the best mix of them in rounds.
 
 ## The base class
 
