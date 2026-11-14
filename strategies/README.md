@@ -15,7 +15,7 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`lead_cost/`](lead_cost/README.md) | `LeadCostAdmission` | Which requests to take, by lead time, for `headroom` and up     |
 | [`lane_fee/`](lane_fee/README.md)   | `LaneFee`           | A lane's typical fee without one request's noise, for the same  |
 
-Thirty-eight folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Thirty-nine folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                                              |
@@ -37,6 +37,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`scarcity_ceiling/`](scarcity_ceiling/README.md) | `ChainScarcityAdmission`               | The ceiling's quote over the scarcity-priced admission                                  |
 | [`profit_max/`](profit_max/README.md)             | `ProfitPricing`                        | Ceiling, quoting the price with the most expected margin on a win curve                 |
 | [`learned_cost/`](learned_cost/README.md)         | `LearnedCostAdmission`                 | Ceiling, with the driver cost corrected by our own bookings, by town                    |
+| [`learned_notes/`](learned_notes/README.md)       | `LearnedNoteReader`                    | Headroom, adding reviewed data-fitted phrases after the base note rules                |
 | [`trust_value/`](trust_value/README.md)           | `TrustValueAdmission`                  | Ceiling, counting the dealer trust that an order on time buys                           |
 | [`war_guard/`](war_guard/README.md)               | `WarGuardPricing`, `WarGuardAdmission` | Ceiling, undoing the price war's lessons and widening the outage                        |
 | [`war_sweep/`](war_sweep/README.md)               | `WarSweepPricing`                      | Headroom, capping quotes in a detected price war without adding capacity                |
@@ -48,12 +49,14 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`low_opening/`](low_opening/README.md)           | `LowOpeningPlanner`                    | Slack fees, opening a patient gig's first post at 0.8 x the typical fee                 |
 | [`headroom/`](headroom/README.md)                 | `HeadroomPricing`                      | Ceiling, with the lane fee, the cost by lead time, dawn fees and a maximum that moves   |
 | [`chain_opt/`](chain_opt/README.md)               | `RouteBundler`                         | Headroom, with chains built by cheapest insertion instead of appending each next order  |
+| [`outage_harvest/`](outage_harvest/README.md)     | `OutageAdmission`, `OutagePricing`     | Headroom, reserving shared driver capacity for the flagged outage region               |
 | [`contextual_mix/`](contextual_mix/README.md)     | `ContextualPricing`                   | Headroom, switching to a lower price cap where a pickup town's gigs book slowly          |
 | [`bulk_yard/`](bulk_yard/README.md)               | `BulkYardAdmission`, `BulkYardBundler` | Headroom, admitting a large yard batch as one and planning its chains from the yard      |
 | [`lane_prior/`](lane_prior/README.md)             | `PriorPricing`                         | Headroom, with a lift for each dear delivery place, fitted on the saved weeks           |
 | [`town_open/`](town_open/README.md)               | `TownOpening`, `TownFeePlanner`        | Headroom, with the opening fee of each pickup town learned from its bookings            |
 | [`same_day/`](same_day/README.md)                 | `SameDayAdmission`                     | Headroom, quoting the fastest option that still pays                                    |
 | [`soft_top/`](soft_top/README.md)                 | `SoftTopPlanner`                       | Headroom, with a top fee of twice the lane fee, not 2.5 times                           |
+| [`slack_budget/`](slack_budget/README.md)         | `SlackBudgetAdmission`                 | Headroom, spending on-time slack above a reserve and refusing known risks at it       |
 | [`snow_aware/`](snow_aware/README.md)             | `SnowPlanner`, `SnowBundler`           | Headroom, stretching snowy legs and opening snowy pickup gigs earlier and dearer       |
 | [`opening_offers/`](opening_offers/README.md)     | `OpeningOffers`                        | Direct offers to nearby homes from a gig's first post, at the chain-offer fee           |
 | [`home_return/`](home_return/README.md)           | `HomeReturnFees`                       | A discounted fee where many drivers live at the delivery town                           |
