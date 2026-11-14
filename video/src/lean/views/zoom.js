@@ -248,7 +248,7 @@ export default {
     const learnLine = polyline(LINES.find((l) => l.id === 'learn').points)
     const sparks = []
     if (direction === 'out') {
-      for (let at = 6.4; at < 10; at += 0.35) {
+      for (let at = 7.6; at < 10; at += 0.3) {
         const spark = glowSprite('#86efac')
         spark.scale.setScalar(1.6)
         spark.visible = false

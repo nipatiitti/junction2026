@@ -5,7 +5,7 @@ Two videos share this player, its kit, its sound and its MP4 export:
 - **The joke video** (the default): a 45-second vertical video (1080×1920, 30 fps) about our dispatcher, in the
   low-poly 3D look of a "what if" TikTok, made with Three.js, with its own music and sound effects. `PROMPT.md` has
   the full brief: the joke, the look, every scene and its beats.
-- **The ts:lean video** (`?video=lean`): a 58.5-second technical video in 16:10 (1920×1200, 30 fps) for YouTube. It
+- **The ts:lean video** (`?video=lean`): a 59.5-second technical video in 16:10 (1920×1200, 30 fps) for YouTube. It
   opens with 63 strategies thrown at a wall like spaghetti, states the problem, and shows `ts:lean` as a block
   diagram of the real code: a 15-second zoom into `bestPrice()` and a 10-second zoom out while cars and drivers
   drive its lanes the way the code moves them. `prompt.md` at the root of the repository has its brief; the
@@ -98,9 +98,9 @@ frames instead of TikTok's), and Render MP4 saves `lean-video-<view>.mp4`.
 | `src/lean/sets.js`         | the hackathon hall and the laptop desk, shared by three views                         |
 
 The diagram's names are the code's names on main (15 November 2026), and every green tag is a measured effect from
-`src/strategies/lean/README.md`; check them again before a render when `ts:lean` has changed. Its voice lines are
-`lean-*` in `voices.ts` and are made like the joke video's (below); until they exist the video plays with subtitles
-only.
+`src/strategies/lean/README.md`; check them again before a render when `ts:lean` has changed. Its 17 voice lines
+(`lean-*` in `voices.ts`) are made like the joke video's (below) and committed in `audio/voice/`; a line's `rate` in
+`lean/timeline.js` speeds it up to fit its subtitle, at most 1.12.
 
 ## Status
 
