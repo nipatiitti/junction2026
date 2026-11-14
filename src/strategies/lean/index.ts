@@ -101,10 +101,22 @@ export const DEFAULTS = {
   costLevel: 0.98,
   /** An option needs this many waking hours between now and the last minute to book, or we do not quote it. */
   minHours: 4,
-  /** The noise that stays in one request's threshold, as a logistic scale in log price. It is also the markup: the
-   * best price keeps at least this share of itself over the cost, so no price is under 1.39 × cost at 0.28. On the
-   * simulator 0.22 and 0.33 were both worse. */
-  noise: 0.28,
+  /** The noise that stays in one request's threshold, as a logistic scale in log price: 0.12 ± 0.006 on 60 server
+   * weeks of ten seeds at different volumes (analysis/supply_curve.py), 0.10 to 0.12 in per-day fits. It is also a
+   * markup: the best price keeps at least this share of itself over the cost it is chosen over. Until 15 November
+   * it was 0.28 and did the work of the charge below as well: no price under 1.39 × cost. */
+  noise: 0.11,
+  /** What one more order costs the rest of the week's orders, in higher fees and late cars, added to the cost
+   * that the price is chosen over: a request whose best price is under (cost + charge) ÷ (1 − `noise`) is not
+   * worth its place. The charge is (`tax` + `taxLoad` × the orders per driver that the week is heading for) × the
+   * order's cost, plus `taxEuros` euros. The fit: each order per driver more raised the fee paid by 0.355 × typical
+   * and the refunds by €6.51 an order, so one more order costs the others €28.7 × orders per driver, which is
+   * 0.47 of the mean order's cost. A week that wins more raises its own charge, and settles where the next order
+   * earns nothing. Ten server seeds against `noise` 0.28: +€972 ± 386 a week; a fixed `tax` of 0.24 to 0.32 made
+   * +€513 to +€729, and under 0.24 or over 0.32 nothing. */
+  tax: 0,
+  taxEuros: 0,
+  taxLoad: 0.47,
   /** The multiple of the list price at which half of the quotes win at level 8, before the week's wins and losses
    * say (demand.ts). Measured over whole weeks, so with some trust in it: at zero trust the 349 recorded seeds
    * give 1.25. On the simulator 1.3 and 1.5 were flat or worse. */
@@ -150,6 +162,11 @@ const ARRIVE_AHEAD = 30
 const QUOTE_WAIT = 15
 /** The median number of drivers in a world: the order model counts a world's drivers against it. */
 const MEDIAN_DRIVERS = 777
+/** The requests of a level 8 week, and the load that the charge of `taxLoad` assumes before the week says: 0.5
+ * orders per driver, held as if `LOAD_PRIOR` requests had been seen at it. */
+const WEEK_REQUESTS = 1033
+const LOAD_START = 0.5
+const LOAD_PRIOR = 150
 /** The late share starts as if this many orders had arrived on time, and an order warned without a driver counts
  * as this much of a late one. From `lateHard` on, options need 1 / HARD_ROOM times the room (src/ops/serve.ts takes
  * no less than 0.5). */
@@ -220,17 +237,27 @@ class Lean extends Strategy<LeanParams> {
     const options = this.setup.level <= 3 ? request.options.slice(0, 1) : request.options
     const quotes: [OptionKind, number][] = []
     const open = this.openGigs(books)
+    const tax = this.params.tax + this.params.taxLoad * this.load()
     for (const option of options) {
       if (!canServe(request, option, now, context).ok) continue
       if (this.setup.level <= 3) return { [option.kind]: option.listPriceCents }
       const cost = this.cost(request, option, facts, now, open)
       if (cost === null) continue
       const belief = this.demand.belief(this.demand.keys(request, option.kind), this.trustOffset(request.dealerId))
-      const best = bestPrice(belief, option.listPriceCents, cost)
+      const best = bestPrice(belief, option.listPriceCents, cost * (1 + tax) + this.params.taxEuros * 100)
       if (best === null) continue
       quotes.push([option.kind, Math.round(best)])
     }
     return quotes.length > 0 ? Object.fromEntries(quotes) : null
+  }
+
+  /** The orders per driver that the week is heading for: the share of the requests won so far, over a week's
+   * requests and the world's drivers. */
+  private load(): number {
+    const drivers = this.setup.roster.length || MEDIAN_DRIVERS
+    const start = (LOAD_START * drivers) / WEEK_REQUESTS
+    const share = (this.tally.won + LOAD_PRIOR * start) / (this.tally.requests + LOAD_PRIOR)
+    return (share * WEEK_REQUESTS) / drivers
   }
 
   /** What the drivers of an option cost: the typical fee × what bookings pay this week, more when the gig has
