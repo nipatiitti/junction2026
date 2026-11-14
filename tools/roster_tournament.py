@@ -1,0 +1,375 @@
+"""Play the roster of dispatch systems in rounds with fresh shared seeds, and keep a saved shadow leaderboard.
+
+Each round gives every surviving entrant a new random seed batch. The batch is *the same for every entrant* in that
+round, so a comparison stays paired without repeatedly selecting on the same old seeds. After each round about half
+the surviving entrants are shelved, except close calls near the cutoff: those stay for another batch rather than
+being dropped by one seed's noise.
+
+    uv run python -m tools.roster_tournament --play
+    uv run python -m tools.roster_tournament --seeds 2,4,8 --jobs 4 --play --out out/my-tournament
+
+Every system is played separately, so a failure in one does not cancel others. It is also retried serially when the
+team's practice slots are full. Rerun with the same `--out` to resume from the saved state instead of replaying
+finished weeks. Outputs: results.csv, state.json, leaderboard.json, LEADERBOARD.md, and per-round logs. No --board or
+--final is ever passed. tools/README.md says what the mean and the error bars mean.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import secrets
+import statistics
+import subprocess
+import sys
+import time
+from datetime import UTC, datetime
+from pathlib import Path
+
+from tools.record import RUNS
+
+DEFAULT_SEEDS = (2, 4, 8, 16)
+TARGET = 10
+Z = 1.0  # a one-standard-error margin at the cutoff is a tie: keep another seed batch
+
+
+def slug(file: str) -> str:
+    return file.replace("/", "__").replace(".", "_")
+
+
+def systems(root: Path) -> list[str]:
+    return ["dispatch.py", *sorted(str(p.relative_to(root)) for p in (root / "strategies").glob("*/dispatch.py"))]
+
+
+def empty_state(files: list[str], target: int) -> dict:
+    return {
+        "created_at": datetime.now(UTC).isoformat(),
+        "target": target,
+        "systems": {f: {"file": f, "status": "active", "results": []} for f in files},
+        "rounds": [],
+        "current": None,
+    }
+
+
+def state_of(folder: Path, files: list[str], target: int) -> dict:
+    path = folder / "state.json"
+    if path.exists():
+        return json.loads(path.read_text())
+    return empty_state(files, target)
+
+
+def save(folder: Path, state: dict) -> None:
+    (folder / "state.json").write_text(json.dumps(state, indent=2) + "\n")
+
+
+def git_version(root: Path) -> str:
+    version = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=True)
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=no"], cwd=root, capture_output=True, text=True, check=True
+    )
+    return version.stdout.strip() + ("-dirty" if dirty.stdout.strip() else "")
+
+
+def margin_hist(entry: dict) -> dict:
+    margins = [float(r["margin_eur"]) for r in entry["results"]]
+    orders = [int(r["won_orders"]) for r in entry["results"]]
+    times = [float(r["on_time_share"]) for r in entry["results"]]
+    ranked = [r["ranked_int"] for r in entry["results"]]
+    return {
+        "weeks": len(margins),
+        "margin_eur": statistics.mean(margins) if margins else 0.0,
+        "se_eur": statistics.pstdev(margins) / len(margins) ** 0.5 if len(margins) > 1 else 0.0,
+        "orders_eur": statistics.mean(orders) if orders else 0.0,
+        "on_time": statistics.mean(times) if times else 0.0,
+        "ranked": statistics.mean(ranked) if ranked else 0.0,
+        "policy": entry["results"][-1]["policy"] if entry["results"] else entry["file"],
+    }
+
+
+def statistics_active(state: dict) -> list[dict]:
+    data = [
+        (file, {**entry, **margin_hist(entry)})
+        for file, entry in state["systems"].items()
+        if entry["status"] == "active"
+    ]
+    rows = [r for _, r in data if r["weeks"]]
+    return sorted(rows, key=lambda r: -r["margin_eur"])
+
+
+def stats_rows(state: dict) -> list[dict]:
+    """All systems, latest first, for JSON and the markdown table; active systems come before shelved ones."""
+    stats = []
+    for entry in state["systems"].values():
+        if entry["results"]:
+            stats.append(
+                {
+                    **margin_hist(entry),
+                    "file": entry["file"],
+                    "status": entry["status"],
+                    "shelved_at": entry.get("shelved_at", ""),
+                    "why": entry.get("why", ""),
+                }
+            )
+    stats.sort(key=lambda r: (r["status"] != "active", -r["margin_eur"]))
+    return stats
+
+
+def write_shelved(state: dict, root: Path) -> None:
+    """The committed replay-avoidance list. Shelved means excluded from later rounds, not removed from git."""
+    rows = [r for r in stats_rows(state) if r["status"] == "shelved"]
+    lines = [
+        "# Shelved strategies",
+        "",
+        "Do not replay these systems online merely to evaluate them: use the measured margins here instead.",
+        "This file is regenerated by `tools.roster_tournament` after each entrant finishes, using the same saved",
+        "weeks as its leaderboard. These are round-two-seed preliminary figures until those rounds complete; the",
+        "`Seeds` column says how many measured weeks each mean covers. Shelving means no future tournament rounds,",
+        "not deletion or a definitive verdict. Replay only with changed code and a stated reason for the new test.",
+        "",
+        "| System | Mean margin | Orders | On time | Ranked | Seeds | Shelved in round |",
+        "| ------ | ----------: | -----: | ------- | -----: | ----: | ---------------- |",
+    ]
+    for row in rows:
+        lines.append(
+            f"| `{row['policy']}` | €{row['margin_eur']:,.2f} | {row['orders_eur']:.0f} | {row['on_time']:.1%} "
+            f"| {row['ranked']:.0%} | {row['weeks']} | {row['shelved_at']} |"
+        )
+    if not rows:
+        lines.append("| *(none yet)* | — | — | — | — | — | — |")
+    lines.append("")
+    (root / "SHELVED.md").write_text("\n".join(lines))
+
+
+def write_survivors(state: dict, root: Path) -> None:
+    """A committed seed-by-seed description of the active roster, with the exact names of the shared seeds."""
+    active = [r for r in stats_rows(state) if r["status"] == "active"]
+    lines = [
+        "# Roster tournament survivors",
+        "",
+        f"{len(active)} active systems after {len(state['rounds'])} completed round(s). Normal mode only, level 8.",
+        "The saved weeks are measured on *fresh shared random seeds*: every system in a round plays the same",
+        "seed. Margins below are exact per seed; the final `Mean margin ± se` column is over all of them.",
+        "No spread-1 tuning result is used as a holdout.",
+        "Survivors are the pool for later rounds or review, not a definitive single-system championship.",
+        "",
+        "## Seeds used",
+        "",
+    ]
+    for record in state["rounds"]:
+        lines.append(f"- **Round {record['number']}:**")
+        lines += [f"  - `{seed}`" for seed in record["seeds"]]
+        lines.append(f"  - cutoff €{record['cutoff_eur']:,.2f}; {len(record['shelved'])} shelved.")
+    if not state["rounds"]:
+        lines.append("- No completed rounds yet.")
+    if state["current"]:
+        lines.append("")
+        lines.append(f"Round {state['current']['number']} is still in progress; its seeds and early rows are interim.")
+    seed_columns = [seed for record in state["rounds"] for seed in record["seeds"]]
+    if state["current"]:
+        seed_columns += [seed for seed in state["current"]["seeds"] if seed not in seed_columns]
+    lines += [
+        "",
+        "## Exact margin by seed",
+        "",
+        "Each cell is the exact margin in euros on that seed, from that system's saved week. `—` means no score yet.",
+        "The final column has the mean over all of them plus its standard error.",
+        "",
+        "| # | System | " + " | ".join(seed_columns) + " | Mean margin ± se | On time (mean) | Orders (mean) |",
+        "| - | ------ |" + " --- |" * len(seed_columns) + " ---------------- | ------------ | ------------- |",
+    ]
+    for i, row in enumerate(active, 1):
+        recorded = {result["seed"]: result for result in state["systems"][row["file"]]["results"]}
+        per_seed = [
+            f"€{float(recorded[seed]['margin_eur']):,.2f}" if seed in recorded else "—" for seed in seed_columns
+        ]
+        lines.append(
+            f"| {i} | {row['policy']} | "
+            + " | ".join(per_seed)
+            + f" | €{row['margin_eur']:,.2f} ± €{row['se_eur']:,.2f} "
+            + f"| {row['on_time']:.1%} | {row['orders_eur']:.0f} |"
+        )
+    lines += ["", "Dropped systems and their means are in `SHELVED.md`.", ""]
+    (root / "TOURNAMENT.md").write_text("\n".join(lines))
+
+
+def output_files(folder: Path, state: dict, root: Path) -> None:
+    write_shelved(state, root)
+    write_survivors(state, root)
+    stats = stats_rows(state)
+    board = {
+        "generated_at": datetime.now(UTC).isoformat(),
+        "git_version": git_version(root),
+        "target": state["target"],
+        "rounds": state["rounds"],
+        "current_seeds": state["current"],
+        "systems": stats,
+    }
+    (folder / "leaderboard.json").write_text(json.dumps(board, indent=2) + "\n")
+    lines = [
+        "# Roster tournament shadow leaderboard",
+        "",
+        f"Generated {board['generated_at']} at `{board['git_version']}`. Normal mode only; fresh, randomly named",
+        "seeds shared by every system in a round. A margin's `se` is a standard error over seeds; cutoffs keep",
+        f"{Z} SE ties rather than dropping by one week's luck. Shelved only means they are not played again.",
+        "",
+        "| # | System | Margin € | ± se | Orders | On time | Ranked | Seeds | Status |",
+        "| - | ------ | -------: | ---- | -----: | ------- | -----: | ----- | ------ |",
+    ]
+    for i, row in enumerate(stats, 1):
+        lines.append(
+            f"| {i} | {row['policy']} | {row['margin_eur']:,.2f} | {row['se_eur']:,.2f} | {row['orders_eur']:.0f} "
+            f"| {row['on_time']:.1%} | {row['ranked']:.0%} | {row['weeks']} | {row['status']} |"
+        )
+    lines += ["", "```json", json.dumps(state["rounds"], indent=2), "```", ""]
+    (folder / "LEADERBOARD.md").write_text("\n".join(lines))
+
+    fields = [
+        "round",
+        "seed",
+        "file",
+        "policy",
+        "world_id",
+        "margin_eur",
+        "revenue_eur",
+        "won_orders",
+        "on_time_share",
+        "ranked_int",
+    ]
+    with (folder / "results.csv").open("w", newline="") as out:
+        writer = csv.DictWriter(out, fieldnames=fields, extrasaction="ignore")
+        writer.writeheader()
+        for entry in state["systems"].values():
+            writer.writerows(entry["results"])
+    save(folder, state)
+
+
+def play_one(root: Path, folder: Path, file: str, seeds: list[str], level: int, jobs: int, outdir: Path) -> list[dict]:
+    label = slug(file)
+    last_error = ""
+    for attempt in range(1, 4):
+        workers = jobs if attempt == 1 else 1
+        csv_path = outdir / f"{label}.csv"
+        log_path = outdir / f"{label}-attempt-{attempt}.log"
+        command = [
+            sys.executable,
+            "-m",
+            "strategies.bench",
+            file,
+            "--level",
+            str(level),
+            "--seeds",
+            ",".join(seeds),
+            "--jobs",
+            str(workers),
+            "--csv",
+            str(csv_path),
+        ]
+        print(f"  {file}: {len(seeds)} seed(s), attempt {attempt}, jobs {workers}", flush=True)
+        done = subprocess.run(command, check=False, cwd=root, capture_output=True, text=True)
+        text = done.stdout + ("\n" if done.stderr else "") + done.stderr
+        log_path.write_text(text)
+        if done.returncode == 0:
+            with csv_path.open() as out:
+                return [row for row in csv.DictReader(out) if row["seed"] != "total"]
+        last_error = text.rsplit("bench:", 1)[-1].strip() or f"exit code {done.returncode}"
+        if "found no free practice slot" in text or "there is already an active world" in text:
+            print("    practice slot failure; retrying in 30 s", flush=True)
+            time.sleep(30)
+            continue
+        break
+    return [{"error": last_error, "seed": ""}]
+
+
+def world_policy(level: int, seed: str, world: str) -> str | None:
+    path = RUNS / f"L{level}" / seed / world / "meta.json"
+    return json.loads(path.read_text()).get("policy") if path.exists() else None
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--level", type=int, default=8, choices=range(1, 9))
+    parser.add_argument("--seeds", default=",".join(map(str, DEFAULT_SEEDS)), help="fresh seeds per round")
+    parser.add_argument("--jobs", type=int, default=4, choices=range(1, 9), help="jobs within one system")
+    parser.add_argument("--target", default=TARGET, type=int, help="finalists left in the leaderboard")
+    parser.add_argument("--play", action="store_true", help="play normal practice weeks on the server")
+    parser.add_argument("--out", type=Path, default=Path("out") / f"tournament-{time.strftime('%Y%m%d-%H%M%S')}")
+    parser.add_argument("--fresh", action="store_true", help="discard --out state and start again")
+    args = parser.parse_args()
+    root = Path.cwd()
+    schedule = [int(x) for x in args.seeds.split(",")]
+    files = systems(root)
+    folder = args.out if args.out.is_absolute() else root / args.out
+    if not args.play:
+        for i, n in enumerate(schedule, 1):
+            keep = min(args.target, max(1, (len(files) + 1) // (1 << i)))
+            print(f"Round {i}: {n} fresh seeds × {keep} finalists, {folder}")
+        print(f"{len(files)} entrants; --play starts the bench (offline by default)")
+        return
+    rounds_dir = folder / "logs"
+    rounds_dir.mkdir(parents=True, exist_ok=True)
+    if args.fresh:
+        (folder / "state.json").unlink(missing_ok=True)
+    if not (folder / "state.json").exists():
+        save(folder, empty_state(files, args.target))
+    for attempt in range(30):
+        state = state_of(folder, files, args.target)
+        active = [f for f, entry in state["systems"].items() if entry["status"] == "active"]
+        if len(active) <= args.target:
+            break
+        number = len(state["rounds"]) + 1
+        previous = state["current"] or {"number": number, "seeds": []}
+        need = schedule[min(number - 1, len(schedule) - 1)] - len(previous["seeds"])
+        for _ in range(need):
+            previous["seeds"].append(f"tour-r{number}-{secrets.token_hex(4)}")
+        state["current"] = previous
+        print(f"\n== Round {number}: {len(previous['seeds'])} fresh shared seeds, {len(active)} active ==", flush=True)
+        for file in active:
+            already = state["systems"][file]["results"]
+            missing = [s for s in previous["seeds"] if not any(r["seed"] == s for r in already)]
+            if missing:
+                result = play_one(root, folder, file, missing, args.level, args.jobs, rounds_dir)
+                if result and result[0].get("error"):
+                    state["systems"][file]["status"] = "shelved"
+                    state["systems"][file]["why"] = f"bench error after retries: {result[0]['error']}"
+                else:
+                    for row in result:
+                        row = {**row, "round": number, "file": file}
+                        row["ranked_int"] = int(row["ranked"] == "yes")
+                        row["policy"] = world_policy(args.level, row["seed"], row["world_id"]) or file
+                        state["systems"][file]["results"].append(row)
+            output_files(folder, state, root)
+        state["current"] = None
+        active_now = [f for f, entry in state["systems"].items() if entry["status"] == "active"]
+        scored = statistics_active(state)
+        if not scored:
+            raise SystemExit("no system produced a score; inspect logs")
+        keep = min(len(active_now), max(args.target, (len(active_now) + 1) // 2))
+        cutoff = scored[min(keep, len(scored)) - 1]["margin_eur"]
+        survivors = [r for r in scored if r["margin_eur"] + Z * r["se_eur"] >= cutoff]
+        kept = {r["file"] for r in survivors}
+        shelved = []
+        for file in active_now:
+            if file not in kept:
+                state["systems"][file]["status"] = "shelved"
+                state["systems"][file]["shelved_at"] = number
+                s = next(r for r in scored if r["file"] == file)
+                state["systems"][file]["why"] = f"below cutoff {cutoff:,.0e} by {Z} SE; mean {s['margin_eur']:,.0e}"
+                shelved.append(file)
+        state["rounds"].append(
+            {
+                "number": number,
+                "seeds": previous["seeds"],
+                "cutoff_eur": cutoff,
+                "kept": sorted(kept),
+                "shelved": shelved,
+            }
+        )
+        output_files(folder, state, root)
+        print(f"Round {number}: kept {len(kept)}, shelved {len(shelved)}", flush=True)
+    output_files(folder, state_of(folder, files, args.target), root)
+    print(f"\nWrote {folder}/results.csv, {folder}/state.json, {folder}/leaderboard.json and {folder}/LEADERBOARD.md")
+
+
+if __name__ == "__main__":
+    main()
