@@ -47,7 +47,7 @@ POLICY = "simply-jack"  # its saved weeks form their own group in out/spread.sql
 HOUR, DAY = 60, 24 * 60
 
 # Jack's numbers. Change one, play a week, and keep it if the margin goes up.
-PRICE = 1.55  # each dealer's price starts at the list price times this: the competitor asks 26% to 54% more
+PRICE = 1.50  # each dealer's price starts at the list price times this: the competitor asks 26% to 54% more
 LADDER_UP = 0.02  # a won request raises its dealer's price by this share
 LADDER_DOWN = 0.015  # a lost one lowers it by this share
 TRUST_DAYS = 1  # Monday: a win adds LADDER_DOWN and a loss takes LADDER_UP, to win most requests
