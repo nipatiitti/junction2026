@@ -185,8 +185,8 @@
     "chain_opt": {
       "file": "strategies/chain_opt/dispatch.py",
       "fingerprint": "ec536a076b3653be",
-      "world_id": "wbc47243b9422ebdbb620",
-      "played_at": "2026-11-14T12:32:40+0200",
+      "world_id": "w23b0af0d833d06c3ffa4",
+      "played_at": "2026-11-14T15:55:40+0000",
       "score": {
         "marginCents": 1293196,
         "revenueCents": 3254649,
