@@ -38,28 +38,22 @@ from tools.record import safe_name
 from tools.spread_proxy import ProxyClient
 
 ROOT = Path(__file__).resolve().parents[2]
-DISPATCH = Path(__file__).with_name("dispatch.py")
 OUT = ROOT / "out" / "ifs"
 # A search plays hundreds of weeks. It saves them here, outside git, and copies the weeks behind its result to the
 # folder of the saved online runs, which is committed. SPREAD_RUNS_DIR names another folder for the first.
 SEARCH_RUNS = ROOT / "out" / "scrape" / "ifs-search"
 COMMITTED_RUNS = ROOT / "data" / "scrape" / "runs"
 DEFAULT_SEEDS = "spread-1,spread-2,spread-3"
-# The code that plays a week of this system. A week that other code played is played again, not read from the file.
-PLAYS = [
-    "dispatch.py",
-    "strategies/strategy.py",
-    "strategies/admission",
-    "strategies/pricing",
-    "strategies/fees",
-    "strategies/notes",
-    "strategies/offers",
-    "strategies/bundling",
-    "strategies/ifs",
-]
+# The code that a week needs. A search copies it when it starts and plays every week with the copy, so the system
+# can be edited while a search runs. A week that other code played is played again, not read from the weeks file.
+CODE = ["dispatch.py", "strategies", "tools"]
+# What of it decides nothing in a week of this system: its changes leave the weeks file as it is.
+NOT_PLAYED = ["strategies/bench", "strategies/tournament", "strategies/ifs/search.py", "tools"]
 UNDER = 10**10  # cents: what a week under the on-time minimum takes off a score, so such values never win
 MIN_SCALE = 0.25  # the smallest steps that a pass tries: a quarter of each value's step
-TRIES, PAUSE = 3, 60  # a bench run that fails is played again, this many times in all, after this many seconds
+# A bench run that fails is played again, this many times in all. The pause before try n is n - 1 minutes, so a
+# server that is away for a while, or a laptop that slept, does not end the search.
+TRIES, PAUSE = 8, 60
 
 Values = dict[str, float]
 
@@ -91,15 +85,34 @@ def fingerprint(values: Values) -> str:
 
 
 def code_version() -> str:
-    """A fingerprint of the code that plays a week of this system (`PLAYS`), without this file."""
+    """A fingerprint of the code that plays a week of this system: the Python and JSON files of `CODE`, without
+    those of `NOT_PLAYED`."""
     digest = hashlib.sha1()
-    for item in PLAYS:
+    for item in CODE:
         path = ROOT / item
-        for file in sorted(path.rglob("*.py")) if path.is_dir() else [path]:
-            if file != Path(__file__).resolve():
-                digest.update(str(file.relative_to(ROOT)).encode())
+        for file in sorted(path.rglob("*")) if path.is_dir() else [path]:
+            name = file.relative_to(ROOT).as_posix()
+            if file.suffix in (".py", ".json") and not any(
+                name == skip or name.startswith(skip + "/") for skip in NOT_PLAYED
+            ):
+                digest.update(name.encode())
                 digest.update(file.read_bytes())
     return digest.hexdigest()[:12]
+
+
+def copy_code(target: Path) -> Path:
+    """A copy of `CODE` in the folder `target`, made once: a folder that is there is the same code already."""
+    if not target.exists():
+        partial = target.with_name(target.name + ".partial")
+        shutil.rmtree(partial, ignore_errors=True)
+        partial.mkdir(parents=True)
+        for item in CODE:
+            if (ROOT / item).is_dir():
+                shutil.copytree(ROOT / item, partial / item, ignore=shutil.ignore_patterns("__pycache__", "*.md"))
+            else:
+                shutil.copy2(ROOT / item, partial / item)
+        partial.rename(target)
+    return target
 
 
 def write_json(path: Path, data: object) -> None:
@@ -150,8 +163,8 @@ def play_weeks(versions: list[Version], seeds: list[str], level: int, jobs: int)
             if attempt == TRIES:
                 raise
             print(f"search: {error}", file=sys.stderr)
-            print(f"Playing these weeks again in {PAUSE} seconds (try {attempt + 1} of {TRIES}).", flush=True)
-            time.sleep(PAUSE)
+            print(f"Playing these weeks again in {attempt} minutes (try {attempt + 1} of {TRIES}).", flush=True)
+            time.sleep(PAUSE * attempt)
     raise AssertionError("unreachable")
 
 
@@ -166,6 +179,8 @@ class Search:
         self.weeks_file = self.folder / "weeks.json"
         self.best_file = self.folder / "best.json"
         self.code = code_version()
+        # The system as it is now. Every week of this run is played by this copy of it.
+        self.dispatch = copy_code(self.folder / "code" / self.code) / "strategies" / "ifs" / "dispatch.py"
         self.runs = Path(os.environ.get("SPREAD_RUNS_DIR") or SEARCH_RUNS).resolve()
         # Every week played, by code, level, seed and values: the same week is never played twice.
         self.played: dict[str, dict] = json.loads(self.weeks_file.read_text()) if self.weeks_file.exists() else {}
@@ -190,7 +205,7 @@ class Search:
             for label, values in group:
                 path = self.folder / "trials" / f"{fingerprint(values)}.json"
                 write_json(path, values)
-                versions.append(Version(label, DISPATCH, args=("--values", str(path))))
+                versions.append(Version(label, self.dispatch, args=("--values", str(path))))
             by_label = dict(group)
             for result in play_weeks(versions, list(need), self.state["level"], self.args.jobs):
                 week = {"worldId": result.world_id, **result.score}
