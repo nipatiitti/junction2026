@@ -1,82 +1,77 @@
-"""The ifs fees: the fee schedule of a gig by plain rules, with every number in values.json (rules.py).
+"""The ifs fees: the fee schedule of a gig, with every number in values.json (rules.py).
 
-A schedule opens at `fee_open` times the typical fee, raises twice, and reaches its top fee `fee_top_hours` before the
-order's last pickup, so a driver who books at the top can still reach the car. A car that can wait holds its early
-fee, and a gig with little time left opens nearer the top. The helpers that keep a schedule inside the rules of the
-game, and the fees after a drop, are those of strategies/fees, unchanged there. README.md next to this file has the
+The schedule is the dawn schedule of strategies/dawn_fees on the lane fee of strategies/lane_fee, both unchanged
+there: a gig that has a morning before its last pickup opens low, holds that fee, and climbs from dawn on its last
+morning, when the drivers plan their day; a gig with no morning to wait for climbs a short ladder. This file gives
+that schedule its numbers from the values, and adds two rules to the opening fee. README.md next to this file has the
 rules.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from spread.types import DriverProfile, FeeStep, Order, PriceRequest, WorldMap
 
-from strategies.fees import FeePlanner, Gig
-from strategies.fees import plan as base_plan
-from strategies.fees.schedule import DAY, HOUR, LATE_TOP, before_night, ceiling, valid, worth
+from strategies.dawn_fees import DawnParams, dawn_plan, last_dawn
+from strategies.fees import FeePlanner
 from strategies.ifs.rules import Params
+from strategies.lane_fee import LaneFee, LaneFeePlanner
+
+HOUR = 60
 
 
-def plan(now: int, gig: Gig, level: int, v: Params, opening: float | None = None) -> list[FeeStep]:
-    """The fee schedule of a gig from `now`. `opening` is the opening fee over the typical fee, `fee_open` when not
-    given. Level 1 has one fee for each gig, which strategies/fees plans."""
-    if level == 1:
-        return base_plan(now, gig, level)
-    top = max(1.0, min(gig.typical * v.fee_top, ceiling(gig)))
-    top_at = before_night(gig.last_pickup_at - round(v.fee_top_hours * HOUR), now)
-    span = top_at - now
-    if span <= HOUR:  # the top fee is due within the hour: a driver needs all the time that is left
-        steps = [(now, top)]
-        if now >= gig.last_pickup_at:  # late already: step up once more a day after the last pickup
-            later = max(now + HOUR, gig.last_pickup_at + DAY)
-            steps.append((later, max(top, min(gig.typical * LATE_TOP, ceiling(gig, later)))))
-        return valid(steps, level)
-    # With less than `fee_urgent_hours` before the top fee is due, every fee moves towards the top.
-    urgency = max(0.0, 1 - span / (v.fee_urgent_hours * HOUR))
-
-    def fee(multiple: float) -> float:
-        early = gig.typical * multiple
-        return min(top, early + (top - early) * urgency)
-
-    first = fee(v.fee_open if opening is None else opening)
-    cap = max(first, min(top, worth(gig)))  # a fee before the top stays at or under the price
-    # The raises come `fee_raise_1_hours` and `fee_raise_2_hours` after the post, sooner when little time is left:
-    # at the latest a third and two thirds of the way to the top fee.
-    first_at = now + min(round(v.fee_raise_1_hours * HOUR), span // 3)
-    second_at = now + min(round(v.fee_raise_2_hours * HOUR), span * 2 // 3)
-    if span >= v.fee_patient_hours * HOUR:
-        # The car can wait: the second raise comes `fee_hold_hours` before the top, not soon after the post, so a
-        # driver who plans the pickup day the evening before still sees the early fee.
-        second_at = max(second_at, top_at - round(v.fee_hold_hours * HOUR))
-    steps = [
-        (now, first),
-        (before_night(first_at, now), min(fee(v.fee_raise_1), cap)),
-        (before_night(second_at, now), min(fee(v.fee_raise_2), cap)),
-        (top_at, top),
-    ]
-    return valid(steps, level)
+def dawn_params(v: Params) -> DawnParams:
+    """The numbers of the dawn schedule, from the values. Hours become minutes."""
+    return DawnParams(
+        open=v.fee_open,
+        hold=v.fee_hold,
+        patience=round(v.fee_patience_hours * HOUR),
+        quiet_from=round(v.fee_quiet_hour * HOUR),
+        evening_at=round(v.fee_evening_hour * HOUR),
+        tight=v.fee_tight,
+        dawn_at=round(v.fee_dawn_hour * HOUR),
+        dawn=v.fee_dawn,
+        reach=round(v.fee_reach_hours * HOUR),
+        step=max(1, round(v.fee_step_hours * HOUR)),
+        top=v.fee_top,
+        sprint=round(v.fee_sprint_hours * HOUR),
+        sprint_open=v.fee_sprint_open,
+        sprint_step=max(1, round(v.fee_sprint_step_minutes)),
+    )
 
 
-class IfFees(FeePlanner):
-    """The fee planner of strategies/fees, whose schedule of one order's gig comes from the rules above."""
-
-    params: Params
+class IfFees(LaneFeePlanner):
+    """The dawn fee planner on the lane fee, with its numbers from values.json."""
 
     def __init__(
-        self, roster: list[DriverProfile], world_map: WorldMap, level: int = 8, params: Params | None = None
+        self,
+        roster: list[DriverProfile],
+        world_map: WorldMap,
+        level: int = 8,
+        params: Params | None = None,
+        lane: LaneFee | None = None,
     ) -> None:
-        super().__init__(roster, world_map, level)
-        self.params = params or Params()
+        self.values = params or Params()
+        super().__init__(roster, world_map, level, dawn_params(self.values), lane)
         self.km = {(road["from"], road["to"]): road["km"] for road in world_map["roads"]}
+
+    def typical(self, order: Order, request: PriceRequest) -> float:
+        """The typical fee that every fee is a multiple of: the lane's, or the request's own (`lane_fee`)."""
+        if not self.values.lane_fee:
+            return FeePlanner.typical(self, order, request)
+        return super().typical(order, request)
 
     def schedule(self, order: Order, request: PriceRequest, cars: int, now: int) -> list[FeeStep]:
         """The schedule for `cars` of the order's cars. A short trip and a car at a private address open at their
         own multiple of `fee_open`: the typical fee says least about what those cost a driver."""
-        v = self.params
+        v = self.values
         opening = v.fee_open
         legs = order["legs"]
         if sum(self.km.get((leg["pickup"]["placeId"], leg["delivery"]["placeId"]), 0.0) for leg in legs) < v.short_km:
             opening *= v.fee_open_short
         if any(leg["pickup"]["privateAddress"] for leg in legs):
             opening *= v.fee_open_private
-        return plan(now, self.gig(order, request, cars, now), self.level, v, opening)
+        gig = self.gig(order, request, cars, now)
+        self.counts["dawn" if last_dawn(now, gig.last_pickup_at, self.params) is not None else "urgent"] += 1
+        return dawn_plan(now, gig, self.level, replace(self.params, open=opening))
