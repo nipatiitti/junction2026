@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Joke video player</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: #111;
+        color: #eee;
+        font: 14px/1.4 system-ui, sans-serif;
+      }
+      #stage {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px;
+      }
+      #out {
+        height: 100%;
+        max-width: 100%;
+        aspect-ratio: 9 / 16;
+        object-fit: contain;
+        background: #000;
+      }
+      #controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        padding: 8px 12px;
+        background: #1b1b1b;
+      }
+      #scrub {
+        flex: 1;
+        min-width: 160px;
+      }
+      button,
+      select {
+        background: #2a2a2a;
+        color: #eee;
+        border: 1px solid #444;
+        border-radius: 6px;
+        padding: 4px 10px;
+        font: inherit;
+      }
+      #time {
+        min-width: 210px;
+        font-variant-numeric: tabular-nums;
+      }
+      #status {
+        color: #9c9;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+          "mp4-muxer": "https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.mjs"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="stage"><canvas id="out" width="1080" height="1920"></canvas></div>
+    <div id="controls">
+      <select id="view" title="Which view to play"></select>
+      <button id="play" type="button" title="Play or pause (Space)">Play</button>
+      <button id="restart" type="button" title="Back to the start (Home)">⏮</button>
+      <button id="back" type="button" title="One frame back (←, Shift+←: one second)">−1f</button>
+      <button id="fwd" type="button" title="One frame on (→, Shift+→: one second)">+1f</button>
+      <input id="scrub" type="range" min="0" max="1" step="any" value="0" />
+      <span id="time"></span>
+      <label><input id="loop" type="checkbox" checked /> loop</label>
+      <label><input id="safe" type="checkbox" /> TikTok safe areas</label>
+      <label><input id="mute" type="checkbox" /> mute</label>
+      <button id="render" type="button" title="Render the selected view with its sound to the Downloads folder">Render MP4</button>
+      <span id="status"></span>
+    </div>
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
