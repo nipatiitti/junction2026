@@ -14,9 +14,9 @@ import {
 } from '../base/index.ts'
 
 const OWN = {
-  sameDay: 1.5,
-  nextDay: 1.4,
-  within3: 1.32,
+  sameDay: 1.4,
+  nextDay: 1.3,
+  within3: 1.22,
   trustStep: 0,
   mondayDiscount: 0.08,
   bigShare: 0.05,
