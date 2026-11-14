@@ -65,18 +65,18 @@ export class Widen {
         )
         const price = solo.prices[kind]
         if (solo.decline || price === undefined) continue
-        prices[kind] = price
+        // A faster option never cheaper than a slower one: the added price fits between the prices already set,
+        // which stay as they are; an option that does not fit, or would sell under cost, is left out.
+        const at = OPTIONS.indexOf(kind)
+        const near = (i: number) => prices?.[OPTIONS[i]]
+        const lo = Math.max(0, ...OPTIONS.map((_, i) => (i > at ? (near(i) ?? 0) : 0)))
+        const hi = Math.min(Infinity, ...OPTIONS.map((_, i) => (i < at ? (near(i) ?? Infinity) : Infinity)))
+        const fit = Math.min(hi, Math.max(lo, price))
+        if (lo > hi || fit < (costs[kind] ?? 0)) continue
+        prices[kind] = fit
         extra.push(kind)
       }
       if (extra.length > 0) {
-        // A faster option never cheaper than a slower one: from the slowest up.
-        let floor = 0
-        for (const kind of [...OPTIONS].reverse()) {
-          const price = prices[kind]
-          if (price === undefined) continue
-          if (price < floor) prices[kind] = floor
-          floor = Math.max(floor, prices[kind] ?? 0)
-        }
         this.added.set(request.id, extra)
         this.days[day].added += extra.length
       }
