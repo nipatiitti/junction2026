@@ -1,0 +1,24 @@
+{
+  "seed": "spread-1",
+  "level": 8,
+  "policy": "dawn-fees",
+  "kind": "practice",
+  "worldId": "w2052882fe5190003f497",
+  "version": "39aab436743843b1c52f1a0528a8c388b617ce04",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 15404,
+  "score": {
+    "marginCents": 992303,
+    "revenueCents": 3232672,
+    "marginShare": 0.30696061957414794,
+    "wonOrders": 372,
+    "onTimeShare": 0.9758064516129032,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 32.2,
+  "requests": 612
+}
