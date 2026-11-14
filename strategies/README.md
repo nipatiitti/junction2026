@@ -41,6 +41,8 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`max_margin/`](max_margin/README.md)             | `MaxPricing`                           | Slack fees and the war guard, pricing up to 2.0 x the list price by option and lane     |
 
 [`bench/`](bench/README.md) is not a strategy either: it compares versions of `dispatch.py` on the same seeds.
+[`tournament/`](tournament/README.md) plays the ceiling system with several of the folders built on it at once, and
+finds the best mix of them in rounds.
 
 ## The base class
 
