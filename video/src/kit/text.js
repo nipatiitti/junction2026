@@ -194,6 +194,44 @@ export function banner(g, t, text, { t0 = 0, t1 = 1, y = 420 } = {}) {
   g.restore()
 }
 
+/**
+ * A livestream overlay from t0: a LIVE badge with a viewer count, and chat messages ([user, text]) that arrive one
+ * by one, `every` seconds apart, the newest at the bottom.
+ */
+export function liveChat(g, t, messages, { t0 = 0, t1 = Number.POSITIVE_INFINITY, every = 0.12, viewers = '' } = {}) {
+  if (t < t0 || t >= t1) return
+  const alpha = 1 - progress(t, t1 - 0.1, t1)
+  g.save()
+  g.globalAlpha = alpha
+  g.fillStyle = '#e8262b'
+  rounded(g, 48, 330, 132, 60, 12)
+  g.fillStyle = '#ffffff'
+  g.font = `800 36px ${UI}`
+  g.textAlign = 'left'
+  g.textBaseline = 'middle'
+  g.fillText('LIVE', 72, 361)
+  g.fillStyle = 'rgba(0,0,0,0.55)'
+  rounded(g, 196, 330, 300, 60, 12)
+  g.fillStyle = '#ffffff'
+  g.font = `700 32px ${UI}`
+  g.fillText(viewers, 216, 361)
+  const shown = messages.slice(0, Math.min(messages.length, Math.floor((t - t0) / every) + 1)).slice(-5)
+  const colours = ['#ff6b9a', '#6bd5ff', '#ffd36b', '#9dff6b', '#c79bff', '#ff9d5c']
+  g.fillStyle = 'rgba(0,0,0,0.45)'
+  rounded(g, 40, 1120, 640, 340, 22)
+  shown.forEach(([user, text], i) => {
+    const y = 1420 - (shown.length - 1 - i) * 60
+    g.font = `800 34px ${UI}`
+    g.fillStyle = colours[messages.findIndex((m) => m[0] === user) % colours.length]
+    g.fillText(`${user}:`, 64, y)
+    const w = g.measureText(`${user}: `).width
+    g.fillStyle = '#ffffff'
+    g.font = `600 34px ${UI}`
+    g.fillText(text, 64 + w, y)
+  })
+  g.restore()
+}
+
 /** Shades the parts of the picture that TikTok's buttons and captions cover. */
 export function drawSafeAreas(g) {
   g.save()

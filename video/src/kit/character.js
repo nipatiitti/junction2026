@@ -23,6 +23,7 @@ export function character({
   chain = false,
   tank = false,
   puffer = false,
+  tired = false,
 } = {}) {
   const root = new THREE.Group()
   const body = new THREE.Group()
@@ -73,6 +74,8 @@ export function character({
   for (const x of [-0.11, 0.11]) eyes.add(at(box(0.07, 0.1, 0.02, C.black, { shadow: false }), x, 0, 0))
   head.add(eyes)
   head.add(at(box(0.16, 0.03, 0.02, C.mouth, { shadow: false }), 0, 0.15, 0.255))
+  if (tired)
+    for (const x of [-0.11, 0.11]) head.add(at(box(0.1, 0.035, 0.02, '#8b5a7a', { shadow: false }), x, 0.225, 0.256))
   if (hair === 'short' || hair === 'mullet') {
     head.add(at(box(0.56, 0.14, 0.54, hairColor), 0, 0.56, 0))
     head.add(at(box(0.56, 0.32, 0.1, hairColor), 0, 0.4, -0.24))
