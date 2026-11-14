@@ -102,8 +102,11 @@ class Recorder:
     ranking run) or final. `policy` names the system that played it: dispatch.py's weeks are `dispatch`. Saving never
     stops the run: a failure prints a warning."""
 
-    def __init__(self, world: World, level: int, seed: str | None, kind: str, policy: str = POLICY):
-        self.world, self.level, self.kind, self.policy = world, level, kind, policy
+    def __init__(self, world: World, level: int, seed: str | None, kind: str, policy: str | None = None):
+        self.world, self.level, self.kind = world, level, kind
+        # Read the module global now, not as a default argument: a default is evaluated once, when the method is
+        # defined, so a system that sets `record.POLICY` at the top of its file would never reach it.
+        self.policy = policy or POLICY
         self.seed = seed or ("random" if kind == "practice" else kind)
         self.version, self.started = git_version(), time.monotonic()
         self.requests_before = getattr(world.client, "requests", 0)
