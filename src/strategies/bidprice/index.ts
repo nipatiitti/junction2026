@@ -77,6 +77,7 @@ import {
 import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees.ts'
 import { lateRiskOf, newLateRisk } from './late.ts'
 import { legsOf, WeekLog } from './log.ts'
+import { Sweep } from './sweep.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
 
 /** A quote at this many times the list price or more is a decline. */
@@ -92,6 +93,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   readonly cost: CostState
   readonly learning: CostLearning
   readonly log = new WeekLog()
+  readonly sweep = new Sweep()
   readonly lateRisk: ReturnType<typeof newLateRisk>
   /** The latest minute an event or action has told, for the summary. */
   private now = 0
@@ -117,6 +119,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
     learn(this.fees, event, this.feeParams)
     this.learnCost(event)
     this.count(event)
+    if (this.params.sweep) this.sweep.observe(this, event)
   }
 
   /** What the desk sent for us, as sent, and the world's answer: the quotes the quote learner waits on, and our gigs
@@ -124,13 +127,14 @@ export class BidPrice extends Strategy<BidPriceParams> {
   sent(action: Action, result: ActionResult, books: Books): void {
     if (!result.ok) return
     if (action.type === 'quote') this.quoted(action.requestId, action.prices)
+    if (this.params.sweep) this.sweep.sent(action)
     const event = this.feeEventOf(action, result.id, books.now)
     if (event) learn(this.fees, event, this.feeParams)
   }
 
   /** Design 1: each option we offer at the price that maximises (p − c) × W(p); a decline when none pays. */
   quote(request: PriceRequest, books: Books): Prices | null {
-    const decision = this.decide(request, books.now)
+    const decision = this.params.sweep ? this.sweep.decide(this, request, books) : this.decide(request, books.now)
     this.audit(request, books.now, decision)
     return decision.decline ? null : decision.prices
   }
@@ -210,19 +214,19 @@ export class BidPrice extends Strategy<BidPriceParams> {
   }
 
   /** Designs 2 to 4: the cost `c` of each option we offer, what an order of its kind costs this week. */
-  costs(request: PriceRequest, now: number): Partial<Record<Option, number>> {
+  costs(request: PriceRequest, now: number, scale = this.params.costScale): Partial<Record<Option, number>> {
     return Object.fromEntries(
-      this.offered(request, now).map((option) => [option.kind, this.costOf(request, option, now)]),
+      this.offered(request, now).map((option) => [option.kind, this.costOf(request, option, now, scale)]),
     )
   }
 
   /** The fees an order of this kind pays over its typical fee, and its late refunds over its price (the list price
    * at the world's level, before we price it), each times what this week pays over the prior; the late part also
    * times `mu` and the dealer's late weight. */
-  costOf(request: PriceRequest, option: DeliveryOption, now: number): number {
+  costOf(request: PriceRequest, option: DeliveryOption, now: number, scale = this.params.costScale): number {
     const { fee, late } = this.costParts(request, option, now)
     const risk = this.params.lateRisk ? this.riskOf(request, option, now) * this.params.lateRiskCents : 0
-    return (fee + late) * this.params.costScale + risk
+    return (fee + late) * scale + risk
   }
 
   /** The late share the late-risk table predicts for this option if we win it now. */
@@ -333,6 +337,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([k, v]) => `${k} ${v}`)
         .join(' ')}`,
+      ...(this.params.sweep ? [this.sweep.summary()] : []),
     ].join(', ')
   }
 
@@ -385,7 +390,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
       settled(this.cost, event.line.orderId, event.line.kind, event.line.cents)
   }
 
-  private context(): Context {
+  context(): Context {
     const { map, level } = this.setup
     return { map, level, forecasts: this.log.forecasts, tightening: tightening(this.fees, this.feeParams) }
   }

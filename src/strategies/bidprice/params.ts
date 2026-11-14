@@ -71,6 +71,17 @@ export type BidPriceParams = {
   climbStep: number
   climbTop: number
   repriceMax: number
+  /** Sweep the market (sweep.ts): win-rate targets in place of the profit price; see README.md. */
+  sweep: boolean
+  sweepTrust: number
+  sweepWinEarly: number
+  sweepMarginEarly: number
+  sweepWinFloor: number
+  sweepWinLate: number
+  sweepMarginLate: number
+  sweepCostScale: number
+  sweepComfortHours: number
+  sweepMaxOpen: number
 }
 
 export const DEFAULTS: BidPriceParams = {
@@ -113,6 +124,16 @@ export const DEFAULTS: BidPriceParams = {
   climbStep: 0.1,
   climbTop: 3,
   repriceMax: 10,
+  sweep: false,
+  sweepTrust: 12,
+  sweepWinEarly: 0.75,
+  sweepMarginEarly: 0.05,
+  sweepWinFloor: 0.2,
+  sweepWinLate: 0.7,
+  sweepMarginLate: 0.12,
+  sweepCostScale: 1.05,
+  sweepComfortHours: 8,
+  sweepMaxOpen: 25,
 }
 
 /** The quote models' params from the strategy's. */

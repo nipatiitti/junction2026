@@ -99,3 +99,7 @@ served option over `lateRiskMax`), `war` (the war-day rule), `minValue` (best va
 `underCost` (no price on the grid covers the cost); `opt-<rule>` counts the options each rule left out of a quote.
 Set `BIDPRICE_DECLINE_LOG=<file>` to append one JSON line per request (id, minute, reason, options left out, costs,
 value, win chance, prices).
+
+**Sweep (`sweep`, off by default, `sweep.ts`).** Aims at a high win rate: while a dealer has under `sweepTrust` (12) on-time orders, quote the highest grid price whose modelled win chance is at least `sweepWinEarly` (0.75), never under cost × (1 + `sweepMarginEarly`, 0.05), only on options with `sweepComfortHours` (8) of slack, falling back to the profit price when even the floor wins under `sweepWinFloor` (0.2).
+From `sweepTrust` on, the profit price is capped at the highest price that wins `sweepWinLate` (0.7), never under cost × (1 + `sweepMarginLate`, 0.12); costs use `sweepCostScale` (1.05) in place of `costScale`.
+A brake prices as plain bidprice while more than `sweepMaxOpen` (25) won orders wait for a driver; the summary prints the phase counts and, per day, quotes, win rate, mean quote over list, mean trust and the top five dealers' counts.
