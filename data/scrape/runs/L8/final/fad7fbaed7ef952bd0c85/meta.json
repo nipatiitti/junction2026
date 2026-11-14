@@ -1,0 +1,24 @@
+{
+  "seed": "final",
+  "level": 8,
+  "policy": "all-in",
+  "kind": "final",
+  "worldId": "fad7fbaed7ef952bd0c85",
+  "version": "c8d5338c17e0ed4e4d7feda41b1aac45321ee4e1",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 3055,
+  "score": {
+    "marginCents": 146826,
+    "revenueCents": 424829,
+    "marginShare": 0.3456119991808469,
+    "wonOrders": 69,
+    "onTimeShare": 1,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 867.0,
+  "requests": 862
+}
