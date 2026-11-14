@@ -5,7 +5,9 @@ Jack makes two decisions, and each is a few plain rules with its numbers at the 
 1. The price. Each dealer has its own price factor. It starts at PRICE, rises by LADDER_UP after each request of
    that dealer we win and falls by LADDER_DOWN after each we lose, between PRICE_MIN and PRICE_MAX. In the first
    TRUST_DAYS of the week the steps swap, so a loss cuts more than a win adds: Jack wins most requests early, at a
-   small margin, to earn the dealers' trust, and takes the bigger margin that trust allows later in the week. Quote every
+   small margin, to earn the dealers' trust, and takes the bigger margin that trust allows later in the week.
+   The price war: once a week the competitor quotes 20% less for a day. When Jack loses WAR_LOSSES requests in a
+   row from Tuesday on, he quotes WAR_PRICE times his prices until 18:00, and the ladder learns nothing then. Quote every
    option of a request at its list price times the dealer's factor. Leave out an option that gives a driver less
    than MIN_LEAD to reach the car: its deadline, less the drive, less the minute the dealer decides. Decline a
    request with no option left, with a private address (its narrow booked slot makes a quarter of those cars
@@ -43,6 +45,7 @@ PRICE = 1.55  # each dealer's price starts at the list price times this: the com
 LADDER_UP = 0.02  # a won request raises its dealer's price by this share
 LADDER_DOWN = 0.01  # a lost one lowers it by this share
 TRUST_DAYS = 2  # Monday and Tuesday: a win adds LADDER_DOWN and a loss takes LADDER_UP, to win most requests
+WAR_LOSSES, WAR_PRICE = 12, 0.80  # this many lost requests in a row are the price war: quote this much less
 PRICE_MIN, PRICE_MAX = 1.40, 2.00  # a dealer's price stays between these times the list price
 MIN_LEAD = 6 * HOUR  # leave out an option whose driver would have less than this to reach the car
 MAX_FEE_SHARE = 0.75  # decline when the typical fee is more than this share of our price
@@ -57,6 +60,8 @@ NUMBERS = {
     "LADDER_UP": LADDER_UP,
     "LADDER_DOWN": LADDER_DOWN,
     "TRUST_DAYS": TRUST_DAYS,
+    "WAR_LOSSES": WAR_LOSSES,
+    "WAR_PRICE": WAR_PRICE,
     "PRICE_MIN": PRICE_MIN,
     "PRICE_MAX": PRICE_MAX,
     "MIN_LEAD": MIN_LEAD,
@@ -130,7 +135,8 @@ class Desk(root.Desk):
         self.requests[request["id"]] = request
         if self.level <= 3:  # every quote wins up to level 3: no quote needed
             return
-        prices = jack_prices(request, self.ladder.factor(request["dealerId"]), self.pricing.minutes)
+        factor = self.ladder.factor(request["dealerId"]) * (WAR_PRICE if self.ladder.at_war(self.now) else 1.0)
+        prices = jack_prices(request, factor, self.pricing.minutes)
         if prices:
             self.ladder.quoted[request["id"]] = request["dealerId"]
         else:  # a price far above the list price loses at no cost
@@ -149,10 +155,18 @@ class Ladder:
     def __init__(self) -> None:
         self.factors: dict[str, float] = {}  # dealer id -> price factor; a dealer not here is at PRICE
         self.quoted: dict[str, str] = {}  # request id -> its dealer, for the requests we quoted to win
-        self.declined = self.won = self.lost = 0
+        self.declined = self.won = self.lost = self.war_quotes = 0
+        self.losses_in_a_row = 0
+        self.war_day = -1  # the day the price war was seen, until 18:00
 
     def factor(self, dealer: str) -> float:
         return self.factors.get(dealer, PRICE)
+
+    def at_war(self, now: int) -> bool:
+        """True from WAR_LOSSES lost requests in a row, from Tuesday on, until 18:00 that day."""
+        war = self.war_day == now // DAY and now % DAY < 18 * HOUR
+        self.war_quotes += war
+        return war
 
     def observe(self, event: DeskEvent) -> None:
         if event["kind"] == "order_won":
@@ -165,6 +179,11 @@ class Ladder:
         if dealer is None:
             return
         self.won, self.lost = self.won + won, self.lost + (not won)
+        self.losses_in_a_row = 0 if won else self.losses_in_a_row + 1
+        if self.losses_in_a_row >= WAR_LOSSES and at >= DAY and self.war_day != at // DAY:
+            self.war_day = at // DAY
+        if self.war_day == at // DAY and at % DAY < 18 * HOUR:
+            return  # the price war teaches nothing about our dealers
         up, down = (LADDER_DOWN, LADDER_UP) if at < TRUST_DAYS * DAY else (LADDER_UP, LADDER_DOWN)
         factor = self.factor(dealer) * (1 + up if won else 1 - down)
         self.factors[dealer] = min(PRICE_MAX, max(PRICE_MIN, factor))
@@ -173,7 +192,8 @@ class Ladder:
         factors = sorted(self.factors.values())
         spread = f"x{factors[0]:.2f} to x{factors[-1]:.2f}" if factors else "none"
         return (
-            f"Simply Jack: {self.won} won, {self.lost} lost, {self.declined} declined; dealer prices {spread}. "
+            f"Simply Jack: {self.won} won, {self.lost} lost, {self.declined} declined; dealer prices {spread}; "
+            f"price war on day {self.war_day}, {self.war_quotes} war quotes. "
             f"Numbers: {NUMBERS}"
         )
 
