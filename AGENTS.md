@@ -221,9 +221,17 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the ratchet week: `uv run strategies/ratchet/dispatch.py --level 8 --seed spread-1`
 - Play the ceiling-pricing week: `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1`
 - Play the scarcity-ceiling week: `uv run strategies/scarcity_ceiling/dispatch.py --level 8 --seed spread-1`
+- Play the profit-max week: `uv run strategies/profit_max/dispatch.py --level 8 --seed spread-1`
+- Play the learned-cost week: `uv run strategies/learned_cost/dispatch.py --level 8 --seed spread-1`
+- Play the trust-value week: `uv run strategies/trust_value/dispatch.py --level 8 --seed spread-1`
+- Play the war-guard week: `uv run strategies/war_guard/dispatch.py --level 8 --seed spread-1`
+- Play the option-menu week: `uv run strategies/option_menu/dispatch.py --level 8 --seed spread-1`
+- Play the slack-fees week: `uv run strategies/slack_fees/dispatch.py --level 8 --seed spread-1`
+- Play the tempo week: `uv run strategies/tempo/dispatch.py --level 8 --seed spread-1`
 - Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
 - Measure the note reader: `uv run python -m strategies.notes.check reveal-<world id>`
 - Compare two versions: `uv run python -m strategies.bench dispatch.py origin/main`
+- Play the active models on fresh seeds until stopped: `uv run python -m tools.sweep`
 - Build the saved-weeks DB: `uv run python -m tools.db`
 - Lint / format Python: `uv run ruff check --fix . && uv run ruff format .`
 - Play a week in TypeScript: `pnpm dispatch --level 8 --seed spread-1`

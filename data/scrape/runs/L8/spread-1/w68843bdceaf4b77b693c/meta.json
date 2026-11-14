@@ -1,0 +1,24 @@
+{
+  "seed": "spread-1",
+  "level": 8,
+  "policy": "war-guard",
+  "kind": "practice",
+  "worldId": "w68843bdceaf4b77b693c",
+  "version": "522e4181d7fdbd1b0395bdd4878b10618c55debd",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 14166,
+  "score": {
+    "marginCents": 1022310,
+    "revenueCents": 3385668,
+    "marginShare": 0.3019522292203488,
+    "wonOrders": 386,
+    "onTimeShare": 0.9844559585492227,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 31.9,
+  "requests": 620
+}
