@@ -66,14 +66,14 @@ export type SkinflintParams = {
 }
 
 const DEFAULTS: SkinflintParams = {
-  markupSameDay: 1.3,
-  markupNextDay: 1.24,
-  markupThreeDays: 1.18,
+  markupSameDay: 1.45,
+  markupNextDay: 1.38,
+  markupThreeDays: 1.3,
   trustStep: 0.01,
   trustCap: 25,
-  open: 0.72,
-  close: 1.35,
-  curve: 2,
+  open: 0.8,
+  close: 1.6,
+  curve: 1.5,
   closeLeadHours: 3,
   stepMinutes: 60,
   privatePremium: 0.06,
@@ -87,7 +87,7 @@ const DEFAULTS: SkinflintParams = {
   slackDays: 2,
   urgentOpen: 1.5,
   urgentClose: 2.4,
-  offerHours: 10,
+  offerHours: 16,
   offerFactor: 1.05,
   tickMinutes: 30,
 }
