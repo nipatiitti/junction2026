@@ -6,8 +6,8 @@ Jack makes two decisions, and each is a few plain rules with its numbers at the 
    that dealer we win and falls by LADDER_DOWN after each we lose, between PRICE_MIN and PRICE_MAX. In the first
    TRUST_DAYS of the week the steps swap, so a loss cuts more than a win adds: Jack wins most requests early, at a
    small margin, to earn the dealers' trust, and takes the bigger margin that trust allows later in the week.
-   The price war: once a week the competitor quotes 20% less for a day. When Jack loses WAR_LOSSES requests in a
-   row from Tuesday on, he quotes WAR_PRICE times his prices until 18:00, and the ladder learns nothing then. The
+   The price war: once a week the competitor quotes 20% less for a day. When Jack wins at most one of his last
+   WAR_WINDOW quotes from Tuesday on, he quotes WAR_PRICE times his prices until 18:00, and the ladder learns nothing then. The
    discount does not change which requests he takes, and it comes once a week. Too few drivers: for each car
    that got the deadline warning in the last 24 hours, every price is WARN_STEP higher, so Jack takes fewer cars
    while his drivers are behind. Quote every
@@ -48,10 +48,10 @@ PRICE = 1.55  # each dealer's price starts at the list price times this: the com
 LADDER_UP = 0.02  # a won request raises its dealer's price by this share
 LADDER_DOWN = 0.01  # a lost one lowers it by this share
 TRUST_DAYS = 1  # Monday: a win adds LADDER_DOWN and a loss takes LADDER_UP, to win most requests
-WAR_LOSSES, WAR_PRICE = 12, 0.85  # this many lost requests in a row are the price war: quote this much less
+WAR_WINDOW, WAR_PRICE = 15, 0.85  # at most one win in this many quotes is the price war: quote this much less
 WARN_STEP = 0.01  # each car warned in the last 24 hours (no driver 3 hours before its last pickup) adds this
 PRICE_MIN, PRICE_MAX = 1.30, 2.00  # a dealer's price stays between these times the list price
-MIN_LEAD = 6 * HOUR  # leave out an option whose driver would have less than this to reach the car
+MIN_LEAD = 8 * HOUR  # leave out an option whose driver would have less than this to reach the car
 MAX_FEE_LIST = 1.16  # decline when the typical fee is more than this times the list price: too dear a lane
 FEE_OPEN = 1.0  # post a gig at the typical fee times this
 FEE_TOP = 1.5  # and raise it to the typical fee times this
@@ -64,7 +64,7 @@ NUMBERS = {
     "LADDER_UP": LADDER_UP,
     "LADDER_DOWN": LADDER_DOWN,
     "TRUST_DAYS": TRUST_DAYS,
-    "WAR_LOSSES": WAR_LOSSES,
+    "WAR_WINDOW": WAR_WINDOW,
     "WAR_PRICE": WAR_PRICE,
     "WARN_STEP": WARN_STEP,
     "PRICE_MIN": PRICE_MIN,
@@ -144,11 +144,10 @@ class Desk(root.Desk):
         if self.level <= 3:  # every quote wins up to level 3: no quote needed
             return
         discount = WAR_PRICE if self.ladder.at_war(self.now) else 1.0
-        warned = self.ladder.warned(self.now)
-        factor = self.ladder.factor(request["dealerId"]) * (1 + WARN_STEP * warned)
+        factor = self.ladder.factor(request["dealerId"]) * (1 + WARN_STEP * self.ladder.warned(self.now))
         prices = jack_prices(request, factor, self.pricing.minutes, discount)
         if prices:
-            self.ladder.quoted[request["id"]] = (request["dealerId"], warned > 0)
+            self.ladder.quoted[request["id"]] = request["dealerId"]
         else:  # a price far above the list price loses at no cost
             self.ladder.declined += 1
             prices = {option["kind"]: 10 * option["listPriceCents"] for option in request["options"][:1]}
@@ -164,9 +163,9 @@ class Ladder:
 
     def __init__(self) -> None:
         self.factors: dict[str, float] = {}  # dealer id -> price factor; a dealer not here is at PRICE
-        self.quoted: dict[str, tuple[str, bool]] = {}  # request id -> its dealer, and whether warnings lifted it
+        self.quoted: dict[str, str] = {}  # request id -> its dealer, for the requests we quoted to win
         self.declined = self.won = self.lost = self.war_quotes = 0
-        self.losses_in_a_row = 0
+        self.recent: list[bool] = []  # the last WAR_WINDOW answers: won or lost
         self.war_day = -1  # the day the price war was seen, until 18:00
         self.warnings: dict[str, int] = {}  # order id -> the minute of its last deadline warning
 
@@ -178,7 +177,7 @@ class Ladder:
         return sum(1 for at in self.warnings.values() if now - at < DAY)
 
     def at_war(self, now: int) -> bool:
-        """True from WAR_LOSSES lost requests in a row, from Tuesday on, until 18:00 that day."""
+        """True from a run of WAR_WINDOW quotes with at most one win, from Tuesday on, until 18:00 that day."""
         war = self.war_day == now // DAY and now % DAY < 18 * HOUR
         self.war_quotes += war
         return war
@@ -192,13 +191,13 @@ class Ladder:
             self.learn(event["requestId"], won=False, at=event["at"])
 
     def learn(self, request_id: str, won: bool, at: int) -> None:
-        dealer, lifted = self.quoted.pop(request_id, (None, False))
+        dealer = self.quoted.pop(request_id, None)
         if dealer is None:
             return
         self.won, self.lost = self.won + won, self.lost + (not won)
-        if not lifted:  # a loss at a price lifted by the warnings says nothing of the competitor
-            self.losses_in_a_row = 0 if won else self.losses_in_a_row + 1
-        if self.losses_in_a_row >= WAR_LOSSES and at >= DAY and self.war_day < 0:  # one price war a week
+        self.recent = [*self.recent, won][-WAR_WINDOW:]
+        war = len(self.recent) == WAR_WINDOW and sum(self.recent) <= 1
+        if war and at >= DAY and self.war_day < 0:  # one price war a week
             self.war_day = at // DAY
         if self.war_day == at // DAY and at % DAY < 18 * HOUR:
             return  # the price war teaches nothing about our dealers
