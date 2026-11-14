@@ -8,8 +8,9 @@ import type { Audience, OpeningHours, StopRef, WorldMap } from '../../../vendor/
 import { nextOpen } from '../../ops/calendar.ts'
 import { HOUR, minutes } from '../../ops/index.ts'
 
-/** A gig of several cars may plan 12 hours of driving (RULES.md); real drives run longer than the road minutes. */
-const MAX_DRIVE = 12 * HOUR - 30
+/** A gig of several cars may plan 12 hours of driving (RULES.md). We plan 8: chains with more book rarely (50%
+ * from 8 hours, 25% from 10), and their drivers finish them the next day, after a car's deadline. */
+const MAX_DRIVE = 8 * HOUR
 /** The measured typical fee of one car: 15.72 euros and 0.387 a road minute. We split the minute into the drive and
  * the trip home by public transport, which costs a driver much less than the wheel. */
 const FIXED = 1572
@@ -18,6 +19,9 @@ const HOME_SHARE = 0.3
 /** A driver takes this long at a stop, and a delivery must arrive this long before it is due. */
 const HANDLING = 15
 const SPARE = 45
+/** Real drives take up to this × the road minutes, and a later car is reached this long before its last pickup. */
+const DRIVE = 1.2
+const SLACK = 30
 /** A chain's driver starts no sooner than this from now, waits at most this long in all, and works at most this long. */
 const LEAD = 2 * HOUR
 const MAX_WAIT = 2 * HOUR
@@ -82,14 +86,43 @@ export function findChains(cars: Car[], map: WorldMap, now: number, p: ChainPara
   })
 }
 
+/** The chain that saves the most among those that hold `car` and some of `others`: what a request is worth to us
+ * before we bid on it. Null when the car fits no chain. */
+export function bestChainWith(car: Car, others: Car[], map: WorldMap, now: number, p: ChainParams): Chain | null {
+  const cars = [car, ...others]
+  const near = (a: Car, b: Car): boolean => minutes(map, a.to, b.from) <= p.maxHop && b.due > a.ready
+  let best: Chain | null = null
+  const walk = (path: Car[], drive: number): void => {
+    if (path.length >= 2 && path.includes(car)) {
+      // Quick: without the search for the last start, which only the best chain needs. A burst of requests in the
+      // final leaves a second for all of them.
+      const chain = judge(path, drive, map, now, true)
+      const good = chain && chain.typical <= (1 - p.minSaving) * chain.singles
+      if (chain && good && (!best || chain.typical / chain.singles < best.typical / best.singles)) best = chain
+    }
+    if (path.length >= Math.min(p.maxCars, 3)) return
+    const last = path.at(-1) as Car
+    for (const b of cars) {
+      if (path.includes(b) || !near(last, b)) continue
+      const more = drive + minutes(map, last.to, b.from) + b.drive
+      if (more <= MAX_DRIVE) walk([...path, b], more)
+    }
+  }
+  // Only the paths through the car: it leads one, or follows a partner that can reach it.
+  walk([car], car.drive)
+  for (const other of others) if (near(other, car)) walk([other], other.drive)
+  const found = best as Chain | null
+  return found ? judge(found.cars, found.drive, map, now) : null
+}
+
 /** The chain of a path, or null when no driver can do it inside every window. */
-function judge(path: Car[], drive: number, map: WorldMap, now: number): Chain | null {
+function judge(path: Car[], drive: number, map: WorldMap, now: number, quick = false): Chain | null {
   const first = path[0] as Car
   const last = path.at(-1) as Car
   const earliest = Math.max(now + LEAD, first.ready)
   if (!feasible(path, earliest, map)) return null
   let startBy = earliest
-  for (let start = earliest + 30; start <= earliest + 48 * HOUR; start += 30) {
+  for (let start = earliest + 30; !quick && start <= earliest + 48 * HOUR; start += 30) {
     if (feasible(path, start, map)) startBy = start
     else if (start > startBy + 16 * HOUR) break // a night between two days that work
   }
@@ -111,8 +144,8 @@ function feasible(path: Car[], start: number, map: WorldMap): boolean {
     const open = nextOpen(Math.max(at, car.ready), car.pickupHours)
     if (here !== undefined) waited += open - at
     at = open
-    if (!(at <= car.collectBy) || waited > MAX_WAIT) return false
-    at += HANDLING + 1.1 * car.drive
+    if (!(at <= car.collectBy - (here === undefined ? 0 : SLACK)) || waited > MAX_WAIT) return false
+    at += HANDLING + DRIVE * car.drive
     if (!(nextOpen(at, car.deliveryHours) <= car.due - SPARE)) return false
     at += HANDLING
     here = car.to

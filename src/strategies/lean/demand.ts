@@ -2,12 +2,10 @@
  * price that wins. Its log is a sum of effects (the world, the day, the dealer, the pickup place, the delivery place,
  * the option), each a mean and a variance, updated from every quote that wins or loses. The priors are the measured
  * level 8 facts: half of the quotes win at 1.40 × list, worlds differ by 7%, days by 15%, same-day takes 13% more,
- * and 12% of noise stays in every request. */
+ * and 20 to 25% of noise stays in every request. */
 import type { DeliveryOption, PriceRequest } from '../../../vendor/spread-typescript/spread.ts'
 import { DAY } from '../../ops/index.ts'
 
-/** The noise that stays in one request's threshold, as a logistic scale in log price. */
-const NOISE = 0.08
 /** The most that one outcome moves an estimate, in log price. */
 const MAX_STEP = 0.12
 /** Half of the quotes win at this multiple of the list price, by level (RULES.md, "Practice and the final"). */
@@ -36,8 +34,11 @@ export class Demand {
   private readonly effects = new Map<string, Effect>()
   private readonly base: number
   private day = -1
+  /** The noise that stays in one request's threshold, as a logistic scale in log price. */
+  private readonly noise: number
 
-  constructor(level: number) {
+  constructor(level: number, noise: number) {
+    this.noise = noise
     this.base = Math.log(MIDDLE(level))
   }
 
@@ -63,7 +64,7 @@ export class Demand {
       mu += effect.mean
       variance += effect.variance
     }
-    return { mu, variance, scale: NOISE * Math.sqrt(1 + (Math.PI * variance) / (8 * NOISE * NOISE)) }
+    return { mu, variance, scale: this.noise * Math.sqrt(1 + (Math.PI * variance) / (8 * this.noise * this.noise)) }
   }
 
   /** The chance that a price of `multiple` × list wins. */
