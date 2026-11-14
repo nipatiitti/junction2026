@@ -271,6 +271,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Write the replay files only: `uv run python -m analysis.replay --no-serve`
 - Export the quote priors: `uv run python -m analysis.priors_quote`
 - Replay the quote models on the probes: `node analysis/replay_quote.ts`
+- Split saved weeks' margin by the hour an order was won: `uv run python -m analysis.phases`
 
 ## Definition of done
 
