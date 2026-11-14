@@ -102,4 +102,6 @@ value, win chance, prices).
 
 `pairs` (default off, `pairs.ts`): the tick joins two one-car orders that no driver holds into one round-trip gig (B's pickup within `pairKm` of A's delivery, B's delivery within `pairKm` of A's pickup; any delivery with `pairChains`) when one driver makes both deadlines with `pairSlackHours` to spare.
 It withdraws the two single gigs and posts the pair at `pairOpen` × the sum of their schedules; the pair is withdrawn when an order turns urgent or nobody books it `pairGiveUpHours` before its first pickup must start, and the desk's sweep posts the cars alone again.
-The summary counts pairs found, posted, booked (fee over the two typical fees) and split back.
+A pair is also withdrawn when dropped or stale; the learners see its fee split across its two cars by typical fee, and an urgent pair is repriced at the sum of both orders' schedules.
+`pairCostCut` (default 0; 0.08 lost EUR 700 on spread-7) cuts `c` of a request that would pair with an open order of ours.
+The summary counts pairs found, posted, booked (fee over the two typical fees), split back, and quotes cut, won and paired.
