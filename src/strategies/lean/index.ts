@@ -92,7 +92,7 @@ export const DEFAULTS = {
   /** Price each request by its own outlook (outlook.ts, fitted on the saved weeks' real orders): its cost as a
    * share of the mean order's, in place of the surcharges for private addresses, trade-ins, weekends and notes, and
    * `lateCost` × its list price for each unit of chance to be late. */
-  order: false,
+  order: true,
   lateCost: 1,
   /** Added to the cost × typical for drops, failed visits and refunds. */
   overhead: 0.06,
