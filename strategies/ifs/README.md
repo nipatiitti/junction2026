@@ -207,8 +207,13 @@ need `--fresh`, or another `--state`.
 
 **What it costs.** `--dry` prints the count: with the 54 values that have a step and three seeds, a pass is at most
 324 weeks. A saved week of the ceiling systems took about 30 seconds, so six at a time is about half an hour a pass
-on a quiet server, and longer when the team's rate limit is shared. Every week is saved like any other online run,
-about 0.4 MB each under `data/scrape/runs`; `SPREAD_RUNS_DIR` names another folder.
+on a quiet server, and longer when the team's rate limit is shared.
+
+**Where its weeks go.** Every week is saved, as any online run is, but a search plays hundreds, about 0.4 MB each.
+So it saves them as folders under `out/scrape/ifs-search/`, outside git and outside `out/spread.sqlite`
+(`SPREAD_RUNS_DIR` names another folder). When it stops, it copies the weeks of the best and of the starting values
+to `data/scrape/runs`: commit those with the PR. `uv run python -m tools.db out/scrape/ifs-search` loads every week
+of the search into the database when they are wanted.
 
 **Read the result with care.** The search keeps what did best on its seeds, so its best score flatters the values:
 some of the gain is luck on those weeks. `--holdout` plays the best and the starting values on seeds the search did

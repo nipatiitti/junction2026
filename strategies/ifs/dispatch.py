@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import argparse
 import json
+import os
 from types import MappingProxyType
 
 from spread.client import World
@@ -47,12 +48,15 @@ class Recorder(record.Recorder):
         super().__init__(world, level, seed, kind, policy)
 
     def add_to_database(self, target: Path) -> None:
-        """The values go into the week's meta.json before the database reads it, so both hold them."""
+        """The values go into the week's meta.json before the database reads it, so both hold them. A week that
+        the search plays is saved as its folder only (IFS_FOLDER_ONLY): the search plays hundreds of weeks, and
+        `uv run python -m tools.db <folder>` loads them when they are wanted."""
         meta = json.loads((target / "meta.json").read_text())
         record.write_json(
             target / "meta.json", {**meta, "settings": {"strategy": POLICY, "values": dict(PARAMS.values)}}
         )
-        super().add_to_database(target)
+        if os.environ.get("IFS_FOLDER_ONLY") != "1":
+            super().add_to_database(target)
 
 
 class Desk(root.Desk):
