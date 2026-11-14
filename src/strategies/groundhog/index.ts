@@ -9,9 +9,9 @@ import { type BaseParams, type OptionKind, type PriceCtx, PricedStrategy, priced
 
 const OWN = {
   /** Both sides known: win + pos × (loss − win). */
-  pos: 0.5,
+  pos: 0.35,
   /** Only a win known: climb above it; only a loss known: step under it. */
-  aboveWin: 1.06,
+  aboveWin: 1.04,
   belowLoss: 0.93,
   /** Threshold × (1 + trustPct × trust / 100). */
   trustPct: 1,

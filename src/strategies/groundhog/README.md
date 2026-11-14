@@ -13,5 +13,5 @@ times), so every saved week tells us where each option's threshold lies.
   flat fallback markup, times `1 + trustPct × trust / 100`. It declines when under cost × `margin`.
 - Re-run `learn.ts` after each week: the brackets narrow and the next week quotes closer to each threshold.
 
-Params: `pos` 0.5, `aboveWin` 1.06, `belowLoss` 0.93, `trustPct` 1, `sameDay` 1.42, `nextDay` 1.36, `within3` 1.3,
+Params: `pos` 0.35, `aboveWin` 1.04, `belowLoss` 0.93, `trustPct` 1, `sameDay` 1.42, `nextDay` 1.36, `within3` 1.3,
 `margin` 1.15, `matchNeeded` 3. Format only the `.ts` files: `pnpm format` would expand the compact memory JSON.
