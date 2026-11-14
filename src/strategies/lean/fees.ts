@@ -5,9 +5,9 @@
 import type { FeeStep } from '../../../vendor/spread-typescript/spread.ts'
 import { DAY, HOUR } from '../../ops/index.ts'
 
-/** The opening fee and the end of the slow climb, × typical: nine gigs in ten book inside this range. */
-export const OPEN = 0.68
-export const TOP = 1.04
+/** The opening fee and the end of the slow climb, × typical. With both the same, the fee holds flat until the
+ * creep: drivers who learn that our fees rise wait for the rise. */
+export type Shape = { open: number; climbTo: number }
 /** The slow climb takes this long, in minutes that drivers are awake; a gig with less time opens higher. */
 export const CLIMB = 6 * HOUR
 /** After the climb, the fee creeps on to this × typical, and from there to the top by the last minute to book. */
@@ -45,27 +45,37 @@ function later(from: number, minutes: number): number {
 /** The slow climb takes half of the time a gig has, CLIMB at most. */
 const climbOf = (time: number): number => Math.min(time / 2, CLIMB)
 
-/** The fee, × typical, that a gig opens at when it has `time` awake minutes to find its driver: OPEN with a full
- * climb ahead, higher with less. */
-export const openingFor = (time: number): number => OPEN + (TOP - 0.1 - OPEN) * Math.max(0, 1 - climbOf(time) / CLIMB)
+/** The fee, × typical, that a gig opens at when it has `time` awake minutes to find its driver: `open` with a
+ * full climb ahead, higher with less. */
+export const openingFor = (time: number, shape: Shape): number =>
+  shape.open + Math.max(0, shape.climbTo - 0.1 - shape.open) * Math.max(0, 1 - climbOf(time) / CLIMB)
 
-/** The slow schedule from `now`: `open` × typical until `from` (for a car that is ready days later), then up to
- * TOP over the climb, on to LAST when four fifths of the time are gone, and to `top` at `bookBy`. One gig in ten
- * needs more than TOP, and it must find its driver before the last pickup, not at it. */
-export function slow(now: number, typical: number, bookBy: number, from = now, floor = 0, top = 2): FeeStep[] {
+/** The slow schedule from `now`: the opening fee until `from` (for a car that is ready days later), then up to
+ * `climbTo` over the climb, on to LAST when four fifths of the time are gone, and to `top` at `bookBy`. One gig in ten
+ * needs more than the climb gives, and it must find its driver before the last pickup, not at it. */
+export function slow(
+  now: number,
+  typical: number,
+  bookBy: number,
+  shape: Shape,
+  from = now,
+  floor = 0,
+  top = 2,
+): FeeStep[] {
   const start = Math.max(now, from)
   const time = awake(start, bookBy)
-  const open = Math.max(openingFor(time), floor)
+  const open = Math.max(openingFor(time, shape), floor)
   const points: [number, number][] = [[now, open]]
   const phase = (begin: number, end: number, low: number, high: number, most: number, every: number) => {
-    const steps = Math.min(most, Math.floor((end - begin) / every))
+    const steps = high > low ? Math.min(most, Math.floor((end - begin) / every)) : 0
     for (let i = 1; i <= steps; i++)
       points.push([later(start, begin + ((end - begin) * i) / steps), low + ((high - low) * i) / steps])
   }
   const climb = climbOf(time)
-  phase(0, climb, open, Math.max(open, TOP), 18, STEP)
-  phase(climb, 0.8 * time, Math.max(open, TOP), Math.max(open, LAST), 10, STEP)
-  phase(0.8 * time, time, Math.max(open, LAST), Math.max(open, LAST, top), 12, 10)
+  const climbed = Math.max(open, shape.climbTo)
+  phase(0, climb, open, climbed, 18, STEP)
+  phase(climb, 0.8 * time, climbed, Math.max(climbed, LAST), 10, STEP)
+  phase(0.8 * time, time, Math.max(climbed, LAST), Math.max(climbed, LAST, top), 12, 10)
   return schedule(points, typical)
 }
 
