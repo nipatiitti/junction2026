@@ -606,3 +606,40 @@ Paired cars booked at 0.83-0.87 × typical against 1.04-1.08 × for the whole we
 
 Reading: the mechanic works and saves what the probes said per pair, but only 7-10% of orders end up paired, so
 the week's total does not move yet. It is the first idea that frees driver capacity instead of moving price.
+
+## Round 8: why orders go late, and a safety rule that came out of it
+
+Post-mortem of every late order (analysis/late_causes.py; 28 normal ts-bidprice weeks on the four untested seeds,
+8,415 orders, 481 late or undelivered), by first cause:
+
+| Cause | Share (high-volume weeks) | Refunds a week |
+| --- | --- | --- |
+| no driver booked until close to pickup | 42% (55%) | about €2,030 |
+| order changed by the dealer, or snow | 21% (13%) | about €600 |
+| booked early, picked up late | 19% (11%) | about €200 |
+| booked, then dropped or no-show | 14% (18%) | about €490 |
+| picked up in time, delivered late | 3% | about €90 |
+| won with too little slack | 0.2% | negligible |
+
+The dominant kind sits open a median of 73 hours, already at 1.8 × typical, and books about 5 hours too late at 2.1 ×.
+It is not unseen: it gets views, but from drivers a median of 86 km away. Its pickups have a median of 14 drivers
+within 30 km (40 for on-time orders) and legs of about 400 km (140 km). But about ten good orders share those
+features for each late one, so no decline rule nets positive on the saved weeks (−€24 to −€1,852 a week).
+Pushing fees up earlier (`onTimeOps`) cost about €7,000 on spread-7: discarded.
+
+`unseenRule` (merged, default off): decline a request whose first leg is 400 km or more and whose pickup has fewer
+than 10 roster drivers within 30 km.
+
+| Config | spread-6 | spread-7 | spread-8 | spread-10 | Mean | Lowest on-time |
+| --- | --- | --- | --- | --- | --- | --- |
+| `board.json` (baseline) | €7,996 (96.3%) | €11,266 (92.8%) | €12,996 (97.1%) | €10,637 (91.6%) | €10,724 | 91.6% |
+| + `unseenRule` (`board-safe.json`) | €8,554 (97.8%) | €11,472 (95.1%) | €12,130 (97.3%) | €9,660 (94.9%) | €10,454 | **94.9%** |
+| + `unseenRule`, costScale=1.12 | €8,920 / 293 orders (95.2%) | €10,203 / 404 (91.6%) | €12,946 / 401 (98.0%) | €8,378 / 350 (90.9%) | €10,112 | 90.9% |
+| costScale=1.12 alone (earlier) | €8,225 | €8,677 (89.7%, unranked) | €11,039 | €8,470 | €9,103 | 89.7% |
+
+Readings:
+- `unseenRule` costs about €270 a week and lifts the lowest on-time share from 91.6% to 94.9%: the safest general
+  config so far, which matters for a single live final where under 90% counts as nothing.
+- With the rule, lower prices reach 400 orders on time (spread-8: 401 orders at 98.0%), but total margin does not
+  rise: the extra orders bring almost nothing. So on-time capacity was not what stopped volume from paying; the
+  marginal orders are simply thin at our prices. The leaders' extra orders must come at full margin.
