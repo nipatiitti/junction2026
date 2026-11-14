@@ -40,6 +40,7 @@ type Memory = { seed: string; sig: Record<string, string>; opts: Record<string, 
 
 const here = new URL('./', import.meta.url)
 const tuned = JSON.parse(readFileSync(new URL('../bidprice/tuned-6b.json', import.meta.url), 'utf8'))
+const champion = JSON.parse(readFileSync(new URL('./champion2.json', import.meta.url), 'utf8'))
 
 export const DEFAULTS: RecallParams = {
   ...BIDPRICE,
@@ -55,6 +56,7 @@ export const DEFAULTS: RecallParams = {
   lateMemory: true,
   lateShareMax: 0.5,
   lateMinWeeks: 3,
+  ...champion,
 }
 
 const sigOf = (r: PriceRequest) => `${r.dealerId}|${r.options.map((o) => o.listPriceCents).join(',')}`
