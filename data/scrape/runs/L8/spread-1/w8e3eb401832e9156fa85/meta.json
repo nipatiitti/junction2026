@@ -1,0 +1,24 @@
+{
+  "seed": "spread-1",
+  "level": 8,
+  "policy": "admission-cost",
+  "kind": "practice",
+  "worldId": "w8e3eb401832e9156fa85",
+  "version": "8dbeae34dbefca65edad09520cfbdf6b96ca49fd",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 14727,
+  "score": {
+    "marginCents": 722945,
+    "revenueCents": 3448236,
+    "marginShare": 0.20965647362883516,
+    "wonOrders": 401,
+    "onTimeShare": 0.970074812967581,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 41.7,
+  "requests": 642
+}
