@@ -1,10 +1,12 @@
 /** bidprice: the design of src/BRIEF.md on the harness. One number joins the two sides of the desk, the expected cost
- * `c` of moving a car, from the fee function that also gives the gig's schedule (bid-price control):
- * - a quote prices each option we can serve at the price that maximises (p − c) × W(p), or declines;
- * - a gig takes its stops and audience from the order handling, and its schedule from the same fee function;
- * - every event, and every action the desk sent, teaches the win model, the booking hazard, the fee extras, lambda
- *   and mu. All state is a function of `observe` and `sent`, so a rebuild from the event log and the journal of sent
- *   actions holds the same quotes, pending answers and fee state.
+ * `c` of moving a car: what an order of its kind really costs, fees after every raise and drop plus late refunds,
+ * learned during the week (bid-price control):
+ * - a quote prices each option we can serve at the price that maximises (p − c) × W(p), or declines, so a tight or
+ *   dear option is priced up or declined by the profit rule, not by a threshold;
+ * - a gig takes its stops and audience from the order handling, and its schedule from the fee function;
+ * - every event, and every action the desk sent, teaches the win model, the cost of each kind, the booking hazard,
+ *   the fee extras and mu. All state is a function of `observe` and `sent`, so a rebuild from the event log and the
+ *   journal of sent actions holds the same quotes, pending answers and costs.
  * README.md next to this file has the data flow and the params. */
 import type {
   Action,
@@ -21,7 +23,9 @@ import {
   type FeeGig,
   type FeeParams,
   type FeeState,
+  fewDriversNear,
   learn,
+  muOf,
   newFeeState,
   planFees,
 } from '../../models/fees/index.ts'
@@ -37,7 +41,7 @@ import {
   type QuoteState,
   recordQuote,
 } from '../../models/quote/index.ts'
-import { type Context, canServe, type GigShape, gigShape, HOUR } from '../../ops/index.ts'
+import { type Context, canServe, driveMinutes, type GigShape, gigShape, HOUR } from '../../ops/index.ts'
 import {
   type Books,
   type GigNeed,
@@ -47,7 +51,28 @@ import {
   Strategy,
   type StrategyKind,
 } from '../../strategy.ts'
-import { climb, higher, orderFeeGig, ramp, requestFeeGig, tightening, urgentRamp } from './fees.ts'
+import {
+  booked,
+  type CostLearning,
+  type CostPrior,
+  type CostState,
+  cancelled,
+  closed,
+  feeRatio,
+  kindOf,
+  lateRatio,
+  moved,
+  newCostState,
+  picked,
+  posted,
+  priorOf,
+  readCostPrior,
+  remember,
+  repriced,
+  settled,
+  unbooked,
+} from './cost.ts'
+import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees.ts'
 import { legsOf, WeekLog } from './log.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
 
@@ -60,7 +85,12 @@ class BidPrice extends Strategy<BidPriceParams> {
   readonly feeParams: FeeParams
   readonly quotes: QuoteState
   readonly fees: FeeState
+  readonly costPrior: CostPrior = readCostPrior()
+  readonly cost: CostState
+  readonly learning: CostLearning
   readonly log = new WeekLog()
+  /** The latest minute an event or action has told, for the summary. */
+  private now = 0
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
 
   constructor(setup: Setup, params: BidPriceParams) {
@@ -69,12 +99,16 @@ class BidPrice extends Strategy<BidPriceParams> {
     this.feeParams = feeParamsOf(params, setup.level)
     this.quotes = createQuoteState(driversNear(setup.roster, setup.map))
     this.fees = newFeeState(this.feeParams)
+    this.cost = newCostState(this.costPrior)
+    this.learning = { learn: params.costLearn, pseudoGigs: params.costPseudo }
   }
 
   observe(event: DeskEvent): void {
+    this.now = Math.max(this.now, event.at)
     this.log.observe(event)
     observeQuotes(this.quotes, event, this.quoteParams)
     learn(this.fees, event, this.feeParams)
+    this.learnCost(event)
     this.count(event)
   }
 
@@ -87,22 +121,42 @@ class BidPrice extends Strategy<BidPriceParams> {
     if (event) learn(this.fees, event, this.feeParams)
   }
 
-  /** Design 1: each option we can serve at the price that maximises (p − c) × W(p); a decline when none pays. */
+  /** Design 1: each option we offer at the price that maximises (p − c) × W(p); a decline when none pays. */
   quote(request: PriceRequest, books: Books): Prices | null {
-    const decision = bestQuote(request, this.costs(request, books.now), this.quotes, this.quoteParams, books.now)
+    const decision = this.decide(request, books.now)
     return decision.decline ? null : decision.prices
   }
 
-  /** Designs 2 to 4: the cost `c` of each option we offer, the expected fee and lateness of its schedule times
-   * lambda. A tight option books late, so its lateness raises its `c`. */
+  decide(request: PriceRequest, now: number) {
+    return bestQuote(request, this.costs(request, now), this.quotes, this.quoteParams, now)
+  }
+
+  /** Designs 2 to 4: the cost `c` of each option we offer, what an order of its kind costs this week. */
   costs(request: PriceRequest, now: number): Partial<Record<Option, number>> {
-    const late = this.lateWeight(request.dealerId)
     return Object.fromEntries(
-      this.offered(request, now).map((option) => {
-        const gig = requestFeeGig(request, option, late, this.setup)
-        return [option.kind, this.plan(gig, now).costCents]
-      }),
+      this.offered(request, now).map((option) => [option.kind, this.costOf(request, option, now)]),
     )
+  }
+
+  /** The fees an order of this kind pays over its typical fee, and its late refunds over its price (the list price
+   * at the world's level, before we price it), each times what this week pays over the prior; the late part also
+   * times `mu` and the dealer's late weight. */
+  costOf(request: PriceRequest, option: DeliveryOption, now: number): number {
+    const { fee, late } = this.costParts(request, option, now)
+    return (fee + late) * this.params.costScale
+  }
+
+  /** The two parts of `costOf`, in cents. */
+  costParts(request: PriceRequest, option: DeliveryOption, now: number): { fee: number; late: number } {
+    const lastPickupAt = option.deadline - driveMinutes(this.setup.map, request.legs)
+    const kind = kindOf(request.legs, option.kind, now, lastPickupAt, this.fewNear(request.legs), this.costPrior)
+    const prior = priorOf(kind, this.costPrior)
+    const price = option.listPriceCents * this.quoteParams.startLevel
+    const lateness = lateRatio(this.cost, this.learning, now) * muOf(this.fees, this.feeParams)
+    return {
+      fee: request.referenceFeeCents * prior.fee * feeRatio(this.cost, kind.band, this.learning, now),
+      late: price * prior.late * lateness * this.lateWeight(request.dealerId),
+    }
   }
 
   /** Admission: the options we can serve with `comfortHours` to spare (more as the late share rises); with none, only
@@ -113,6 +167,7 @@ class BidPrice extends Strategy<BidPriceParams> {
     const served = options
       .map((option) => ({ option, ...canServe(request, option, now, context) }))
       .filter((verdict) => verdict.ok)
+    if (this.params.comfortHours <= 0) return served.map((verdict) => verdict.option)
     const comfortable = served.filter((v) => v.slack >= (this.params.comfortHours * HOUR) / (context.tightening ?? 1))
     return (comfortable.length > 0 ? comfortable : served.slice(-1)).map((verdict) => verdict.option)
   }
@@ -160,13 +215,17 @@ class BidPrice extends Strategy<BidPriceParams> {
       if (!feeGig) return []
       const fee = feeAt(gig.schedule, now)
       const { level } = this.setup
-      const schedule = gig.dropped
-        ? higher(
-            this.plan(feeGig, now).schedule,
-            [{ at: now, feeCents: fee + this.params.dropStep * feeGig.typicalCents }],
-            level,
-          )
-        : climb(fee, now, feeGig, this.params, level)
+      // The brief's way: the fee function again, for a gig drivers have seen, with the time left, never under the
+      // fee in the app. Without the solver, the ramp from now above the dropped fee, or a climb.
+      const schedule = this.params.feeSolver
+        ? higher(this.plan(feeGig, now).schedule, [{ at: now, feeCents: fee }], level)
+        : gig.dropped
+          ? higher(
+              this.plan(feeGig, now).schedule,
+              [{ at: now, feeCents: fee + this.params.dropStep * feeGig.typicalCents }],
+              level,
+            )
+          : climb(fee, now, feeGig, this.params, level)
       return schedule.length > 0 && (schedule.at(-1)?.feeCents ?? 0) > fee
         ? [{ type: 'reprice' as const, gigId, schedule }]
         : []
@@ -176,11 +235,11 @@ class BidPrice extends Strategy<BidPriceParams> {
   summary(): string {
     const { requests, quoted, won, booked, paidOverTypical } = this.tally
     const level = Math.exp(this.quotes.belief.world?.[0] ?? Math.log(this.quoteParams.startLevel))
-    const regions = Object.entries(this.fees.lambda).filter(([key]) => !key.includes('/'))
-    const lambda = regions.reduce((sum, [, value]) => sum + value, 0) / Math.max(1, regions.length)
+    const fees = feeRatio(this.cost, null, this.learning, this.now).toFixed(2)
+    const late = lateRatio(this.cost, this.learning, this.now).toFixed(2)
     const share = (part: number, whole: number) => (whole > 0 ? `${((100 * part) / whole).toFixed(0)}%` : 'n/a')
     return [
-      `bidprice: level ${level.toFixed(3)}, lambda ${regions.length > 0 ? lambda.toFixed(2) : 'n/a'}, mu ${this.fees.mu.toFixed(2)}`,
+      `bidprice: level ${level.toFixed(3)}, cost over prior: fees ${fees}, late ${late}, mu ${this.fees.mu.toFixed(2)}`,
       `quoted ${quoted} of ${requests} requests (${share(quoted, requests)}), won ${won} (${share(won, quoted)} of quoted)`,
       booked > 0
         ? `fees paid ${(paidOverTypical / booked).toFixed(2)} × typical over ${booked} bookings`
@@ -193,6 +252,48 @@ class BidPrice extends Strategy<BidPriceParams> {
     if (this.params.feeSolver) return planFees(gig, now, this.fees, this.feeParams)
     const schedule = ramp(gig, now, this.params, this.setup.level)
     return { schedule, costCents: costOf(schedule, gig, now, this.fees, this.feeParams).costCents }
+  }
+
+  /** Whether the cars' delivery place has few drivers near. */
+  private fewNear(legs: PriceRequest['legs']): boolean {
+    return fewDriversNear(legs[0]?.delivery.placeId ?? '', this.setup.roster, this.setup.map)
+  }
+
+  /** The cost learner: the prior cost of each order won, each booking that holds, and each order settled. */
+  private learnCost(event: DeskEvent): void {
+    if (event.kind === 'order_won') {
+      const { order } = event
+      const request = this.log.requests.get(order.id)
+      if (!request) return
+      const kind = kindOf(
+        order.legs,
+        order.option,
+        event.at,
+        order.lastPickupAt,
+        this.fewNear(order.legs),
+        this.costPrior,
+      )
+      remember(
+        this.cost,
+        order.id,
+        kind,
+        request.referenceFeeCents,
+        order.priceCents,
+        order.legs.length,
+        order.lastPickupAt,
+        this.costPrior,
+      )
+    } else if (event.kind === 'order_changed') moved(this.cost, event.order.id, event.order.lastPickupAt)
+    else if (event.kind === 'deadline_close') moved(this.cost, event.orderId, event.lastPickupAt)
+    else if (event.kind === 'order_cancelled') cancelled(this.cost, event.orderId)
+    else if (event.kind === 'picked_up') picked(this.cost, event.orderId)
+    else if (event.kind === 'gig_expired' || event.kind === 'delivered') closed(this.cost, event.gigId)
+    else if (event.kind === 'gig_booked') {
+      const gig = this.log.gigs.get(event.gigId)
+      if (gig) booked(this.cost, event.gigId, gig.orderId, gig.legs.length, event.feeCents)
+    } else if (event.kind === 'gig_dropped' || event.kind === 'no_show') unbooked(this.cost, event.gigId)
+    else if (event.kind === 'ledger' && event.line.orderId)
+      settled(this.cost, event.line.orderId, event.line.kind, event.line.cents)
   }
 
   private context(): Context {
@@ -229,15 +330,20 @@ class BidPrice extends Strategy<BidPriceParams> {
   private feeEventOf(action: Action, gigId: string, at: number): FeeEvent | null {
     if (action.type === 'reprice') {
       this.log.reprice(action.gigId, action.schedule)
+      repriced(this.cost, action.gigId, action.schedule)
       return { kind: 'gig_repriced', at, gigId: action.gigId, schedule: action.schedule }
     }
-    if (action.type === 'withdraw') return { kind: 'gig_withdrawn', at, gigId: action.gigId }
+    if (action.type === 'withdraw') {
+      closed(this.cost, action.gigId)
+      return { kind: 'gig_withdrawn', at, gigId: action.gigId }
+    }
     if (action.type !== 'post') return null
     const order = this.log.orders.get(action.stops[0]?.orderId ?? '')
     if (!order) return null
     const legs = legsOf(action.stops, order.id)
     const gig = this.orderGig(order, legs, action.audience.experienced, at)
     this.log.post(gigId, order.id, legs, action.schedule)
+    posted(this.cost, gigId, order.id, legs.length, action.schedule)
     if (!gig) return null
     return { kind: 'gig_posted', at, gigId, orderIds: [order.id], gig, schedule: action.schedule }
   }

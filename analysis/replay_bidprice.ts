@@ -3,13 +3,15 @@
  * expired gig. The saved week's own quotes and gigs go to the strategy's `sent`, as the desk's journal does on a
  * rebuild, so the quote learner waits for the answers the week gave and the fee learner follows its gigs. Not a test: it prints what the strategy would do, to read the numbers.
  *
- *     node analysis/replay_bidprice.ts [weeks per seed, default 1] [key=value ...]
+ *     node analysis/replay_bidprice.ts [weeks per seed, default 1] [policy=<policy>] [key=value ...]
  *
- * The weeks are those played by `dispatch.py` (policy `dispatch`) under data/scrape/runs/L8/. */
+ * The weeks are those of one policy under data/scrape/runs/L8/: `dispatch.py`'s (`dispatch`) by default, or
+ * `policy=ts-bidprice` for our own. */
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { gunzipSync } from 'node:zlib'
-import { canServe } from '../src/ops/index.ts'
+import { canServe, driveMinutes } from '../src/ops/index.ts'
+import { type CostPrior, kindOf } from '../src/strategies/bidprice/cost.ts'
 import { requestFeeGig } from '../src/strategies/bidprice/fees.ts'
 import { bidprice } from '../src/strategies/bidprice/index.ts'
 import type { BidPriceParams } from '../src/strategies/bidprice/params.ts'
@@ -17,6 +19,7 @@ import type { Books, GigNeed, GigPlan, Prices } from '../src/strategy.ts'
 import type {
   Action,
   ActionResult,
+  DeliveryOption,
   DeskEvent,
   DeskSnapshot,
   DriverProfile,
@@ -30,21 +33,28 @@ import type {
 
 const RUNS = 'data/scrape/runs/L8'
 const perSeed = Number(process.argv[2] ?? 1)
+const policy = process.argv.find((arg) => arg.startsWith('policy='))?.slice(7) ?? 'dispatch'
 const overrides = Object.fromEntries(
-  process.argv.slice(3).map((pair) => {
-    const [key, text = ''] = pair.split(/=(.*)/s)
-    let value: unknown = text
-    try {
-      value = JSON.parse(text)
-    } catch {}
-    return [key, value]
-  }),
+  process.argv
+    .slice(3)
+    .filter((arg) => !arg.startsWith('policy='))
+    .map((pair) => {
+      const [key, text = ''] = pair.split(/=(.*)/s)
+      let value: unknown = text
+      try {
+        value = JSON.parse(text)
+      } catch {}
+      return [key, value]
+    }),
 ) as Partial<BidPriceParams>
 const map = JSON.parse(readFileSync('data/scrape/runs/map.json', 'utf8')) as WorldMap
 const gz = (path: string) => gunzipSync(readFileSync(path)).toString('utf8')
 
 type Probe = {
   costs(request: PriceRequest, now: number): Partial<Record<string, number>>
+  decide(request: PriceRequest, now: number): { winProb: number; valueCents: number }
+  costParts(request: PriceRequest, option: DeliveryOption, now: number): { fee: number; late: number }
+  costPrior: CostPrior
   observe(event: DeskEvent, books: Books): void
   sent(action: Action, result: ActionResult, books: Books): void
   quote(request: PriceRequest, books: Books): Prices | null
@@ -97,7 +107,7 @@ function weeks(): string[] {
       .map((world) => join(RUNS, seed, world))
       .filter((dir) => {
         try {
-          return JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf8')).policy === 'dispatch'
+          return JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf8')).policy === policy
         } catch {
           return false
         }
@@ -140,6 +150,12 @@ function play(dir: string): void {
   let nextTick = 0
 
   const requests = new Map<string, PriceRequest>()
+  // Calibration: `c` when the request came, for the option the saved week won, against what the order cost.
+  const predicted = new Map<string, Partial<Record<string, number>>>()
+  const predictedWon = new Map<string, number>()
+  const parts = new Map<string, { fee: number; late: number }>()
+  const predictedParts = new Map<string, Record<string, { fee: number; late: number }>>()
+  const realised = new Map<string, number>()
   const orders = new Map<string, Order>()
   const posts = new Map<string, PostAction>()
   const urgent = new Set<string>()
@@ -232,13 +248,55 @@ function play(dir: string): void {
       count('requests')
       const prices = timed('quote', () => strategy.quote(request, books))
       const costs = strategy.costs(request, event.at)
+      predicted.set(request.id, costs)
+      predictedParts.set(
+        request.id,
+        Object.fromEntries(request.options.map((o) => [o.kind, strategy.costParts(request, o, event.at)])),
+      )
+      const decision = strategy.decide(request, event.at)
       for (const option of request.options) {
         const c = costs[option.kind]
+        const tight = canServe(request, option, event.at, { map, level: 8 })
+        const label = tight.ok && tight.slack < 9 * 60 ? `${option.kind} under 9 h of slack` : null
+        if (label) {
+          count(`${label}: servable`)
+          if (c !== undefined) count(`${label}: offered`)
+          if (prices?.[option.kind] !== undefined) {
+            count(`${label}: quoted`)
+            stat(`${label}: c / typical`).add((c ?? 0) / request.referenceFeeCents)
+            stat(`${label}: quote / list`).add((prices[option.kind] ?? 0) / option.listPriceCents)
+          }
+        }
         if (c === undefined) count(`option ${option.kind}: not offered`)
-        else if (canServe(request, option, event.at, { map, level: 8 }).slack < 9 * 60)
-          count(`option ${option.kind}: offered under 9 h of slack (the slowest servable)`)
         else stat(`${option.kind}: c / typical`).add(c / request.referenceFeeCents)
         count(`option ${option.kind}: offered`)
+      }
+      // By kind, for the option the request is most likely won on (the cheapest priced one).
+      const lead = prices
+        ? request.options
+            .filter((o) => prices[o.kind] !== undefined)
+            .sort((a, b) => (prices[a.kind] ?? 0) - (prices[b.kind] ?? 0))[0]
+        : undefined
+      if (lead && prices) {
+        const lastPickupAt = lead.deadline - driveMinutes(map, request.legs)
+        const kind = kindOf(request.legs, lead.kind, event.at, lastPickupAt, false, strategy.costPrior)
+        const hours = ['0-6 h', '6-12 h', '12-24 h', '24-48 h', '48 h+'][kind.band]
+        const name = `kind ${hours}${
+          kind.features
+            .filter((f) => f !== 'fewNear')
+            .map((f) => ` ${f}`)
+            .join('') || ' plain'
+        }`
+        const c = costs[lead.kind] ?? 0
+        const price = prices[lead.kind] ?? 0
+        stat(`${name}: quote / list`).add(price / lead.listPriceCents)
+        stat(`${name}: c / typical`).add(c / request.referenceFeeCents)
+        stat(`${name}: win chance`).add(decision.winProb)
+        stat(`${name}: margin an order, €`).add((price - c) / 100)
+        stat('all quoted: win chance').add(decision.winProb)
+        stat('all quoted: margin an order, €').add((price - c) / 100)
+        stat('all quoted: quote / list').add(price / lead.listPriceCents)
+        stat('all quoted: c / typical').add(c / request.referenceFeeCents)
       }
       if (!prices) {
         count(Object.keys(costs).length === 0 ? 'declined: no option offered' : 'declined: no value')
@@ -274,6 +332,12 @@ function play(dir: string): void {
       orders.set(order.id, order)
       const request = requests.get(order.id)
       const option = request?.options.find((o) => o.kind === order.option)
+      const c = predicted.get(order.id)?.[order.option]
+      const split = predictedParts.get(order.id)?.[order.option]
+      if (c !== undefined && split) {
+        predictedWon.set(order.id, c)
+        parts.set(order.id, split)
+      }
       if (request && option)
         stat('won: estimated last pickup − real, hours').add(
           (requestFeeGig(request, option, 1, setup).lastPickupAt - order.lastPickupAt) / 60,
@@ -324,13 +388,61 @@ function play(dir: string): void {
         JSON.stringify(fresh.quotes) === JSON.stringify(strategy.quotes) &&
         JSON.stringify(fresh.fees) === JSON.stringify(strategy.fees)
       count(same ? 'restart at half week: same state' : 'restart at half week: DIFFERENT state')
+      if (!same) {
+        const a = JSON.parse(JSON.stringify({ q: fresh.quotes, f: fresh.fees }))
+        const b = JSON.parse(JSON.stringify({ q: strategy.quotes, f: strategy.fees }))
+        const diff = (x: unknown, y: unknown, path: string): string | null => {
+          if (JSON.stringify(x) === JSON.stringify(y)) return null
+          if (x && y && typeof x === 'object' && typeof y === 'object')
+            for (const key of new Set([...Object.keys(x), ...Object.keys(y)])) {
+              const d = diff((x as Record<string, unknown>)[key], (y as Record<string, unknown>)[key], `${path}.${key}`)
+              if (d) return d
+            }
+          return `${path}: ${JSON.stringify(x)?.slice(0, 120)} vs ${JSON.stringify(y)?.slice(0, 120)}`
+        }
+        console.log(`${dir} restart differs at ${diff(a, b, '')}`)
+      }
     }
   }
   const same =
     JSON.stringify(restarted.quotes) === JSON.stringify(strategy.quotes) &&
     JSON.stringify(restarted.fees) === JSON.stringify(strategy.fees)
   if (!same) count('observe-only twin: DIFFERENT state')
-  console.log(`${dir}: ${strategy.summary()}`)
+  const realisedLate = new Map<string, number>()
+  for (const event of events)
+    if (event.kind === 'ledger' && event.line.orderId && predictedWon.has(event.line.orderId)) {
+      const { kind, cents, orderId } = event.line
+      if (kind !== 'revenue') realised.set(orderId, (realised.get(orderId) ?? 0) - cents)
+      if (kind === 'late_refund' || kind === 'undelivered_penalty')
+        realisedLate.set(orderId, (realisedLate.get(orderId) ?? 0) - cents)
+    }
+  const byDay = new Map<number, { fee: number; late: number; realFee: number; realLate: number }>()
+  for (const [orderId, split] of parts) {
+    if (!orders.has(orderId)) continue
+    const day = Math.floor((requests.get(orderId)?.arrivedAt ?? 0) / 1440)
+    const row = byDay.get(day) ?? { fee: 0, late: 0, realFee: 0, realLate: 0 }
+    const late = realisedLate.get(orderId) ?? 0
+    row.fee += split.fee
+    row.late += split.late
+    row.realFee += (realised.get(orderId) ?? 0) - late
+    row.realLate += late
+    byDay.set(day, row)
+  }
+  for (const [day, row] of [...byDay].sort((a, b) => a[0] - b[0]))
+    count(
+      `calibration day ${day}: fee realised/c ${(row.realFee / row.fee).toFixed(2)}, late realised/c ${(row.realLate / Math.max(1, row.late)).toFixed(2)} (c late ${(row.late / 100).toFixed(0)} €, real ${(row.realLate / 100).toFixed(0)} €)`,
+    )
+  let real = 0
+  let expected = 0
+  for (const [orderId, c] of predictedWon) {
+    if (!orders.has(orderId)) continue
+    real += realised.get(orderId) ?? 0
+    expected += c
+    const typical = requests.get(orderId)?.referenceFeeCents ?? 1
+    stat('calibration: realised cost / typical').add((realised.get(orderId) ?? 0) / typical)
+    stat('calibration: c at quote / typical').add(c / typical)
+  }
+  console.log(`${dir}: ${strategy.summary()}; realised over c ${(real / Math.max(1, expected)).toFixed(2)}`)
 }
 
 for (const dir of weeks()) play(dir)
