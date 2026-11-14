@@ -207,6 +207,8 @@ on one line, so two PRs that each add a command do not conflict.
 - Play a Spread practice week: `uv run dispatch.py --level 8 --seed spread-1`
 - Play the baseline week: `uv run python strategies/baseline/baseline.py --level 8 --seed spread-1`
 - Play the price-ladder week: `uv run strategies/price_ladder/dispatch.py --level 8 --seed spread-1`
+- Play the city-ladder week: `uv run strategies/city_ladder/dispatch.py --level 8 --seed spread-1`
+- Play the dealer-ladder week: `uv run strategies/dealer_ladder/dispatch.py --level 8 --seed spread-1`
 - Play the baseline-ladder week: `uv run python strategies/baseline_ladder/baseline_ladder.py --level 8 --seed spread-1`
 - Play the baseline-tiers week: `uv run python strategies/baseline_tiers/baseline_tiers.py --level 2 --seed spread-1`
 - Play the streak-ladder week: `uv run strategies/streak_ladder/dispatch.py --level 8 --seed spread-1`
