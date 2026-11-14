@@ -121,8 +121,8 @@ export const DEFAULTS: BidPriceParams = {
   repriceMax: 10,
   outage: false,
   outageLift: 1.25,
-  outageZ: 2.5,
-  outageProbeZ: 1.2,
+  outageZ: 3,
+  outageProbeZ: 2,
 }
 
 /** The quote models' params from the strategy's. */
