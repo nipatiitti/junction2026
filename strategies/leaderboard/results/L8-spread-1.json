@@ -485,8 +485,8 @@
     "learned_hold": {
       "file": "strategies/learned_hold/dispatch.py",
       "fingerprint": "38745ade0b22aeb2",
-      "world_id": "we1706c190d538400f027",
-      "played_at": "2026-11-14T12:37:08+0200",
+      "world_id": "wafe36a7050ad02771575",
+      "played_at": "2026-11-14T16:00:16+0000",
       "score": {
         "marginCents": 1258198,
         "revenueCents": 3190784,
@@ -545,8 +545,8 @@
     "offer_probe": {
       "file": "strategies/offer_probe/dispatch.py",
       "fingerprint": "8888817446bb9e6e",
-      "world_id": "w03408517ee8d2fc61d82",
-      "played_at": "2026-11-14T12:37:56+0200",
+      "world_id": "w8674878fb254643300f0",
+      "played_at": "2026-11-14T16:00:17+0000",
       "score": {
         "marginCents": 1232150,
         "revenueCents": 3225247,
