@@ -28,7 +28,7 @@ from strategies.pricing.model import DAY, in_hours, request_keys
 class Params(PriorParams):
     """The variables of lane-prior pricing, plus the cost-aware move."""
 
-    cost_slope: float = 0.3  # the price moves by this share of log(cost / price) away from the week's mean
+    cost_slope: float = 0.0  # the price moves by this share of log(cost / price) away from the week's mean
     cost_limit: float = 0.2  # the move stays within this, in logs, up or down
     cost_mean: float = -0.37  # the mean of log(cost / price) before the week has quotes (saved weeks: -0.37)
     cost_prior: int = 20  # that starting mean counts as this many quotes
