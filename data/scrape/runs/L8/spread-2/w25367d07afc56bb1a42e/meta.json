@@ -1,0 +1,24 @@
+{
+  "seed": "spread-2",
+  "level": 8,
+  "policy": "war-sweep",
+  "kind": "practice",
+  "worldId": "w25367d07afc56bb1a42e",
+  "version": "d869ddfb1a13bb6a5e3ecfc4fa42d1389cc6b151",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 9474,
+  "score": {
+    "marginCents": 855303,
+    "revenueCents": 2685688,
+    "marginShare": 0.31846699988978616,
+    "wonOrders": 285,
+    "onTimeShare": 0.9789473684210527,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 33.5,
+  "requests": 517
+}
