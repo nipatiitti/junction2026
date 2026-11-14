@@ -20,6 +20,13 @@ Every model in `strategies/` and the root `dispatch.py`, one practice week each,
 `strategies/scarcity_urgency` is new and has not been played, so it is not on the list yet; run it with the leaders
 rather than instead of them.
 
+The seven systems built on `ceiling` in #187 were benched on 2026-11-14 at level 8, seeds `spread-1` to `spread-3`, in
+one run with `ceiling` and the root. On `spread-1`, `war_guard` (€10,223.10) and `slack_fees` (€10,206.83) came out
+above `ceiling`. Over the three seeds `slack_fees` (+€358.41), `war_guard` (+€275.31) and `tempo` (+€129.25) were
+ahead of `ceiling` (€20,817.06), each by under 2%, and `learned_cost`, `option_menu`, `profit_max` and `trust_value`
+behind it. Give the first three a week beside `ceiling` on fresh seeds, not the other four. Each folder's README has
+its table.
+
 ## What the numbers are
 
 Margin is the score: the week's gross margin in game euros; a model is ranked only when at least 90% of its orders
