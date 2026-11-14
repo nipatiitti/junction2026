@@ -39,6 +39,15 @@ every quote, post, withdrawal and reprice should be the same.
   [`src/strategies/lean/README.md`](src/strategies/lean/README.md#three-tries-to-book-more-chains-351).
 - **In step**: no (#329). The Python version has neither param; with the defaults it decides the same.
 
+### 2026-11-15: no raises over the weekend (issue #347)
+
+- **Version changed**: TypeScript.
+- **What changed**: a gig whose last pickup is on the Monday after the weekend keeps its opening fee over the
+  weekend and raises on that Monday from 06:00 (`rest`, true; false is the schedule before). The raises of the
+  weekend reached 2 bookings a week, and Monday's first drivers took 1.54 × typical. The server check is in
+  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#no-raises-over-the-weekend-15-november-347).
+- **In step**: no (#329). The Python version raises over the weekend.
+
 ### 2026-11-15: supply and demand (PR #342)
 
 - **Version changed**: TypeScript.
