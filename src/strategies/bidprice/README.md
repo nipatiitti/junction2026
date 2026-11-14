@@ -99,3 +99,9 @@ served option over `lateRiskMax`), `war` (the war-day rule), `minValue` (best va
 `underCost` (no price on the grid covers the cost); `opt-<rule>` counts the options each rule left out of a quote.
 Set `BIDPRICE_DECLINE_LOG=<file>` to append one JSON line per request (id, minute, reason, options left out, costs,
 value, win chance, prices).
+
+## Charging stops and late drivers
+
+`chargeOver200` (off): an electric car under 30% gets its charging stop, in the gig and in `canServe`'s time check, only when its own drive (pickup to delivery) is over 200 road km, as rule 3 says (`src/ops/charging.ts`); the summary counts the cars spared a stop.
+`driverLate` (off): on `driver_late`, release the driver (free until they leave) when they would deliver after the deadline and another driver can still come `lateLeadHours` (2) from now, before `lastPickupAt` and `lateGainHours` (1) before the late one; the desk posts the cars again at the urgent fees (`late_driver.ts`).
+On the saved level 8 weeks `driver_late` comes about once in nine weeks (78 in 667), so `driverLate` rarely fires.
