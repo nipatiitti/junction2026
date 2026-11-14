@@ -87,12 +87,22 @@ export const SEGMENTS = [
     duration: 10,
     lines: {
       offer: 'NEW GIG · fee €52',
+      ding: 'DING',
+      // the gig card on the drivers' phones
+      gig: 'NEW GIG',
+      route: 'Vantaa → Tampere',
+      fee: '€52',
+      typical: 'typical fee €58',
+      accept: 'ACCEPT',
+      decline: 'DECLINE',
       accepted: 'Accepted.',
+      laugh: 'HAH',
       nah: "Nah, I'd win.",
       scream: 'BOMBOCLAAAT',
       aura: '−∞ AURA',
       didNot: 'he did not win',
       panic: ['accepted', 'accepted', 'ACCEPTED'],
+      diesel: 'DIESEL 1,89',
     },
   },
   {

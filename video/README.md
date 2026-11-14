@@ -43,6 +43,6 @@ it was. Three.js (0.186.1) and mp4-muxer (5.2.2) load from jsDelivr at pinned ve
 
 ## Status
 
-The title cards and scenes 1–3 are built. Scene 4 and the end are rough sets with their cast and main beats.
+The title cards and scenes 1–4 are built. The end is a rough set with its cast and main beats.
 The spoken lines are captions for now; voices, sound effects and music are still to come. The numbers in
 `timeline.js` are placeholders until the final is played.
