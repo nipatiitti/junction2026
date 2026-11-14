@@ -24,7 +24,7 @@ const OWN = {
   gridHi: 2.4,
   gridStep: 0.05,
   /** Value of a win beyond its margin (future trust), × list; extra cost of same_day (lateness risk), × list. */
-  winValue: 0.12,
+  winValue: 0.04,
   sameDayRisk: 0.04,
   /** Learning rate of the world level (log scale), and its bounds. */
   eta: 0.03,
