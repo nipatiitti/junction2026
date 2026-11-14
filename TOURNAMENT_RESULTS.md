@@ -698,3 +698,11 @@ Readings (a four-seed mean moves about ±€400):
 - Chains book (41–49 of 54–90 posted a week, at 0.92–0.98 × typical) but move the mean only +€147, inside the noise.
 - The ideas do not add up: both trust ideas +€277, all three +€132.
 - The baseline replayed to the euro on all four seeds, so the merged code decides as before with the flags off.
+
+## Params switched inside a week (#233): stopped early
+
+`src/strategies/phased/` plays `bidprice` with one params file until `phaseHour` and another after it;
+`uv run python -m analysis.phases` splits a saved week's margin by the hour each order was won. Nine configs were
+started on spread-6, 7, 8 and 10 and stopped after spread-6 and part of spread-7, so nothing here is a result yet.
+Known so far: `board.json` switched to itself replays the baseline to the euro (€7,996 on spread-6), and the config
+"guard until hour 48, then `board.json`" never turned the guard off, because `board.json` has no `trustGuard` key.
