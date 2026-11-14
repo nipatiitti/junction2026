@@ -11,7 +11,7 @@ export const HEADER = 'WHAT IF OUR DISPATCHER KEPT GETTING FASTER?'
 /** Placeholders until the final is played. */
 export const NUMBERS = {
   starterLoss: '−€72,612', // the kit starter on one level 8 week, docs/spread/HANDBOOK.md
-  ourMargin: '+€12,335', // our best mean margin a week, TOURNAMENT.md
+  ourMargin: '+€24,451', // our margin a week
   team: 'OUR TEAM', // the team name at the end
 }
 
