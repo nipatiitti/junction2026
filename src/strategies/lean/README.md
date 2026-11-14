@@ -232,11 +232,34 @@ Five fresh random seeds on the server, every variant on the same seeds (level 8,
 
 The server agrees with the simulator on the direction and about two thirds of the size. On the server 110 to 200
 cars a week ride in chains at 0.68 to 0.76 × typical, against 12 to 34 before. `spread` earns €391 more than the
-new defaults, but two of its five weeks end at 91.8% on time, 1.8 points over the minimum, so it stays off.
+new defaults, but two of its five weeks end at 91.8% on time, 1.8 points over the minimum, so it stayed off until the fixes below.
+
+### Why orders were late, and the second server check
+
+The ten server weeks above had 158 late orders. With the first `spread`, 53 of its 103 found their first driver only
+after the deadline warning: a last pickup before 16:00 was 20% of the orders and 52% of the late ones, because their
+raises came on the morning of the pickup, when drivers have planned their day, and after a 2-hour hold in the
+evening. 14 were cars of chains whose driver finished the next day: chains of 8 to 12 hours of driving.
+
+The fixes: raises timed by the drivers' planning (`planBy` in `fees.ts`: by 21:00 the evening before for a last
+pickup before 16:00), no hold and no open chain in the last planning hours, chains of 8 hours of driving at most
+with 20% over the road minutes and 30 minutes of slack at each later pickup, and a chain's first pickup window ends
+at its last start. Same five seeds:
+
+| Variant                          | Margin  | Orders | On time by week (%)          | Ranked |
+| -------------------------------- | ------- | ------ | ---------------------------- | ------ |
+| Old defaults                     | €10,951 | 229    | 96.6, 96.0, 99.0, 97.3, 98.7 | 5 of 5 |
+| First `spread`                   | €13,165 | 306    | 91.8, 92.9, 96.8, 93.2, 91.8 | 5 of 5 |
+| Fixes, `spread` off              | €13,377 | 293    | 95.1, 96.3, 97.5, 97.4, 96.6 | 5 of 5 |
+| Fixes, `spread` on (**default**) | €14,065 | 317    | 93.5, 95.0, 98.3, 96.6, 96.7 | 5 of 5 |
+
+`offers` (direct offers at the app's fee to drivers who viewed a gig and live near it, `offers.ts`) is built and
+off: in the simulator 0.2% of 2,000 to 3,500 offers a week are accepted and the margin does not move. The server
+has not played it.
 
 ## Params
 
-`target` 0.3, `capacity` 0 (its start), `gain` 0, `noise` 0.28, `flatShare` 0.5, `flatEuros` 60, `open` 0.88, `jitter` 1, `spread` false,
+`target` 0.3, `capacity` 0 (its start), `gain` 0, `noise` 0.28, `flatShare` 0.5, `flatEuros` 60, `open` 0.88, `jitter` 1, `spread` true, `offers` 0,
 `premium` 3, `privateAddress` 0.25, `feeRatio` 0.84, `supply` true, `overhead` 0.06, `minHours` 4, `minMargin` 1.05, `trust` 0.7,
 `feeBrake` 1.5, `lateSoft` 0.04, `lateHard` 0.05, `openGigs` 40, `urgentTop` 2, `lateTop` 1.7, `chains` true,
 `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `chainHours` 5, `holdHours` 2, `chainPatience` 0, `chainBid` false,
