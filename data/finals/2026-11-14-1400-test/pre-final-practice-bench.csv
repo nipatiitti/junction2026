@@ -1,0 +1,5 @@
+strategy,seed,level,world_id,margin_eur,revenue_eur,won_orders,on_time_share,ranked
+lean:target=0.6,rnd-43f95900,8,w3d7ae7782d136de85bff,16606.66,55916.38,448,0.9375,yes
+lean:target=1,rnd-43f95900,8,wb65e9fc11b82c0f4630a,15393.99,61265.89,534,0.9176,yes
+lean:target=0.6,mean,8,,16606.66,55916.38,448,0.9375,1 of 1
+lean:target=1,mean,8,,15393.99,61265.89,534,0.9176,1 of 1

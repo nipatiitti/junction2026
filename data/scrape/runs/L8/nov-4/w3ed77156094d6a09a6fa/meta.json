@@ -1,0 +1,24 @@
+{
+  "seed": "nov-4",
+  "level": 8,
+  "policy": "radar-broker",
+  "kind": "practice",
+  "worldId": "w3ed77156094d6a09a6fa",
+  "version": "1713cb846842315fe73f3a02520475d27b7dc7c4",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 8867,
+  "score": {
+    "marginCents": 1473153,
+    "revenueCents": 3670487,
+    "marginShare": 0.4013508289227015,
+    "wonOrders": 323,
+    "onTimeShare": 0.9876160990712074,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 70.5,
+  "requests": 537
+}

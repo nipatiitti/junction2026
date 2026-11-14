@@ -242,6 +242,8 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the drop-risk week: `uv run strategies/drop_risk/dispatch.py --level 8 --seed spread-1`
 - Play the flu-guard week: `uv run strategies/flu_guard/dispatch.py --level 8 --seed spread-1`
 - Play the all-in week: `uv run strategies/all_in/dispatch.py --level 8 --seed spread-1`
+- Play the radar-broker week: `uv run strategies/radar_broker/dispatch.py --level 8 --seed spread-1`
+- Play the radar-broker lift-only week: `uv run strategies/radar_broker/lift_only.py --level 8 --seed spread-1`
 - Play the slack-budget week: `uv run strategies/slack_budget/dispatch.py --level 8 --seed spread-1`
 - Play the snow-aware week: `uv run strategies/snow_aware/dispatch.py --level 8 --seed spread-1`
 - Measure the lead-cost table: `uv run python -m strategies.lead_cost.fit`
@@ -296,6 +298,11 @@ on one line, so two PRs that each add a command do not conflict.
 - Export the quote priors: `uv run python -m analysis.priors_quote`
 - Replay the quote models on the probes: `node analysis/replay_quote.ts`
 - Split saved weeks' margin by the hour an order was won: `uv run python -m analysis.phases`
+- Build the simulator's data packs: `uv run python sim/build_data.py`
+- Serve the offline simulator: `pnpm sim --port 8787`
+- Oracle margin of a week in the simulator: `pnpm oracle spread-1`
+- Probe a week (online unless `SPREAD_URL` is the simulator; needs the user's request): `pnpm prober --mode fee --seeds spread-1`
+- Replay a saved week in the simulator: `pnpm replay data/scrape/runs/L8/spread-1/<world id>`
 
 ## Definition of done
 
