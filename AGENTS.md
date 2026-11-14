@@ -13,6 +13,11 @@ car dealers and pays freelance drivers to move the cars, for one simulated week.
 - The system is `dispatch.py`, in Python, run with uv. Before you change it, read
   `docs/spread/HANDBOOK.md`. `RULES.md` and `API.md` next to it are the full references.
   `README.md` has the setup and the dates.
+- **Never run online unless the user explicitly asks.** By default, do not play or read worlds
+  on the Spread server. This covers every command that plays or reads worlds: `dispatch.py`,
+  `pnpm dispatch`, `pnpm bench`, `pnpm tune`, `strategies.bench`, the scrape and reveal tools,
+  and any direct call to the API. Work from the saved weeks under `data/scrape/runs/` and
+  `out/spread.sqlite` instead. Only an explicit request in the current conversation lifts this.
 - Practice weeks are free and repeatable: the same seed and level give the same week.
   Compare two versions of the system on the same seeds.
 - Ask for approval before you play a ranking run (`--board`) or a final (`--final`). Each
@@ -214,6 +219,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the scarcity-urgency week: `uv run strategies/scarcity_urgency/dispatch.py --level 8 --seed spread-1`
 - Play the ratchet week: `uv run strategies/ratchet/dispatch.py --level 8 --seed spread-1`
 - Play the ceiling-pricing week: `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1`
+- Play the scarcity-ceiling week: `uv run strategies/scarcity_ceiling/dispatch.py --level 8 --seed spread-1`
 - Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
 - Measure the note reader: `uv run python -m strategies.notes.check reveal-<world id>`
 - Compare two versions: `uv run python -m strategies.bench dispatch.py origin/main`
@@ -224,6 +230,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Compare TypeScript strategies: `pnpm bench starter --level 8 --seeds spread-1..spread-5`
 - Tune a TypeScript strategy's params: `pnpm tune <strategy> --space <space.json> --holdout spread-6..spread-10`
 - Build the facts tables: `uv run python -m analysis.facts`
+- Build the quotas database: `uv run python -m analysis.quotas`
 - Export the fee model priors: `uv run python -m analysis.priors_fees`
 - Margin gap report (oracle): `uv run python -m analysis.oracle`
 - Get the team's scraped data: `mkdir -p out && gh release download --pattern 'spread-data-*.tar.gz' --output - | tar -xz -C out`
