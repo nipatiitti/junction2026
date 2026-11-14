@@ -217,6 +217,13 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the scarcity-urgency week: `uv run strategies/scarcity_urgency/dispatch.py --level 8 --seed spread-1`
 - Play the ratchet week: `uv run strategies/ratchet/dispatch.py --level 8 --seed spread-1`
 - Play the ceiling-pricing week: `uv run strategies/ceiling/dispatch.py --level 8 --seed spread-1`
+- Play the dawn-fees week: `uv run strategies/dawn_fees/dispatch.py --level 8 --seed spread-1`
+- Play the lead-cost week: `uv run strategies/lead_cost/dispatch.py --level 8 --seed spread-1`
+- Play the headroom week: `uv run strategies/headroom/dispatch.py --level 8 --seed spread-1`
+- Play the lane-prior week: `uv run strategies/lane_prior/dispatch.py --level 8 --seed spread-1`
+- Play the town-opening week: `uv run strategies/town_open/dispatch.py --level 8 --seed spread-1`
+- Measure the lead-cost table: `uv run python -m strategies.lead_cost.fit`
+- Fit the lane priors: `uv run python -m strategies.lane_prior.fit`
 - Play the scarcity-ceiling week: `uv run strategies/scarcity_ceiling/dispatch.py --level 8 --seed spread-1`
 - Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
 - Measure the note reader: `uv run python -m strategies.notes.check reveal-<world id>`
