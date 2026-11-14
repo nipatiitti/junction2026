@@ -47,7 +47,7 @@ import {
   type StrategyKind,
 } from '../../strategy.ts'
 import { bestPrice, Demand } from './demand.ts'
-import { awake, BOOK_AHEAD, fast, feeAt, OPEN, openingFor, SHORT, slow } from './fees.ts'
+import { awake, BOOK_AHEAD, fast, feeAt, openingFor, SHORT, slow } from './fees.ts'
 
 export const DEFAULTS = {
   /** The share of the week's requests to win, in a world with 777 drivers (the median). */
@@ -56,6 +56,19 @@ export const DEFAULTS = {
    * share won: this much for each quote that wins above or loses below the target. */
   capacity: 0.4,
   gain: 0.02,
+  /** How much of that worth is the same for every order (`flatEuros` × `capacity`), not in proportion to its typical
+   * fee: a short hop takes a driver's place in the day as a long one does. */
+  flatShare: 0,
+  flatEuros: 60,
+  /** The fee a gig opens at and the end of its slow climb, × typical. */
+  open: 0.68,
+  climbTo: 1.04,
+  /** Each delivery must arrive this share of its drive (20 minutes at least) before its deadline: a driver plans by
+   * the road minutes, and real drives run longer. 0 leaves the deadline as the window. */
+  buffer: 0,
+  /** A premium car's cost × this, and what a private address adds × typical. */
+  premium: 1.5,
+  privateAddress: 0.08,
   /** What a booking costs × typical before this week's bookings say: the measured median with the climb's steps. */
   feeRatio: 0.84,
   /** Added to the cost × typical for drops, failed visits and refunds. */
@@ -131,7 +144,9 @@ class Lean extends Strategy<LeanParams> {
       if (cost === null) continue
       const belief = this.demand.belief(this.demand.keys(request, option.kind), this.trustOffset(request.dealerId))
       const crowd = 1 + 0.04 * Math.max(0, this.askedFrom(request) - 4)
-      const price = bestPrice(belief, option.listPriceCents, cost + this.capacity * crowd * request.referenceFeeCents)
+      const p = this.params
+      const place = (1 - p.flatShare) * request.referenceFeeCents + p.flatShare * p.flatEuros * 100
+      const price = bestPrice(belief, option.listPriceCents, cost + this.capacity * crowd * place)
       if (price !== null) prices[option.kind] = Math.round(Math.max(price, cost * this.params.minMargin))
     }
     return Object.keys(prices).length > 0 ? prices : null
@@ -146,12 +161,12 @@ class Lean extends Strategy<LeanParams> {
     const ready = Math.max(request.legs[0]?.pickup.window.from ?? now, earliestPickup(facts) ?? 0)
     const time = awake(Math.max(now + 15, this.climbFrom(ready, now)), lastPickup - BOOK_AHEAD)
     if (time < this.params.minHours * HOUR) return null // too little time for the climb to find a driver
-    let ratio = this.feeRatio + openingFor(time) - OPEN + this.params.overhead
-    if (f.privatePickup || f.privateDelivery) ratio += 0.08
+    let ratio = this.feeRatio + openingFor(time, this.params) - this.params.open + this.params.overhead
+    if (f.privatePickup || f.privateDelivery) ratio += this.params.privateAddress
     if (f.tradeIn) ratio += 0.05
     if (f.weekendDelivery) ratio += 0.05
     if (facts.deadline !== null || facts.pickupHours !== null || facts.deliveryHours !== null) ratio += 0.03
-    if (f.premium) ratio *= 1.5 // one driver in twelve may take it
+    if (f.premium) ratio *= this.params.premium // one driver in twelve may take it
     return request.referenceFeeCents * ratio
   }
 
@@ -239,7 +254,23 @@ class Lean extends Strategy<LeanParams> {
       const first = stops[0]!
       const ready = first.window?.from ?? order.legs[first.leg]?.pickup.window.from ?? now
       const floor = this.floors.get(order.id) ?? 0
-      return { stops, audience, schedule: this.fees(order, typical(stops), now, floor, this.climbFrom(ready, now)) }
+      const schedule = this.fees(order, typical(stops), now, floor, this.climbFrom(ready, now))
+      return { stops: this.buffered(order, stops, now), audience, schedule }
+    })
+  }
+
+  /** The stops with each delivery due `buffer` of its drive before its deadline, where the note gave it no window
+   * of its own and a driver who leaves now can still make it. */
+  private buffered(order: Order, stops: StopRef[], now: number): StopRef[] {
+    if (!(this.params.buffer > 0) || now > order.lastPickupAt) return stops
+    return stops.map((stop) => {
+      const leg = order.legs[stop.leg]
+      if (stop.kind !== 'delivery' || stop.window || !leg) return stop
+      const drive = driveMinutes(this.setup.map, [leg])
+      const due = leg.delivery.privateAddress ? leg.delivery.window.to : order.deadline
+      const to = due - Math.max(20, this.params.buffer * drive)
+      const from = leg.delivery.window.from
+      return to > from && to > now + drive + 60 ? { ...stop, window: { from, to: Math.round(to) } } : stop
     })
   }
 
@@ -252,7 +283,7 @@ class Lean extends Strategy<LeanParams> {
     const bookBy = order.lastPickupAt - BOOK_AHEAD
     if (warned || awake(Math.max(now, from), bookBy) < SHORT)
       return fast(now, typical, Math.max(shown + 0.05, 1.15), 0.12, 15, Math.max(p.urgentTop, shown + 0.05))
-    return slow(now, typical, bookBy, from, shown, p.urgentTop)
+    return slow(now, typical, bookBy, p, from, shown, p.urgentTop)
   }
 
   /** A car ready two or more days from now starts its climb the morning before: most drivers know only their next
