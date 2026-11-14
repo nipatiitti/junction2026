@@ -1,0 +1,24 @@
+{
+  "seed": "spread-2",
+  "level": 8,
+  "policy": "joint-bid",
+  "kind": "practice",
+  "worldId": "w730daa7f0f315c39ba05",
+  "version": "d869ddfb1a13bb6a5e3ecfc4fa42d1389cc6b151",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 2959,
+  "score": {
+    "marginCents": 37949,
+    "revenueCents": 102986,
+    "marginShare": 0.36848697881265413,
+    "wonOrders": 26,
+    "onTimeShare": 0.9230769230769231,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 20.0,
+  "requests": 312
+}
