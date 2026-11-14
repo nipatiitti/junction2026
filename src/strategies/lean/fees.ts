@@ -16,6 +16,8 @@ const LAST = 1.3
 const CREEP_BY = 0.8
 const CREEP_STEPS = 10
 const STEP = 20
+/** A chain's ramp (`chainStart`, `chainRamp`) raises the fee this many waking minutes apart. */
+const RAMP_STEP = 5
 /** Drivers read the app between these minutes of the day. The rules say 07:00 to 23:00; late orders found their
  * driver "in the evening", so the planning day ends at 21:00 here. */
 const WAKE = 7 * HOUR
@@ -47,10 +49,18 @@ function later(from: number, minutes: number): number {
 
 /** The slow schedule from `now`, for chains: `open` × typical for half of the awake time to `bookBy` (HOLD at most),
  * then up to LAST when CREEP_BY of the time is gone. */
-export function slow(now: number, typical: number, bookBy: number, open: number): FeeStep[] {
+export function slow(now: number, typical: number, bookBy: number, open: number, start = 1, ramp = 0): FeeStep[] {
   const time = awake(now, bookBy)
   const points: [number, number][] = [[now, open]]
   const [begin, end, last] = [Math.min(time / 2, HOLD), CREEP_BY * time, Math.max(open, LAST)]
+  // The ramp: from `start` × the opening fee to the opening fee, a step every RAMP_STEP waking minutes.
+  const minutes = Math.min(ramp, begin)
+  if (start < 1 && minutes > 0) {
+    const count = Math.max(1, Math.ceil(minutes / RAMP_STEP))
+    points[0] = [now, open * start]
+    for (let i = 1; i <= count; i++)
+      points.push([later(now, (minutes * i) / count), open * (start + ((1 - start) * i) / count)])
+  }
   const steps = last > open ? Math.min(CREEP_STEPS, Math.floor((end - begin) / STEP)) : 0
   for (let i = 1; i <= steps; i++)
     points.push([later(now, begin + ((end - begin) * i) / steps), open + ((last - open) * i) / steps])
