@@ -6,27 +6,28 @@ leaders do not get. [`AGENTS.md`](AGENTS.md) has the rest of the online rules, o
 
 ## The list
 
-The five systems of issue #200 and the root `dispatch.py`, one practice week each, level 8, seed `spread-1`, played by
+The systems of issue #200 and the root `dispatch.py`, one practice week each, level 8, seed `spread-1`, played by
 `strategies.bench` on 2026-11-14. The leading five by margin, with the root beside them as the week's reference:
 
 | #   | model                         | margin     | vs `dispatch.py` | on time |
 | --- | ----------------------------- | ---------- | ---------------- | ------- |
-| 1   | `strategies/soft_top`         | €13,297.12 | +€5,233.72       | 98.9%   |
-| 2   | `strategies/headroom`         | €12,670.71 | +€4,607.31       | 99.2%   |
-| 3   | `strategies/same_day`         | €12,283.73 | +€4,220.33       | 98.4%   |
-| 4   | `strategies/lane_prior`       | €12,170.85 | +€4,107.45       | 99.2%   |
-| 5   | `strategies/town_open`        | €12,137.41 | +€4,074.01       | 98.9%   |
+| 1   | `strategies/all_in`           | €13,591.71 | +€5,528.31       | 99.2%   |
+| 2   | `strategies/soft_top`         | €13,297.12 | +€5,233.72       | 98.9%   |
+| 3   | `strategies/flu_guard`        | €13,115.78 | +€5,052.38       | 98.9%   |
+| 4   | `strategies/headroom`         | €12,670.71 | +€4,607.31       | 99.2%   |
+| 5   | `strategies/same_day`         | €12,283.73 | +€4,220.33       | 98.4%   |
 | —   | `dispatch.py` (the reference) | €8,063.40  | —                | 98.1%   |
 
-All five stand on the same desk, `strategies/headroom`, and differ in one strategy each. Over `spread-1`, `spread-2`
-and `spread-4` together they rank `soft_top` (€36,772), `lane_prior` (€35,750), `same_day` (€35,631), `headroom`
-(€35,139) and `town_open` (€33,062), against €24,653 for `strategies/ceiling`, the leader before them (€9,831.09 on
-`spread-1`); [`strategies/headroom/README.md`](strategies/headroom/README.md) has the table. `soft_top` is the only
-one ahead of `headroom` on all three seeds.
+`strategies/all_in` is the one to play: over `spread-1` to `spread-22` it makes €12,268 in the mean week, with all 22
+weeks ranked, against €11,272 for `soft_top` (21 ranked) and €11,277 for `flu_guard`;
+[`strategies/all_in/README.md`](strategies/all_in/README.md) has every week. `strategies/lane_prior` made €12,170.85 on
+`spread-1`. All of them stand on the `strategies/headroom` desk; `strategies/ceiling`, the leader before them, made
+€9,831.09 on `spread-1`.
 
 The systems that main gained since the last comparison of every model (`scarcity_urgency`, the seven of issue #187,
-the city and dealer ladders) have not been played against these; run them with the leaders rather than instead of
-them.
+the city and dealer ladders, `max_margin`, `tight_margin`, `low_opening`) have not been played against these; run
+them with the leaders rather than instead of them. Play at most four weeks at once (`--jobs 4`): the team shares eight
+slots.
 
 ## What the numbers are
 
