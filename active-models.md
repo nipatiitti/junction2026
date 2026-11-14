@@ -6,35 +6,37 @@ leaders do not get. [`AGENTS.md`](AGENTS.md) has the rest of the online rules, o
 
 ## The list
 
-Every model in `strategies/` and the root `dispatch.py`, one practice week each, level 8, seed `spread-1`, played by
+The five systems of issue #200 and the root `dispatch.py`, one practice week each, level 8, seed `spread-1`, played by
 `strategies.bench` on 2026-11-14. The leading five by margin, with the root beside them as the week's reference:
 
-| #   | model                         | margin    | vs `dispatch.py` | on time |
-| --- | ----------------------------- | --------- | ---------------- | ------- |
-| 1   | `strategies/ceiling`          | €9,831.09 | +€1,767.69       | 97.4%   |
-| 2   | `strategies/scarcity_cost`    | €8,884.43 | +€821.03         | 98.6%   |
-| 3   | `dispatch.py` (the reference) | €8,063.40 | —                | 98.1%   |
-| 4   | `strategies/delivery_urgency` | €7,124.50 | −€938.90         | 97.7%   |
-| 5   | `strategies/price_ladder`     | €6,200.04 | −€1,863.36       | 97.3%   |
+| #   | model                         | margin     | vs `dispatch.py` | on time |
+| --- | ----------------------------- | ---------- | ---------------- | ------- |
+| 1   | `strategies/soft_top`         | €13,297.12 | +€5,233.72       | 98.9%   |
+| 2   | `strategies/headroom`         | €12,670.71 | +€4,607.31       | 99.2%   |
+| 3   | `strategies/same_day`         | €12,283.73 | +€4,220.33       | 98.4%   |
+| 4   | `strategies/lane_prior`       | €12,170.85 | +€4,107.45       | 99.2%   |
+| 5   | `strategies/town_open`        | €12,137.41 | +€4,074.01       | 98.9%   |
+| —   | `dispatch.py` (the reference) | €8,063.40  | —                | 98.1%   |
 
-`strategies/scarcity_urgency` is new and has not been played, so it is not on the list yet; run it with the leaders
-rather than instead of them.
+All five stand on the same desk, `strategies/headroom`, and differ in one strategy each. Over `spread-1`, `spread-2`
+and `spread-4` together they rank `soft_top` (€36,772), `lane_prior` (€35,750), `same_day` (€35,631), `headroom`
+(€35,139) and `town_open` (€33,062), against €24,653 for `strategies/ceiling`, the leader before them (€9,831.09 on
+`spread-1`); [`strategies/headroom/README.md`](strategies/headroom/README.md) has the table. `soft_top` is the only
+one ahead of `headroom` on all three seeds.
 
-The seven systems built on `ceiling` in #187 were benched on 2026-11-14 at level 8, seeds `spread-1` to `spread-3`, in
-one run with `ceiling` and the root. On `spread-1`, `war_guard` (€10,223.10) and `slack_fees` (€10,206.83) came out
-above `ceiling`. Over the three seeds `slack_fees` (+€358.41), `war_guard` (+€275.31) and `tempo` (+€129.25) were
-ahead of `ceiling` (€20,817.06), each by under 2%, and `learned_cost`, `option_menu`, `profit_max` and `trust_value`
-behind it. Give the first three a week beside `ceiling` on fresh seeds, not the other four. Each folder's README has
-its table.
+The systems that main gained since the last comparison of every model (`scarcity_urgency`, the seven of issue #187,
+the city and dealer ladders) have not been played against these; run them with the leaders rather than instead of
+them.
 
 ## What the numbers are
 
 Margin is the score: the week's gross margin in game euros; a model is ranked only when at least 90% of its orders
-arrive on time, and an unranked week does not count at all. The rest of that comparison, in order: `bundling_cheaper`
-€6,182.79, `bundling_more` €6,173.59, `ratchet` €5,173.02 — and `ratchet` was at 90.5% on time, one late order from
+arrive on time, and an unranked week does not count at all. The earlier comparison of every model, in order after the
+root: `ceiling` €9,831.09 and `scarcity_cost` €8,884.43 ahead of it, then `delivery_urgency` €7,124.50, `price_ladder`
+€6,200.04, `bundling_cheaper` €6,182.79, `bundling_more` €6,173.59, `ratchet` €5,173.02 — and `ratchet` was at 90.5% on time, one late order from
 losing everything — then the starter's `baseline` at −€72,612.51, unranked.
 
-Those nine weeks are committed under `data/scrape/runs/L8/spread-1`, so the numbers can be re-read offline with
+Those weeks, and the ones of the list above, are committed under `data/scrape/runs/L8/spread-1`, so the numbers can be re-read offline with
 `uv run python -m tools.db` and a query against `out/spread.sqlite`.
 
 **One seed proves little.** The bottom three of the five sit within €1k of each other, the ladder family within €26,
@@ -57,3 +59,7 @@ of all. Each model's weeks land in `data/scrape/runs` with its own policy, so th
 To gather many weeks without watching, `uv run python -m tools.sweep` plays the active models on fresh random seeds,
 round after round, until stopped ([`tools/README.md`](tools/README.md#play-many-fresh-seeds)). It adds weeks, it does
 not read them, so a comparison still needs the run above.
+
+To play several of the systems built on `ceiling` in one system, and find the best mix of them,
+`uv run python -m strategies.tournament` plays them in rounds ([`strategies/tournament/README.md`](strategies/tournament/README.md)).
+It reads the saved weeks it can, and `--plan` shows what it would play; name the layers worth a week with `--layers`.
