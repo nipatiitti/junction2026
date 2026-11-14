@@ -115,6 +115,10 @@ The folder's important files:
 - `LEADERBOARD.md`: the same ordering for a human review;
 - `logs/`: each entrant's bench output. This is a shadow board, not a performance ranking to delete systems from.
 
+The runner also writes **`TOURNAMENT.md`** at the repository root after each entrant. It lists every survivor with the
+exact margin on each shared seed, plus that seed's name, the generating round, and the mean and standard error. The
+other half is below.
+
 The runner also writes **`SHELVED.md`** at the repository root after each entrant. It contains every shelved system and
 its measured mean margin. Before spending an online run on a listed system, read that table instead of replaying it
 merely to evaluate it. `AGENTS.md` has the same instruction. Only a changed version, with a reason for retesting,

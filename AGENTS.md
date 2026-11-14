@@ -49,6 +49,8 @@ Before you play anything on the live server, read [`active-models.md`](active-mo
 practice week, taken from the last comparison of every system, and says how to refresh the list. Play one of those —
 with the root `dispatch.py` beside it as the week's reference — rather than a model the team has already left behind,
 so the eight shared practice slots and the rate limit go to the models that are ahead.
+The most recent survivor table and exact per-seed results are in `TOURNAMENT.md`; eliminated systems are in
+`SHELVED.md`. Both are written by `tools.roster_tournament` from saved weeks, not new runs.
 
 ---
 

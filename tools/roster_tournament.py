@@ -105,6 +105,7 @@ def stats_rows(state: dict) -> list[dict]:
             stats.append(
                 {
                     **margin_hist(entry),
+                    "file": entry["file"],
                     "status": entry["status"],
                     "shelved_at": entry.get("shelved_at", ""),
                     "why": entry.get("why", ""),
@@ -140,8 +141,61 @@ def write_shelved(state: dict, root: Path) -> None:
     (root / "SHELVED.md").write_text("\n".join(lines))
 
 
+def write_survivors(state: dict, root: Path) -> None:
+    """A committed seed-by-seed description of the active roster, with the exact names of the shared seeds."""
+    active = [r for r in stats_rows(state) if r["status"] == "active"]
+    lines = [
+        "# Roster tournament survivors",
+        "",
+        f"{len(active)} active systems after {len(state['rounds'])} completed round(s). Normal mode only, level 8.",
+        "The saved weeks are measured on *fresh shared random seeds*: every system in a round plays the same",
+        "seed. Margins below are exact per seed; the final `Mean margin ± se` column is over all of them.",
+        "No spread-1 tuning result is used as a holdout.",
+        "Survivors are the pool for later rounds or review, not a definitive single-system championship.",
+        "",
+        "## Seeds used",
+        "",
+    ]
+    for record in state["rounds"]:
+        lines.append(f"- **Round {record['number']}:**")
+        lines += [f"  - `{seed}`" for seed in record["seeds"]]
+        lines.append(f"  - cutoff €{record['cutoff_eur']:,.2f}; {len(record['shelved'])} shelved.")
+    if not state["rounds"]:
+        lines.append("- No completed rounds yet.")
+    if state["current"]:
+        lines.append("")
+        lines.append(f"Round {state['current']['number']} is still in progress; its seeds and early rows are interim.")
+    seed_columns = [seed for record in state["rounds"] for seed in record["seeds"]]
+    if state["current"]:
+        seed_columns += [seed for seed in state["current"]["seeds"] if seed not in seed_columns]
+    lines += [
+        "",
+        "## Exact margin by seed",
+        "",
+        "Each cell is the exact margin in euros on that seed, from that system's saved week. `—` means no score yet.",
+        "The final column has the mean over all of them plus its standard error.",
+        "",
+        "| # | System | " + " | ".join(seed_columns) + " | Mean margin ± se | On time (mean) | Orders (mean) |",
+        "| - | ------ |" + " --- |" * len(seed_columns) + " ---------------- | ------------ | ------------- |",
+    ]
+    for i, row in enumerate(active, 1):
+        recorded = {result["seed"]: result for result in state["systems"][row["file"]]["results"]}
+        per_seed = [
+            f"€{float(recorded[seed]['margin_eur']):,.2f}" if seed in recorded else "—" for seed in seed_columns
+        ]
+        lines.append(
+            f"| {i} | {row['policy']} | "
+            + " | ".join(per_seed)
+            + f" | €{row['margin_eur']:,.2f} ± €{row['se_eur']:,.2f} "
+            + f"| {row['on_time']:.1%} | {row['orders_eur']:.0f} |"
+        )
+    lines += ["", "Dropped systems and their means are in `SHELVED.md`.", ""]
+    (root / "TOURNAMENT.md").write_text("\n".join(lines))
+
+
 def output_files(folder: Path, state: dict, root: Path) -> None:
     write_shelved(state, root)
+    write_survivors(state, root)
     stats = stats_rows(state)
     board = {
         "generated_at": datetime.now(UTC).isoformat(),
