@@ -9,6 +9,7 @@ from the repository root, for example `uv run python -m tools.db`.
 | `db.py`           | Loads saved weeks and probe rows into the SQLite database `out/spread.sqlite`     |
 | `stats.py`        | Turns saved weeks into distributions, in `summary.json`                           |
 | `scrape.py`       | Plays weeks on the server only to collect data                                    |
+| `sweep.py`        | Plays the models of `active-models.md` on fresh seeds until stopped ([below](#play-many-fresh-seeds)) |
 | `probe.py`        | Forks a world to find the price or fee where an outcome flips                     |
 | `spread_proxy.py` | The kit's client through `HTTPS_PROXY` ([below](#claude-code-cloud-environments)) |
 
@@ -35,6 +36,27 @@ saves into this checkout.
 
 `pnpm dispatch` saves its weeks with `src/record.ts`, in the same folder format and with the same `SPREAD_RUNS_DIR`
 and `SPREAD_RECORD=0`. It writes only the folder: run `uv run python -m tools.db` to add it to `out/spread.sqlite`.
+
+## Play many fresh seeds
+
+`sweep.py` plays the models that [`active-models.md`](../active-models.md) lists as worth a practice week, on fresh
+random seeds, round after round, so a long run grows the saved-weeks database while nobody is watching. Each round is
+one bench run (`strategies.bench`) of the six active models on new seeds named `sweep-<random>`; the root `dispatch.py`
+is among them as the week's reference. Every week is saved like any other online run, under its own policy (above).
+
+```sh
+uv run --env-file .env python -m tools.sweep                # until stopped
+uv run --env-file .env python -m tools.sweep --once         # one round, to check the setup
+uv run --env-file .env python -m tools.sweep --seeds-per-round 4 --jobs 4
+uv run --env-file .env python -m tools.sweep --all          # also the models behind the active five
+```
+
+`--level`, `--seeds-per-round`, `--jobs` and `--rounds` set the run; `--models` names the files to play instead of the
+active six. Stop it with Ctrl-C, or by creating the stop file `out/sweep.stop`, which the sweep reads between rounds.
+Ctrl-C stops the round in play at once and the bench deletes every world that has not ended, so no practice slot is
+left held. Each round's output goes to `out/sweep-<time>-round-<n>.log`, and its table to the same name with `.csv`.
+A round that fails is logged and the sweep goes on; three failed rounds in a row stop it, so a bad key does not spin
+all night. The sweep is one online run, however many `--jobs` weeks it plays at once.
 
 ## Get the team's scraped data
 
