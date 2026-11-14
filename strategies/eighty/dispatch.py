@@ -4,7 +4,8 @@ Everything not named here is the headroom system's (strategies/headroom). Three 
 system that beat headroom on its own (issue #200):
 
 - fees: the soft-top planner (strategies/soft_top), the dawn schedule with a top of twice the lane fee;
-- admission: the same-day admission (strategies/same_day), the fastest option that pays;
+- admission: the same-day admission (strategies/same_day), the fastest option that pays, with its driver cost
+  scaled by one factor (admission.py in this folder);
 - pricing: the lane-prior pricing (strategies/lane_prior), lifted by the delivery place's fitted offset, and moved
   up for a car that is dear to move and down for a cheap one (pricing.py in this folder).
 
@@ -30,9 +31,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from spread.client import World
 
 import dispatch as root
+from strategies.eighty.admission import ScaledAdmission
 from strategies.eighty.pricing import CostPricing
 from strategies.headroom import dispatch as headroom
-from strategies.same_day import SameDayAdmission
 from strategies.soft_top import SoftTopPlanner
 from strategies.strategy import Strategy
 from tools import record
@@ -65,7 +66,7 @@ class Desk(headroom.Desk):
     def __init__(self, world: World, level: int, now: int):
         super().__init__(world, level, now)
         roster, world_map = self.admission.roster, self.admission.world_map  # loaded once by the root desk
-        self.admission = SameDayAdmission(roster, world_map, level, lane=self.lane)  # the fastest option that pays
+        self.admission = ScaledAdmission(roster, world_map, level, lane=self.lane)  # the fastest option that pays
         self.pricing = CostPricing(roster, world_map, level)  # the lane-prior price, leaning with the driver cost
         self.fees = SoftTopPlanner(roster, world_map, level, lane=self.lane)  # the dawn schedule, with a lower top
         self.strategies: list[Strategy] = [
