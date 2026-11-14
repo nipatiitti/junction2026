@@ -10,12 +10,14 @@ Jack makes two decisions, each a few plain rules with their numbers at the top o
    c. Each morning every dealer's factor falls by MORNING_STEP: overnight the competitor cuts its prices for the
       dealers we won most from.
    d. Too few drivers: each car that got the deadline warning in the last 24 hours adds WARN_STEP to every price.
-   e. The price war: when Jack wins at most one of his last WAR_WINDOW quotes, the competitor is 20% cheaper
+   e. Friday: every price is FRIDAY_PRICE times lower. A car asked for on Friday has the weekend to wait, and the
+      competitor's Friday prices were lower on every seed we played.
+   f. The price war: when Jack wins at most one of his last WAR_WINDOW quotes, the competitor is 20% cheaper
       today. Until 18:00 Jack quotes WAR_PRICE times his price and the factors learn nothing. Once a week, and not
       on the day after the trust days, when his new prices lose a lot anyway; the window counts every quote.
-   f. Quote every option at its list price times the factor, but leave out an option that gives a driver less
+   g. Quote every option at its list price times the factor, but leave out an option that gives a driver less
       than MIN_LEAD to reach the car (its deadline, less the drive, less the minute the dealer decides).
-   g. Decline when no option is left, when a car goes from or to a private address, or when the typical driver
+   h. Decline when no option is left, when a car goes from or to a private address, or when the typical driver
       fee is more than MAX_FEE_LIST times the list price.
 2. The driver fee of a gig: FEE_OPEN times the typical fee, raised in FEE_STEPS even steps to FEE_TOP times it,
    reached TOP_BEFORE the car's last pickup. When that is on a later day, the fee holds until DAWN of that day,
@@ -51,6 +53,7 @@ LADDER_DOWN = 0.01  # a lost one lowers it by this share
 TRUST_DAYS = 1  # Monday: a win adds LADDER_DOWN and a loss takes LADDER_UP, to win most requests
 WAR_WINDOW, WAR_PRICE = 15, 0.85  # at most one win in this many quotes is the price war: quote this much less
 WARN_STEP = 0.02  # each car warned in the last 24 hours (no driver 3 hours before its last pickup) adds this
+FRIDAY_PRICE = 0.92  # Friday's quotes are this times the dealer's price
 MORNING_STEP = 0.02  # each morning every dealer's price falls by this: overnight the competitor answers our wins
 PRICE_MIN, PRICE_MAX = 1.30, 2.00  # a dealer's price stays between these times the list price
 MIN_LEAD = 8 * HOUR  # leave out an option whose driver would have less than this to reach the car
@@ -69,6 +72,7 @@ NUMBERS = {
     "WAR_WINDOW": WAR_WINDOW,
     "WAR_PRICE": WAR_PRICE,
     "WARN_STEP": WARN_STEP,
+    "FRIDAY_PRICE": FRIDAY_PRICE,
     "MORNING_STEP": MORNING_STEP,
     "PRICE_MIN": PRICE_MIN,
     "PRICE_MAX": PRICE_MAX,
@@ -148,6 +152,8 @@ class Desk(root.Desk):
             return
         discount = WAR_PRICE if self.ladder.at_war(self.now) else 1.0
         factor = self.ladder.factor(request["dealerId"]) * (1 + WARN_STEP * self.ladder.warned(self.now))
+        if self.now // DAY == 4:  # Friday
+            factor *= FRIDAY_PRICE
         prices = jack_prices(request, factor, self.pricing.minutes, discount)
         if prices:
             self.ladder.quoted[request["id"]] = request["dealerId"]
