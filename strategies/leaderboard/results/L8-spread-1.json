@@ -650,8 +650,8 @@
     "radar_broker": {
       "file": "strategies/radar_broker/dispatch.py",
       "fingerprint": "1b35dfecdd04825f",
-      "world_id": "w578b5a4520020aba42ba",
-      "played_at": "2026-11-14T15:44:01+0000",
+      "world_id": "wa0c7c550ec140ead9872",
+      "played_at": "2026-11-14T16:06:14+0000",
       "score": {
         "marginCents": 1112822,
         "revenueCents": 3290885,
