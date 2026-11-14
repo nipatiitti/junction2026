@@ -71,6 +71,10 @@ export type BidPriceParams = {
   climbStep: number
   climbTop: number
   repriceMax: number
+  /** See `ontime.ts`: push open gigs to `onTimeFee` × typical from `onTimeLeadHours` before the last pickup. */
+  onTimeOps: boolean
+  onTimeLeadHours: number
+  onTimeFee: number
 }
 
 export const DEFAULTS: BidPriceParams = {
@@ -113,6 +117,9 @@ export const DEFAULTS: BidPriceParams = {
   climbStep: 0.1,
   climbTop: 3,
   repriceMax: 10,
+  onTimeOps: false,
+  onTimeLeadHours: 14,
+  onTimeFee: 2,
 }
 
 /** The quote models' params from the strategy's. */
