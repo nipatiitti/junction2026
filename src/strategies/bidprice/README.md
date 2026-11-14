@@ -99,3 +99,7 @@ served option over `lateRiskMax`), `war` (the war-day rule), `minValue` (best va
 `underCost` (no price on the grid covers the cost); `opt-<rule>` counts the options each rule left out of a quote.
 Set `BIDPRICE_DECLINE_LOG=<file>` to append one JSON line per request (id, minute, reason, options left out, costs,
 value, win chance, prices).
+
+- `onTimeOps` (default off, `ontime.ts`): most late orders are gigs that sat open with few views until past their last pickup
+  (`analysis/late_causes.py`). From `onTimeLeadHours` (14) before the last pickup an open, unheld gig goes at once to
+  `onTimeFee` (2) x typical, at most three prices, and climbs from there.
