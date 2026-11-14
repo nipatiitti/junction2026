@@ -41,6 +41,9 @@ Several of us build dispatch systems in parallel; the team picks one for the fin
   played once and its score stays on the public rankings, so agree on it in the team first.
 - Compare two versions on the same seeds with the [seed bench](strategies/bench/README.md):
   `uv run python -m strategies.bench dispatch.py origin/main`.
+- Play several of the changes built on `ceiling` in one system, and find the best mix, with the
+  [tournament](strategies/tournament/README.md): `uv run python -m strategies.tournament --plan` shows what it
+  would play.
 - Every week played online is saved under `data/scrape/runs/`; commit the new folders with your PR.
 
 ## Where things are
