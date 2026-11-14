@@ -150,6 +150,12 @@ export const DEFAULTS = {
   /** A chain that no driver took this many waking hours after its post is taken apart: 51% of the chains book
    * within the hour, and one still open then books 24% of the time. 0 waits until `chainLast`. */
   chainPatience: 1,
+  /** Thompson sampling on the win model (demand.ts, `sampled`): each quote is the best price for one draw of the
+   * effects (the world, the day, the dealer, the places, the option) from what the week has taught of them, not
+   * for their means, so the first quotes of a week and of a new day spread over more prices and find the level
+   * sooner. The draw is this × each effect's standard deviation: 0 is off, 1 a full draw. Seeded by the request
+   * id, so a rebuilt week quotes the same. */
+  sample: 0,
 }
 export type LeanParams = typeof DEFAULTS
 
@@ -246,7 +252,11 @@ class Lean extends Strategy<LeanParams> {
       if (this.setup.level <= 3) return { [option.kind]: option.listPriceCents }
       const cost = this.cost(request, option, facts, now, open)
       if (cost === null) continue
-      const belief = this.demand.belief(this.demand.keys(request, option.kind), this.trustOffset(request.dealerId))
+      const keys = this.demand.keys(request, option.kind)
+      const offset = this.trustOffset(request.dealerId)
+      const sample = this.params.sample
+      const belief =
+        sample > 0 ? this.demand.sampled(keys, offset, sample, request.id) : this.demand.belief(keys, offset)
       const best = bestPrice(belief, option.listPriceCents, cost * (1 + tax) + this.params.taxEuros * 100)
       if (best === null) continue
       quotes.push([option.kind, Math.round(best)])

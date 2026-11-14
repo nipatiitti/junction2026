@@ -5,6 +5,7 @@
  * (349 recorded seeds, sim/market.json), same-day takes 12% more (the quote probes). */
 import type { DeliveryOption, PriceRequest } from '../../../vendor/spread-typescript/spread.ts'
 import { DAY } from '../../ops/index.ts'
+import { normal } from './sample.ts'
 
 /** The most that one outcome moves an estimate, in log price. Not measured. */
 const MAX_STEP = 0.12
@@ -71,6 +72,24 @@ export class Demand {
       mu += effect.mean
       variance += effect.variance
     }
+    return { mu, variance, scale: this.noise * Math.sqrt(1 + (Math.PI * variance) / (8 * this.noise * this.noise)) }
+  }
+
+  /** Thompson sampling: the belief for one draw of the effects `keys` from what we know of them, each mean moved
+   * by `sample` × its standard deviation × a normal number drawn from `seed` and the effect's key. The effects that
+   * the options of a request share (the world, the day, the dealer, the places) have the same key, so with the
+   * request id as the seed they are drawn once for the request, and the option's own effect once for each option.
+   * The scale keeps only the doubt that the draw does not carry: none of it at `sample` 1 (the request's own noise
+   * is left), all of it at 0, where this is `belief`. `learn` never sees a draw. */
+  sampled(keys: string[], offset: number, sample: number, seed: string): Belief {
+    let mu = this.base + offset
+    let variance = 0
+    for (const key of keys) {
+      const effect = this.effect(key)
+      mu += effect.mean + sample * Math.sqrt(effect.variance) * normal(`${seed} ${key}`)
+      variance += effect.variance
+    }
+    variance *= Math.max(0, 1 - sample * sample)
     return { mu, variance, scale: this.noise * Math.sqrt(1 + (Math.PI * variance) / (8 * this.noise * this.noise)) }
   }
 
