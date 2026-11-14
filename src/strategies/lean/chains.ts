@@ -48,22 +48,45 @@ export type Chain = {
   startBy: number // the last minute a driver can start it and meet every window
   typical: number // what the chain is worth to a driver, in cents: the fee schedule's unit
   singles: number // the cars' typical fees as single gigs, summed
+  chance: number // its chance to book, from where the drivers live (`bookChance`)
 }
 
-export type ChainParams = { maxHop: number; maxCars: number; minSaving: number; maxDrive: number }
+export type ChainParams = { maxHop: number; maxCars: number; minSaving: number; maxDrive: number; chainFit: number }
+
+/** A chain's chance to book, from 1,414 chains of 15 server weeks. What decides it is how many drivers can do the
+ * chain as a round from home: with home to the first pickup and the last delivery to home inside `ROUND` road
+ * minutes for half of the drivers or more, 76% booked, and with no such driver 43 to 51%. A chain that ends over
+ * `FAR` road minutes from where it starts booked 36%. The fee did not decide it. */
+const ROUND = 120
+const FAR = 180
+const FULL_SHARE = 0.5
+const [CHANCE_FAR, CHANCE_NONE, CHANCE_FULL] = [0.36, 0.45, 0.8]
+
+/** The chance that a chain from `first` to `last` books; `homes` is place id -> the drivers who live there. */
+export function bookChance(map: WorldMap, homes: ReadonlyMap<string, number>, first: string, last: string): number {
+  if (!(minutes(map, last, first) <= FAR)) return CHANCE_FAR
+  let [all, near] = [0, 0]
+  for (const [home, drivers] of homes) {
+    all += drivers
+    if (minutes(map, home, first) + minutes(map, last, home) <= ROUND) near += drivers
+  }
+  const share = all > 0 ? Math.min(1, near / all / FULL_SHARE) : 0
+  return CHANCE_NONE + (CHANCE_FULL - CHANCE_NONE) * share
+}
 
 /** The search stops after this many paths, so that one tick stays far inside its 3 seconds: 20 cars near each other
  * make 116,000 paths of four. The cars are walked in the order of their ids, so the same cars give the same chains. */
 const MAX_PATHS = 20_000
 
-/** The chains worth posting among `cars` that `keep` lets through, best saving first, each car in one chain at
- * most. */
+/** The chains worth posting among `cars` that `keep` lets through, best first, each car in one chain at most. The
+ * best chain saves the most × its chance to book to the power `chainFit`: 0 ranks by the saving alone. */
 export function findChains(
   open: Car[],
   map: WorldMap,
   now: number,
   p: ChainParams,
   keep: (chain: Chain) => boolean = () => true,
+  homes: ReadonlyMap<string, number> = new Map(),
 ): Chain[] {
   const cars = [...open].sort((a, b) => a.orderId.localeCompare(b.orderId))
   const found: Chain[] = []
@@ -78,7 +101,7 @@ export function findChains(
     if (paths >= MAX_PATHS) return
     if (path.length >= 2) {
       paths++
-      const chain = judge(path, drive, map, now, p.minSaving)
+      const chain = judge(path, drive, map, now, p.minSaving, homes)
       if (chain && keep(chain)) found.push(chain)
     }
     if (path.length >= p.maxCars) return
@@ -91,7 +114,8 @@ export function findChains(
   }
   for (const car of cars) walk([car], car.drive)
   const key = (chain: Chain): string => chain.cars.map((car) => car.orderId).join(' ')
-  found.sort((a, b) => b.singles - b.typical - (a.singles - a.typical) || key(a).localeCompare(key(b)))
+  const worth = (chain: Chain): number => (chain.singles - chain.typical) * chain.chance ** p.chainFit
+  found.sort((a, b) => worth(b) - worth(a) || key(a).localeCompare(key(b)))
   const used = new Set<Car>()
   return found.filter((chain) => {
     if (chain.cars.some((car) => used.has(car))) return false
@@ -108,7 +132,14 @@ const NIGHT = 16 * HOUR
 
 /** The chain of a path, or null when it saves a driver less than `minSaving` of its cars' fees, or no driver can do
  * it inside every window. */
-function judge(path: Car[], drive: number, map: WorldMap, now: number, minSaving: number): Chain | null {
+function judge(
+  path: Car[],
+  drive: number,
+  map: WorldMap,
+  now: number,
+  minSaving: number,
+  homes: ReadonlyMap<string, number>,
+): Chain | null {
   const first = path[0] as Car
   const last = path.at(-1) as Car
   const singles = path.reduce((sum, car) => sum + car.typical, 0)
@@ -126,7 +157,8 @@ function judge(path: Car[], drive: number, map: WorldMap, now: number, minSaving
     if (feasible(path, start, map)) startBy = start
     else if (startBy !== undefined && start > startBy + NIGHT) break
   }
-  return startBy === undefined ? null : { cars: path, drive, startBy, singles, typical }
+  if (startBy === undefined) return null
+  return { cars: path, drive, startBy, singles, typical, chance: bookChance(map, homes, first.from, last.to) }
 }
 
 /** Whether a driver who collects the first car at `start` meets every window, without long waits. */

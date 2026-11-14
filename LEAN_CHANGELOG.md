@@ -29,6 +29,16 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-15: a chain's chance to book and a second try (issue #351)
+
+- **Version changed**: TypeScript.
+- **What changed**: two new params, both off by default, so the week is played as before: `chainFit` ranks chains by
+  saving × chance to book (from the drivers who can do the chain as a round from home), and `chainTries` is how many
+  failed chains a car may be in before it stays single (was always 1). Ten server seeds: neither, nor
+  `chainPatience` 0.67, is a measured gain. The table:
+  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#three-tries-to-book-more-chains-351).
+- **In step**: no (#329). The Python version has neither param; with the defaults it decides the same.
+
 ### 2026-11-15: supply and demand (PR #342)
 
 - **Version changed**: TypeScript.
