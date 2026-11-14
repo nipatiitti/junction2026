@@ -1,0 +1,24 @@
+{
+  "seed": "spread-1",
+  "level": 8,
+  "policy": "dealer-streak",
+  "kind": "practice",
+  "worldId": "w3f5d13d795ecad01b753",
+  "version": "68efe59cd4f8149ca8a6013ae12724b8048b5db6",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 14190,
+  "score": {
+    "marginCents": 769275,
+    "revenueCents": 3189726,
+    "marginShare": 0.24117275276936012,
+    "wonOrders": 360,
+    "onTimeShare": 0.9666666666666667,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 38.9,
+  "requests": 600
+}
