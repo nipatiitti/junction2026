@@ -266,6 +266,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the combined-fees week: `uv run strategies/combined_fees/dispatch.py --level 8 --seed spread-1`
 - Play the hazard-admission week: `uv run strategies/hazard_admission/dispatch.py --level 8 --seed spread-1`
 - Play the ifs week: `uv run strategies/ifs/dispatch.py --level 8 --seed spread-1`
+- Play the Simply Jack week: `uv run strategies/simply_jack/dispatch.py --level 8 --seed spread-9`
 - Search the ifs values for better weeks: `uv run python -m strategies.ifs.search --target 20000`
 - Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
 - Measure the note reader: `uv run python -m strategies.notes.check reveal-<world id>`
