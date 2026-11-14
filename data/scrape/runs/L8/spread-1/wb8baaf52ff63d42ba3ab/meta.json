@@ -1,0 +1,52 @@
+{
+  "seed": "spread-1",
+  "level": 8,
+  "policy": "ts-thompson",
+  "kind": "practice",
+  "worldId": "wb8baaf52ff63d42ba3ab",
+  "version": "ad8ebef11800c9dc5d1abd044c6eff25694069aa",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 18923,
+  "score": {
+    "marginCents": 644256,
+    "revenueCents": 3544155,
+    "marginShare": 0.181779860079483,
+    "wonOrders": 375,
+    "onTimeShare": 0.8933333333333333,
+    "undeliveredShare": 0.0026666666666666666,
+    "ranked": false
+  },
+  "seconds": 51.4,
+  "settings": {
+    "strategy": "thompson",
+    "params": {
+      "seed": 1,
+      "gridLo": 0.95,
+      "gridHi": 2,
+      "gridStep": 0.05,
+      "priorN": 4,
+      "capitalScale": 0.9,
+      "otherScale": 1.06,
+      "sameDayScale": 1.08,
+      "nextDayScale": 1,
+      "threeDayScale": 0.92,
+      "trustSlope": 0.025,
+      "trustCap": 16,
+      "trustMid": 5,
+      "trustHigh": 15,
+      "dayDecay": 0.6,
+      "costMult": 1.25,
+      "premiumCost": 1.25,
+      "minValueCents": 300,
+      "feeOpen": 1,
+      "feeTop": 1.45,
+      "feeSteps": 8,
+      "feeStepMinutes": 60,
+      "repostOpen": 1.2,
+      "premiumFee": 1.3
+    }
+  }
+}
