@@ -38,7 +38,7 @@ class Params(WarPricingParams):
     max_markup: float = 1.0  # at most 2.0 x the list price, before the trust and outage lift
     start: float = 1.39  # the world multiplier's first value: ceiling's maximum
     target_win: float = 0.5  # the share of next_day and within_3_days quotes the price aims to win, as in ceiling
-    target_fast: float = 0.4  # the share of same_day quotes it aims to win: dealers pay more for speed
+    target_fast: float = 0.5  # the share of same_day quotes it aims to win; 0.4 lost €1,470 on them (README.md)
     key_step: float = 0.02  # each offset moves 2% in logs per outcome (ceiling: 1.5%)
     key_limit: float = 0.5  # an offset stays within ±50% (ceiling: ±25%)
     risk_premium: float = 0.25  # no quote under the driver cost x 1.25 (ceiling: x 1.10)
