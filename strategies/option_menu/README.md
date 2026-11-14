@@ -48,5 +48,17 @@ and the same 1,327 orders are kept.
 
 ## Bench
 
-Not played online yet: the checkout it was built in had no team key. The bench command under [Run it](#run-it) plays it
-beside ceiling on the same practice seeds; its result belongs here.
+`strategies.bench` on 2026-11-14 at level 8, in one run with `ceiling` and the root `dispatch.py` (€17,610.37 in total)
+on the same seeds. Every week was ranked. The weeks are saved under `data/scrape/runs/L8/` with the policy
+`option-menu`.
+
+| Seed       |  `ceiling` | `option_menu` | Difference | On time |
+| ---------- | ---------: | ------------: | ---------: | ------: |
+| `spread-1` |  €9,831.09 |     €8,529.94 | −€1,301.15 |   97.9% |
+| `spread-2` |  €6,673.95 |     €6,921.81 |   +€247.86 |   97.9% |
+| `spread-3` |  €4,312.02 |     €4,138.87 |   −€173.15 |   99.2% |
+| Total      | €20,817.06 |    €19,590.62 | −€1,226.44 |         |
+
+Behind ceiling by €1,226.44 in total, on two of the three seeds. 823 quotes carried slower options, and dealers took
+`within_3_days` on 31 orders, while its `same_day` and `next_day` orders fell by 22 and 12 against ceiling's. The orders
+that both won made €860 less, and late refunds were €553 against €407. Dealers seldom chose to wait for a lower price.

@@ -55,5 +55,18 @@ requests against 65.4%, and keeps 1,321 of ceiling's 1,327 won orders (98.6% on 
 
 ## Bench
 
-Not played online yet: the checkout it was built in had no team key. The bench command under [Run it](#run-it) plays it
-beside ceiling on the same practice seeds; its result belongs here.
+`strategies.bench` on 2026-11-14 at level 8, in one run with `ceiling` and the root `dispatch.py` (€17,610.37 in total)
+on the same seeds. Every week was ranked. The weeks are saved under `data/scrape/runs/L8/` with the policy
+`learned-cost`.
+
+| Seed       |  `ceiling` | `learned_cost` | Difference | On time |
+| ---------- | ---------: | -------------: | ---------: | ------: |
+| `spread-1` |  €9,831.09 |      €9,774.16 |    −€56.93 |   98.3% |
+| `spread-2` |  €6,673.95 |      €6,333.25 |   −€340.70 |   98.8% |
+| `spread-3` |  €4,312.02 |      €4,297.94 |    −€14.08 |   99.2% |
+| Total      | €20,817.06 |     €20,405.35 |   −€411.71 |         |
+
+Behind ceiling on all three seeds, by €411.71 in total. It won 1,022 orders against 952. The 117 orders that only it won
+earned €1,553, €13 each; the 47 that only ceiling won had earned €1,150, €24 each. On the 905 orders that both won it
+made €799 less: a lower cost also lowers ceiling's price floor, so those cars sold cheaper (1.359 × the list price
+against 1.373).

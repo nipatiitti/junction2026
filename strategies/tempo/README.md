@@ -53,5 +53,16 @@ minutes; 429 to 643 requests a week get more room and 201 to 366 less. Admission
 
 ## Bench
 
-Not played online yet: the checkout it was built in had no team key. The bench command under [Run it](#run-it) plays it
-beside ceiling on the same practice seeds; its result belongs here.
+`strategies.bench` on 2026-11-14 at level 8, in one run with `ceiling` and the root `dispatch.py` (€17,610.37 in total)
+on the same seeds. Every week was ranked. The weeks are saved under `data/scrape/runs/L8/` with the policy `tempo`.
+
+| Seed       |  `ceiling` |    `tempo` | Difference | On time |
+| ---------- | ---------: | ---------: | ---------: | ------: |
+| `spread-1` |  €9,831.09 |  €9,751.76 |    −€79.33 |   98.4% |
+| `spread-2` |  €6,673.95 |  €6,882.53 |   +€208.58 |   97.9% |
+| `spread-3` |  €4,312.02 |  €4,312.02 |     ±€0.00 |   99.2% |
+| Total      | €20,817.06 | €20,946.31 |   +€129.25 |         |
+
+Ahead of ceiling by €129.25 in total: higher on `spread-2`, lower on `spread-1`, and the same week to the cent on
+`spread-3`, where its capacity changes decided nothing. The orders that both won made €339 more. The lead is under 1% on
+three seeds: a draw.
