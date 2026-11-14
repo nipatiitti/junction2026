@@ -47,12 +47,13 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`tight_margin/`](tight_margin/README.md)         | `TightPricing`                         | Max margin's prices only once the week's drivers fall behind                            |
 | [`low_opening/`](low_opening/README.md)           | `LowOpeningPlanner`                    | Slack fees, opening a patient gig's first post at 0.8 x the typical fee                 |
 | [`headroom/`](headroom/README.md)                 | `HeadroomPricing`                      | Ceiling, with the lane fee, the cost by lead time, dawn fees and a maximum that moves   |
+| [`pair_first/`](pair_first/README.md)             | `PairFirstAdmission`                   | Headroom, pricing an assumed chain saving when a held order can pair with the request   |
 | [`robust_tune/`](robust_tune/README.md)           | `RobustPricing`                        | Headroom with one slower world estimate and no place or dealer offsets by default       |
 | [`herd_competitor/`](herd_competitor/README.md)   | `HerdPricing`                          | Headroom, losing a dealer's low-margin requests when our rolling win share gets too high |
 | [`offer_probe/`](offer_probe/README.md)           | `ProbeOffers`                          | Headroom, offering only to active drivers and learning acceptance by fee ratio           |
 | [`outage_harvest/`](outage_harvest/README.md)     | `OutageAdmission`, `OutagePricing`     | Headroom, reserving shared driver capacity for the flagged outage region               |
 | [`contextual_mix/`](contextual_mix/README.md)     | `ContextualPricing`                   | Headroom, switching to a lower price cap where a pickup town's gigs book slowly          |
-Forty-six folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Forty-seven folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                                               |
