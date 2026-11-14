@@ -7,7 +7,8 @@ Jack makes two decisions, and each is a few plain rules with its numbers at the 
    TRUST_DAYS of the week the steps swap, so a loss cuts more than a win adds: Jack wins most requests early, at a
    small margin, to earn the dealers' trust, and takes the bigger margin that trust allows later in the week.
    The price war: once a week the competitor quotes 20% less for a day. When Jack loses WAR_LOSSES requests in a
-   row from Tuesday on, he quotes WAR_PRICE times his prices until 18:00, and the ladder learns nothing then. Quote every
+   row from Tuesday on, he quotes WAR_PRICE times his prices until 18:00, and the ladder learns nothing then. The
+   discount does not change which requests he takes, and it comes once a week. Quote every
    option of a request at its list price times the dealer's factor. Leave out an option that gives a driver less
    than MIN_LEAD to reach the car: its deadline, less the drive, less the minute the dealer decides. Decline a
    request with no option left, with a private address (its narrow booked slot makes a quarter of those cars
@@ -74,7 +75,9 @@ NUMBERS = {
 }
 
 
-def jack_prices(request: PriceRequest, factor: float, minutes: dict[tuple[str, str], int]) -> dict[str, int]:
+def jack_prices(
+    request: PriceRequest, factor: float, minutes: dict[tuple[str, str], int], discount: float = 1.0
+) -> dict[str, int]:
     """Rule 1, the price: every option with time for a driver, at its list price times the dealer's `factor`, or
     nothing when no option is left, a car goes from or to a private address, or the driver costs too much.
     `minutes` are the road minutes between places."""
@@ -87,7 +90,7 @@ def jack_prices(request: PriceRequest, factor: float, minutes: dict[tuple[str, s
     private = any(leg["pickup"]["privateAddress"] or leg["delivery"]["privateAddress"] for leg in request["legs"])
     if not prices or private or request["referenceFeeCents"] > MAX_FEE_SHARE * min(prices.values()):
         return {}
-    return prices
+    return {kind: round(cents * discount) for kind, cents in prices.items()}  # the war discount comes last
 
 
 def jack_fees(typical: float, now: int, last_pickup_at: int) -> list[FeeStep]:
@@ -135,8 +138,8 @@ class Desk(root.Desk):
         self.requests[request["id"]] = request
         if self.level <= 3:  # every quote wins up to level 3: no quote needed
             return
-        factor = self.ladder.factor(request["dealerId"]) * (WAR_PRICE if self.ladder.at_war(self.now) else 1.0)
-        prices = jack_prices(request, factor, self.pricing.minutes)
+        discount = WAR_PRICE if self.ladder.at_war(self.now) else 1.0
+        prices = jack_prices(request, self.ladder.factor(request["dealerId"]), self.pricing.minutes, discount)
         if prices:
             self.ladder.quoted[request["id"]] = request["dealerId"]
         else:  # a price far above the list price loses at no cost
@@ -180,7 +183,7 @@ class Ladder:
             return
         self.won, self.lost = self.won + won, self.lost + (not won)
         self.losses_in_a_row = 0 if won else self.losses_in_a_row + 1
-        if self.losses_in_a_row >= WAR_LOSSES and at >= DAY and self.war_day != at // DAY:
+        if self.losses_in_a_row >= WAR_LOSSES and at >= DAY and self.war_day < 0:  # one price war a week
             self.war_day = at // DAY
         if self.war_day == at // DAY and at % DAY < 18 * HOUR:
             return  # the price war teaches nothing about our dealers
