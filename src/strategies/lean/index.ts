@@ -52,6 +52,7 @@ import { awake, BOOK_AHEAD, fast, feeAt, planBy, SHORT, stepped } from './fees.t
 import { loadOrders, type OrderModel, outlook } from './outlook.ts'
 import { Planner } from './planner.ts'
 import { Supply } from './supply.ts'
+import { valueCharge } from './value.ts'
 
 export const DEFAULTS = {
   /** The fee a gig opens at, × typical (fees.ts, `stepped`). It holds it and raises three times over the waking
@@ -192,6 +193,11 @@ export const DEFAULTS = {
   chainRamp: 20,
   /** Chains are posted on the first `chainDays` days of the week: 4 is Monday to Thursday, 5 adds Friday. */
   chainDays: 4,
+  /** Not 0: the charge of `taxLoad` gives way to this × the value table's (value.ts, value.json, fitted by
+   * analysis/lean_value.py): what the order costs the cars booked after it, by the hour of the week and the orders
+   * won so far per driver (dear on Monday, cheap on Friday; at 1 it has the mean of the `taxLoad` charge), and
+   * what it adds to the risk of a week under 90% on time, which grows with the late share so far. */
+  value: 0,
 }
 export type LeanParams = typeof DEFAULTS
 
@@ -285,14 +291,18 @@ class Lean extends Strategy<LeanParams> {
     const options = this.setup.level <= 3 ? request.options.slice(0, 1) : request.options
     const quotes: [OptionKind, number][] = []
     const open = this.openGigs(books)
-    const tax = this.params.tax + this.params.taxLoad * this.load()
+    const tax = this.params.tax + (this.params.value ? 0 : this.params.taxLoad * this.load())
+    const won = this.tally.won / (this.setup.roster.length || MEDIAN_DRIVERS)
     for (const option of options) {
       if (!canServe(request, option, now, context).ok) continue
       if (this.setup.level <= 3) return { [option.kind]: option.listPriceCents }
       const cost = this.cost(request, option, facts, now, open)
       if (cost === null) continue
       const belief = this.demand.belief(this.demand.keys(request, option.kind), this.trustOffset(request.dealerId))
-      const best = bestPrice(belief, option.listPriceCents, cost * (1 + tax) + this.params.taxEuros * 100)
+      const charge = this.params.value
+        ? this.params.value * valueCharge(now, won, lateShare, option.kind, request.referenceFeeCents)
+        : 0
+      const best = bestPrice(belief, option.listPriceCents, cost * (1 + tax) + this.params.taxEuros * 100 + charge)
       if (best === null) continue
       quotes.push([option.kind, Math.round(best)])
     }
