@@ -76,6 +76,7 @@ import {
 } from './cost.ts'
 import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees.ts'
 import { lateRiskOf, newLateRisk } from './late.ts'
+import { pushed, pushFee } from './ontime.ts'
 import { legsOf, WeekLog } from './log.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
 
@@ -282,6 +283,12 @@ export class BidPrice extends Strategy<BidPriceParams> {
     return higher(schedule, urgentRamp(books.now, gig.typicalCents, this.params), this.setup.level)
   }
 
+  /** The `onTimeOps` push fee for an open gig, or 0. */
+  onTimePush(order: Order, gig: { legs: number[]; schedule: FeeStep[] }, _books: Books, now: number): number {
+    const feeGig = this.orderGig(order, gig.legs, false, now)
+    return feeGig ? pushFee(feeGig, feeAt(gig.schedule, now), now, this.params) : 0
+  }
+
   /** Reprices our open gigs that no driver holds and the schedule no longer serves: one dropped since its schedule
    * was set, at once; one whose schedule ended `staleHours` ago, climbing. Not after the deadline warning, which has
    * its own schedule. At most `repriceMax`, the nearest last pickup first, so quotes never wait behind them. */
@@ -292,7 +299,8 @@ export class BidPrice extends Strategy<BidPriceParams> {
       if (!order || books.urgent.has(order.id) || books.booked.has(gigId)) return []
       if (!books.gigsOf(order.id).includes(gigId)) return []
       const ended = (gig.schedule.at(-1)?.at ?? now) + this.params.staleHours * HOUR <= now
-      return gig.dropped || ended ? [{ gigId, gig, order }] : []
+      const push = this.params.onTimeOps && this.onTimePush(order, gig, books, now) > 0
+      return gig.dropped || ended || push ? [{ gigId, gig, order }] : []
     })
     due.sort((a, b) => a.order.lastPickupAt - b.order.lastPickupAt)
     return due.slice(0, this.params.repriceMax).flatMap(({ gigId, gig, order }) => {
@@ -302,7 +310,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
       const { level } = this.setup
       // The brief's way: the fee function again, for a gig drivers have seen, with the time left, never under the
       // fee in the app. Without the solver, the ramp from now above the dropped fee, or a climb.
-      const schedule = this.params.feeSolver
+      const base = this.params.feeSolver
         ? higher(this.plan(feeGig, now).schedule, [{ at: now, feeCents: fee }], level)
         : gig.dropped
           ? higher(
@@ -311,6 +319,8 @@ export class BidPrice extends Strategy<BidPriceParams> {
               level,
             )
           : climb(fee, now, feeGig, this.params, level)
+      const target = pushFee(feeGig, fee, now, this.params)
+      const schedule = target > 0 ? pushed(base, feeGig, target, now, this.params, level) : base
       return schedule.length > 0 && (schedule.at(-1)?.feeCents ?? 0) > fee
         ? [{ type: 'reprice' as const, gigId, schedule }]
         : []
