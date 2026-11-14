@@ -680,9 +680,21 @@ Built behind flags of `bidprice`, all off by default (`src/strategies/bidprice/R
 Offline, a halving at a dealer with 30% of the requests and a count of 25 on Wednesday loses about 91 points over the
 rest of the week, 0.75 of an order's price: a late weight of 2.7 against a refund of 0.43 of the price.
 
-Not played: no online run was allowed in the session that built them. The bench, one run of 24 weeks (baseline
-`board.json` €10,724 on these seeds):
+Played on 2026-11-14, one bench of 24 weeks (`pnpm bench ... --jobs 6`); margin / orders / on time:
 
-```sh
-pnpm bench bidprice:src/strategies/bidprice/board.json bidprice:src/strategies/bidprice/trust-guard.json bidprice:src/strategies/bidprice/trust-focus.json bidprice:src/strategies/bidprice/chains.json bidprice:src/strategies/bidprice/trust-both.json bidprice:src/strategies/bidprice/volume-all.json --level 8 --seeds spread-6,spread-7,spread-8,spread-10
-```
+| Config | spread-6 | spread-7 | spread-8 | spread-10 | Mean | Orders | Lowest on-time |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `board.json` (baseline) | €7,996 / 217 / 96.3% | €11,266 / 375 / 92.8% | €12,996 / 345 / 97.1% | €10,637 / 333 / 91.6% | €10,724 | 318 | 91.6% |
+| `trust-guard.json` | €8,640 / 225 / 98.7% | €11,406 / 353 / 93.8% | €12,925 / 335 / 97.6% | €11,963 / 317 / 94.6% | **€11,234** | 308 | 93.8% |
+| `trust-focus.json` | €8,839 / 266 / 96.6% | €11,248 / 392 / 93.9% | €13,137 / 387 / 96.9% | €9,626 / 337 / 91.1% | €10,712 | 346 | 91.1% |
+| `chains.json` | €8,873 / 232 / 97.4% | €11,083 / 375 / 93.3% | €13,505 / 352 / 97.4% | €10,021 / 350 / 91.4% | €10,871 | 327 | 91.4% |
+| `trust-both.json` | €9,287 / 257 / 98.8% | €10,402 / 383 / 92.7% | €12,724 / 374 / 98.4% | €11,591 / 322 / 94.7% | €11,001 | 334 | 92.7% |
+| `volume-all.json` | €9,309 / 262 / 98.9% | €11,847 / 390 / 93.8% | €11,450 / 366 / 96.2% | €10,818 / 342 / 93.6% | €10,856 | 340 | 93.6% |
+
+Readings (a four-seed mean moves about ±€400):
+- `trustGuard` is the one gain: +€510 on the mean with 10 fewer orders, and the lowest on-time share up from 91.6% to
+  93.8%. It weighed 180–305 gigs a week at a late weight of 1.8–2.8.
+- The focused discount wins 28 more orders a week for the same margin (−€12): the bought orders are thin, as before.
+- Chains book (41–49 of 54–90 posted a week, at 0.92–0.98 × typical) but move the mean only +€147, inside the noise.
+- The ideas do not add up: both trust ideas +€277, all three +€132.
+- The baseline replayed to the euro on all four seeds, so the merged code decides as before with the flags off.
