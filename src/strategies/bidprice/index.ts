@@ -97,6 +97,8 @@ export class BidPrice extends Strategy<BidPriceParams> {
   readonly pairs: Pairs | null
   /** Each pair gig of ours with its first order's share of the fee, so the learners split its fee across its cars. */
   readonly twins = new Map<string, number>()
+  /** The pair cut of the request being quoted (1 without `pairs`). */
+  private pairCut = 1
   /** The latest minute an event or action has told, for the summary. */
   private now = 0
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
@@ -139,6 +141,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
 
   /** Design 1: each option we offer at the price that maximises (p − c) × W(p); a decline when none pays. */
   quote(request: PriceRequest, books: Books): Prices | null {
+    this.pairCut = this.pairs ? this.pairs.costFactor(request, books) : 1
     const decision = this.decide(request, books.now)
     this.audit(request, books.now, decision)
     return decision.decline ? null : decision.prices
@@ -231,7 +234,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   costOf(request: PriceRequest, option: DeliveryOption, now: number): number {
     const { fee, late } = this.costParts(request, option, now)
     const risk = this.params.lateRisk ? this.riskOf(request, option, now) * this.params.lateRiskCents : 0
-    return (fee + late) * this.params.costScale + risk
+    return ((fee + late) * this.params.costScale + risk) * this.pairCut
   }
 
   /** The late share the late-risk table predicts for this option if we win it now. */

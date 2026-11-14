@@ -11,6 +11,7 @@ import type {
   FeeStep,
   Order,
   PostAction,
+  PriceRequest,
 } from '../../../vendor/spread-typescript/spread.ts'
 import { feeAt } from '../../models/fees/plan.ts'
 import { HOUR, minutes } from '../../ops/index.ts'
@@ -19,7 +20,10 @@ import { road } from '../../ops/map.ts'
 import type { Books, Setup } from '../../strategy.ts'
 import type { BidPriceParams } from './params.ts'
 
-type PairParams = Pick<BidPriceParams, 'pairChains' | 'pairKm' | 'pairOpen' | 'pairSlackHours' | 'pairGiveUpHours'>
+type PairParams = Pick<
+  BidPriceParams,
+  'pairChains' | 'pairCostCut' | 'pairKm' | 'pairOpen' | 'pairSlackHours' | 'pairGiveUpHours'
+>
 
 /** The orders a post carries. */
 export const ordersOf = (post: Pick<PostAction, 'stops'>): string[] => [
@@ -72,7 +76,19 @@ export function sumSchedules(list: FeeStep[][], now: number, k: number, level: n
 }
 
 export class Pairs {
-  readonly tally = { found: 0, posted: 0, booked: 0, split: 0, pairedPaid: 0, pairedTypical: 0 }
+  readonly tally = {
+    found: 0,
+    posted: 0,
+    booked: 0,
+    split: 0,
+    pairedPaid: 0,
+    pairedTypical: 0,
+    cut: 0,
+    cutWon: 0,
+    cutPaired: 0,
+  }
+  /** The requests quoted with the pair cut. */
+  readonly cutIds = new Set<string>()
 
   readonly setup: Setup
   readonly params: PairParams
@@ -84,6 +100,7 @@ export class Pairs {
 
   /** Counts the pairs that drivers book, with their fee over the two cars' typical fees. */
   observe(event: DeskEvent, books: Books): void {
+    if (event.kind === 'order_won' && this.cutIds.has(event.order.id)) this.tally.cutWon++
     if (event.kind !== 'gig_booked') return
     const post = books.posts.get(event.gigId)
     if (!post || ordersOf(post).length < 2) return
@@ -94,7 +111,11 @@ export class Pairs {
 
   sent(action: Action, result: ActionResult, books: Books): void {
     if (!result.ok) return
-    if (action.type === 'post' && ordersOf(action).length >= 2) this.tally.posted++
+    if (action.type === 'quote' && this.cutIds.has(action.requestId)) this.tally.cut++
+    if (action.type === 'post' && ordersOf(action).length >= 2) {
+      this.tally.posted++
+      this.tally.cutPaired += ordersOf(action).filter((id) => this.cutIds.has(id)).length
+    }
     if (action.type === 'withdraw') {
       const post = books.posts.get(action.gigId)
       if (post && ordersOf(post).length >= 2) this.tally.split++
@@ -152,10 +173,36 @@ export class Pairs {
     return actions
   }
 
+  /** The quote side: 1 − `pairCostCut` for a one-car request that would make a round trip with one of our open
+   * one-car orders that no driver holds, by places and the 12-hour rule; 1 otherwise. */
+  costFactor(request: PriceRequest, books: Books): number {
+    const cut = this.params.pairCostCut
+    const lr = request.legs[0]
+    if (cut <= 0 || request.legs.length !== 1 || !lr) return 1
+    const map = this.setup.map
+    const now = books.now
+    const driveR = minutes(map, lr.pickup.placeId, lr.delivery.placeId)
+    for (const order of books.orders.values()) {
+      const lo = order.legs[0]
+      const gigs = books.gigsOf(order.id)
+      if (!lo || order.legs.length !== 1 || gigs.length !== 1 || books.booked.has(gigs[0]!)) continue
+      if (books.urgent.has(order.id) || order.deliveredAt[0] != null) continue
+      if (order.lastPickupAt < now + (this.params.pairGiveUpHours + 2) * HOUR) continue
+      if (!this.near(lo.delivery.placeId, lr.pickup.placeId) || !this.near(lr.delivery.placeId, lo.pickup.placeId))
+        continue
+      const driveO = minutes(map, lo.pickup.placeId, lo.delivery.placeId)
+      if (driveO + minutes(map, lo.delivery.placeId, lr.pickup.placeId) + driveR > MAX_SHARED_DRIVE) continue
+      this.cutIds.add(request.id)
+      return 1 - cut
+    }
+    return 1
+  }
+
   summary(): string {
     const { found, posted, booked, split, pairedPaid, pairedTypical } = this.tally
     const ratio = pairedTypical > 0 ? (pairedPaid / pairedTypical).toFixed(2) : 'n/a'
-    return `pairs found ${found}, posted ${posted}, booked ${booked} (${ratio} × typical), split ${split}`
+    const { cut, cutWon, cutPaired } = this.tally
+    return `pairs found ${found}, posted ${posted}, booked ${booked} (${ratio} × typical), split ${split}, cut quotes ${cut}, won ${cutWon}, paired ${cutPaired}`
   }
 
   /** Places within `pairKm`: by road, or the same place. */
