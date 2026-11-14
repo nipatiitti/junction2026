@@ -920,8 +920,8 @@
     "ts:lean": {
       "file": "src/dispatch.ts --strategy lean",
       "fingerprint": "2504c689f590ec7f",
-      "world_id": "wb38bb14fa72cb7bc227b",
-      "played_at": "2026-11-14T15:44:32+0000",
+      "world_id": "w67d4cc6984d1b623a869",
+      "played_at": "2026-11-14T15:54:12+0000",
       "score": {
         "marginCents": 1416393,
         "revenueCents": 3333434,
