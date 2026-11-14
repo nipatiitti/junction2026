@@ -68,9 +68,11 @@ def load_week(folder: Path) -> Week:
 
 
 def find_weeks(roots: Iterable[Path]) -> Iterator[Path]:
+    """The folders of the saved weeks. A folder of the prober (`sim/prober.ts`, as under `data/scrape/probe2`) has a
+    `meta.json` too, but no snapshot: it is not a saved week, so it is skipped."""
     for root in roots:
         for meta in sorted(root.rglob("meta.json")):
-            if not meta.parent.name.endswith(".partial"):
+            if not meta.parent.name.endswith(".partial") and (meta.parent / "snapshot.json.gz").exists():
                 yield meta.parent
 
 
