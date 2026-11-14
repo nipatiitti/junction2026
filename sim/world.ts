@@ -30,22 +30,27 @@ export const PRM = {
   level: [1.26, 1.54],
   thrBase: 0.925,
   daySd: 0.1,
-  laneSd: 0.14,
+  laneSd: 0.06,
   dealerSd: 0.04,
-  reqSd: 0.04,
+  reqSd: 0.1,
   optSd: 0.14,
   distK: 0.1,
-  optF: { same_day: 1.09, next_day: 1.0, within_3_days: 0.96 } as Record<string, number>,
-  trustStep: 0.0115,
-  latePenalty: 0.017,
-  onTimeHeal: 0.002,
+  optF: { same_day: 1.145, next_day: 1.0, within_3_days: 0.96 } as Record<string, number>,
+  hourLate: 0.04,
+  hourEarly: -0.02, // requests from 15:00 are accepted about 6% higher than morning ones
+  // 2.58M recorded quotes with a dealer effect per week: trust 1.09 x the rule's 1% (so the rule), -2.1% per late order, on-time orders win almost nothing back
+  trustStep: 0.01,
+  latePenalty: 0.021,
+  onTimeHeal: 0.001,
   unquotedPenalty: 0.002,
-  compStep: 0.03,
-  compMax: 2,
-  compHi: 0.6,
-  compLo: 0.25,
+  // the competitor's answer, per dealer: each morning one step down in what the dealer accepts from us when we won over 55% of
+  // its requests the day before, one step up when under 30% (3+ requests); log effect by net steps -3..+3
+  compHi: 0.55,
+  compLo: 0.3,
+  compMax: 3,
+  compF: [0.196, 0.161, 0.094, 0, -0.071, -0.106, -0.137],
   war: 0.8,
-  outage: 1.3,
+  outage: 1.35,
   // ---- drivers: who works
   pWork: 0.5,
   pWorkSat: 0.18,
@@ -100,6 +105,8 @@ export const PRM = {
   pNearOff: 0.03,
   bundleF: 0.9,
   dropLong: 0.0015,
+  gigMix: [0.62, 0.3, 0.07, 0.01],
+  homeLook: 0.35,
 }
 const PFILE = process.env.SIM_PARAMS ?? import.meta.dirname + '/params.json'
 if (existsSync(PFILE)) Object.assign(PRM, JSON.parse(readFileSync(PFILE, 'utf8')))
@@ -179,6 +186,9 @@ export function packFor(seed: string) {
   }
   return PACKS[name]
 }
+const LANES = existsSync(import.meta.dirname + '/lanes.json')
+  ? JSON.parse(readFileSync(import.meta.dirname + '/lanes.json', 'utf8'))
+  : null // the lane factor's part that holds in every world
 const snowAt = (P: any, place: string, t: number) =>
   P.snow.some((s: any) => t >= s.from && t < s.to && s.places.has(place))
 
@@ -287,7 +297,7 @@ export function createWorld(seed: string, level = 8): any {
         works,
         from: Math.round(from),
         to: Math.round(dj && wd < 5 ? 1320 + rnd(W) * 60 : 960 + rnd(W) * 330),
-        max: 1 + Math.floor(PRM.maxGigs * rnd(W) ** 3),
+        max: gigLimit(rnd(W)),
       })
     }
     W.drivers.push({
@@ -408,7 +418,11 @@ function thresholds(W: any, req: any): Record<string, number> {
         PRM.dealerSd * hn(W.seed + 'dl' + req.dealerId) +
         PRM.reqSd * hn(W.seed + 'rq' + req.id),
     )
-  f *= (1 + PRM.trustStep * D.trust) * (1 - D.sat) * (1 - PRM.compStep * D.comp)
+  f *=
+    (1 + PRM.trustStep * D.trust) *
+    (1 - D.sat) *
+    Math.exp(PRM.compF[D.comp + 3] + (m >= 900 ? PRM.hourLate : PRM.hourEarly))
+  if (LANES) f *= Math.exp((LANES.pickup[pu] ?? 0) + (LANES.delivery[de] ?? 0))
   if (m >= 480 && m < 1080) {
     if (d === H.warDay) f *= PRM.war
     if (d === H.outDay && crow(pu, H.outTown) <= 80) f *= PRM.outage
@@ -419,7 +433,7 @@ function thresholds(W: any, req: any): Record<string, number> {
       o.listPriceCents *
       f *
       PRM.optF[o.kind] *
-      Math.exp(PRM.distK * Math.max(-1, Math.min(0.6, Math.log(o.listPriceCents / 5500)))) *
+      (LANES ? 1 : Math.exp(PRM.distK * Math.max(-1, Math.min(0.6, Math.log(o.listPriceCents / 5500))))) *
       Math.exp(PRM.optSd * hn(W.seed + 'op' + req.id + o.kind))
   return out
 }
@@ -660,6 +674,13 @@ function notify(W: any, g: any) {
     if (rnd(W) < (d.days[day(at)]?.works || d.days[pd]?.works ? PRM.notifRead : PRM.notifReadOff))
       push(W, { t: at + 1 + rexp(W, 4), k: 'look', d: i, g: g.id, src: 'notif' })
   }
+  // drivers who live where the gig ends are not notified, yet they find it within minutes: it takes them home
+  const p0 = place(W, g.stops[0])
+  for (const i of P.near[place(W, g.stops[g.stops.length - 1])]) {
+    const d = W.drivers[i]
+    if (crow(d.home, p0) <= 30 || !d.days[pd]?.works) continue
+    if (rnd(W) < PRM.homeLook) push(W, { t: at + 1 + rexp(W, 8), k: 'look', d: i, g: g.id, src: 'home' })
+  }
 }
 
 function doPost(W: any, a: any) {
@@ -755,6 +776,16 @@ function schedErr(s: any): string | null {
 }
 
 // ---------- drivers ----------
+// how many gigs a driver wants in a day (recorded weeks: executed gigs per driver-day are 1: 75%, 2: 22%, 3+: 3%)
+function gigLimit(u: number): number {
+  let n = 1
+  for (const p of PRM.gigMix) {
+    if (u < p) return n
+    u -= p
+    n++
+  }
+  return n
+}
 function nextLook(W: any, d: any, t: number): number {
   for (let n = 0; n < 50; n++) {
     const D = day(t)
@@ -779,6 +810,7 @@ function plan(W: any, d: any, g: any): any {
   for (let D = day(first); D <= Math.min(day(w0.to), day(first) + 3, 9); D++) {
     const dd = d.days[D]
     if (!dd.works || (D > today + 2 && !d.knows)) continue
+    if (D % 7 === 5 && D !== today && !d.knows) continue // Saturday work is decided on Saturday
     // today most drivers have already given their day to other work; ours (chained) are still around
     const ours = d.locDay === today || d.busy.some((x: any) => x.D === D)
     if (D === today && !ours && h(W.seed + d.id + 'td' + D) > PRM.pToday) continue
@@ -874,7 +906,10 @@ function plan(W: any, d: any, g: any): any {
       PRM.wLate * Math.max(0, end + ptHome - (D * 1440 + dd.to)) +
       extras
     if (chain)
-      cost -= PRM.wPt * (road(loc, d.home).minutes * PRM.ptF + PRM.ptFix) + PRM.ticketDear * road(loc, d.home).km
+      cost -=
+        PRM.costFix +
+        PRM.wPt * (road(loc, d.home).minutes * PRM.ptF + PRM.ptFix) +
+        PRM.ticketDear * road(loc, d.home).km
     for (const s of cars(g)) cost += (s.withPlates ? PRM.exPlates : 0) + (s.withCharging ? PRM.exCharge : 0)
     if (cars(g).length > 1) {
       if (g.orderIds.length === 1) cost += PRM.exTrade
@@ -1305,8 +1340,8 @@ function morning(W: any) {
       if (s > PRM.compHi) D.comp = Math.min(PRM.compMax, D.comp + 1)
       else if (s < PRM.compLo) D.comp = Math.max(-PRM.compMax, D.comp - 1)
     }
-    D.won *= 0.5
-    D.n *= 0.5
+    D.won = 0
+    D.n = 0 // yesterday's requests only
   }
 }
 
