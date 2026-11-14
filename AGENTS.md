@@ -243,6 +243,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the flu-guard week: `uv run strategies/flu_guard/dispatch.py --level 8 --seed spread-1`
 - Play the all-in week: `uv run strategies/all_in/dispatch.py --level 8 --seed spread-1`
 - Play the radar-broker week: `uv run strategies/radar_broker/dispatch.py --level 8 --seed spread-1`
+- Play the radar-broker lift-only week: `uv run strategies/radar_broker/lift_only.py --level 8 --seed spread-1`
 - Play the slack-budget week: `uv run strategies/slack_budget/dispatch.py --level 8 --seed spread-1`
 - Play the snow-aware week: `uv run strategies/snow_aware/dispatch.py --level 8 --seed spread-1`
 - Measure the lead-cost table: `uv run python -m strategies.lead_cost.fit`
