@@ -80,3 +80,41 @@ a booking a minute earlier changes which driver is free for the next car, and th
 
 Against `headroom`, the lower top made €1,634 more over the three weeks, and more on each seed (+€626, +€438, +€570):
 the only one of the four additions that is ahead on all three.
+
+## A series of 22 weeks
+
+`soft_top` on `spread-1` to `spread-22`, level 8, one week each, saved under the policy `soft-top`:
+
+| Seed | Margin | Orders | On time | Ranked |
+| ---- | ------ | ------ | ------- | ------ |
+| `spread-1` | €13,297.12 | 358 | 98.9% | yes |
+| `spread-2` | €9,816.59 | 299 | 97.7% | yes |
+| `spread-3` | €5,297.53 | 231 | 98.3% | yes |
+| `spread-4` | €13,658.73 | 348 | 98.6% | yes |
+| `spread-5` | €7,161.91 | 284 | 93.7% | yes |
+| `spread-6` | €8,593.70 | 235 | 98.7% | yes |
+| `spread-7` | €10,709.46 | 303 | 98.0% | yes |
+| `spread-8` | €13,130.54 | 353 | 98.9% | yes |
+| `spread-9` | €14,054.62 | 294 | 98.3% | yes |
+| `spread-10` | €11,327.90 | 294 | 98.0% | yes |
+| `spread-11` | €9,276.08 | 267 | 97.4% | yes |
+| `spread-12` | €12,531.29 | 376 | 93.6% | yes |
+| `spread-13` | €9,952.94 | 254 | 98.4% | yes |
+| `spread-14` | €9,055.44 | 272 | 98.9% | yes |
+| `spread-15` | €9,920.60 | 320 | 96.2% | yes |
+| `spread-16` | €15,360.98 | 373 | 95.2% | yes |
+| `spread-17` | €13,268.32 | 318 | 99.7% | yes |
+| `spread-18` | €11,949.95 | 337 | 95.8% | yes |
+| `spread-19` | €14,720.82 | 344 | 96.8% | yes |
+| `spread-20` | €13,251.67 | 325 | 96.9% | yes |
+| `spread-21` | €10,588.55 | 340 | 88.5% | no |
+| `spread-22` | €11,069.83 | 333 | 96.1% | yes |
+| **Mean** | **€11,272.48** | 312 | | 21 of 22 |
+
+The mean week makes €11,272. 9 of the 22 weeks are over €12,000, 14 over €10,000, and the weeks run
+from €5,298 to €15,361: the world decides more than the system. For comparison, in the level 8 ranking round
+"Saturday 09:00" the leading team's five weeks made €10,735 to €20,883, and the organisers' own system €12,225 to
+€15,491 in the round before.
+
+The week on `spread-21` is not ranked: 88.5% of its orders were on time. It is the week of the flu on a Friday with
+101 orders due; [`strategies/flu_guard`](../flu_guard/README.md) is the answer to it.
