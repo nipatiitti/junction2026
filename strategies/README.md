@@ -15,7 +15,7 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`lead_cost/`](lead_cost/README.md) | `LeadCostAdmission` | Which requests to take, by lead time, for `headroom` and up     |
 | [`lane_fee/`](lane_fee/README.md)   | `LaneFee`           | A lane's typical fee without one request's noise, for the same  |
 
-Thirty-five folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Thirty-six folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                                              |
@@ -53,6 +53,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`opening_offers/`](opening_offers/README.md)     | `OpeningOffers`                        | Direct offers to nearby homes from a gig's first post, at the chain-offer fee           |
 | [`home_return/`](home_return/README.md)           | `HomeReturnFees`                       | A discounted fee where many drivers live at the delivery town                           |
 | [`adaptive_fees/`](adaptive_fees/README.md)       | `AdaptiveFees`                         | Cheaper fees while the running on-time share is above 95%, normal fees below it         |
+| [`hazard_fee/`](hazard_fee/README.md)             | `HazardFeePlanner`                     | Headroom, opening at the cheapest fee whose observed booking hazard meets a target      |
 | [`hazard_admission/`](hazard_admission/README.md) | `LeadCostAdmission`                    | The root system with admission's driver cost fitted by lead time                        |
 | [`ifs/`](ifs/README.md)                           | `IfRules`, `IfFees`                    | Plain if rules with every number in one file, and a search that plays for better ones   |
 
