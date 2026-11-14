@@ -191,15 +191,16 @@ same seeds, mean margin a week. The simulator agrees with the server on the winn
 for gaps of €500 to €1,500 and in all cases above that; it does not rank on-time shares, is too gentle on overload
 and is unreliable on fee timing. **None of this is confirmed on the server yet.**
 
-| Change                                                            | Margin            | Orders    | On time      | Against                        |
-| ----------------------------------------------------------------- | ----------------- | --------- | ------------ | ------------------------------ |
-| Old defaults (`capacity` 0.4, `gain` 0.02, `noise` 0.08, no hold) | €15,251           | 246       | 96.8%        |                                |
-| `target` 0.45 / 0.6                                               | €15,761 / €14,829 | 332 / 402 | 96.6 / 95.7% | old: +€604 ± 187 / −€328 ± 262 |
-| No capacity charge, `noise` 0.08                                  | €12,740           | 482       | 93.6%        | old: −€2,416 ± 347             |
-| No capacity charge, `noise` 0.28                                  | €16,213           | 297       | 96.7%        | old: +€1,057                   |
-| … and `holdHours` 2 (chain first)                                 | €17,039           | 296       | 97.0%        | row above: +€826 ± 150         |
-| … and the booking cost learned per car (**the new defaults**)     | €17,432           | 328       | 96.8%        | old: +€2,181 ± 186, 38 of 40   |
-| … and `spread`                                                    | €18,602           | 367       | 94.3%        | new: +€1,170 ± 198, 2 unranked |
+| Change                                                                                  | Margin            | Orders    | On time      | Against                          |
+| --------------------------------------------------------------------------------------- | ----------------- | --------- | ------------ | -------------------------------- |
+| Old defaults (`capacity` 0.4, `gain` 0.02, `noise` 0.08, no hold)                       | €15,251           | 246       | 96.8%        |                                  |
+| `target` 0.45 / 0.6                                                                     | €15,761 / €14,829 | 332 / 402 | 96.6 / 95.7% | old: +€604 ± 187 / −€328 ± 262   |
+| No capacity charge, `noise` 0.08                                                        | €12,740           | 482       | 93.6%        | old: −€2,416 ± 347               |
+| No capacity charge, `noise` 0.28                                                        | €16,213           | 297       | 96.7%        | old: +€1,057                     |
+| … and `holdHours` 2 (chain first)                                                       | €17,039           | 296       | 97.0%        | row above: +€826 ± 150           |
+| … and the booking cost learned per car                                                  | €17,432           | 328       | 96.8%        | old: +€2,181 ± 186, 38 of 40     |
+| … and the cost learned by place and by today's pickups (`supply`, **the new defaults**) | €18,200           | 362       | 96.6%        | row above: +€769 ± 161, 32 of 40 |
+| … and `spread`                                                                          | €18,917           | 384       | 94.4%        | new: +€717 ± 223, 1 unranked     |
 
 What they showed:
 
@@ -207,19 +208,22 @@ What they showed:
   fell from €63 to €37 between 242 and 402 orders, at the same cost per order.
 - **The win model was too sure.** With a noise of 0.08 it saw a steep win curve and priced low once the capacity
   charge was gone. With 0.28 the best price needs no charge and no controller (0.22 and 0.33 are both worse).
+- **The cost of a booking differs by place more than by order** (`supply.ts`). One cost ratio for the week bids
+  the same on a car that ends where drivers live and on one that ends where none do. Learning the ratio by pickup
+  place, delivery place and today's pickups during the week wins 34 more orders at the same on-time share. More
+  effects in it (order size, weekday, lane) add nothing.
 - **Chain first.** A new car that waits up to 2 hours for a partner lifts the chained cars from about 55 to about
   200 of 300 a week, at 0.69 × typical; 4 hours loses €780.
 - **Did nothing measurable, and are not in the code:** choosing chains by their chance to book (from driving time,
   trip home and drivers at the end town), limits on a chain's driving time and trip home, several chain tries per
-  car, the dealer tables (towns, hour, order size, the competitor's daily answer). **Lost:** bidding lower for a
-  dealer's trust (−€800 to −€1,100), `overhead` 0.12, `minHours` 2.
+  car, the dealer tables (towns, hour, order size, the competitor's daily answer). **Lost or flat:** bidding lower for a dealer's trust (−€800 to −€1,100), `overhead` 0.12, `minHours` 2, the model's middle at 1.3 or 1.5, `trust` 0.4 or 1, a flat charge per order, `minMargin` 1.15, `holdHours` 1.5 or 3, `maxCars` 3, `chainBid`.
 - **`spread` is the open question.** It cuts the fees of short-lead cars, which the old schedule opened at up to
   1.55 × typical, but 2.5 points more orders are late, and the simulator is weakest exactly there.
 
 ## Params
 
 `target` 0.3, `capacity` 0 (its start), `gain` 0, `noise` 0.28, `flatShare` 0.5, `flatEuros` 60, `open` 0.88, `jitter` 1, `spread` false,
-`premium` 3, `privateAddress` 0.25, `feeRatio` 0.84, `overhead` 0.06, `minHours` 4, `minMargin` 1.05, `trust` 0.7,
+`premium` 3, `privateAddress` 0.25, `feeRatio` 0.84, `supply` true, `overhead` 0.06, `minHours` 4, `minMargin` 1.05, `trust` 0.7,
 `feeBrake` 1.5, `lateSoft` 0.04, `lateHard` 0.05, `openGigs` 40, `urgentTop` 2, `lateTop` 1.7, `chains` true,
 `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `chainHours` 5, `holdHours` 2, `chainPatience` 0, `chainBid` false,
 `pairCharge` 1. Override one

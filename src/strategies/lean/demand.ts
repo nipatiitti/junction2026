@@ -37,9 +37,9 @@ export class Demand {
   /** The noise that stays in one request's threshold, as a logistic scale in log price. */
   private readonly noise: number
 
-  constructor(level: number, noise: number, middle = MIDDLE(level)) {
+  constructor(level: number, noise: number) {
     this.noise = noise
-    this.base = Math.log(level >= 8 ? middle : MIDDLE(level))
+    this.base = Math.log(MIDDLE(level))
   }
 
   /** The effects that an option of a request sums. */
