@@ -260,6 +260,7 @@ class Version:
     label: str
     file: Path
     worktree: Path | None = None  # the temporary worktree of a git ref, removed at the end
+    args: tuple[str, ...] = ()  # more options for the file's command line, such as the values file of strategies/ifs
 
 
 def split_ref(spec: str) -> tuple[str, str]:
@@ -270,7 +271,7 @@ def split_ref(spec: str) -> tuple[str, str]:
 
 def command(version: Version, seed: str, level: int) -> list[str]:
     """The command that plays one practice week. Never a ranking run or a final: those need the team's approval."""
-    return [sys.executable, str(version.file), "--level", str(level), "--seed", seed]
+    return [sys.executable, str(version.file), "--level", str(level), "--seed", seed, *version.args]
 
 
 def git(*args: str, cwd: Path | None = None) -> str:
