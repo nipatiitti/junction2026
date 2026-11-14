@@ -2,17 +2,27 @@ import * as THREE from 'three'
 import { renderMix } from './audio/mix.js'
 import { cueSheet, voiceNames } from './audio/score.js'
 import { exportMp4 } from './export.js'
-import { drawHeader, drawSafeAreas } from './kit/text.js'
-import { FPS, HEADER, HEIGHT, SEGMENTS, WIDTH } from './timeline.js'
-import { VIEWS } from './views/index.js'
+import { FPS } from './timeline.js'
+import { VIDEOS } from './videos.js'
 
 // The player: builds each view when it is first needed, draws any time of the video, plays it with its sound,
 // seeks and exports. The view and the time live in the address (#view=scene1&t=3.200), so a reload comes back to
-// the same frame. The sound of the whole video is rendered once when the page loads (see audio/), and the same
-// sound plays in the preview and goes into the MP4.
+// the same frame; ?video=lean before it picks the video (videos.js). The sound of the whole video is rendered once
+// when the page loads (see audio/), and the same sound plays in the preview and goes into the MP4.
+
+const chosen = new URLSearchParams(location.search).get('video')
+const videoId = chosen in VIDEOS ? chosen : 'joke'
+const video = VIDEOS[videoId]
+document.title = `${video.title} player`
+const WIDTH = video.width
+const HEIGHT = video.height
 
 const $ = (id) => document.getElementById(id)
 const out = $('out')
+out.width = WIDTH
+out.height = HEIGHT
+out.style.aspectRatio = `${WIDTH} / ${HEIGHT}`
+if (WIDTH > HEIGHT) Object.assign(out.style, { width: '100%', height: 'auto', maxHeight: '100%' })
 const g = out.getContext('2d')
 const status = (text) => {
   $('status').textContent = text
@@ -28,7 +38,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping
 renderer.toneMappingExposure = 1.05
 
 let total = 0
-const segments = SEGMENTS.map((segment) => {
+const segments = video.segments.map((segment) => {
   const placed = { ...segment, start: total }
   total += segment.duration
   return placed
@@ -36,7 +46,7 @@ const segments = SEGMENTS.map((segment) => {
 
 const built = new Map()
 function view(segment) {
-  if (!built.has(segment.id)) built.set(segment.id, VIEWS[segment.view].build(segment))
+  if (!built.has(segment.id)) built.set(segment.id, video.views[segment.view].build(segment))
   return built.get(segment.id)
 }
 
@@ -49,8 +59,8 @@ function draw(time, { guides = true } = {}) {
   renderer.render(v.scene, v.camera)
   g.drawImage(glCanvas, 0, 0)
   v.overlay?.(g, t)
-  drawHeader(g, HEADER)
-  if (guides && $('safe').checked) drawSafeAreas(g)
+  video.chrome(g, { segment, t, time, segments, total })
+  if (guides && $('safe').checked) video.guides(g)
   return { segment, t }
 }
 
@@ -71,7 +81,7 @@ let sound = null
 
 async function prepareSound() {
   status('sound: rendering…')
-  const cues = cueSheet(segments)
+  const cues = cueSheet(segments, video.views, video.styles)
   const files = await fetch('/voices')
     .then((response) => response.json())
     .catch(() => [])
@@ -189,12 +199,19 @@ function tick(now) {
 }
 
 function fillMenu() {
+  const videos = $('video')
+  for (const [id, { title }] of Object.entries(VIDEOS)) videos.add(new Option(title, id))
+  videos.value = videoId
   const menu = $('view')
   menu.add(new Option(`All (${total.toFixed(1)} s)`, 'all'))
   for (const s of segments) menu.add(new Option(`${s.id} · ${s.big ?? s.view} (${s.duration} s)`, s.id))
   menu.value = state.view
 }
 
+// Another video is another page: its views, its sound and its address start fresh.
+$('video').onchange = (e) => {
+  location.href = `${location.pathname}?video=${e.target.value}`
+}
 $('view').onchange = (e) => {
   state.view = e.target.value
   seek(range()[0])
@@ -244,7 +261,7 @@ async function render(id, { saveTo } = {}) {
       fps: FPS,
       draw: (time) => draw(time, { guides: false }),
       audio: audioMix,
-      name: `joke-video-${id}.mp4`,
+      name: `${video.file}-${id}.mp4`,
       saveTo,
       onProgress: (k) => status(`rendering ${Math.round(k * 100)} %`),
     })
@@ -289,6 +306,7 @@ const soundReady = prepareSound().catch((error) => {
 // For checks from the console: player.frame('scene2', 3.2) draws that frame of that view, without the guides;
 // await player.sound() gives the rendered mix; await player.render('card1', { saveTo: 'out' }) renders to video/out/.
 window.player = {
+  video: videoId,
   segments,
   frame: (id, t) => draw((segments.find((s) => s.id === id)?.start ?? 0) + t, { guides: false }),
   sound: () => soundReady,
