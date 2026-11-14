@@ -29,6 +29,28 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-14: straightening (PR #330, issue #335)
+
+- **Version changed**: TypeScript.
+- **What changed**: state rebuilt from the events and the journal; one rule for when a chain may be open, and a
+  bounded chain search; one cost level (`costLevel` 0.98, the order model's mean is 1, the supply learns what the
+  model leaves); one fee schedule timed by the drivers' planning and one urgent climb, in waking minutes; constants
+  named or made params; `overhead`, `minMargin`, `spread` and `chainHours` removed. Results:
+  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#straightening-14-november-night-335).
+- **In step**: no (#329). `strategies/lean/order.json` is on purpose not the copy of the TypeScript file now: the
+  new file's `meanCost` is the model's mean, which the Python code would read as a cost 8% higher. Copy it when the
+  Python code has `costLevel`.
+
+### 2026-11-14: clean-up and the fixes of the open problems (issue #320)
+
+- **Version changed**: TypeScript.
+- **What changed**: the cost weights of `order.json` are fitted again on 11,108 server orders (both copies of the
+  file, so the Python version prices by them too); only chains that book are posted and a car waits only for such a
+  chain; `chainPatience` 1; a gig whose raises are over opens at `lateOpen` 1.25 × typical; the early fee's unit
+  mix-up (#327) is fixed; the dead params and `offers.ts` are removed. Details and results:
+  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#clean-up-and-the-fixes-of-the-open-problems-14-november-night-320).
+- **In step**: no. The Python version has the new `order.json` and the old code; #329 brings it up to date.
+
 ### 2026-11-14: Python port (PR #326, issue #323)
 
 - **Version changed**: Python (new).
