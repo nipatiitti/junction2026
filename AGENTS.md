@@ -272,6 +272,10 @@ on one line, so two PRs that each add a command do not conflict.
 - Write an ended week to CSV: `uv run spread-reveal-csv <world id>`
 - Measure the note reader: `uv run python -m strategies.notes.check reveal-<world id>`
 - Compare two versions: `uv run python -m strategies.bench dispatch.py origin/main`
+- Play immediate return-leg experiment E1: `uv run strategies/return_legs/dispatch.py --level 8 --seed spread-1`
+- Play cheap-solo then chain experiment E2: `uv run strategies/solo_chain/dispatch.py --level 8 --seed spread-1`
+- Play the density-informed chain experiment E3: `uv run strategies/informed_chain/dispatch.py --level 8 --seed spread-1`
+- Fit E3's city/time priors: `uv run python -m strategies.informed_chain.priors_fit --db out/spread.sqlite`
 - Play a mix of the changes built on ceiling: `uv run strategies/tournament/mix.py --layers slack_fees,tempo --level 8 --seed spread-1`
 - See what a tournament would play (plays nothing): `uv run python -m strategies.tournament --plan`
 - Play the tournament of ceiling's layers: `uv run python -m strategies.tournament --seeds spread-1..spread-3`
