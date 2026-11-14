@@ -298,12 +298,38 @@ On top of the current defaults, ten server seeds (the five above and five fresh 
 The simulator had it €388 ± 176 behind with the same gain in orders and on-time share: it counts a late order too
 cheaply.
 
+## Early trust on Monday
+
+Monday orders earn about €30 each against €38 on Tuesday and €44 mid-week (six tournament seeds): the drivers cost no
+more, but the dealers accept about 1.23 × list against 1.36. Two thirds of Monday's requests are for cars that are not
+ready until Tuesday or later, so winning them sooner changes nothing about when they arrive. The lever is the others:
+orders that arrive on Monday with a car ready on Monday, whose delivery would start their dealer's trust a day sooner.
+
+`earlyFee` (0 = off) posts those gigs at once at `earlyFee` × typical and climbs 5% every 30 minutes, without waiting
+for a chain partner or joining one. `earlyValue` also tried quoting those requests lower, and is removed.
+
+On the offline simulator, 40 seeds paired against the defaults: every variant lost, `earlyFee` 1.0 by €206 a week and
+the lower price by €152 to €417. On the server, the same defaults' saved weeks on the six tournament seeds
+(€15,093 a week), all weeks ranked:
+
+| Variant (off by default) | Margin vs default | se | Ahead | Orders | Delivered Monday | By Tue 12:00 | Late |
+| ------------------------ | ----------------: | ---: | ----: | -----: | ---------------: | -----------: | ---: |
+| `earlyFee` 1.0           |              +€419 | €284 | 5 of 6 | 369 → 365 | 1.0 → 9.2 | 15.5 → 24.8 | 8.7 → 6.5 |
+| `earlyValue` €10         |               −€78 | €436 | 3 of 6 | 369 → 374 | 1.0 → 3.0 | 15.5 → 22.8 | 8.7 → 8.2 |
+| both, `earlyFee` 1.2     |               −€48 | €484 | 3 of 6 | 369 → 353 | 1.0 → 19.7 | 15.5 → 34.7 | 8.7 → 6.8 |
+
+`earlyValue` €20 was only measured on the simulator (−€417). Both pricing changes alone leave the margin level, so
+`earlyValue` is dropped. `earlyFee` is worth one more look because the mechanism is real (nine Monday deliveries
+instead of one, fewer late orders), but +€419 is 1.5 standard errors, not proof. Next: a paired server run, default
+and `earlyFee` 1.0, on 10 to 12 fresh seeds. It becomes the default only if it is ahead there with every week ranked;
+otherwise it is removed.
+
 ## Params
 
 `target` 0.3, `capacity` 0 (its start), `gain` 0, `noise` 0.28, `flatShare` 0.5, `flatEuros` 60, `open` 0.88, `jitter` 1, `spread` true, `early` 0.8, `offers` 0, `order` true, `lateCost` 1,
 `premium` 3, `privatePickup` 0.25, `privateDelivery` 0.25, `feeRatio` 0.84, `supply` true, `overhead` 0.06, `minHours` 4, `minMargin` 1.05, `trust` 0.7,
 `feeBrake` 1.5, `lateSoft` 0.04, `lateHard` 0.05, `openGigs` 40, `urgentTop` 2, `lateTop` 1.7, `chains` true,
 `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `chainHours` 5, `holdHours` 2, `chainPatience` 0, `chainBid` false,
-`pairCharge` 1. Override one
+`earlyFee` 0 (off, the Monday experiment above), `pairCharge` 1. Override one
 with `--set key=value`. The end of a week prints the share won, the mean price × list, the mean fee × typical, the
 late orders and the chains posted, booked and taken apart.

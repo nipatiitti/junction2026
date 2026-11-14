@@ -139,6 +139,10 @@ export const DEFAULTS = {
    * its share of the chain and pays `pairCharge` of the capacity charge. Each of our cars backs one bid at a time. */
   chainBid: false,
   pairCharge: 1,
+  /** Experiment, early trust: a gig for an order that arrives on the week's first day with its car ready that day
+   * opens at `earlyFee` × typical and climbs 5% every 30 minutes, without waiting for a chain partner, so it is
+   * delivered that day and its dealer's trust starts sooner. 0 is off. */
+  earlyFee: 0,
 }
 export type LeanParams = typeof DEFAULTS
 
@@ -161,6 +165,8 @@ class Lean extends Strategy<LeanParams> {
   private feeRatio: number
   /** Our quotes that wait for the dealer: request id -> prices. */
   private readonly pending = new Map<string, Prices>()
+  /** Every request of the week, by id: the early-trust experiment reads an order's request. */
+  private readonly requests = new Map<string, PriceRequest>()
   /** The requests that wait for their dealer: the yard of the first car, and when the dealer decides. */
   private asked: { id: string; yard: string | undefined; respondBy: number }[] = []
   /** Gig id -> the schedule in the app. */
@@ -191,7 +197,9 @@ class Lean extends Strategy<LeanParams> {
     this.planner = new Planner(params, setup.map, params.chains && setup.level >= 3, {
       context: () => this.context(),
       troubled: (orderId, gigId) =>
-        this.retries.has(`${orderId} 0`) || (gigId !== undefined && this.dropped.has(gigId)),
+        this.retries.has(`${orderId} 0`) ||
+        (gigId !== undefined && this.dropped.has(gigId)) ||
+        (params.earlyFee > 0 && this.earlyOrder(orderId)),
     })
   }
 
@@ -383,6 +391,10 @@ class Lean extends Strategy<LeanParams> {
     if (now > order.lastPickupAt) return fast(now, typical, Math.max(shown, 1.1), 0.05, 30, p.lateTop)
     if (warned || awake(now, order.lastPickupAt - BOOK_AHEAD) < SHORT)
       return fast(now, typical, Math.max(shown + 0.05, 1.15), 0.12, 15, Math.max(p.urgentTop, shown + 0.05))
+    if (p.earlyFee > 0 && now < DAY && this.earlyOrder(order.id)) {
+      const opening = Math.max(shown, p.earlyFee)
+      return fast(now, typical, opening, 0.05, 30, opening + 0.4)
+    }
     return stepped(now, typical, order.lastPickupAt, p.open, shown, p.jitter, order.id, p.spread, p.early)
   }
 
@@ -449,6 +461,7 @@ class Lean extends Strategy<LeanParams> {
   override observe(event: DeskEvent, books: Books): void {
     switch (event.kind) {
       case 'price_request':
+        this.requests.set(event.request.id, event.request)
         this.tally.requests++
         this.demand.dawn(Math.floor(event.at / DAY))
         this.asked = this.asked.filter((other) => other.respondBy > event.at)
@@ -540,6 +553,19 @@ class Lean extends Strategy<LeanParams> {
     const multiple = t.won > 0 ? t.multiples / t.won : 0
     const paid = t.bookings > 0 ? t.ratios / t.bookings : 0
     return `lean: won ${t.won} of ${t.requests} requests (${share.toFixed(1)}%) at ${multiple.toFixed(2)} × list, ${t.bookings} bookings at ${paid.toFixed(2)} × typical, capacity worth ${this.capacity.toFixed(2)} × typical at the end, ${this.late.size} late of ${this.done} done. ${this.planner.summary()} Offers: ${this.offers.tally.accepted} accepted of ${this.offers.tally.sent}.`
+  }
+
+  /** Whether a request arrives on the week's first day with its car ready that day. */
+  private early(request: PriceRequest, facts: NoteFacts): boolean {
+    const leg = request.legs[0]
+    if (!leg || Math.floor(request.arrivedAt / DAY) !== 0) return false
+    return Math.max(leg.pickup.window.from, earliestPickup(facts) ?? 0) < DAY
+  }
+
+  /** Whether an order's request was `early`. */
+  private earlyOrder(orderId: string): boolean {
+    const request = this.requests.get(orderId)
+    return request !== undefined && this.early(request, readNote(request.note, request.arrivedAt))
   }
 
   private context(tightening = 1): Context {

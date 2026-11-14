@@ -29,6 +29,17 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-14: Monday fast fees, experiment (PR, issue #338)
+
+- **Version changed**: TypeScript.
+- **What changed**: `earlyFee` (0 = off) posts gigs for orders won on Monday with a car ready on Monday at that fee ×
+  typical, with 5% raises every 30 minutes and no chain wait or chain. Default weeks are unchanged. On the server it
+  delivered 9.2 cars on Monday instead of 1.0 and was +€419 ± €284 a week over six tournament seeds (5 of 6 ahead),
+  which is not yet proof; the price-side variant `earlyValue` was measured and dropped. Next: a paired run on fresh
+  seeds, then adopt or remove it.
+- **In step**: no — the switch is off, so both versions play the same week. The Python port of the switch, if it is
+  adopted, is #339.
+
 ### 2026-11-14: Python port (PR #326, issue #323)
 
 - **Version changed**: Python (new).
