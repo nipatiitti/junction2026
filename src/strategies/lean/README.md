@@ -560,7 +560,7 @@ false week of `supply-1` is the saved week of the old schedule to the cent.
 and delivery effects once per option, so one lost request can count several times. With `sharedOutcome=true`, every
 option's contribution is calculated from the same pre-outcome state. Each delivery-option effect still learns alone;
 each shared effect receives the mean of the option contributions once. Wins and the `false` control are unchanged.
-The default is false: the server check below is encouraging, not conclusive enough to change it.
+The default was false until the check on today's defaults at the end of this section.
 
 The first 40 paired simulator seeds (`lean-so-screen-1..40`) were used to explore the change. Shared learning alone
 gained €426.35 (SE €156.81, paired 95% CI +€109.17 to +€743.53). Adding `costLevel=1` gained €485.18 over the control
@@ -666,6 +666,6 @@ lead pay 1.17 × typical and earn €26 an order against €38, which is €200 
 `early` 0.8, `rest` true, `lateWithin` 60, `lateOpen` 1.25, `urgentOpen` 1.15, `urgentStep` 0.125, `urgentEvery` 15, `urgentTop` 2,
 `lateFrom` 1.1, `lateStep` 0.05, `lateEvery` 30, `lateTop` 1.7, `feeRatio` 0.84, `lateCost` 1, `premium` 3,
 `privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 0.98, `minHours` 4, `noise` 0.11,
-`sharedOutcome` false, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
+`sharedOutcome` true, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
 `pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1, `chainTries` 3, `chainFit` 0,
 `chainModel` true, `chainAlone` 1, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0.
