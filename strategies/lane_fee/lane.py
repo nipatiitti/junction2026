@@ -3,8 +3,8 @@
 Three strategies (strategies/strategy.py). `LaneFee` answers what a lane's work is usually paid: the mean typical fee
 of the lane's requests in the saved weeks (lanes.json, fitted by fit.py), a line over the road minutes, and the
 request's own typical fee, each weighted by how much it knows. `LaneCostAdmission` is the lead-cost admission of
-strategies/lead_cost with its driver cost on that fee, and `LaneFeePlanner` the town fee planner of
-strategies/town_open with its schedules on it; neither changes those folders. README.md next to this file explains why.
+strategies/lead_cost with its driver cost on that fee, and `LaneFeePlanner` the dawn fee planner of
+strategies/dawn_fees with its schedules on it; neither changes those folders. README.md next to this file explains why.
 """
 
 from __future__ import annotations
@@ -16,11 +16,10 @@ from pathlib import Path
 
 from spread.types import DeskEvent, DriverProfile, Order, PriceRequest, WorldMap
 
-from strategies.dawn_fees import DawnParams
+from strategies.dawn_fees import DawnFeePlanner, DawnParams
 from strategies.fees.fees import trip
 from strategies.lead_cost import LeadCostAdmission, LeadCostParams
 from strategies.strategy import Strategy
-from strategies.town_open import TownFeePlanner, TownOpening
 
 LANES = Path(__file__).with_name("lanes.json")
 
@@ -89,8 +88,8 @@ class LaneCostAdmission(LeadCostAdmission):
         return self.lane.of_request(request)
 
 
-class LaneFeePlanner(TownFeePlanner):
-    """The town fee planner, with every schedule on the lane fee."""
+class LaneFeePlanner(DawnFeePlanner):
+    """The dawn fee planner, with every schedule on the lane fee."""
 
     def __init__(
         self,
@@ -98,10 +97,9 @@ class LaneFeePlanner(TownFeePlanner):
         world_map: WorldMap,
         level: int = 8,
         params: DawnParams | None = None,
-        opening: TownOpening | None = None,
         lane: LaneFee | None = None,
     ) -> None:
-        super().__init__(roster, world_map, level, params, opening)
+        super().__init__(roster, world_map, level, params)
         self.lane = lane or LaneFee(roster, world_map, level)
 
     def typical(self, order: Order, request: PriceRequest) -> float:

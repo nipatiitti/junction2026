@@ -4,12 +4,12 @@ A dispatch system built on [`strategies/headroom`](../headroom/README.md): its `
 desk whose prices start each delivery place at the offset it has in every world. Issue #200. The systems it builds on
 stay as they are.
 
-| File          | Class          | Builds on         | What it decides                                              |
-| ------------- | -------------- | ----------------- | ------------------------------------------------------------ |
-| `pricing.py`  | `PriorPricing` | `HeadroomPricing` | The price of a quote, lifted by its delivery place's offset  |
-| `fit.py`      |                |                   | Fits the offsets on the saved weeks, into `priors.json`      |
-| `priors.json` |                |                   | The fitted offsets                                           |
-| `dispatch.py` | `Desk`         | the headroom desk | The system: the headroom desk with the pricing above         |
+| File          | Class          | Builds on         | What it decides                                             |
+| ------------- | -------------- | ----------------- | ----------------------------------------------------------- |
+| `pricing.py`  | `PriorPricing` | `HeadroomPricing` | The price of a quote, lifted by its delivery place's offset |
+| `fit.py`      |                |                   | Fits the offsets on the saved weeks, into `priors.json`     |
+| `priors.json` |                |                   | The fitted offsets                                          |
+| `dispatch.py` | `Desk`         | the headroom desk | The system: the headroom desk with the pricing above        |
 
 `PriorPricing` is a subclass of `Strategy` ([`strategies/strategy.py`](../strategy.py)) through `HeadroomPricing`,
 with the constructor `(roster, world_map, level=8, params=None)` and a frozen `Params`.
@@ -48,12 +48,15 @@ level for each day of each week and an offset for each pickup and delivery place
 ## The strategy
 
 1. **The lift.** `priors.json` holds the fitted offset of each delivery place, in logs. A request's lift is
-   `exp(prior_weight × offset)`, with the offset times the weight kept within ±`prior_limit`: × 0.89 into Helsinki
-   and × 1.12 to Kouvola.
-2. **It lifts the price and the maximum alike**, as dealer trust and the outage do in ceiling pricing
+   `exp(prior_weight × offset)`, kept under `prior_limit`: × 1.12 to Kouvola, × 1.08 to Joensuu.
+2. **Only up.** A place with a negative offset gets no lift (`prior_down` is 0). The first week played with both
+   directions lowered the prices into the Helsinki area as fitted, and won more of those cars (168 against 144), but
+   the learned price of the world then rose with those wins and the other lanes lost more than that: €794 less in
+   the week. Lifting only the dear places leaves the world's price where it was.
+3. **It lifts the price and the maximum alike**, as dealer trust and the outage do in ceiling pricing
    (`CeilingPricing.uplift`). So admission, which takes a request only when its driver cost fits under the highest
    price we would quote, sees the lane's price too.
-3. **The week still learns.** The offsets that pricing learns from the week's outcomes start at zero as before and
+4. **The week still learns.** The offsets that pricing learns from the week's outcomes start at zero as before and
    move on top of the prior.
 
 Up to level 3 every quote wins at the list price, so there is no lift.
@@ -62,10 +65,36 @@ Up to level 3 every quote wins at the list price, so there is no lift.
 
 `Params` in `pricing.py`, exported as `PriorParams`, next to those of `strategies/headroom`.
 
-| Variable       | Default | What it does                                                  |
-| -------------- | ------- | ------------------------------------------------------------- |
-| `prior_weight` | 0.7     | The share of a place's fitted offset that lifts its prices    |
-| `prior_limit`  | 0.15    | No place's lift is larger than this, in logs, up or down      |
+| Variable       | Default | What it does                                               |
+| -------------- | ------- | ---------------------------------------------------------- |
+| `prior_weight` | 0.7     | The share of a place's fitted offset that lifts its prices |
+| `prior_limit`  | 0.15    | No place's lift is larger than this, in logs, up or down   |
+| `prior_down`   | 0.0     | The share of the weight for a place with a negative offset |
 
 `fit.py` takes `--ridge` (default 400), the penalty that shrinks a place with few quotes towards zero. Run it again
 when many new weeks are saved, and commit the new `priors.json`.
+
+## Bench
+
+Level 8, seeds `spread-1`, `spread-2` and `spread-4`, the code of this branch, with
+`uv run python -m strategies.bench strategies/<system>/dispatch.py --seeds spread-1,spread-2,spread-4`. Every week is
+ranked, and each is saved in `data/scrape/runs/L8/` under its system's policy. `ceiling` is the saved week of
+`strategies/ceiling` on the same seed.
+
+| Seed       | `ceiling`      | `headroom`     | `lane_prior`   | `town_open`    | `same_day`     | `soft_top`     |
+| ---------- | -------------- | -------------- | -------------- | -------------- | -------------- | -------------- |
+| `spread-1` | €9,831.09      | €12,670.71     | €12,170.85     | €12,137.41     | €12,283.73     | €13,297.12     |
+| `spread-2` | €6,673.95      | €9,378.79      | €10,492.81     | €8,320.56      | €9,371.17      | €9,816.59      |
+| `spread-4` | €8,147.90      | €13,089.25     | €13,086.78     | €12,604.28     | €13,975.61     | €13,658.73     |
+| **Total**  | **€24,652.94** | **€35,138.75** | **€35,750.44** | **€33,062.25** | **€35,630.51** | **€36,772.44** |
+| On time    | 97.9%          | 98.2%          | 98.6%          | 97.8%          | 98.4%          | 98.4%          |
+
+All five systems are over €12,000 on `spread-1` and on `spread-4`. No system is on `spread-2`: that world's prices
+are low (the price that wins half of a day's quotes is 1.03 to 1.39 times the list price there, against 1.23 to 1.50
+on `spread-1`), and `ceiling` makes €6,674 in it.
+
+**One week proves little.** The same seed moves by several hundred euros between two versions with little in common:
+a booking a minute earlier changes which driver is free for the next car, and the rest of the week with it.
+
+Against `headroom`, the lift made €612 more over the three weeks: less on `spread-1` (−€500), more on `spread-2`
+(+€1,114), the same on `spread-4`. On `spread-1` it lifted 95 quotes; the week won 356 orders against 360.

@@ -1,37 +1,31 @@
 # Lead-cost admission
 
-A dispatch system built on [`strategies/dawn_fees`](../dawn_fees/README.md): its `Desk` is a subclass of the
-dawn-fees desk whose admission takes the driver cost of a request from its lead times. Issue #200. The systems it
-builds on stay as they are.
+Admission whose driver cost comes from a request's lead times, for the systems of
+[`strategies/headroom`](../headroom/README.md) and up. Issue #200. `strategies/admission`, `strategies/ceiling` and
+the root system stay as they are.
 
-| File           | Class               | Builds on          | What it decides                                              |
-| -------------- | ------------------- | ------------------ | ------------------------------------------------------------ |
-| `admission.py` | `LeadCostAdmission` | `ChainAdmission`   | Which requests to take, at which option, and what they cost  |
-| `fit.py`       |                     |                    | Measures the cost table on the saved weeks                   |
-| `dispatch.py`  | `Desk`              | the dawn-fees desk | The system: the dawn-fees desk with the admission above      |
+| File           | Class               | Builds on        | What it decides                                             |
+| -------------- | ------------------- | ---------------- | ----------------------------------------------------------- |
+| `admission.py` | `LeadCostAdmission` | `ChainAdmission` | Which requests to take, at which option, and what they cost |
+| `fit.py`       |                     |                  | Measures the cost table on the saved weeks                  |
 
 `LeadCostAdmission` is a subclass of `Strategy` ([`strategies/strategy.py`](../strategy.py)) through `ChainAdmission`,
-with the same constructor `(roster, world_map, level=8, params=None)` and a frozen `Params`.
-
-## Run it
-
-From the repository root:
+with the same constructor `(roster, world_map, level=8, params=None)` and a frozen `Params`. A desk built on the
+ceiling desk uses it in place of `ChainAdmission`. `LaneCostAdmission` of `strategies/lane_fee` is this admission on
+the lane fee, and every system from `headroom` up plays with it.
 
 ```sh
-uv run strategies/lead_cost/dispatch.py --level 8 --seed spread-1
-uv run python -m strategies.bench strategies/lead_cost/dispatch.py strategies/dawn_fees/dispatch.py --jobs 2
-uv run python -m strategies.lead_cost.fit     # the cost table, from out/spread.sqlite
+uv run python -m strategies.lead_cost.fit                                  # the cost table, from out/spread.sqlite
+uv run python -m strategies.lead_cost.fit --policy lane-fee,headroom       # the same, from the weeks of other systems
 ```
-
-Its weeks are saved with the policy `lead-cost`. Its admission lines add how many quotes went to each option.
 
 ## What the saved weeks show
 
 Admission's driver cost (`strategies/admission`) is the typical fee × 1.15, scaled by the drivers near both ends, the
 hour, private addresses and the note. It does not know how long the car can wait. `fit.py` measures what the 9,139
-delivered one-order orders of the 31 saved weeks really cost (driver fees, failed visits, waiting, release fees and
-late refunds), over their typical fee, by the hours from the post to the order's `lastPickupAt` and to the car's ready
-time, at dealer sites:
+delivered one-order orders of the 31 saved weeks that used the fee schedule of `strategies/fees` really cost (driver
+fees, failed visits, waiting, release fees and late refunds), over their typical fee, by the hours from the post to
+the order's `lastPickupAt` and to the car's ready time, at dealer sites:
 
 | Hours to the last pickup | Ready within 3 hours | Ready within 8 hours | Ready later  |
 | ------------------------ | -------------------- | -------------------- | ------------ |
@@ -65,25 +59,64 @@ drive under 30 minutes (+14%) and for a premium car (+11%).
    price we would quote, the request gets ten times its list price. The area's capacity, the tightening by our
    on-time share and the timed return leg are unchanged.
 
-The table was measured under the fee schedule of `strategies/fees`. Under dawn fees the cars with a night to wait cost
-less; run `fit.py` again with `--policy lead-cost,dawn-fees` once those weeks are saved, and update `Params.cost`.
+5. **Room in an area.** An area holds 0.20 unbooked orders for each driver weight near it, and at least 2: twice
+   the figures of `strategies/admission`. Under dawn fees a gig waits for its morning on purpose, so an order
+   without a driver yet is not a sign that the area is full. In the first week with the old figures, Oulu alone was
+   refused about 18 times with one order waiting.
+
+### The table under dawn fees
+
+The table above was measured under the fee schedule of `strategies/fees`. Under the dawn schedule a car with a night
+to wait costs less. From the 4,404 orders of the 15 weeks played with dawn fees before the refit (`fit.py --policy
+y-sprint,y-sprint-low,y-sprint-high,y-base,x-cap-lane,x-cap-lane-town`):
+
+| Hours to the last pickup | Ready within 3 hours | Ready within 8 hours | Ready later  |
+| ------------------------ | -------------------- | -------------------- | ------------ |
+| 14 to 24                 | 1.26 (14 orders)     |                      | 1.04 (298)   |
+| 24 to 36                 | 1.16 (747)           | 0.94 (27)            | 0.99 (1,445) |
+| 36 to 60                 | 1.13 (16)            |                      | 0.97 (534)   |
+| 60 or more               | 0.92 (652)           | 0.77 (12)            | 0.95 (367)   |
+
+`Params.cost` still holds the first table. Played with these rows instead (2.40 and 1.77 kept for the cars to
+collect within 14 hours, which those weeks hardly took, and 1.10, 1.00 and 0.97 in the last row), the headroom system
+made €194 more on `spread-1`, €324 less on `spread-2` and €1,549 less on `spread-4`: €1,679 less over the three
+weeks. A cheaper table takes more cars, and on `spread-4` more than drivers could move on time (95.9% on time against
+97.7%). The first table is too high for a car with a night to wait, and that margin of safety is worth more than the
+cars it turns away.
 
 ## The variables
 
 `Params` in `admission.py`, exported as `LeadCostParams`, next to those of `strategies/ceiling` and
 `strategies/admission`.
 
-| Variable            | Default                  | What it does                                                    |
-| ------------------- | ------------------------ | --------------------------------------------------------------- |
-| `last_pickup_hours` | 8, 14, 24, 36, 60        | The upper ends of the rows of `cost`; the last row is open      |
-| `ready_hours`       | 3, 8                     | The upper ends of its columns; the last column is open          |
-| `cost`              | the table above          | The driver cost over the typical fee, at a dealer site          |
-| `private_pickup`    | 1.05, 1.30, 1.30         | What a private pickup multiplies it by, for each column         |
-| `private_delivery`  | 1.03, 1.10, 1.10         | The same for a private delivery                                 |
-| `scarce_pickup`     | 0.8                      | The share added where no driver lives near the pickup           |
-| `scarce_delivery`   | 0.3                      | The share added where none lives near the delivery              |
-| `short_drive`       | 30 minutes               | A drive under this is `short_cost` dearer over its typical fee  |
-| `short_cost`        | 1.12                     |                                                                 |
-| `premium_cost`      | 1.10                     | A premium car                                                   |
-| `note_cost`         | 1.05                     | A note that asks for something a driver can miss                |
-| `return_leg`        | 0.95                     | A timed return leg of one of our transports                     |
+| Variable              | Default                   | What it does                                                       |
+| --------------------- | ------------------------- | ------------------------------------------------------------------ |
+| `last_pickup_hours`   | 8, 14, 24, 36, 60         | The upper ends of the rows of `cost`; the last row is open         |
+| `ready_hours`         | 3, 8                      | The upper ends of its columns; the last column is open             |
+| `cost`                | the table under dawn fees | The driver cost over the typical fee, at a dealer site             |
+| `private_pickup`      | 1.05, 1.30, 1.30          | What a private pickup multiplies it by, for each column            |
+| `private_delivery`    | 1.03, 1.10, 1.10          | The same for a private delivery                                    |
+| `scarce_pickup`       | 0.8                       | The share added where no driver lives near the pickup              |
+| `scarce_delivery`     | 0.3                       | The share added where none lives near the delivery                 |
+| `short_drive`         | 30 minutes                | A drive under this is `short_cost` dearer over its typical fee     |
+| `short_cost`          | 1.12                      |                                                                    |
+| `premium_cost`        | 1.10                      | A premium car                                                      |
+| `note_cost`           | 1.05                      | A note that asks for something a driver can miss                   |
+| `return_leg`          | 0.95                      | A timed return leg of one of our transports                        |
+| `slower_win`          | 1.0                       | The weight of an option's margin when the request has a faster one |
+| `capacity_per_driver` | 0.20                      | Unbooked orders an area holds for each driver weight near it       |
+| `min_capacity`        | 2.0                       | The least an area holds                                            |
+
+## Played
+
+Level 8, seed `spread-1`, each week saved in `data/scrape/runs` under the policy named. `dawn-fees` is the ceiling desk
+with `DawnFeePlanner`; the others add this admission to it.
+
+| What was played                                                      | Policy      | Margin     | Orders | On time |
+| -------------------------------------------------------------------- | ----------- | ---------- | ------ | ------- |
+| The ceiling desk with dawn fees                                      | `dawn-fees` | €9,923.03  | 372    | 97.6%   |
+| With this admission, the first table and the capacity of `admission` | `lead-cost` | €11,591.16 | 380    | 98.7%   |
+| With the capacity of this folder and the sprint ladder               | `a-lead`    | €11,704.12 | 407    | 98.0%   |
+
+The admission added €1,668 to the week: driver fees fell from 1.09 to 1.04 times the typical fee, late orders from 7
+to 4, and the quotes moved from `next_day` (196 to 154 orders) to `same_day` (182 to 229), the day the car is ready.

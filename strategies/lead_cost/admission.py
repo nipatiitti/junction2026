@@ -27,6 +27,10 @@ SATURDAY = 5
 class Params(ChainParams):
     """The admission thresholds of the ceiling system, plus the driver cost by lead time (fit.py prints the table)."""
 
+    # An area holds twice the unbooked orders of strategies/admission: under dawn fees a gig waits for its morning on
+    # purpose, so an order without a driver yet is not a sign that the area is full.
+    capacity_per_driver: float = 0.20
+    min_capacity: float = 2.0
     # The classes: hours from the win to the last pickup (rows of `cost`) and to the car's ready time (columns).
     last_pickup_hours: tuple[int, ...] = (8, 14, 24, 36, 60)
     ready_hours: tuple[int, ...] = (3, 8)

@@ -28,7 +28,7 @@ class Params(HeadroomParams):
 
     prior_weight: float = 0.7  # the share of a place's fitted offset that lifts its prices
     prior_limit: float = 0.15  # no place's lift is larger than this, in logs, up or down
-    prior_down: float = 1.0  # the share of that for a place whose offset is negative: 0 only lifts, never lowers
+    prior_down: float = 0.0  # the share of that for a place whose offset is negative: 0 only lifts, never lowers
 
 
 class PriorPricing(HeadroomPricing):

@@ -24,8 +24,9 @@ from strategies.pricing.model import DAY, in_hours
 class Params(CeilingParams):
     """The variables of ceiling pricing, plus how its maximum moves. `max_markup` is where the maximum starts."""
 
-    cap_win: float = 0.62  # the share of the quotes at the maximum that the maximum settles to win
-    cap_step: float = 0.012  # the step of the maximum per outcome at it, in logs: +0.46% a win, -0.74% a loss
+    target_win: float = 0.45  # the share of quotes the learned price settles to win: under half (README.md)
+    cap_win: float = 0.5  # the share of the quotes at the maximum that the maximum settles to win
+    cap_step: float = 0.012  # the step of the maximum per outcome at it, in logs: +0.6% a win, -0.6% a loss
     cap_low: float = 0.20  # the maximum never falls below the list price x (1 + cap_low) ...
     cap_high: float = 0.62  # ... and never rises above the list price x (1 + cap_high)
 

@@ -1,10 +1,10 @@
-"""The town-opening system: the lane-prior system with the opening fees of this folder. See README.md next to this
+"""The town-opening system: the headroom system with the opening fees of this folder. See README.md next to this
 file.
 
-Admission, pricing and everything else are the lane-prior system's (strategies/lane_prior). The one change is the
-opening fee of each gig: instead of 0.9 times the typical fee everywhere, each pickup town has its own multiple, which
-falls while its gigs book within minutes at the opening fee and rises when they need a raise. Level 8 gives each town
-its own share of the drivers, new in every world, and the driver list does not say who works: the bookings do.
+Admission, pricing and everything else are the headroom system's (strategies/headroom). The one change is the opening
+fee of each gig: instead of 0.9 times the lane fee everywhere, each pickup town has its own multiple, which falls
+while its gigs book within minutes at the opening fee and rises when they need a raise. Level 8 gives each town its
+own share of the drivers, new in every world, and the driver list does not say who works: the bookings do.
 
 Run it from the repository root: uv run strategies/town_open/dispatch.py --level 8 --seed spread-1
 """
@@ -21,7 +21,7 @@ from spread.client import World
 from spread.types import PostAction
 
 import dispatch as root
-from strategies.lane_prior import dispatch as lane_prior
+from strategies.headroom import dispatch as headroom
 from strategies.strategy import Strategy
 from strategies.town_open import TownFeePlanner, TownOpening, pickup_place
 from tools import record
@@ -36,16 +36,18 @@ class Recorder(record.Recorder):
         super().__init__(world, level, seed, kind, policy)
 
 
-class Desk(lane_prior.Desk):
-    """The lane-prior desk with an opening fee for each pickup town."""
+class Desk(headroom.Desk):
+    """The headroom desk with an opening fee for each pickup town."""
 
     def __init__(self, world: World, level: int, now: int):
         super().__init__(world, level, now)
         roster, world_map = self.admission.roster, self.admission.world_map  # loaded once by the root desk
         self.opening = TownOpening(roster, world_map, level)  # the opening fee of each pickup town
-        self.fees = TownFeePlanner(roster, world_map, level, opening=self.opening)  # the dawn schedule from it
+        # The dawn schedule on the lane fee, opened at the town's fee.
+        self.fees = TownFeePlanner(roster, world_map, level, lane=self.lane, opening=self.opening)
         self.strategies: list[Strategy] = [
             self.notes,
+            self.lane,
             self.admission,
             self.pricing,
             self.fees,
@@ -56,7 +58,7 @@ class Desk(lane_prior.Desk):
 
     def carry(self, action: PostAction, gig_id: str) -> None:
         """Remembers the gig as the root desk does, and tells the opening fees each gig of one order: where it
-        starts, when it was posted and what it opened at, over the typical fee of its cars."""
+        starts, when it was posted and what it opened at, over the lane fee of its cars."""
         super().carry(action, gig_id)
         orders = root.orders_in(action)
         order = self.orders.get(orders[0])
