@@ -1,28 +1,32 @@
 # Prompt: build the ts:lean video
 
-Build a 59.5-second technical video for YouTube, 16:10 (1920×1200, 30 fps), that shows how `ts:lean` works: the
+Build a 106.5-second technical video for YouTube, 16:10 (1920×1200, 30 fps), that shows how `ts:lean` works: the
 dispatch system our team Blib Blib built at Junction 2026 for Bahn's Spread challenge. It is built in `video/` beside
 the joke video and shares its player, kit, sound and export (`?video=lean`; `video/README.md` says where its parts
-are). It opens with spaghetti thrown at a wall, states the problem, and shows the solution as a block diagram of the
-real code: a 15-second zoom in and a 10-second zoom out during which cars and drivers drive along the diagram's lanes
-the way the code moves them. It has three cutaway jokes and no more, and it stays under 1.5 minutes.
+are). Four developers throw spaghetti at a wall, the problem is stated, a race like a car leads into `ts:lean`, and
+the solution is shown as a block diagram of the real code: a 15-second zoom in, a closer look at the fees, the chains
+and the learning, and a zoom out during which cars and drivers drive along the diagram's lanes the way the code moves
+them. `ts:lean` is on screen for 63 seconds, more than a minute. It has three cutaway jokes and no more, ends with the
+four developers' high five at the same wall, and stays under 2 minutes.
 
 ## The story
 
-The spaghetti says how we got here: 63 strategies thrown at a wall, and one stuck. A title card names the video. Then
-the problem in four lines, and the list price that failed. Then the solution, which is the code itself, drawn as a
-map with the cars moving through it. Then the result, and the end title.
+The spaghetti says how we got here: four developers throw 63 strategies at a wall, and one sticks. A title card
+names the video. Then the problem in four lines, and the list price that failed. Then a race down `ts:lean`'s lanes
+leads into the solution, which is the code itself, drawn as a map: its three decisions, how it learns, and the cars
+moving through it. Then the result, and back at the wall the four developers high-five under the one strand that
+stuck.
 
 ## The numbers
 
-| What           | Value                                                                       | Shown in                                  |
-| -------------- | --------------------------------------------------------------------------- | ----------------------------------------- |
+| What           | Value                                                                       | Shown in                                     |
+| -------------- | --------------------------------------------------------------------------- | -------------------------------------------- |
 | `[ALGO]`       | `ts:lean`                                                                   | the strand that sticks, the diagram, the end |
-| `[TEAM]`       | Blib Blib                                                                   | the title card, the mark, the end         |
-| `[OUR NUMBER]` | +€24,451, our margin a week                                                 | the result                                |
-| `[BASELINE]`   | −€72,456                                                                    | "It did not"                              |
-| `[X]%`         | 99.9999999% on time (the one joke number; the line for being ranked is 90%) | the result                                |
-| Strategies     | 63                                                                          | the spaghetti, the result                 |
+| `[TEAM]`       | Blib Blib                                                                   | the title card, the mark, the end            |
+| `[OUR NUMBER]` | +€24,451, our margin a week                                                 | the result                                   |
+| `[BASELINE]`   | −€72,456                                                                    | "It did not"                                 |
+| `[X]%`         | 99.9999999% on time (the one joke number; the line for being ranked is 90%) | the result                                   |
+| Strategies     | 63                                                                          | the spaghetti, the result                    |
 
 The effects tagged on the diagram come from `src/strategies/lean/README.md`: each change against the same code
 without it, on the same seeds, at level 8. All euros are game euros. Every text, number and diagram label lives in
@@ -30,31 +34,39 @@ without it, on the same seeds, at level 8. All euros are game euros. Every text,
 
 ## Format and style
 
-- 59.5 s in all; no view is longer than 15 s; never over 90 s.
+- 106.5 s in all; no view is longer than 15 s; never over 2 minutes. `ts:lean` is on screen from the race to the end
+  of the traffic: 63 s.
 - A professional technical YouTube look rather than a short: a dark navy ground with a fine grid, rounded panels with
   a rim in each system's colour, clean sans-serif names and monospace code, calm camera moves. The low-poly cast,
   cars and hall of the joke video come back in the scenes; they are our own models, not Roblox assets.
 - Chapters: a tag at the top left with the chapter's number in a red square (`01 The problem`, `02 The solution:
-  ts:lean`, `03 The result`), and a mark at the top right (`ts:lean · Blib Blib`). The jokes and the title card have
-  neither.
+  ts:lean`, `03 The result`), and a mark at the top right (`ts:lean · Blib Blib`). The jokes, the title card and the
+  end have neither.
 - Subtitles on for every spoken line: white sans-serif in a dark box at the bottom centre, at most two lines. Spell
   `ts:lean`, Bahn and Blib Blib exactly. Two lying subtitles: the spaghetti's first line and the on-time line.
-- Hook: the spaghetti. By 3.0 s the throw has landed and the strands are sliding off.
+- Hook: the spaghetti. The first frame is already mid-throw; the strands slap the wall from 1.2 s and slide off from
+  1.9 s.
 - Voices: `liam` explains (the developer's voice in the joke video) and `adam` says "It did not."
-- Three cutaway jokes only: the spaghetti, "It did not" and the handshake.
+- Three cutaway jokes only: the spaghetti, "It did not" and "I am speed". The end goes back to the spaghetti wall
+  instead of adding a fourth.
 
 ## Timeline (all times in seconds)
 
-| Start | End  | View      | Chapter                | Content                                             |
-| ----- | ---- | --------- | ---------------------- | --------------------------------------------------- |
-| 0.0   | 5.0  | spaghetti |                        | Joke 1: 63 strategies at the wall, one sticks       |
-| 5.0   | 8.0  | title     |                        | `ts:lean`, what the video is about, the team        |
-| 8.0   | 19.0 | problem   | 01 The problem         | price now, driver later; too high; too little; 90%  |
-| 19.0  | 23.0 | didnot    |                        | Joke 2: "This will definitely work." "It did not."  |
-| 23.0  | 38.0 | zoomin    | 02 The solution        | into the diagram, 15 s                              |
-| 38.0  | 48.0 | zoomout   | 02 The solution        | out again, with the traffic, 10 s                   |
-| 48.0  | 55.0 | result    | 03 The result          | three cards: margin, strategies, on time            |
-| 55.0  | 59.5 | handshake |                        | Joke 3, with the end title as a lower third         |
+| Start | End   | View      | Chapter         | Content                                                   |
+| ----- | ----- | --------- | --------------- | --------------------------------------------------------- |
+| 0.0   | 9.0   | spaghetti |                 | Joke 1: four developers throw 63 strategies at the wall   |
+| 9.0   | 12.0  | title     |                 | `ts:lean`, what the video is about, the team              |
+| 12.0  | 23.0  | problem   | 01 The problem  | price now, driver later; too high; too little; 90%        |
+| 23.0  | 27.5  | didnot    |                 | Joke 2: "This will definitely work." "It did not."        |
+| 27.5  | 33.0  | speed     |                 | Joke 3: "I am speed", a race down `ts:lean`'s lanes       |
+| 33.0  | 48.0  | zoomin    | 02 The solution | into the diagram, 15 s                                    |
+| 48.0  | 58.0  | fees      | 02 The solution | the fee steps and the weekend                             |
+| 58.0  | 68.0  | chains    | 02 The solution | one driver for up to four cars, and the chain's fee       |
+| 68.0  | 76.0  | learning  | 02 The solution | the win curve and the driver costs learn from every quote |
+| 76.0  | 86.0  | zoomout   | 02 The solution | out again, with the traffic, 10 s                         |
+| 86.0  | 90.5  | traffic   | 02 The solution | the whole map at its busiest                              |
+| 90.5  | 97.5  | result    | 03 The result   | three cards: margin, strategies, on time                  |
+| 97.5  | 106.5 | ending    |                 | the four developers' high five, with the end title        |
 
 ## The block diagram
 
@@ -90,11 +102,14 @@ is as in the code, and only the functions that every decision runs through or wh
 
 Times inside a scene are its local seconds.
 
-- **Spaghetti (5.0 s), joke 1.** The hackathon hall at night. The first frame is already mid-throw in slow motion:
-  63 strands fly at a white wall and slap it at 1.4. From 1.6 to 3.0 they slide off; `profit-max`, `max-margin`,
-  `ratchet` and `war-guard` (all shelved, see `SHELVED.md`) get an ELIMINATED stamp, and a counter on the wall runs
-  from 63 to 1. Then the camera pushes in on the one that sticks, `ts:lean`, with sparkles. Says "We tested every
-  strategy carefully." (subtitle `[we threw 63 at a wall]`) and "Only one stuck."
+- **Spaghetti (9.0 s), joke 1.** The hackathon hall at night. Four developers in red, blue, green and purple
+  shirts stand in front of a white wall, each tipping a pot of spaghetti held out in front of them. The first frame
+  is already mid-throw in slow motion: 63 bundles of thin cooked strands fly at the wall and slap it from 1.2, each
+  with a splash of tomato sauce. From 1.9 to 6.6 they slide down; `profit-max`, `max-margin`, `ratchet` and
+  `war-guard` (all shelved, see `SHELVED.md`) get an ELIMINATED stamp, and a counter on the wall runs from 63 to 1.
+  Then the camera pushes in on the one that sticks, `ts:lean`, with sparkles. Says "We tested every strategy
+  carefully." (subtitle `[we threw spaghetti at a wall]`), "Spaghetti method: throw all sixty-three at the wall, see
+  what sticks." and "Only one stuck."
 - **Title (3.0 s).** Over the drifting grid: `ts:lean` rises in, a red rule grows under it, then "How we price a car
   delivery for Bahn's Spread challenge" and "Blib Blib · Junction 2026".
 - **Problem (11.0 s), chapter 01.** Three panels: the dealer (Pertti and a car), `ts:lean`, and three drivers. A
@@ -102,43 +117,70 @@ Times inside a scene are its local seconds.
   competitor's grey car drives in and leaves with the dealer's car. Too little: a `fee 0.6 × typical` tag, the drivers
   shrug, a clock spins and a new car gets `LATE`. Then an on-time gauge falls under 90% and is stamped NOT RANKED.
   Says the four lines of the problem.
-- **It did not (4.0 s), joke 2.** Hour 2, the developer's desk; the screen reads `STRATEGY #1: quote the list price`.
-  "This will definitely work." Enter at 1.4, a hard cut to black at 1.8, the narrator on black: "It did not." At 3.2
-  the screen shows `−€72,456`, the laptop smokes and the head drops.
+- **It did not (4.5 s), joke 2.** Hour 2, the developer's desk; the screen reads `STRATEGY #1: quote the list
+  price`. "This will definitely work." Enter at 1.4, a hard cut at 1.95 to the laptop's webcam: the developer's face
+  frozen in dark red light, a blinking REC dot, while the narrator says "It did not." At 3.4 the screen shows
+  `−€72,456`, the laptop smokes and the head drops.
+- **I am speed (5.5 s), joke 3.** Our own take on the meme, with nothing from the film: one second of black, then
+  from 1.0 a chase camera behind a red car with a driver in sunglasses, racing down `ts:lean`'s main loop through
+  `stream()`, `playLive()` and `handle()` onto the lane over `bestPrice()`, with speed lines. The voice whispers
+  "Focus. Speed. I am speed." At 4.0 a sonic boom and a fast zoom out that ends exactly on the zoom in's first frame.
 - **Zoom in (15.0 s), chapter 02.** One move with no cut, its height on a log scale. At 0 the whole diagram, seen
   tilted and slightly turned; the camera levels out by 6.5 and comes down so that at 7.5 only TS:LEAN fills the frame,
-  lingers there while the three decisions light up, and dives from 11 until `bestPrice()` fills it at 15. The systems light up as the voice names them (1.0–3.4), event tokens (`price_request`,
-  `order_won`, `gig_booked`, `delivered`) run down into TS:LEAN (3.4–7.6), the price, fee and chain functions light
-  up in turn (8.5–11.6), and the chart draws in from 11.6, its peak marked at 14.6.
-- **Zoom out (10.0 s), chapter 02.** The way back: up to TS:LEAN by 3.6, lingering while the chain waits, then out
-  to the whole diagram by 10, tilting again from 6.0. A grey car is a price request:
-  it comes down the loop, stops on the lane over `bestPrice()` for its price tag, and goes back out. A red car is a
-  won order: it stops over `stepped()` while a fee sign ticks 0.88, 1.05, 1.25 × typical, and a driver gets in. Three
-  red cars wait behind one driver and leave together under `chain · 1 driver`. Green sparks run back from
-  `observe()` to `Demand` and `Supply`, and weeks, constants and simulator runs fill the outer lanes.
+  lingers there while the three decisions light up, and dives from 11 until `bestPrice()` fills it at 15. The systems
+  light up as the voice names them (1.0–3.4), event tokens (`price_request`, `order_won`, `gig_booked`, `delivered`)
+  run down into TS:LEAN (3.2–7.2), the price, fee and chain functions light up in turn (7.9–11.0), and the chart draws
+  in from 11.4 and marks its peak at the end.
+- **Fees (10.0 s), chapter 02.** The camera glides to the fee functions on the right of TS:LEAN and leaves the left
+  third to a card: the fee opens at 0.88 × typical and steps to 1.05, 1.25 and 1.55, with 2.0 as the top, planned by
+  21:00 (`every week ranked`), and a weekend box for `rested()` (`+€624 a week`). Red cars stop over `stepped()`
+  while their fee climbs. Says "Fees open low and rise three times, when drivers plan their day." and "And no raises
+  on weekends: Monday's cars wait for Monday."
+- **Chains (10.0 s), chapter 02.** On to `Planner`, `findChains()` and `bookChance()`. The card shows four cars on
+  one driver's path, at most 60 minutes apart, at most 8 hours of driving and at least 15% under the cars' fees
+  (`+€1,560 a week`), then `bookChance()` raising the share of chains that get booked from 53% to 71%
+  (`+€1,126 a week`). Two chains form on the lanes and leave together. Says "Chains: one driver takes up to four
+  cars, one after another." and "Each chain's fee follows its chance to book."
+- **Learning (8.0 s), chapter 02.** On to `Demand` and `Supply` on the left; green sparks run back from `observe()`.
+  The card, now in the right third, shows the win curve: won and lost quotes land on it and move its middle from
+  1.40 to 1.46, 1.42 and 1.45 × list; then `Supply.ratio()` going from 0.84 to 0.97 (`+€769 a week (sim)`). Says
+  "Every won or lost quote moves the win curve." and "Every booking teaches what drivers cost."
+- **Zoom out (10.0 s), chapter 02.** The way back: up to TS:LEAN, then out to the whole diagram by 10, tilting again
+  from 6.0. A grey car is a price request: it comes down the loop, stops on the lane over `bestPrice()` for its price
+  tag, and goes back out. A red car is a won order: it stops over `stepped()` while a fee sign ticks up and a driver
+  gets in. Red cars that wait behind one driver leave together as a chain, and weeks, constants and simulator runs
+  fill the outer lanes. Says "Grey cars are price requests; red ones are won orders." and "A thousand requests a
+  week, all through these lanes."
+- **Traffic (4.5 s), chapter 02.** The whole map, turning slowly as the camera rises, with the most cars of the
+  video. No voice; the music comes up.
 - **Result (7.0 s), chapter 03.** The diagram stays behind, dimmed, with its traffic. Three cards come up:
   `+€24,451` (margin a week), `63 → 1` (strategies tried → shipped) and the on-time share, its decimals ticking in to
   `99.9999999%`. "All euros are game euros." Says the margin line and "On time: basically always." (subtitle
   `[trust me bro]`).
-- **Handshake (4.5 s), joke 3 and the end.** The developer and a teammate with `BLIB BLIB` lanyards shake hands in
-  front of a whiteboard with the same diagram drawn by hand, in stock-photo light, for far too long; the teammate
-  blinks once. At 1.0 the end title comes up as a lower third: `ts:lean`, "by BLIB BLIB · Junction 2026". Elevator
-  music only.
+- **Ending (9.0 s), the end.** Back at the spaghetti wall at hour 48, under a `SHIPPED` banner: sauce, fallen
+  strands, and `ts:lean` still stuck with its tag. The four developers, with `BLIB BLIB` lanyards, stand in a ring.
+  At 1.1 they wind up and jump, and their hands meet at 1.7 in a four-way high five ("Ship it!"), hanging in slow
+  motion while confetti and spaghetti burst. They land by 3.6 and cheer while the camera circles a quarter turn round
+  them. At 3.0 the end title comes up as a lower third: `ts:lean`, "by BLIB BLIB · Junction 2026". "That's
+  ts:lean." Fade to black from 8.4.
 
 ## Voice lines
 
 Made with ElevenLabs like the joke video's (`video/voices.ts`, pre-made voices, delivery tags); neither voice is a
 copy of a real person's. The files are named `lean-…` so they never overwrite the joke video's, and the voice reads
-`ts:lean` as the letters. Each line fits its subtitle's time; a few are sped up by at most 1.12 (`rate`). The words, subtitles and times are in `video/src/lean/timeline.js`:
-`lean-careful`, `lean-stuck`, `lean-problem`, `lean-high`, `lean-low`, `lean-ranked`, `lean-work`, `lean-didnot`,
-`lean-touches`, `lean-events`, `lean-decisions`, `lean-price`, `lean-fees`, `lean-chains`, `lean-learn`,
-`lean-margin`, `lean-ontime`.
+`ts:lean` as the letters. Each line fits its subtitle's time; a few are sped up by at most 1.12 (`rate`). The words,
+subtitles and times are in `video/src/lean/timeline.js`: `lean-careful`, `lean-spaghetti`, `lean-stuck`,
+`lean-problem`, `lean-high`, `lean-low`, `lean-ranked`, `lean-work`, `lean-didnot`, `lean-speed`, `lean-touches`,
+`lean-events`, `lean-decisions`, `lean-price`, `lean-fees`, `lean-weekend`, `lean-chains`, `lean-chancefee`,
+`lean-learn`, `lean-supply`, `lean-cars`, `lean-requests`, `lean-margin`, `lean-ontime`, `lean-shipit`,
+`lean-thatsit`.
 
 ## Sound
 
-The joke video's beat from `audio/score.js`, quiet under the explanation and fuller in the spaghetti and once the
-traffic is out, silent on the black frame; a music box for the handshake; an effect on most cuts and reveals. The
-mixer dips the music under speech. No copyrighted songs.
+The joke video's beat from `audio/score.js`, quiet under the explanation and fuller in the spaghetti, the race and
+once the traffic is out; silent under the narrator; after the race's second of silence, a phonk beat with a cowbell;
+a party beat for the high five; an effect on most cuts and reveals. The mixer dips the music under speech. No
+copyrighted songs, and nothing from the film the speed joke points at.
 
 ## Before you upload
 
@@ -155,13 +197,13 @@ mixer dips the music under speech. No copyrighted songs.
 ### Check
 
 - [x] The voice lines are made (`node --env-file=.env.local video/voices.ts`), and each fits its subtitle's time
-- [ ] Under 90 seconds, and the spaghetti makes someone curious within 3 seconds
-- [ ] Three cutaway jokes at most: the spaghetti, "It did not" and the handshake
+- [ ] Under 2 minutes, and the spaghetti makes someone curious within 3 seconds
+- [ ] Three cutaway jokes at most: the spaghetti, "It did not" and "I am speed"
 - [ ] Every system, class and function on the diagram exists under that name in the code, and every tag's number is
       in `src/strategies/lean/README.md`
 - [ ] +€24,451 and −€72,456 match the test URL; 99.9999999% is the one joke number
 - [ ] Subtitles on for every line, readable at 1080p, with `ts:lean`, Bahn and Blib Blib spelled right
-- [ ] No real logos or copyrighted music
+- [ ] No real logos, copyrighted music or film clips
 - [ ] Any teammate a character is based on has seen it and laughs
 - [ ] Someone who hasn't seen it watched it once, and you fixed the parts where they got bored
 - [ ] Exported at 1920×1200, 30 fps, H.264, and the uploaded version plays with sound

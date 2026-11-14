@@ -32,11 +32,19 @@ export const SEGMENTS = [
   {
     id: 'spaghetti',
     view: 'spaghetti',
-    duration: 5.0,
+    duration: 9.0,
     bare: true,
     lines: [
-      line('lean-careful', 0.3, 2.7, 'We tested every strategy carefully.', '[we threw 63 at a wall]'),
-      line('lean-stuck', 3.2, 4.9, 'Only one stuck.'),
+      line('lean-careful', 0.3, 2.75, 'We tested every strategy carefully.', '[we threw spaghetti at a wall]'),
+      line(
+        'lean-spaghetti',
+        2.9,
+        6.7,
+        'Spaghetti method: throw all sixty-three at the wall, see what sticks.',
+        'Spaghetti method: throw all 63 at the wall, see what sticks.',
+        1.08,
+      ),
+      line('lean-stuck', 6.9, 8.9, 'Only one stuck.'),
     ],
     // tags of strands that slide off (all shelved, see SHELVED.md), and the one that sticks
     tags: ['profit-max', 'max-margin', 'ratchet', 'war-guard'],
@@ -63,7 +71,7 @@ export const SEGMENTS = [
       line('lean-problem', 0.3, 3.6, 'The problem: price the car now, find a driver later.', undefined, 1.1),
       line('lean-high', 3.7, 6.2, 'Quote too high, and the competitor wins it.', undefined, 1.05),
       line('lean-low', 6.3, 8.6, 'Pay too little, and no driver comes.', undefined, 1.08),
-      line('lean-ranked', 8.7, 11.0, 'Under ninety percent: not ranked.', 'Under 90% on time: not ranked.', 1.1),
+      line('lean-ranked', 8.65, 11.0, 'Under ninety percent: not ranked.', 'Under 90% on time: not ranked.', 1.12),
     ],
     texts: {
       dealer: 'Dealer',
@@ -81,10 +89,21 @@ export const SEGMENTS = [
   {
     id: 'didnot',
     view: 'didnot',
-    duration: 4.0,
+    duration: 4.5,
     bare: true,
-    lines: [line('lean-work', 0.3, 1.7, 'This will definitely work.'), line('lean-didnot', 2.1, 3.2, 'It did not.')],
+    lines: [
+      line('lean-work', 0.3, 1.9, 'This will definitely work.', undefined, 1.1),
+      line('lean-didnot', 2.1, 3.4, 'It did not.'),
+    ],
     texts: { hour: 'HOUR 2', screen: 'STRATEGY #1:\nquote the list price' },
+  },
+  {
+    // the "I am speed" meme as a way in: a second of dark, three seconds in a car on ts:lean's lanes, a fast zoom out
+    id: 'speed',
+    view: 'speed',
+    duration: 5.5,
+    bare: true,
+    lines: [line('lean-speed', 0.2, 3.6, 'Focus. Speed. I am speed.')],
   },
   {
     id: 'zoomin',
@@ -93,10 +112,43 @@ export const SEGMENTS = [
     duration: 15.0,
     chapter: SOLUTION,
     lines: [
-      line('lean-touches', 0.3, 3.3, 'This is everything around ts:lean.'),
-      line('lean-events', 3.6, 7.5, 'Every event comes in here, and ts:lean answers it.'),
-      line('lean-decisions', 7.7, 11.2, 'Three decisions: the price, the fee, and the chains.', undefined, 1.12),
-      line('lean-price', 11.3, 15.0, 'The price: win chance times profit, minus a load charge.', undefined, 1.12),
+      line('lean-touches', 0.3, 2.8, 'This is everything around ts:lean.'),
+      line('lean-events', 3.0, 6.9, 'Every event comes in here, and ts:lean answers it.'),
+      line('lean-decisions', 7.1, 10.8, 'Three decisions: the price, the fee, and the chains.', undefined, 1.12),
+      line('lean-price', 11.1, 14.9, 'The price: win chance times profit, minus a load charge.', undefined, 1.12),
+    ],
+  },
+  {
+    id: 'fees',
+    view: 'zoom',
+    direction: 'fees',
+    duration: 10.0,
+    chapter: SOLUTION,
+    lines: [
+      line('lean-fees', 0.4, 4.8, 'Fees open low and rise three times, when drivers plan their day.'),
+      line('lean-weekend', 5.1, 9.8, "And no raises on weekends: Monday's cars wait for Monday."),
+    ],
+  },
+  {
+    id: 'chains',
+    view: 'zoom',
+    direction: 'chains',
+    duration: 10.0,
+    chapter: SOLUTION,
+    lines: [
+      line('lean-chains', 0.4, 4.8, 'Chains: one driver takes up to four cars, one after another.', undefined, 1.05),
+      line('lean-chancefee', 5.1, 8.6, "Each chain's fee follows its chance to book."),
+    ],
+  },
+  {
+    id: 'learning',
+    view: 'zoom',
+    direction: 'learning',
+    duration: 8.0,
+    chapter: SOLUTION,
+    lines: [
+      line('lean-learn', 0.3, 3.9, 'Every won or lost quote moves the win curve.'),
+      line('lean-supply', 4.1, 7.2, 'Every booking teaches what drivers cost.'),
     ],
   },
   {
@@ -106,11 +158,11 @@ export const SEGMENTS = [
     duration: 10.0,
     chapter: SOLUTION,
     lines: [
-      line('lean-fees', 0.3, 4.3, 'Won cars become gigs; fees start low and rise.'),
-      line('lean-chains', 4.4, 7.8, 'Chains: one driver takes up to four cars.'),
-      line('lean-learn', 7.9, 10.0, 'Every outcome teaches the model.'),
+      line('lean-cars', 0.5, 4.6, 'Grey cars are price requests; red ones are won orders.'),
+      line('lean-requests', 5.4, 9.0, 'A thousand requests a week, all through these lanes.'),
     ],
   },
+  { id: 'traffic', view: 'zoom', direction: 'traffic', duration: 4.5, chapter: SOLUTION, lines: [] },
   {
     id: 'result',
     view: 'result',
@@ -138,22 +190,28 @@ export const SEGMENTS = [
     },
   },
   {
-    id: 'handshake',
-    view: 'handshake',
-    duration: 4.5,
+    id: 'ending',
+    view: 'ending',
+    duration: 9.0,
     bare: true,
-    lines: [],
-    texts: { title: NUMBERS.algo, team: `by ${NUMBERS.team} · Junction 2026` },
+    lines: [line('lean-shipit', 1.5, 2.8, 'Ship it!'), line('lean-thatsit', 5.6, 7.8, "That's ts:lean.")],
+    texts: { title: NUMBERS.algo, team: `by ${NUMBERS.team} · Junction 2026`, winner: 'ts:lean' },
   },
 ]
 
-// The beat under each view (see audio/score.js): quiet under the explanation, full in the spaghetti and once the
-// traffic is out, none on the black frame; the handshake has its elevator music in its own sounds.
+// The beat under each view (see audio/score.js): quiet under the explanation, full in the spaghetti, once the car
+// races and once the traffic is out, none in the narrator's beat; the ending gets the party beat.
 export const STYLES = {
   spaghetti: { kick: [0, 10], clap: [8], bass: 'trap', level: 0.8 },
   problem: { kick: [0, 10], clap: [8], bass: 'trap', level: 0.4 },
-  didnot: { kick: [0, 10], clap: [8], bass: 'trap', level: 0.4, rest: [[1.8, 4.0]] },
+  didnot: { kick: [0, 10], clap: [8], bass: 'trap', level: 0.4, rest: [[1.95, 3.4]] },
+  speed: { kick: [0, 3, 8, 10], clap: [4, 12], bass: 'phonk', cowbell: true, level: (t) => (t < 1.0 ? 0 : 0.9) },
   zoomin: { kick: [0, 8], clap: [8], bass: 'trap', level: 0.35 },
-  zoomout: { kick: [0, 4, 8, 12], clap: [4, 12], bass: 'party', level: (t) => (t < 7 ? 0.4 : 0.9) },
+  fees: { kick: [0, 8], clap: [8], bass: 'trap', level: 0.35 },
+  chains: { kick: [0, 8], clap: [8], bass: 'trap', level: 0.35 },
+  learning: { kick: [0, 8], clap: [8], bass: 'trap', level: 0.35 },
+  zoomout: { kick: [0, 4, 8, 12], clap: [4, 12], bass: 'party', level: (t) => (t < 6 ? 0.45 : 0.9) },
+  traffic: { kick: [0, 4, 8, 12], clap: [4, 12], bass: 'party', level: 0.9 },
   result: { kick: [0, 4, 8, 12], clap: [4, 12], bass: 'party', level: 0.8 },
+  ending: { kick: [0, 4, 8, 12], clap: [4, 12], bass: 'party', level: 1 },
 }
