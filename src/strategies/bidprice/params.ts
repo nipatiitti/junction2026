@@ -132,8 +132,8 @@ export const DEFAULTS: BidPriceParams = {
   sweepWinLate: 0.7,
   sweepMarginLate: 0.12,
   sweepCostScale: 1.05,
-  sweepComfortHours: 8,
-  sweepMaxOpen: 25,
+  sweepComfortHours: 10,
+  sweepMaxOpen: 15,
 }
 
 /** The quote models' params from the strategy's. */
