@@ -50,7 +50,7 @@ uv run --env-file .env python -m strategies.leaderboard --language python
 Play some strategies again, also when their code is unchanged (Python by folder name, TypeScript as `ts:<name>`):
 
 ```sh
-uv run --env-file .env python -m strategies.leaderboard --only all_in,ts:bidprice
+uv run --env-file .env python -m strategies.leaderboard --only all_in,ts:lean
 ```
 
 Play every strategy again from scratch:
@@ -102,16 +102,16 @@ Both save their weeks to `data/scrape/runs`, as every online run does.
 ## What counts as changed
 
 Each result keeps a fingerprint of the strategy's code: a hash of its entry file and of every file of this repository
-that it imports, directly or through other modules, plus the data files (such as `priors.json` or `board.json`) in the
+that it imports, directly or through other modules, plus the data files (such as `priors.json`) in the
 folders of the strategy modules it reaches. READMEs and the vendored kits in `vendor/` do not count.
 
 - Python: a change to the root `dispatch.py` or to a shared module such as `strategies/fees` replays every strategy
   built on it; a change inside one strategy's folder replays that strategy and those that import it.
 - TypeScript: the harness (`src/dispatch.ts` and what it imports, such as `src/harness/` and `src/models/`) counts
   for every TypeScript strategy; a strategy's own folder, and what it imports, counts for that strategy. The registry
-  imports every strategy, but that does not tie them together: a change in `src/strategies/tide/` replays `ts:tide`
+  imports every strategy, but that does not tie them together: a change in `src/strategies/lean/` replays `ts:lean`
   only. A JSON file read with `new URL('…', import.meta.url)` counts too, such as `src/params/quote.json`. A strategy
-  defined in the registry itself, as `bidboard` is, also counts the registry file.
+  defined in the registry itself, as a variant of another one's params, also counts the registry file.
 
 ## The results and the chart
 

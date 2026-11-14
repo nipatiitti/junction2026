@@ -84,16 +84,18 @@ def typescript_entries() -> dict[str, Entry]:
     if not TS_REGISTRY.is_file() or not TS_DISPATCH.is_file():
         return {}
     text = TS_REGISTRY.read_text()
-    block = re.search(r"STRATEGIES[^=]*=\s*\{(.*?)\n\}", text, re.DOTALL)
+    # The registry's object, on one line or many: { lean, starter } or { starter, variant: x, ... }
+    block = re.search(r"STRATEGIES[^=]*=\s*\{(.*?)\}", text, re.DOTALL)
     if block is None:
         return {}
-    names = re.findall(r"^\s*(\w+)\s*[,:]", block[1], re.MULTILINE)
+    items = [re.sub(r"//.*", "", item).strip() for item in block[1].split(",")]
+    names = [match[1] for item in items if (match := re.match(r"(\w+)\s*(?::|$)", item))]
     folders = {name: folder for name, folder in re.findall(r"import \{ (\w+) \} from '\./(\w+)/index\.ts'", text)}
     found = {}
     for name in names:
         if name in folders:
             roots, hashed = [TS_REGISTRY.parent / folders[name] / "index.ts"], []
-        else:  # a variant defined in the registry, such as bidboard: the strategies it names, and the registry itself
+        else:  # a variant defined in the registry itself: the strategies it names, and the registry itself
             line = re.search(rf"^const {name}\b.*$", text, re.MULTILINE)
             used = set(re.findall(r"\w+", line[0])) if line else set()
             roots = [TS_REGISTRY.parent / folders[other] / "index.ts" for other in sorted(used & folders.keys())]
@@ -506,6 +508,11 @@ def main() -> None:
     found = entries()
     current = {label: fingerprint(entry) for label, entry in found.items()}
     results = load(args.level, args.seed)
+    removed = sorted(set(results) - set(found))
+    if removed and not args.plan:  # a strategy that is gone leaves the results, and the chart
+        print(f"Removed from the results, no longer in the repository: {', '.join(removed)}")
+        results = {label: entry for label, entry in results.items() if label in found}
+        save(args.level, args.seed, results)
     if args.only:
         wanted = [name.strip() for name in args.only.split(",") if name.strip()]
         unknown = [name for name in wanted if name not in found]
