@@ -1,0 +1,24 @@
+{
+  "seed": "nov-1",
+  "level": 8,
+  "policy": "slack-fees",
+  "kind": "practice",
+  "worldId": "w2637618c8c6221869301",
+  "version": "69bec23df8dac30452edef9380604ca21f2f18bb",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 11166,
+  "score": {
+    "marginCents": 1012785,
+    "revenueCents": 3016149,
+    "marginShare": 0.3357874561236862,
+    "wonOrders": 335,
+    "onTimeShare": 0.9791044776119403,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 48.7,
+  "requests": 568
+}

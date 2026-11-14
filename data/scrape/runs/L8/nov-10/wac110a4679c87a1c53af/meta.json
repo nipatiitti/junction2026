@@ -1,0 +1,24 @@
+{
+  "seed": "nov-10",
+  "level": 8,
+  "policy": "lane-prior",
+  "kind": "practice",
+  "worldId": "wac110a4679c87a1c53af",
+  "version": "69bec23df8dac30452edef9380604ca21f2f18bb",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 10770,
+  "score": {
+    "marginCents": 585900,
+    "revenueCents": 2575036,
+    "marginShare": 0.22753079956940409,
+    "wonOrders": 238,
+    "onTimeShare": 0.9369747899159664,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 37.9,
+  "requests": 496
+}

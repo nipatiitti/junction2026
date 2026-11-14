@@ -1,0 +1,24 @@
+{
+  "seed": "nov-1",
+  "level": 8,
+  "policy": "hazard-admission",
+  "kind": "practice",
+  "worldId": "w5908b9e7c7d8ba5981e2",
+  "version": "69bec23df8dac30452edef9380604ca21f2f18bb",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 13033,
+  "score": {
+    "marginCents": 1040018,
+    "revenueCents": 3671943,
+    "marginShare": 0.2832336994337875,
+    "wonOrders": 361,
+    "onTimeShare": 0.9750692520775623,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 46.5,
+  "requests": 595
+}
