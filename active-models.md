@@ -59,3 +59,7 @@ of all. Each model's weeks land in `data/scrape/runs` with its own policy, so th
 To gather many weeks without watching, `uv run python -m tools.sweep` plays the active models on fresh random seeds,
 round after round, until stopped ([`tools/README.md`](tools/README.md#play-many-fresh-seeds)). It adds weeks, it does
 not read them, so a comparison still needs the run above.
+
+To play several of the systems built on `ceiling` in one system, and find the best mix of them,
+`uv run python -m strategies.tournament` plays them in rounds ([`strategies/tournament/README.md`](strategies/tournament/README.md)).
+It reads the saved weeks it can, and `--plan` shows what it would play; name the layers worth a week with `--layers`.
