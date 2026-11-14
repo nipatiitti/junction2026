@@ -365,8 +365,8 @@
     "hazard_fee": {
       "file": "strategies/hazard_fee/dispatch.py",
       "fingerprint": "8e3a1566023eb5d9",
-      "world_id": "wf01d2798cdf79818b07c",
-      "played_at": "2026-11-14T12:34:43+0200",
+      "world_id": "wae4206a7724ef614c88d",
+      "played_at": "2026-11-14T15:59:30+0000",
       "score": {
         "marginCents": 1267071,
         "revenueCents": 3238635,
