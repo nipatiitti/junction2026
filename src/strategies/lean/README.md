@@ -295,13 +295,13 @@ cheaply.
 
 From 28 server weeks of the defaults above (372 orders a week, 11,108 orders):
 
-| Change | What the weeks showed |
-| --- | --- |
+| Change                                                                                                | What the weeks showed                                                                                                                                                                                                                        |
+| ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The cost in `order.json` is fitted again (`uv run --with numpy python -m analysis.lean_cost --write`) | The model predicted 1.03 × typical for a private pickup that paid 1.35, and 0.98 for a Friday that paid 1.06. It charged +0.37 for a last pickup within 8 hours; the fees say +0.09. Cars ready today were right already (0.99 against 1.00) |
-| Only chains that book are posted, and a car waits only for such a chain | Chains posted on a Friday, with under 20 hours to the first last pickup or without a new car booked 23% of the time (11 a week); the others 69% (76 a week) |
-| `chainPatience` 1 | 51% of the chains book within one waking hour. One still open then books 24% of the time, and its cars waited a median 16 hours and then paid 1.06 × typical |
-| `lateOpen` 1.25 | 8 cars a week opened at 1.5 to 2 × typical because the time of their raises was over; 5 of them were booked within 3 minutes at 1.98 × |
-| The early fee compares a fee with a fee (#327) | A gig posted again after its window ended could open under the fee it had reached |
+| Only chains that book are posted, and a car waits only for such a chain                               | Chains posted on a Friday, with under 20 hours to the first last pickup or without a new car booked 23% of the time (11 a week); the others 69% (76 a week)                                                                                  |
+| `chainPatience` 1                                                                                     | 51% of the chains book within one waking hour. One still open then books 24% of the time, and its cars waited a median 16 hours and then paid 1.06 × typical                                                                                 |
+| `lateOpen` 1.25                                                                                       | 8 cars a week opened at 1.5 to 2 × typical because the time of their raises was over; 5 of them were booked within 3 minutes at 1.98 ×                                                                                                       |
+| The early fee compares a fee with a fee (#327)                                                        | A gig posted again after its window ended could open under the fee it had reached                                                                                                                                                            |
 
 Not changed, because the weeks gave no reason: the price rule (where a quote was higher only for its cost, the
 wins fell as a noise of 0.28 says), and the opening fee (40% of the single gigs for a later day book at the early fee

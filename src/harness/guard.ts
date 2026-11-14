@@ -11,6 +11,8 @@ export class Guard {
   readonly faults = new Map<string, number>()
   /** The first message of each kind of fault. */
   readonly messages = new Map<string, string>()
+  /** The longest that each kind of call took, in milliseconds. */
+  readonly slowest = new Map<Call, number>()
 
   /** The strategy's answer, or undefined when the call throws or takes longer than its budget: the caller then takes
    * the safe action. A call cannot be stopped midway, so a late answer is dropped once it comes. */
@@ -18,7 +20,9 @@ export class Guard {
     const started = performance.now()
     try {
       const answer = decide()
-      if (performance.now() - started <= BUDGET_MS[call]) return answer
+      const took = performance.now() - started
+      if (took > (this.slowest.get(call) ?? 0)) this.slowest.set(call, took)
+      if (took <= BUDGET_MS[call]) return answer
       this.fault(`${call} late`)
     } catch (error) {
       this.fault(`${call} error`, error)
