@@ -172,6 +172,23 @@ as it is, and each later change is judged against it on that seed. For reference
 |  101 | spread-4  | MORNING_STEP 0.02 → 0                                                            | €10,171 |    247 |              90.3% | no   |
 |  102 | spread-4  | no war on the day after the trust days (same week here; guards steps 92 and 101) | €10,504 |    274 |              90.9% | yes  |
 |  103 | spread-4  | PRICE start 1.50 → 1.55                                                          | €11,348 |    280 |              91.4% | yes  |
+|  104 | spread-1  | new seed: v103 as it is                                                          |  €9,798 |    308 |              95.8% | base |
+|  105 | spread-1  | MORNING_STEP 0.02 → 0.03 (equal)                                                 |  €9,743 |    316 |              95.6% | no   |
+| 105b | spread-1  | repeat of v104 (an edit failed; identical week)                                  |  €9,798 |    308 |              95.8% | no   |
+|  106 | spread-1  | SLOW_PRICE 0.90 for the within-three-days option                                 |  €9,340 |    312 |              94.2% | no   |
+|  107 | spread-1  | LADDER_DOWN 0.01 → 0.015                                                         | €10,479 |    334 |              94.3% | yes  |
+|  108 | spread-1  | PRICE_MIN 1.30 → 1.25                                                            | €10,828 |    345 |              94.2% | yes  |
+|  109 | spread-19 | new seed: v108 as it is                                                          | €15,582 |    350 |              97.1% | base |
+|  110 | spread-19 | LADDER_DOWN 0.015 → 0.02                                                         | €15,366 |    345 |              95.7% | no   |
+|  111 | spread-19 | TOP_BEFORE 3h → 2h                                                               | €15,934 |    345 |              96.5% | yes  |
+|  112 | spread-19 | TOP_BEFORE 2h → 90 min (equal)                                                   | €15,845 |    345 |              95.9% | no   |
+|  113 | spread-19 | FEE_OPEN 1.0 → 0.95                                                              | €15,543 |    336 |              94.9% | no   |
+|  114 | spread-16 | new seed: v111 as it is (unranked)                                               | €13,508 |    329 | 88.4% (not ranked) | base |
+|  115 | spread-16 | WARN_STEP 0.02 → 0.03 (unranked)                                                 | €12,927 |    288 | 88.5% (not ranked) | no   |
+|  116 | spread-16 | TOP_BEFORE 2h → 3h (unranked, closer)                                            | €12,524 |    348 | 89.4% (not ranked) | yes  |
+|  117 | spread-16 | LADDER_DOWN 0.015 → 0.01 (ranked again)                                          | €13,889 |    322 |              90.1% | yes  |
+|  118 | spread-16 | PRICE_MIN 1.25 → 1.30                                                            | €14,080 |    322 |              90.1% | yes  |
+|  119 | spread-9  | new seed: v118 as it is                                                          | €16,483 |    348 |              97.7% | base |
 
 What the steps taught:
 
