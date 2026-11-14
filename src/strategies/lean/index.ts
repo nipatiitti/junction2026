@@ -66,7 +66,7 @@ export const DEFAULTS = {
   climbTo: 0.88,
   /** Instead of the climb: hold `open` × typical and raise only 24, 16, 10 and 6 hours before the last pickup (to
    * 1.05, 1.25, 1.55 and 2 × typical). */
-  stepped: false,
+  stepped: true,
   /** With `stepped`: 1 moves each gig's raises by up to 1.5 hours either way and their size by 5%, drawn from the
    * order id, so that drivers cannot time a second look; 0 keeps the table. */
   jitter: 1,

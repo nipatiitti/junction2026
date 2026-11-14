@@ -42,11 +42,15 @@ practice week (`advance`) or a final (the event stream) runs:
   seen, in `out/journal/<world id>.jsonl` (`SPREAD_JOURNAL_DIR` changes the folder). On a rebuild the new strategy gets
   the event log and the journal merged in order, so it ends in the state of the one that played. Without the file, as
   on another machine, it gets the events only.
-- `loops.ts` holds the practice and the live loop, `week.ts` plays one week and saves it. There is one way into a
-  week, for the first start, our own restart, a server that went away and a broken stream alike: rebuild the books
-  and a new strategy from the snapshot, the event log and the journal, then run the loop. An unreachable server is
-  retried every second for as long as it takes; both loops skip an event they have handled. The client sends at most
-  50 actions a request and waits for the tokens that the `RateLimit-*` headers name.
+- `loops.ts` holds the practice and the live loop, `week.ts` plays one week and saves it. The practice loop sends
+  one request a step: the `advance` carries the actions of the step before. While dealers ask for prices (weekdays,
+  08:00 to 18:15) a step is 10 minutes, so every request is quoted inside its 15 minutes; outside those hours the
+  world runs to the next event that needs an answer, an hour at most. Forty level 8 weeks, eight at once, take about
+  11 minutes. There is one way into a week, for the first start, our own restart, a server that went away and a
+  broken stream alike: rebuild the books and a new strategy from the snapshot, the event log and the journal, then
+  run the loop. An unreachable server is retried every second for as long as it takes; both loops skip an event they
+  have handled. The client sends at most 50 actions a request and waits for the tokens that the `RateLimit-*`
+  headers name.
 
 **What the harness guarantees in the final** (`--final`): it never exits on an error. Any error is printed and the
 week is rebuilt a second later. The live loop keeps one request in flight while the outbox collects: quotes go
@@ -64,6 +68,8 @@ params (defaults in its `StrategyKind`), and answers these calls, each with a re
   them. `need.why` says why (a won order, a change, a split trade-in, a retry after `need.failed`, a repost or an
   urgent reprice of `need.previous`, or `lost`: a car that no gig carries). The desk posts every plan, and posts any
   leg of `need.legs` that no plan carries with the starter's gig; an empty answer counts as a fault.
+- `hold(need, books)`, optional: true to wait with the gig for these legs, as when the cars may join a gig with cars
+  still to come. The desk asks again on every sweep.
 - `observe(event, books)`: every event of the week, before the desk acts on it.
 - `sent(action, result, books)`, optional: every action the desk sent for the strategy (quote, post, reprice,
   withdraw, offer), as it went out (also the safe one that replaced an invalid answer), with the world's answer: `ok`
