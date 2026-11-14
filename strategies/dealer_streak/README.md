@@ -56,6 +56,19 @@ and the longest runs of wins and losses.
 
 ## Bench
 
-Not run yet: the bench plays online, which needs the user's approval. Run it against
-`strategies/dealer_ladder/dispatch.py`, `strategies/streak_ladder/dispatch.py` and `strategies/price_ladder/dispatch.py`
-on the same seeds, and compare each week's margin and on-time share.
+Two practice weeks, level 8 (`spread-1`, `spread-2`), against the dealer ladder, the streak ladder, the shared price
+ladder and the root system:
+
+| System          | spread-1  | spread-2  | Total      | Orders | On time |
+| --------------- | --------- | --------- | ---------- | ------ | ------- |
+| `dealer_streak` | €7,692.75 | €4,537.73 | €12,230.48 | 665    | 97.7%   |
+| `dealer_ladder` | €6,339.07 | €4,563.94 | €10,903.01 | 697    | 97.8%   |
+| `streak_ladder` | €7,381.12 | €5,465.42 | €12,846.54 | 754    | 97.6%   |
+| `price_ladder`  | €6,200.04 | €4,512.08 | €10,712.12 | 816    | 97.9%   |
+| `dispatch.py`   | €8,063.40 | €6,155.98 | €14,219.38 | 722    | 98.6%   |
+
+The per-dealer streak step beats both of the ladders it is built from: +€1,327 over the dealer ladder and +€1,518 over
+the shared price ladder, and it wins `spread-1` outright among the ladder family (€7,692.75, above the streak ladder's
+€7,381.12). Against the shared streak ladder it loses €616 in total, on `spread-2` alone, because the per-dealer state
+splits the market: it wins fewer orders (665 against 754) at a higher price. All three keyed and streak ladders sit
+below the root `dispatch.py`. Two seeds is thin, so read the order as a guide.
