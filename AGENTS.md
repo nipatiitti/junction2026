@@ -254,6 +254,7 @@ on one line, so two PRs that each add a command do not conflict.
 - See what a tournament would play (plays nothing): `uv run python -m strategies.tournament --plan`
 - Play the tournament of ceiling's layers: `uv run python -m strategies.tournament --seeds spread-1..spread-3`
 - Play the active models on fresh seeds until stopped: `uv run python -m tools.sweep`
+- List open worlds older than 15 minutes (`--yes` deletes them): `uv run --env-file .env python -m tools.kill_old_worlds`
 - Build the saved-weeks DB: `uv run python -m tools.db`
 - Lint / format Python: `uv run ruff check --fix . && uv run ruff format .`
 - Play a week in TypeScript: `pnpm dispatch --level 8 --seed spread-1`
