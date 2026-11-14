@@ -380,8 +380,8 @@
     "headroom": {
       "file": "strategies/headroom/dispatch.py",
       "fingerprint": "56308eaa4766cc85",
-      "world_id": "wb3a11a10786981c3f833",
-      "played_at": "2026-11-14T12:34:50+0200",
+      "world_id": "w856810d83ddb234cc872",
+      "played_at": "2026-11-14T15:58:00+0000",
       "score": {
         "marginCents": 1267071,
         "revenueCents": 3238635,
