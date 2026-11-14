@@ -10,15 +10,15 @@ const OWN = {
   bigShare: 0.05,
   warmup: 30,
   /** Big dealers: `lo` at trust 0, rising to `hi` along a logistic centred on `mid` with width `width`. */
-  lo: 1.12,
-  hi: 1.62,
+  lo: 1.16,
+  hi: 1.72,
   mid: 8,
   width: 3,
   /** From this weekday (0 Monday) on, the big dealers' floor is `loLate`: no more investing. */
   lateDay: 3,
-  loLate: 1.24,
+  loLate: 1.28,
   /** Small dealers: a fixed multiple, plus `smallTrustStep` per trust point. */
-  small: 1.42,
+  small: 1.46,
   smallTrustStep: 0.01,
   /** Option factors over the within_3_days curve. */
   nextDay: 1.04,

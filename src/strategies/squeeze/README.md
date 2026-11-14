@@ -8,5 +8,5 @@ width `width`) to `hi`, far above 1% per order. From weekday `lateDay` on, inves
 `smallTrustStep` per trust point). Options scale by `nextDay` and `sameDay` over within_3_days; deliveries into the
 capital region pay `capital` × the price. Everything else comes from the base.
 
-Params: `bigShare` 0.05, `warmup` 30, `lo` 1.12, `hi` 1.62, `mid` 8, `width` 3, `lateDay` 3, `loLate` 1.24,
-`small` 1.42, `smallTrustStep` 0.01, `nextDay` 1.04, `sameDay` 1.09, `capital` 0.9.
+Params: `bigShare` 0.05, `warmup` 30, `lo` 1.16, `hi` 1.72, `mid` 8, `width` 3, `lateDay` 3, `loLate` 1.28,
+`small` 1.46, `smallTrustStep` 0.01, `nextDay` 1.04, `sameDay` 1.09, `capital` 0.9.
