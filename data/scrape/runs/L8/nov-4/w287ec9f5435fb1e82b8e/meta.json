@@ -1,0 +1,24 @@
+{
+  "seed": "nov-4",
+  "level": 8,
+  "policy": "town-open",
+  "kind": "practice",
+  "worldId": "w287ec9f5435fb1e82b8e",
+  "version": "69bec23df8dac30452edef9380604ca21f2f18bb",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 11242,
+  "score": {
+    "marginCents": 1228324,
+    "revenueCents": 3310629,
+    "marginShare": 0.37102435821108315,
+    "wonOrders": 296,
+    "onTimeShare": 0.9864864864864865,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 42.2,
+  "requests": 513
+}

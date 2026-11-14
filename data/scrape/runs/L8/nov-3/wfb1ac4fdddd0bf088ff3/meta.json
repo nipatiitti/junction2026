@@ -1,0 +1,24 @@
+{
+  "seed": "nov-3",
+  "level": 8,
+  "policy": "slack-budget",
+  "kind": "practice",
+  "worldId": "wfb1ac4fdddd0bf088ff3",
+  "version": "35a064b3a34d3d92c4a7d4508bb4b7a78eff9ea4",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 16096,
+  "score": {
+    "marginCents": 1301055,
+    "revenueCents": 4147172,
+    "marginShare": 0.3137210127768995,
+    "wonOrders": 342,
+    "onTimeShare": 0.9707602339181286,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 55.7,
+  "requests": 599
+}
