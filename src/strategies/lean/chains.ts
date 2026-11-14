@@ -25,7 +25,7 @@ const MAX_DAY = 14 * HOUR
 
 /** One open car of ours: a single gig that no driver holds. */
 export type Car = {
-  gigId: string
+  gigId: string | undefined // its own gig in the app; none while the car waits for a partner
   orderId: string
   from: string
   to: string
