@@ -76,18 +76,19 @@ export function stepped(
 ): FeeStep[] {
   const random = rng(seed)
   const points: [number, number][] = [[now, Math.max(open, floor)]]
-  const time = awake(now, lastPickup - BOOK_AHEAD)
+  const plan = planBy(now, lastPickup)
+  const time = Math.min(awake(now, plan), PLAN_AHEAD)
+  const from = later(now, awake(now, plan) - time)
   STEPS.forEach(([hours, ratio], i) => {
     // Each gig raises at its own minutes and by its own size, so a driver cannot plan a second look for the raise.
-    let at = lastPickup - hours * HOUR + (random() - 0.5) * 3 * HOUR * jitter
+    const shift = random() - 0.5
     const to = ratio * (1 + (random() - 0.5) * 0.1 * jitter)
+    let at = lastPickup - hours * HOUR + shift * 3 * HOUR * jitter
     if (spread) {
-      // A gig with less time than the table spreads its raises over the waking time it has, and a raise that
-      // falls in the night comes the evening before: no driver looks at 02:00.
-      at = Math.max(at, later(now, (SPREAD[i] ?? 1) * time))
-      const minute = ((at % DAY) + DAY) % DAY
-      if (minute < WAKE) at -= minute + DAY - SLEEP + 30
-      else if (minute > SLEEP) at -= minute - SLEEP + 30
+      // By the drivers' planning: three raises over the waking time to `plan`, and the top at `plan` on the day
+      // itself, or at 07:00 on the day for a gig that drivers plan the evening before.
+      const top = plan > lastPickup - 6 * HOUR ? plan : Math.min(later(plan, 1), lastPickup - 3 * HOUR)
+      at = i < 3 ? later(from, (PLAN[i] ?? 1) * time) + shift * 40 * jitter : top
     }
     if (at <= now) points[0] = [now, Math.max(points[0]?.[1] ?? 0, to)]
     else points.push([at, to])
@@ -97,8 +98,20 @@ export function stepped(
     typical,
   )
 }
-/** With `spread`: the share of a gig's waking time after which each raise of STEPS comes at the latest. */
-const SPREAD = [0.3, 0.5, 0.7, 0.85]
+/** With `spread`: the share of the waking time to `planBy` after which each of the first three raises comes, and
+ * the most waking minutes before it that the raises take (two days): a gig far ahead holds its opening fee. */
+const PLAN = [0.3, 0.55, 0.8]
+const PLAN_AHEAD = 28 * HOUR
+
+/** The minute by which a gig should have its driver. Drivers plan a day the evening before: 53 of 103 late orders
+ * of five server weeks had a last pickup before 16:00, got their raises that morning and found a driver only in
+ * the evening after. So a gig to collect before 16:00 should book by 21:00 the evening before, and a later one 5
+ * hours before its last pickup. With that evening already over, 3 hours before the last pickup. */
+export function planBy(now: number, lastPickup: number): number {
+  const evening = Math.floor(lastPickup / DAY) * DAY - (DAY - SLEEP)
+  if (lastPickup % DAY >= 16 * HOUR) return lastPickup - 5 * HOUR
+  return awake(now, evening) >= HOUR ? evening : lastPickup - 3 * HOUR
+}
 
 /** A small seeded generator (mulberry32 over a string hash): the same numbers for the same seed, so a strategy
  * rebuilt in the final draws the same schedule. */
