@@ -23,6 +23,8 @@ from spread.types import DeliveryOption, DeskEvent, DriverProfile, LedgerLine, L
 
 from strategies.admission import Held
 from strategies.admission.admission import risky_note
+from strategies.lane_fee import LaneFee
+from strategies.lead_cost.admission import open_hours
 from strategies.strategy import Strategy
 
 HOUR, DAY = 60, 24 * 60
@@ -30,7 +32,7 @@ MONDAY, FRIDAY, SATURDAY = 0, 4, 5
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 WORK_FROM, WORK_TO = 8 * HOUR, 18 * HOUR  # the price war and the outage last from 08:00 to 18:00
 TRUST_CAP = 25  # a dealer counts at most 25 orders on time, each worth 1% at level 8
-DEALER_LIMIT = 1.25  # one dealer's own price stays within 25% of the usual price
+OWN_LIMIT = 1.25  # the own factor of a dealer or a place stays within 25% of the usual price
 OUTAGE_LOSSES = 2  # this many lost quotes in a row at the outage's price end the outage at that place
 VALUES = Path(__file__).with_name("values.json")
 
@@ -77,10 +79,13 @@ class Inputs:
     dealer: str
     day: int  # the day the request came: 0 is Monday, 4 is Friday
     pickup: str  # the place where its first car waits
+    delivery: str  # the place where its last car goes
     km: float  # road km that its cars travel
     drive: int  # road minutes to move its cars one after the other
+    decided: int  # the minute the dealer decides: we post the gig then
     ready: int  # the minute its last car is ready to collect
-    typical: int  # the typical fee for its cars, in cents
+    wait: float  # hours from the dealer's decision until its first car is ready; under 0 when it is ready already
+    typical: float  # the typical fee for its cars, in cents: its lane's, or its own (`lane_fee`)
     trade_in: bool  # two cars: the new one out and the old one back
     premium: bool  # a premium car, which needs an experienced driver
     low_charge: bool  # an electric car under 30%: the driver stops to charge it
@@ -103,8 +108,9 @@ class Quoted:
     at: int  # when the request arrived
     dealer: str
     pickup: str
+    delivery: str
     floored: bool  # the driver cost set the price, above the usual price
-    capped: bool  # the usual price was the most we ask: a win there is no news
+    capped: bool  # the usual price was the most we ask
     outage: bool  # priced with the outage's lift
 
 
@@ -112,9 +118,15 @@ class IfRules(Strategy[Params]):
     """Quotes price requests by plain rules, and learns the usual price from the week's wins and losses."""
 
     def __init__(
-        self, roster: list[DriverProfile], world_map: WorldMap, level: int = 8, params: Params | None = None
+        self,
+        roster: list[DriverProfile],
+        world_map: WorldMap,
+        level: int = 8,
+        params: Params | None = None,
+        lane: LaneFee | None = None,
     ) -> None:
         super().__init__(roster, world_map, level, params or Params())
+        self.lane = lane or LaneFee(roster, world_map, level)  # what a lane's work is usually paid
         self.km = {(road["from"], road["to"]): road["km"] for road in world_map["roads"]}
         # Where the drivers live: all of them, and those who may take a premium car.
         self.homes: dict[str, Counter[str]] = {"all": Counter(), "experienced": Counter()}
@@ -123,15 +135,19 @@ class IfRules(Strategy[Params]):
             if driver["rating"] >= 4.8 and driver["completedGigs"] >= 50:
                 self.homes["experienced"][driver["homePlaceId"]] += 1
         self.nearby: dict[tuple[str, str], float] = {}  # (place, audience) -> the drivers near it
-        # The usual price: `price_base` times the ladder, which a win raises and a loss lowers.
-        self.ladder = min(1.0, self.params.ladder_max)
+        # The usual price is `price_base` times the ladder, which a win raises and a loss lowers. The most we ask is
+        # `price_base` times the cap, which the outcomes of the quotes at it move.
+        self.ladder = 1.0
+        self.cap = 1.0
         self.dealer: dict[str, float] = {}  # dealer -> its own factor on the usual price
+        self.place: dict[str, float] = {}  # "from <pickup place>" or "to <delivery place>" -> its own factor
         self.quotes: dict[str, Quoted] = {}  # request id -> the quote waiting for its outcome
         # Runs of outcomes in the working hours of one day: losses in a row are the price war, wins in a row at one
         # pickup place are the outage there.
         self.run_day = -1
         self.losses = 0
-        self.before_losses: tuple[float, dict[str, float]] = (self.ladder, {})  # the prices before the run began
+        # The prices before a run of losses began: the ladder, the dealers' factors and the places'.
+        self.before_losses: tuple[float, dict[str, float], dict[str, float]] = (self.ladder, {}, {})
         self.war_day: int | None = None
         self.wins: dict[str, int] = {}  # pickup place -> its wins in a row today
         self.gain: dict[str, float] = {}  # pickup place -> how much those wins raised the ladder
@@ -154,26 +170,36 @@ class IfRules(Strategy[Params]):
     def quote(self, request: PriceRequest, held: Iterable[Held], now: int) -> dict[str, int]:
         """A price in cents for the one option we want, or nothing: the desk then declines the request. We decline
         when no option leaves time for the drive, when the area has no room for one more car, and when the driver
-        cost with our margin is above the most we ask."""
+        cost with our margin is above the most we ask. Of the options that pay, we quote the one that leaves the
+        most money after its driver."""
         v = self.params
         self.counts["requests"] += 1
         i = self.inputs(request, held, now)
-        option = self.option(request, i, now)
-        if option is None:
+        offered = request["options"][:1] if self.level <= 3 else request["options"]  # up to level 3 the first wins
+        options = [option for option in offered if self.slack(i, option, now) >= v.slack_hours_least]
+        if not options:
             return self.decline("time")
         room = max(v.room_least, v.room_per_driver * i.drivers_able)
         if i.on_time < v.on_time_guard:
             room *= v.room_when_late  # too many of our cars are late: take fewer
         if i.waiting + 1 > room:
             return self.decline("room")
-        listed = option["listPriceCents"]
-        usual, most = self.price(i, option, now)
-        least = self.cost(i, option) * (1 + v.min_margin)
-        if least > listed * most:
+        best: tuple[float, DeliveryOption, float, bool, bool] | None = None
+        for option in options:
+            listed = option["listPriceCents"]
+            usual, most = self.price(i, option, now)
+            cost = self.cost(i, option, self.lead(request, i, option))
+            least = cost * (1 + v.min_margin)
+            if least > listed * most:
+                continue  # its driver would cost more than the most we ask
+            cents = max(listed * usual, least)
+            if best is None or cents - cost > best[0]:
+                best = (cents - cost, option, cents, listed * usual < least, usual >= most)
+        if best is None:
             return self.decline("cost")
-        floored = listed * usual < least
+        _, option, cents, floored, capped = best
         self.quotes[request["id"]] = Quoted(
-            request["arrivedAt"], i.dealer, i.pickup, floored, usual >= most, self.in_outage(i.pickup, now)
+            request["arrivedAt"], i.dealer, i.pickup, i.delivery, floored, capped, self.in_outage(i.pickup, now)
         )
         self.pending[request["id"]] = (
             request["respondBy"],
@@ -181,28 +207,48 @@ class IfRules(Strategy[Params]):
             request["legs"][0]["pickup"]["window"]["from"] // DAY,
         )
         self.counts["quoted"] += 1
+        self.counts[f"quoted {option['kind']}"] += 1
         self.counts["at the cost floor"] += floored
-        return {option["kind"]: max(1, int(max(listed * usual, least) + 0.5))}
+        return {option["kind"]: max(1, int(cents + 0.5))}
 
-    def option(self, request: PriceRequest, i: Inputs, now: int) -> DeliveryOption | None:
-        """The delivery option to quote: the fastest one that leaves `slack_hours` beyond the drive, else the slowest
-        one when it leaves `slack_hours_least`, else none. Up to level 3 only the first option can be won."""
-        v = self.params
-        options = request["options"][:1] if self.level <= 3 else request["options"]
+    def slack(self, i: Inputs, option: DeliveryOption, now: int) -> float:
+        """Hours that an option leaves beyond the drive, from when a driver can collect the car."""
         start = max(i.ready, now + HOUR)  # a driver needs an hour to see the gig and reach the car
-        slack = [(option["deadline"] - start - i.drive) / HOUR for option in options]
-        for option, hours in zip(options, slack):
-            if hours >= v.slack_hours:
-                return option
-        if slack and slack[-1] >= v.slack_hours_least:
-            return options[-1]
-        return None
+        return (option["deadline"] - start - i.drive) / HOUR
 
-    def cost(self, i: Inputs, option: DeliveryOption) -> float:
-        """What we expect to pay drivers for the request's cars, in cents: the typical fee, times one factor for
-        each thing that makes the work dearer or cheaper for a driver."""
+    def lead(self, request: PriceRequest, i: Inputs, option: DeliveryOption) -> float:
+        """Hours from the dealer's decision to the last minute the first car can be collected and still arrive by
+        the option's deadline: the deadline less the drive, inside the pickup site's stated hours or a private
+        seller's slot. About the order's `lastPickupAt`, as strategies/lead_cost counts it."""
+        first = request["legs"][0]["pickup"]
+        latest = option["deadline"] - i.drive
+        if first["privateAddress"] or not first.get("hours"):
+            latest = min(latest, first["window"]["to"])
+        else:
+            for day in range(latest // DAY, latest // DAY - 7, -1):
+                span = open_hours(first["hours"], day)
+                if span is not None and latest >= day * DAY + span[0]:
+                    latest = min(latest, day * DAY + span[1])
+                    break
+        return (latest - i.decided) / HOUR
+
+    def cost(self, i: Inputs, option: DeliveryOption, lead: float) -> float:
+        """What we expect to pay drivers for the request's cars when the dealer takes `option`, in cents: the
+        typical fee, times one factor for each thing that makes the work dearer or cheaper for a driver. `lead` is
+        the hours we have to find one."""
         v = self.params
         cost = i.typical * (v.cost_base if self.level >= 7 else 0.8 if self.level == 1 else 1.0)
+        if self.level >= 7:  # in a shortage, how long the car can wait for its driver decides most of its cost
+            if lead < v.lead_tight_hours:
+                cost *= v.cost_lead_tight  # to collect within hours: the fee climbs to its top before a driver comes
+            elif lead < v.lead_short_hours:
+                cost *= v.cost_lead_short
+            elif i.wait >= v.ready_later_hours:
+                cost *= v.cost_ready_later  # ready tomorrow or later: drivers plan that day ahead, at the early fee
+            elif i.wait >= v.ready_soon_hours:
+                cost *= v.cost_ready_soon
+            elif lead < v.lead_day_hours:
+                cost *= v.cost_lead_day  # ready now, and to collect within a day
         # Few drivers near the car: a long trip to it. Few near the end: an expensive trip home.
         cost *= 1 + v.cost_far_pickup * math.exp(-i.drivers_pickup / v.drivers_scale)
         cost *= 1 + v.cost_far_delivery * math.exp(-i.drivers_delivery / v.drivers_scale)
@@ -236,13 +282,15 @@ class IfRules(Strategy[Params]):
 
     def price(self, i: Inputs, option: DeliveryOption, now: int) -> tuple[float, float]:
         """The price over the list price that we want for the option, and the most that we ask for it. The usual
-        price is `price_base` times the ladder and the dealer's own factor, lower in the price war. Each rule that
-        fits then lifts both by its factor."""
+        price is `price_base` times the ladder and the own factors of the dealer, the pickup place and the delivery
+        place, lower in the price war; the most is `price_base` times the cap. Each rule that fits then lifts both
+        by its factor."""
         v = self.params
         if self.level <= 3:
             return 1.0, 1.0  # every quote wins at the list price
-        most = v.price_base * v.ladder_max
-        usual = min(most, v.price_base * self.ladder * self.dealer.get(i.dealer, 1.0))
+        most = v.price_base * self.cap
+        own = self.dealer.get(i.dealer, 1.0) * self.place.get(f"from {i.pickup}", 1.0)
+        usual = min(most, v.price_base * self.ladder * own * self.place.get(f"to {i.delivery}", 1.0))
         if self.in_war(now):
             usual *= v.price_war
         lift = 1.0
@@ -282,15 +330,19 @@ class IfRules(Strategy[Params]):
         first = legs[0]["pickup"]
         pickup, delivery = first["placeId"], legs[-1]["delivery"]["placeId"]
         premium = any(leg["car"]["premium"] for leg in legs)
+        decided = max(now, request["respondBy"])
         self.settle(now)
         return Inputs(
             dealer=request["dealerId"],
             day=request["arrivedAt"] // DAY,
             pickup=pickup,
+            delivery=delivery,
             km=sum(self.km.get((leg["pickup"]["placeId"], leg["delivery"]["placeId"]), 0.0) for leg in legs),
             drive=self.drive(legs),
+            decided=decided,
             ready=max(leg["pickup"]["window"]["from"] for leg in legs),
-            typical=request["referenceFeeCents"],
+            wait=(first["window"]["from"] - decided) / HOUR,
+            typical=self.lane.of_request(request) if self.params.lane_fee else request["referenceFeeCents"],
             trade_in=len(legs) > 1,
             premium=premium,
             low_charge=any(low_charge(leg) for leg in legs),
@@ -388,10 +440,12 @@ class IfRules(Strategy[Params]):
 
     def outcome(self, request_id: str, won: bool) -> None:
         """A won quote raises the usual price by `ladder_up` and a lost one lowers it by `ladder_down`, between
-        `ladder_min` and `ladder_max`; the dealer's own factor moves by `dealer_step` the same way. A quote that
-        the driver cost priced and lost says nothing: our cost lost it, not our price. Then two runs are counted,
-        in the working hours of one day: `war_losses` losses in a row are the price war, and `outage_wins` wins in
-        a row at one pickup place are the outage there."""
+        `ladder_min` and the cap. The same way, the dealer's own factor moves by `dealer_step`, and those of the
+        pickup place and the delivery place by `place_step`. The cap, the most we ask, moves by `cap_step` with the
+        outcome of each quote at it, between `cap_min` and `cap_max`. A quote that the driver cost priced and lost
+        says nothing: our cost lost it, not our price. Then two runs are counted, in the working hours of one day:
+        `war_losses` losses in a row are the price war, and `outage_wins` wins in a row at one pickup place are the
+        outage there."""
         quote = self.quotes.pop(request_id, None)
         if quote is None:
             return  # a request we declined
@@ -407,14 +461,19 @@ class IfRules(Strategy[Params]):
             return
         if not won and quote.floored:
             return
+        if quote.capped:  # dealers took the most we ask, or refused it: ask a little more, or less
+            self.cap = min(v.cap_max, max(v.cap_min, self.cap * (1 + (v.cap_step if won else -v.cap_step))))
         if working and day != self.run_day:  # a run of wins or losses does not go on overnight
             self.run_day, self.losses, self.wins, self.gain = day, 0, {}, {}
         if not won and self.losses == 0:
-            self.before_losses = (self.ladder, dict(self.dealer))
+            self.before_losses = (self.ladder, dict(self.dealer), dict(self.place))
         before = self.ladder
-        self.ladder = min(v.ladder_max, max(v.ladder_min, before * (1 + (v.ladder_up if won else -v.ladder_down))))
+        self.ladder = min(self.cap, max(v.ladder_min, before * (1 + (v.ladder_up if won else -v.ladder_down))))
         own = self.dealer.get(quote.dealer, 1.0) * (1 + (v.dealer_step if won else -v.dealer_step))
-        self.dealer[quote.dealer] = min(DEALER_LIMIT, max(1 / DEALER_LIMIT, own))
+        self.dealer[quote.dealer] = min(OWN_LIMIT, max(1 / OWN_LIMIT, own))
+        for place in (f"from {quote.pickup}", f"to {quote.delivery}"):
+            own = self.place.get(place, 1.0) * (1 + (v.place_step if won else -v.place_step))
+            self.place[place] = min(OWN_LIMIT, max(1 / OWN_LIMIT, own))
         if not working:
             return
         place = quote.pickup
@@ -424,7 +483,11 @@ class IfRules(Strategy[Params]):
             # Monday has no usual price to fall from, so a war on Monday is followed down, not flagged.
             if self.level >= 8 and self.war_day is None and day > 0 and self.losses >= v.war_losses:
                 self.war_day = day
-                self.ladder, self.dealer = self.before_losses[0], dict(self.before_losses[1])
+                self.ladder, self.dealer, self.place = (
+                    self.before_losses[0],
+                    dict(self.before_losses[1]),
+                    dict(self.before_losses[2]),
+                )
             return
         self.losses = 0
         if quote.capped:
@@ -464,15 +527,18 @@ class IfRules(Strategy[Params]):
                     self.trust[dealer] = min(TRUST_CAP, self.trust.get(dealer, 0) + 1)
 
     def summary(self) -> str:
-        """The week's quotes: how many requests we quoted and won, why we declined the others, and where the usual
-        price ended."""
+        """The week's quotes: how many requests we quoted and won, at which options, why we declined the others,
+        and where the usual price and the most we ask ended."""
         c = self.counts
         if not c["requests"]:
             return ""
+        kinds = ", ".join(f"{c[key]} {key[7:].replace('_', ' ')}" for key in sorted(c) if key.startswith("quoted "))
+        base = self.params.price_base
         line = (
-            f"Ifs: {c['quoted']} of {c['requests']} requests quoted, {c['won']} won; declined {c['declined for time']} "
-            f"for time, {c['declined for room']} for room, {c['declined for cost']} for cost; "
-            f"{c['at the cost floor']} quotes at the cost floor; usual price x{self.params.price_base * self.ladder:.2f}"
+            f"Ifs: {c['quoted']} of {c['requests']} requests quoted ({kinds}), {c['won']} won; declined "
+            f"{c['declined for time']} for time, {c['declined for room']} for room, {c['declined for cost']} for cost; "
+            f"{c['at the cost floor']} quotes at the cost floor; usual price x{base * self.ladder:.2f}, "
+            f"the most we ask x{base * self.cap:.2f}"
         )
         if self.war_day is not None:
             line += f"; price war on {WEEKDAYS[self.war_day % 7]}"

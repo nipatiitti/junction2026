@@ -2,9 +2,9 @@
 README.md next to this file.
 
 Its rules (rules.py) take the place of the root desk's admission and pricing: they pick the option to quote, set its
-price and decline what does not pay or does not fit. Its fees (fees.py) plan each gig's fee schedule. Everything else
-(the loop, posting, notes, retries, bundling, direct offers, the final) is the root dispatch.py, so its improvements
-reach this system too.
+price and decline what does not pay or does not fit. Its fees (fees.py) plan each gig's fee schedule, and both count
+from the lane fee of strategies/lane_fee. Everything else (the loop, posting, notes, retries, bundling, direct offers,
+the final) is the root dispatch.py, so its improvements reach this system too.
 
 Run it from the repository root, with the options of the root dispatch.py and one more: `--values <file>` plays with
 the values of that file in place of those in values.json.
@@ -27,13 +27,13 @@ import os
 from types import MappingProxyType
 
 from spread.client import World
-from spread.types import FeeStep, PriceRequest
+from spread.types import PriceRequest
 
 import dispatch as root
 from strategies.admission import Held
-from strategies.fees import Gig
-from strategies.ifs.fees import IfFees, plan
+from strategies.ifs.fees import IfFees
 from strategies.ifs.rules import IfRules, Params, load_values
+from strategies.lane_fee import LaneFee
 from strategies.strategy import Strategy
 from tools import record
 
@@ -65,9 +65,10 @@ class Desk(root.Desk):
     def __init__(self, world: World, level: int, now: int):
         super().__init__(world, level, now)
         roster, world_map = self.admission.roster, self.admission.world_map  # loaded once by the root desk
-        self.rules = IfRules(roster, world_map, level, PARAMS)  # which requests to take, and at what price
-        self.fees = IfFees(roster, world_map, level, PARAMS)  # the fee schedule of each gig
-        self.strategies: list[Strategy] = [self.notes, self.rules, self.fees, self.offers, self.bundler]
+        self.lane = LaneFee(roster, world_map, level)  # the typical fee of a lane, for the two below
+        self.rules = IfRules(roster, world_map, level, PARAMS, self.lane)  # which requests to take, at what price
+        self.fees = IfFees(roster, world_map, level, PARAMS, self.lane)  # the fee schedule of each gig
+        self.strategies: list[Strategy] = [self.notes, self.lane, self.rules, self.fees, self.offers, self.bundler]
 
     def held(self) -> list[Held]:
         """The orders we hold, each with whether drivers hold all of its gigs now."""
@@ -90,11 +91,6 @@ class Desk(root.Desk):
         self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
 
 
-def bundle_plan(now: int, gig: Gig, level: int) -> list[FeeStep]:
-    """The fee schedule of a gig with several orders' cars, by the same rules as a gig of one order."""
-    return plan(now, gig, level, PARAMS)
-
-
 def main() -> None:
     """Reads --values, then plays as the root dispatch.py does, with its options."""
     global PARAMS
@@ -113,11 +109,9 @@ def main() -> None:
     root.main()
 
 
-# The root loop (play_practice, play_final) plays with this desk, plans the fees of a bundle by these rules, and
-# main() saves its weeks as `ifs`.
+# The root loop (play_practice, play_final) plays with this desk, and main() saves its weeks as `ifs`.
 root.Desk = Desk
 root.Recorder = Recorder
-root.fees_plan = bundle_plan
 
 if __name__ == "__main__":
     main()

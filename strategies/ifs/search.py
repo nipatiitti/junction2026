@@ -44,6 +44,7 @@ OUT = ROOT / "out" / "ifs"
 SEARCH_RUNS = ROOT / "out" / "scrape" / "ifs-search"
 COMMITTED_RUNS = ROOT / "data" / "scrape" / "runs"
 DEFAULT_SEEDS = "spread-1,spread-2,spread-3"
+DEFAULT_CONFIRM = "spread-4,spread-5,spread-6"
 # The code that a week needs. A search copies it when it starts and plays every week with the copy, so the system
 # can be edited while a search runs. A week that other code played is played again, not read from the weeks file.
 CODE = ["dispatch.py", "strategies", "tools"]
@@ -175,6 +176,10 @@ class Search:
         self.args, self.state, self.space, self.names = args, state, space, names
         self.target = round(args.target * 100)
         self.min_gain = round(args.min_gain * 100)
+        self.confirm = [] if args.confirm == "none" else parse_seeds(args.confirm)
+        both = sorted(set(self.confirm) & set(state["seeds"]))
+        if both:
+            raise ValueError(f"--confirm names seeds that the search plays ({', '.join(both)}): name others, or none")
         self.folder: Path = args.state.resolve().parent  # in full: each week's process runs in another folder
         self.weeks_file = self.folder / "weeks.json"
         self.best_file = self.folder / "best.json"
@@ -222,17 +227,30 @@ class Search:
 
     def keep(self, results: list[dict]) -> dict | None:
         """Prints each result against the best values. The best of the results takes their place when its score is
-        more than `--min-gain` above theirs; returns it then."""
+        more than `--min-gain` above theirs, on the search's seeds and again on the `--confirm` seeds; returns it
+        then. A week moves by hundreds of euros between two sets of values that differ little, so a gain on the
+        seeds that picked the winner is partly luck: the confirm seeds played no part in picking it."""
         best = self.state["best"]
         winner = max(results, key=lambda result: result["score"], default=None)
-        kept = winner if winner is not None and winner["score"] > best["score"] + self.min_gain else None
+        ahead = winner if winner is not None and winner["score"] > best["score"] + self.min_gain else None
         for result in results:
             gain = mean_margin(result["weeks"]) - mean_margin(best["weeks"])
             text = describe(result["weeks"], self.args.min_on_time)
-            mark = "kept" if result is kept else "no"
+            mark = "no" if result is not ahead else "to confirm" if self.confirm else "kept"
             print(f"  {result['label']}: {text}, {euros(gain, sign=True)}: {mark}", flush=True)
-            self.state["trials"].append({"label": result["label"], "score": result["score"], "kept": result is kept})
+            self.state["trials"].append({"label": result["label"], "score": result["score"], "kept": False})
+        kept = ahead
+        if ahead is not None and self.confirm:
+            again, before = self.play([(ahead["label"], ahead["values"]), ("best", best["values"])], self.confirm)
+            gain = mean_margin(again["weeks"]) - mean_margin(before["weeks"])
+            kept = ahead if again["score"] > before["score"] + self.min_gain else None
+            text = describe(again["weeks"], self.args.min_on_time)
+            mark = "kept" if kept is not None else "not kept"
+            print(
+                f"  {ahead['label']} on {', '.join(self.confirm)}: {text}, {euros(gain, sign=True)}: {mark}", flush=True
+            )
         if kept is not None:
+            self.state["trials"][-len(results) + results.index(kept)]["kept"] = True
             self.state["best"] = kept
             write_json(self.best_file, kept["values"])
         return kept
@@ -404,6 +422,11 @@ def describe_plan(args: argparse.Namespace, space: dict[str, dict], names: list[
         f"A pass tries each value one step up and one step down on {len(seeds)} seed{'s' if len(seeds) != 1 else ''} "
         f"({', '.join(seeds)}): up to {weeks} practice weeks at level {args.level or 8}, {args.jobs} at a time."
     )
+    if args.confirm != "none":
+        print(
+            f"A change that gains more than {euros(round(args.min_gain * 100))} there is played against the best "
+            f"values on {args.confirm} too, and kept only when it gains as much on those."
+        )
     print(f"It stops when the mean margin of a week is over {euros(round(args.target * 100))}.")
 
 
@@ -471,9 +494,15 @@ def main() -> None:
     parser.add_argument(
         "--min-gain",
         type=float,
-        default=50,
+        default=150,
         metavar="EUROS",
-        help="keep a change only when it raises the mean margin by more than this (default 50)",
+        help="keep a change only when it raises the mean margin by more than this (default 150)",
+    )
+    parser.add_argument(
+        "--confirm",
+        default=DEFAULT_CONFIRM,
+        metavar="SEEDS",
+        help=f"seeds that a change must also gain --min-gain on before it is kept, or none (default {DEFAULT_CONFIRM})",
     )
     parser.add_argument(
         "--max-weeks", type=int, default=0, metavar="N", help="stop after playing N weeks (default 0: no limit)"
