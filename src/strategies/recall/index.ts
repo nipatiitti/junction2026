@@ -3,7 +3,7 @@
  * hidden threshold seen in earlier weeks (`learn.ts`), scaled by the dealer's trust now. Overfit to practice seeds;
  * on an unknown week it is bidprice. README.md has the rules and the params. */
 import { readdirSync, readFileSync } from 'node:fs'
-import type { PriceRequest } from '../../../vendor/spread-typescript/spread.ts'
+import type { DeskEvent, PriceRequest } from '../../../vendor/spread-typescript/spread.ts'
 import { type Option, OPTIONS, trustOf } from '../../models/quote/index.ts'
 import type { Books, Prices, Setup, Strategy, StrategyKind } from '../../strategy.ts'
 import { BidPrice } from '../bidprice/index.ts'
@@ -26,7 +26,17 @@ export type RecallParams = BidPriceParams & {
   matchMin: number
   /** The share of requests so far that must match. */
   matchShare: number
+  /** prophet: follow plan-<seed>.json (`plan.ts`), declining the remembered requests it leaves out. */
+  plan: boolean
+  /** From this minute of the day, a day whose planned requests so far won under planDriftShare follows recall. */
+  planDriftMinute: number
+  /** The share of the day's planned requests so far that must have been won to keep declining. */
+  planDriftShare: number
+  /** At least this many planned requests that day before the drift check applies. */
+  planDriftMin: number
 }
+
+type Plan = { seed: string; margin: number; planned: string[]; declined: string[] }
 
 type Memory = { seed: string; sig: Record<string, string>; opts: Record<string, [number | null, number | null]> }
 
@@ -44,6 +54,10 @@ export const DEFAULTS: RecallParams = {
   rescue: true,
   matchMin: 3,
   matchShare: 0.8,
+  plan: true,
+  planDriftMinute: 720,
+  planDriftShare: 0.5,
+  planDriftMin: 8,
 }
 
 const sigOf = (r: PriceRequest) => `${r.dealerId}|${r.options.map((o) => o.listPriceCents).join(',')}`
@@ -67,6 +81,44 @@ class Recall extends BidPrice {
     this.rp = params
     this.memories = params.memory && setup.level === 8 ? readMemories() : []
     this.hits = this.memories.map(() => 0)
+    if (params.plan)
+      for (const m of this.memories) {
+        const f = new URL(`plan-${m.seed}.json`, here)
+        try {
+          const p = JSON.parse(readFileSync(f, 'utf8')) as Plan
+          this.plans.set(m.seed, { plan: p, planned: new Set(p.planned), declined: new Set(p.declined) })
+        } catch {}
+      }
+  }
+
+  readonly plans = new Map<string, { plan: Plan; planned: Set<string>; declined: Set<string> }>()
+  /** Per day: planned requests seen so far, and their ids (to count wins). */
+  readonly planDay = new Map<number, string[]>()
+  readonly planTally = { declined: 0, loosened: 0, quoted: 0 }
+  private loose = new Set<number>()
+
+  /** prophet: true when the plan says decline this request. */
+  private planDeclines(memory: Memory, request: PriceRequest, books: Books): boolean {
+    const p = this.plans.get(memory.seed)
+    if (!p) return false
+    const day = Math.floor(books.now / 1440)
+    if (p.planned.has(request.id)) {
+      this.planDay.set(day, [...(this.planDay.get(day) ?? []), request.id])
+      this.planTally.quoted++
+      return false
+    }
+    if (!p.declined.has(request.id)) return false
+    if (!this.loose.has(day) && books.now - day * 1440 >= this.rp.planDriftMinute) {
+      const ids = this.planDay.get(day) ?? []
+      const won = ids.filter((id) => books.orders.has(id)).length
+      if (ids.length >= this.rp.planDriftMin && won < this.rp.planDriftShare * ids.length) this.loose.add(day)
+    }
+    if (this.loose.has(day)) {
+      this.planTally.loosened++
+      return false
+    }
+    this.planTally.declined++
+    return true
   }
 
   /** The memory this week is, or null. */
@@ -87,6 +139,7 @@ class Recall extends BidPrice {
     const base = super.quote(request, books)
     const memory = this.recognised()
     if (!memory || memory.sig[request.id] !== sig) return base
+    if (this.rp.plan && this.planDeclines(memory, request, books)) return null
     const now = books.now
     const costs = this.costs(request, now)
     const k = 1 + trustOf(this.quotes, request.dealerId, this.quoteParams) / 100
@@ -159,8 +212,26 @@ class Recall extends BidPrice {
     return (
       `${super.summary()}; recall: seed ${m ? `${m.seed} recognised` : 'not recognised'} ` +
       `(${m ? this.hits[this.memories.indexOf(m)] : 0}/${this.seen} matched), raised ${raised}, lowered ${lowered}, ` +
-      `dropped ${dropped}, untouched ${untouched}, not in memory ${unknown}, rescued ${rescued}`
+      `dropped ${dropped}, untouched ${untouched}, not in memory ${unknown}, rescued ${rescued}` +
+      this.planSummary(m)
     )
+  }
+
+  private planSummary(m: Memory | null): string {
+    const p = m && this.plans.get(m.seed)
+    if (!this.rp.plan || !p) return '; plan: none'
+    const won = p.plan.planned.filter((id) => this.wonIds.has(id)).length
+    const { declined, loosened, quoted } = this.planTally
+    return (
+      `; plan: planned wins ${p.plan.planned.length}, planned margin EUR ${(p.plan.margin / 100).toFixed(0)}, ` +
+      `won among planned ${won}/${quoted} quoted, declined by plan ${declined}, loosened ${loosened}`
+    )
+  }
+
+  readonly wonIds = new Set<string>()
+  override observe(event: DeskEvent): void {
+    super.observe(event)
+    if (event.kind === 'order_won') this.wonIds.add(event.order.id)
   }
 }
 
