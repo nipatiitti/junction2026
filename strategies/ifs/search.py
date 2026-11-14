@@ -154,7 +154,7 @@ class Search:
         self.args, self.state, self.space, self.names = args, state, space, names
         self.target = round(args.target * 100)
         self.min_gain = round(args.min_gain * 100)
-        self.folder: Path = args.state.parent
+        self.folder: Path = args.state.resolve().parent  # in full: each week's process runs in another folder
         self.weeks_file = self.folder / "weeks.json"
         self.best_file = self.folder / "best.json"
         self.code = code_version()
