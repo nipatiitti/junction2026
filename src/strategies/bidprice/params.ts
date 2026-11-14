@@ -71,6 +71,16 @@ export type BidPriceParams = {
   climbStep: number
   climbTop: number
   repriceMax: number
+  /** Scale `c` by where drivers live and by our own orders (geo.ts): per doubling of drivers near the delivery and
+   * pickup, a chain or return leg or same-yard car, within [geoMin, geoMax]. */
+  geoCost: boolean
+  geoDel: number
+  geoPick: number
+  geoChain: number
+  chainKm: number
+  chainHours: number
+  geoMin: number
+  geoMax: number
 }
 
 export const DEFAULTS: BidPriceParams = {
@@ -113,6 +123,14 @@ export const DEFAULTS: BidPriceParams = {
   climbStep: 0.1,
   climbTop: 3,
   repriceMax: 10,
+  geoCost: false,
+  geoDel: -0.06,
+  geoPick: -0.03,
+  geoChain: -0.1,
+  chainKm: 30,
+  chainHours: 6,
+  geoMin: 0.8,
+  geoMax: 1.15,
 }
 
 /** The quote models' params from the strategy's. */

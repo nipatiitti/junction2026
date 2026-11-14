@@ -75,6 +75,7 @@ import {
   unbooked,
 } from './cost.ts'
 import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees.ts'
+import { geoFactor, geoSummary, newGeo } from './geo.ts'
 import { lateRiskOf, newLateRisk } from './late.ts'
 import { legsOf, WeekLog } from './log.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
@@ -93,6 +94,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   readonly learning: CostLearning
   readonly log = new WeekLog()
   readonly lateRisk: ReturnType<typeof newLateRisk>
+  readonly geo: ReturnType<typeof newGeo>
   /** The latest minute an event or action has told, for the summary. */
   private now = 0
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
@@ -108,6 +110,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
     this.cost = newCostState(this.costPrior)
     this.learning = { learn: params.costLearn, pseudoGigs: params.costPseudo }
     this.lateRisk = newLateRisk(setup.roster, setup.map)
+    this.geo = newGeo(setup.roster, setup.map)
   }
 
   observe(event: DeskEvent): void {
@@ -211,8 +214,9 @@ export class BidPrice extends Strategy<BidPriceParams> {
 
   /** Designs 2 to 4: the cost `c` of each option we offer, what an order of its kind costs this week. */
   costs(request: PriceRequest, now: number): Partial<Record<Option, number>> {
+    const geo = this.params.geoCost ? geoFactor(this.geo, request, this.log.orders.values(), this.params, true) : 1
     return Object.fromEntries(
-      this.offered(request, now).map((option) => [option.kind, this.costOf(request, option, now)]),
+      this.offered(request, now).map((option) => [option.kind, this.costOf(request, option, now) * geo]),
     )
   }
 
@@ -333,6 +337,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([k, v]) => `${k} ${v}`)
         .join(' ')}`,
+      ...(this.params.geoCost ? [geoSummary(this.geo)] : []),
     ].join(', ')
   }
 
