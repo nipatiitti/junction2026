@@ -9,7 +9,7 @@ import { deleteOnStop, parseLevel, parseSeeds, playOnNewWorld, runScript, stamp 
 import { euros, percent } from './harness/report.ts'
 
 const USAGE =
-  'Usage: pnpm bench [<strategy>[:<key>=<value>|<file.json>,...] ...] [--level 1-8] [--seeds spread-1..spread-5] [--jobs 1-8] [--key-env <NAME>] [--csv <file>]. Set SPREAD_URL and SPREAD_KEY first.'
+  'Usage: pnpm bench [<strategy>[:<key>=<value>|<file.json>,...] ...] [--level 1-8] [--seeds spread-1..spread-5] [--jobs 1-12] [--key-env <NAME>] [--csv <file>]. Set SPREAD_URL and SPREAD_KEY first.'
 
 type Result = { label: string; seed: string; worldId: string; score: Score }
 
@@ -112,7 +112,7 @@ async function main(): Promise<void> {
 
   deleteOnStop()
   const jobs = Number(args.jobs)
-  if (!Number.isInteger(jobs) || jobs < 1 || jobs > 8) throw new UsageError('--jobs must be 1 to 8')
+  if (!Number.isInteger(jobs) || jobs < 1 || jobs > 12) throw new UsageError('--jobs must be 1 to 12')
   console.log(`Playing ${labels.length * seeds.length} practice weeks at level ${level}, ${jobs} at once.`)
   const results: Result[] = []
   // The weeks in order, taken by `jobs` workers: each plays one world at a time, so at most `jobs` practice slots
