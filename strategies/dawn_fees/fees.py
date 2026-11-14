@@ -35,6 +35,10 @@ class Params:
     reach: int = 3 * HOUR  # a driver who books at dawn needs this long to get to the car
     step: int = HOUR  # the ladder from the dawn fee to the top fee rises this often
     top: float = 2.5  # the top fee, before the ceiling of strategies/fees cuts it
+    # A gig with no morning to wait for: instead of opening near its top, it climbs to it on a short ladder.
+    sprint: int = 2 * HOUR  # the ladder reaches the top this long after the post at the latest; 0 turns it off
+    sprint_open: float = 1.1  # where that ladder opens
+    sprint_step: int = 15  # how often it rises
 
 
 class DawnFeePlanner(FeePlanner):
@@ -87,8 +91,10 @@ def dawn_plan(now: int, gig: Gig, level: int, p: Params, floor: float = 0) -> li
        margin before the last pickup, an hour after dawn at the earliest.
     No step before the top goes above the order's price, as in strategies/fees."""
     dawn = last_dawn(now, gig.last_pickup_at, p)
-    if level < 2 or dawn is None:
+    if level < 2:
         return urgent_plan(now, gig, level, floor)
+    if dawn is None:
+        return sprint_plan(now, gig, level, p, floor)
     top = max(1.0, min(max(gig.typical * p.top, floor), ceiling(gig)))
     opening = min(max(gig.typical * p.open, floor), top)
     cap = max(opening, min(top, worth(gig)))
@@ -112,3 +118,21 @@ def dawn_plan(now: int, gig: Gig, level: int, p: Params, floor: float = 0) -> li
         steps.append((dawn + (top_due - dawn) * k // rungs, min(cap, start * (top / start) ** (k / rungs))))
     steps.append((top_due, top))
     return valid(steps, level)
+
+
+def sprint_plan(now: int, gig: Gig, level: int, p: Params, floor: float = 0) -> list[FeeStep]:
+    """The schedule of a gig with no morning to wait for: a car to collect today, or a gig that came back after a
+    drop on its last morning. The schedule of strategies/fees opens such a gig close to its top fee, and a driver
+    takes it within minutes: it never learns what a lower fee would have found. This one opens at `sprint_open` and
+    climbs to the top in even ratios, one step each `sprint_step`, by `reach` before the last pickup and `sprint`
+    after the post at the latest. With less than `reach` left, and for a late car, the schedule is that of
+    strategies/fees: the top at once."""
+    top_due = min(gig.last_pickup_at - p.reach, now + p.sprint)
+    if p.sprint <= 0 or top_due - now < p.sprint_step:
+        return urgent_plan(now, gig, level, floor)
+    top = max(1.0, min(max(gig.typical * p.top, floor), ceiling(gig)))
+    start = min(max(gig.typical * p.sprint_open, floor), top)
+    cap = max(start, min(top, worth(gig)))
+    rungs = max(1, (top_due - now) // p.sprint_step)
+    steps = [(now + (top_due - now) * k // rungs, min(cap, start * (top / start) ** (k / rungs))) for k in range(rungs)]
+    return valid([*steps, (top_due, top)], level)

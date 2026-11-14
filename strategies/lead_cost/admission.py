@@ -49,6 +49,8 @@ class Params(ChainParams):
     premium_cost: float = 1.10  # a premium car needs an experienced driver
     note_cost: float = 1.05  # a note that asks for something a driver can miss
     return_leg: float = 0.95  # a timed return leg of one of our transports
+    # A dealer who is offered a faster option takes a slower one from us about half as often at the same price.
+    slower_win: float = 1.0  # the weight of an option's margin when the request has a faster one; 1 ignores it
 
 
 class LeadCostAdmission(ChainAdmission):
@@ -101,7 +103,14 @@ class LeadCostAdmission(ChainAdmission):
         if not usable:
             return Verdict(False, [], self.expected_cost(request, held), -1.0, "no option leaves time for the drive")
         costs = {o["kind"]: self.lead_cost(request, o, held, now) for o in usable}
-        option = max(usable, key=lambda o: o["listPriceCents"] * p.price_factor - costs[o["kind"]])
+        fastest = min(o["deadline"] for o in request["options"])
+
+        def worth(o: dict) -> float:
+            """The option's margin, counted less when the dealer could have a faster one: it then wins less often."""
+            margin = o["listPriceCents"] * p.price_factor - costs[o["kind"]]
+            return margin * (p.slower_win if o["deadline"] > fastest and margin > 0 else 1.0)
+
+        option = max(usable, key=worth)
         price, cost = option["listPriceCents"] * p.price_factor, costs[option["kind"]]
         margin = (price - cost) / price
         if margin < p.min_margin:
@@ -118,7 +127,7 @@ class LeadCostAdmission(ChainAdmission):
         won = max(now, request["respondBy"])  # the dealer decides then, and the gig is posted
         column = band((first["window"]["from"] - won) / HOUR, p.ready_hours)
         row = band((self.last_pickup(request, option) - won) / HOUR, p.last_pickup_hours)
-        cost = request["referenceFeeCents"] * p.cost[row][column]
+        cost = self.typical(request) * p.cost[row][column]
         if any(leg["pickup"]["privateAddress"] for leg in legs):
             cost *= p.private_pickup[column]
         elif any(leg["delivery"]["privateAddress"] for leg in legs):
@@ -134,6 +143,10 @@ class LeadCostAdmission(ChainAdmission):
         if self.pairs(request, held):
             cost *= p.return_leg
         return int(cost + 0.5)
+
+    def typical(self, request: dict) -> float:
+        """The typical fee that the cost is counted from, in cents: the request's own."""
+        return request["referenceFeeCents"]
 
     def last_pickup(self, request: dict, option: dict) -> int:
         """About the order's `lastPickupAt` when the dealer takes `option`: the last minute the first car can be
