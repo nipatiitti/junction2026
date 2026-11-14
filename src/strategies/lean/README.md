@@ -36,15 +36,15 @@ Drivers learn that our fees rise and wait for the rise. In the first weeks of a 
 the drivers who booked had viewed the gig earlier at a lower fee and came back, and paid 1.04 × typical at the median;
 drivers who booked on their first view paid 0.80 ×. So the fee holds still and rises rarely:
 
-- **Stepped** (`stepped`, the default): the gig opens at `open` × typical (0.88) and rises only 24, 16, 10 and 6 hours
-  before the last pickup, to 1.05, 1.25, 1.55 and 2 × typical. With `jitter` 1, each gig's rises move by up to 1.5
-  hours and 5%, drawn from the order id, so a driver cannot plan a second look for the rise.
-- **Flat, then late** (`stepped=false`): `open` until four fifths of the time to book are gone (`climbTo` above `open`
-  adds a slow climb first), then to 1.30 and to 2 × at the end. It pays more on easy worlds and is late on hard ones.
+- The gig opens at `open` × typical (0.88) and rises only 24, 16, 10 and 6 hours before the last pickup, to 1.05,
+  1.25, 1.55 and 2 × typical. With `jitter` 1, each gig's rises move by up to 1.5 hours and 5%, drawn from the order
+  id, so a driver cannot plan a second look for the rise.
+- A schedule that held `open` flat and rose only at the end paid more on easy worlds and left three of five fresh
+  weeks unranked; it is removed.
 - From the deadline warning on, or with under 45 minutes left, the fee rises 12% every 15 minutes to 2 ×; a car that
   is late already rises to 1.7 ×. A gig that a driver gives back starts again from the fee that booked it.
 
-## 3. Chains (`chains.ts`)
+## 3. Chains (`chains.ts`, `planner.ts`)
 
 Several open cars go as one gig when one driver can take them one after the other. The open single-car gigs are the
 nodes of a graph, with an edge where the next car is collected within `maxHop` road minutes (60) of the last delivery.
@@ -58,7 +58,8 @@ driver took `chainHours` (5) before its last start is withdrawn, and its cars go
 
 `holdHours` (0, off) lets a new car wait for a partner before it is posted alone, `chainPatience` takes a chain apart
 that no driver took after so many waking hours, and `chainBid` plans the chain before the bid; the batches below
-played them.
+played them. `chains.ts` is the search and holds no state. `planner.ts` holds every piece of chain state (the chains
+posted, the cars that wait, the claims of pending bids), so a new chain policy changes that one file.
 
 ## 4. The service (`src/ops`)
 
@@ -86,22 +87,15 @@ fell under 90% on time: gigs expired unbooked (13 a week) because the flat fee r
 ranked. So `stepped` is the default: an unranked week scores nothing. Chains book at 0.66–0.78 × their cars' typical
 fees and carry about 30 cars a week; half of all single gigs book within 24 minutes, before a partner arrives.
 
-## Modifiers (`mods.ts`)
+## Modifiers (removed)
 
-The rules that the Python systems of [`strategies/`](../../../strategies/README.md) measured on their own weeks, as
-switches on `lean`. Each changes one decision and is off by default. **None has been played on `lean` yet.**
-
-| Param                 | From                     | What it does                                                                                                                                                                                                                                                      | What the Python weeks measured                                                                          |
-| --------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `dawn`, `dawnTop` 1.7 | `dawn_fees`, `all_in`    | Fees by the drivers' day: 0.9 × typical, 1.0 after an hour, held through every night; from the last 06:00 that leaves 3 hours, hourly steps from 1.05 to the top 7 hours before the last pickup; a gig with no morning opens at 1.1 and climbs in 15-minute steps | 74% of the gigs open at 06:00 book by 08:00, at any fee; +€1,772 on `spread-1` beside the lead cost     |
-| `leadCost`            | `lead_cost`              | The driver cost from a table by hours to the last pickup and to the ready time: 2.4 × typical under 8 hours, 1.77 under 14, 1.03 for a car ready the next day                                                                                                     | +€1,668 on `spread-1`; scaling the table by 0.85 or 1.15 lost €8,000 to €10,000 over five weeks         |
-| `bestOption`          | `lead_cost`, `same_day`  | Quotes only the option with the most expected margin                                                                                                                                                                                                              | A car ready tomorrow goes as `same_day` (8% dearer on the list, cost 1.03)                              |
-| `pairDiscount`        | `pair_first`             | This share off the cost of a request that can go on with one of our open cars (0.15 there)                                                                                                                                                                        | +€245 a week on headroom, ahead on 3 of 4 seeds; lost with a low opening fee                            |
-| `areaCap`             | `lead_cost`              | A pickup area holds this many open orders without a driver for each driver living within an hour (0.20 there, 2 at least)                                                                                                                                         | Half of it (0.10) lost €171 a week over 22 seeds                                                        |
-| `priceCap`            | `headroom`               | No price above a maximum that starts at 1.39 × list and moves 0.6% up on a win at it and down on a loss, between 1.20 and 1.62                                                                                                                                    | +€855 on `spread-1`; cheaper prices lose online because the competitor undercuts a dealer we mostly win |
-| `laneFee`             | `lane_fee`               | This share of the typical fee from the lane's road minutes instead of the request's own noisy figure                                                                                                                                                              | part of headroom's +€225                                                                                |
-| `shortDrive`          | `lead_cost`              | Added × typical for a drive under 30 minutes (0.12 there)                                                                                                                                                                                                         | a short drive costs 14% more over its typical fee                                                       |
-| `minEuros`            | `alignas` (another team) | The least margin a quote keeps (€8 there)                                                                                                                                                                                                                         |                                                                                                         |
+`lean` once carried the rules of the Python systems of [`strategies/`](../../../strategies/README.md) as switches:
+their fee schedule by the drivers' day (`dawn`), their cost table by lead time (`leadCost`), one option per quote
+(`bestOption`), a discount for a request near one of our open cars (`pairDiscount`), a limit of open orders per
+pickup area (`areaCap`), a moving price maximum (`priceCap`), the lane's typical fee (`laneFee`), a surcharge for
+short drives (`shortDrive`), a least margin (`minEuros`) and an early delivery window (`buffer`). The batches below
+played them: together they lost €1,100 a week and a ranked week, and none won alone. They are removed from the code;
+the results stay here.
 
 Left out: the flu guard, trust farming, the outage reserve and the town opening fee each moved a week by under €250,
 within what chance gives; `joint_bid` and lower opening fees under a ladder lost.
@@ -192,9 +186,10 @@ apart (a third of those posted do), then raise the chain share of the bids step 
 
 ## Params
 
-`target` 0.3, `capacity` 0.4 (its start), `gain` 0.02, `flatShare` 0.5, `flatEuros` 60, `open` 0.88, `climbTo` 0.88,
-`stepped` true, `jitter` 1, `buffer` 0, `premium` 3, `privateAddress` 0.25, `feeRatio` 0.84, `overhead` 0.06,
-`minHours` 4, `minMargin` 1.05, `trust` 0.7, `lateSoft` 0.04, `lateHard` 0.05, `openGigs` 40, `urgentTop` 2,
-`lateTop` 1.7, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `chainHours` 5, `holdHours` 0, and the modifiers above. Override one
+`target` 0.3, `capacity` 0.4 (its start), `gain` 0.02, `flatShare` 0.5, `flatEuros` 60, `open` 0.88, `jitter` 1,
+`premium` 3, `privateAddress` 0.25, `feeRatio` 0.84, `overhead` 0.06, `minHours` 4, `minMargin` 1.05, `trust` 0.7,
+`feeBrake` 1.5, `lateSoft` 0.04, `lateHard` 0.05, `openGigs` 40, `urgentTop` 2, `lateTop` 1.7, `chains` true,
+`maxHop` 60, `maxCars` 4, `minSaving` 0.15, `chainHours` 5, `holdHours` 0, `chainPatience` 0, `chainBid` false,
+`pairCharge` 1. Override one
 with `--set key=value`. The end of a week prints the share won, the mean price × list, the mean fee × typical, the
 late orders and the chains posted, booked and taken apart.
