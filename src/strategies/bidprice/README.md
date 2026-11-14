@@ -90,3 +90,12 @@ the saved week won, each deadline warning, failed visit and expired gig. The sav
 `sent`, as the desk's journal would: the answers in a saved week are to its own quotes. A third copy runs `tick` every 30 minutes and hears its own reprices back. It prints the share quoted, the
 options offered (and those offered under 9 hours of slack), quote and `c` over list and typical, the fees planned, timings, and whether a strategy rebuilt at
 mid-week holds the same state. It is not a test; it plays nothing online.
+
+## Decline log
+
+The summary line ends with `declines`: for each request the reason it got no quote (`quoted` when one went out):
+`serve-slack`, `serve-deadline`, `serve-note`, `serve-unread` (no option passes `canServe`), `lateRisk` (every
+served option over `lateRiskMax`), `war` (the war-day rule), `minValue` (best value under `minValueCents`) and
+`underCost` (no price on the grid covers the cost); `opt-<rule>` counts the options each rule left out of a quote.
+Set `BIDPRICE_DECLINE_LOG=<file>` to append one JSON line per request (id, minute, reason, options left out, costs,
+value, win chance, prices).

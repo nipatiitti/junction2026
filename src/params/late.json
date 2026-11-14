@@ -1,0 +1,27 @@
+{
+  "slackEdgesHours": [
+    6,
+    12,
+    24
+  ],
+  "nearKm": 100,
+  "fewDrivers": 8,
+  "eveningHours": [
+    18,
+    21
+  ],
+  "base": 0.0598,
+  "cells": {
+    "s0/many/day": 0.1055,
+    "s1/few/day": 0.4639,
+    "s1/many/day": 0.0709,
+    "s2/few/day": 0.6482,
+    "s2/few/eve": 0.0206,
+    "s2/many/day": 0.1167,
+    "s2/many/eve": 0.06,
+    "s3/few/day": 0.1873,
+    "s3/few/eve": 0.112,
+    "s3/many/day": 0.0522,
+    "s3/many/eve": 0.0392
+  }
+}
