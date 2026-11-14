@@ -189,7 +189,7 @@ apart (a third of those posted do), then raise the chain share of the bids step 
 Played on the offline simulator ([`sim/`](../../../sim/README.md)): 40 recorded seeds per batch, every variant on the
 same seeds, mean margin a week. The simulator agrees with the server on the winner of a pair in 90% of the cases
 for gaps of €500 to €1,500 and in all cases above that; it does not rank on-time shares, is too gentle on overload
-and is unreliable on fee timing. **None of this is confirmed on the server yet.**
+and is unreliable on fee timing. The server check is at the end of this section.
 
 | Change                                                                                  | Margin            | Orders    | On time      | Against                          |
 | --------------------------------------------------------------------------------------- | ----------------- | --------- | ------------ | -------------------------------- |
@@ -219,6 +219,20 @@ What they showed:
   car, the dealer tables (towns, hour, order size, the competitor's daily answer). **Lost or flat:** bidding lower for a dealer's trust (−€800 to −€1,100), `overhead` 0.12, `minHours` 2, the model's middle at 1.3 or 1.5, `trust` 0.4 or 1, a flat charge per order, `minMargin` 1.15, `holdHours` 1.5 or 3, `maxCars` 3, `chainBid`.
 - **`spread` is the open question.** It cuts the fees of short-lead cars, which the old schedule opened at up to
   1.55 × typical, but 2.5 points more orders are late, and the simulator is weakest exactly there.
+
+### Server check of the new defaults
+
+Five fresh random seeds on the server, every variant on the same seeds (level 8, mean margin a week):
+
+| Variant                | Margin  | Orders | On time by week (%)          | Ranked | Against the old defaults       |
+| ---------------------- | ------- | ------ | ---------------------------- | ------ | ------------------------------ |
+| Old defaults           | €10,951 | 229    | 97.3, 98.7, 99.0, 96.6, 96.0 | 5 of 5 |                                |
+| New defaults           | €12,774 | 290    | 98.0, 95.7, 97.9, 93.7, 95.4 | 5 of 5 | +€1,823 ± 865, ahead on 4 of 5 |
+| New defaults, `spread` | €13,165 | 306    | 96.8, 93.2, 91.8, 91.8, 92.9 | 5 of 5 | +€2,214 ± 440, ahead on 5 of 5 |
+
+The server agrees with the simulator on the direction and about two thirds of the size. On the server 110 to 200
+cars a week ride in chains at 0.68 to 0.76 × typical, against 12 to 34 before. `spread` earns €391 more than the
+new defaults, but two of its five weeks end at 91.8% on time, 1.8 points over the minimum, so it stays off.
 
 ## Params
 
