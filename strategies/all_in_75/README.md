@@ -50,8 +50,23 @@ two, so they do here. Under a maximum that is above the learned price, `target_w
 A lower price wins more cars for less each, so this system should win more orders at a lower margin per order. The
 driver cost floor of the pricing (the cost times 1.10) still holds: no quote goes below what its cars cost us.
 
-## Not measured yet
+## Six-week bench
 
-No online week has been played for this system. It exists to measure whether the extra orders at 75% pay for the lower
-price, so play it against `strategies/all_in` on the same seeds, and read a difference of a few hundred euros a week as
-chance ([`strategies/all_in/README.md`](../all_in/README.md) gives the standard errors of the 22-week comparison).
+Level 8, on 2026-11-14, in one `strategies.bench` run with `all_in_65` on `tour-r1-ff2bb5ca`, `tour-r1-d0cceb91`,
+`tour-r2-8e605453`, `tour-r2-cb24a8ee`, `tour-r2-32a6c4eb` and `tour-r2-3dcdedfe`. Every week is ranked, none has an
+undelivered order, and the weeks are saved under `data/scrape/runs/L8/` with the policies `all-in-75` and `all-in-65`.
+
+| Seed               | Margin         |    Orders |   On time |
+| ------------------ | -------------- | --------: | --------: |
+| `tour-r1-ff2bb5ca` | €9,327.61      |       372 |     96.2% |
+| `tour-r1-d0cceb91` | €11,448.52     |       448 |     98.0% |
+| `tour-r2-8e605453` | €12,411.97     |       422 |     96.9% |
+| `tour-r2-cb24a8ee` | €16,319.46     |       480 |     98.1% |
+| `tour-r2-32a6c4eb` | €11,398.22     |       401 |     99.0% |
+| `tour-r2-3dcdedfe` | €5,031.83      |       382 |     92.9% |
+| **Total**          | **€65,937.61** | **2,505** | **97.0%** |
+
+This system won 202 more orders than `all_in_65` in the same run: 417.5 against 383.8 a week, with at least 400 orders
+on four seeds against two. It made €764.05 less in total, but more on four of the six seeds: the higher win target
+buys 202 additional orders for €3.78 of total margin forgone per additional order. Six weeks are not enough to put this
+system ahead with confidence, especially as one seed has it €3,013 behind.

@@ -1,0 +1,24 @@
+{
+  "seed": "tour-r1-d0cceb91",
+  "level": 8,
+  "policy": "all-in-65",
+  "kind": "practice",
+  "worldId": "wb1b172c3d572ea6b2f1d",
+  "version": "c17eafc2ef1cae7fb7c635bad6011e7b2c32c293",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 14266,
+  "score": {
+    "marginCents": 1142656,
+    "revenueCents": 3690568,
+    "marginShare": 0.30961521370152234,
+    "wonOrders": 405,
+    "onTimeShare": 0.9876543209876543,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 127.5,
+  "requests": 620
+}

@@ -51,8 +51,23 @@ two, so they do here. Under a maximum that is above the learned price, `target_w
 A lower price wins more cars for less each, so this system should win more orders at a lower margin per order. The
 driver cost floor of the pricing (the cost times 1.10) still holds: no quote goes below what its cars cost us.
 
-## Not measured yet
+## Six-week bench
 
-No online week has been played for this system. It exists to measure whether the extra orders at 65% pay for the lower
-price, so play it against `strategies/all_in` on the same seeds, and read a difference of a few hundred euros a week as
-chance ([`strategies/all_in/README.md`](../all_in/README.md) gives the standard errors of the 22-week comparison).
+Level 8, on 2026-11-14, in one `strategies.bench` run with `all_in_75` on `tour-r1-ff2bb5ca`, `tour-r1-d0cceb91`,
+`tour-r2-8e605453`, `tour-r2-cb24a8ee`, `tour-r2-32a6c4eb` and `tour-r2-3dcdedfe`. Every week is ranked, none has an
+undelivered order, and the weeks are saved under `data/scrape/runs/L8/` with the policies `all-in-65` and `all-in-75`.
+
+| Seed               | Margin         |    Orders |   On time |
+| ------------------ | -------------- | --------: | --------: |
+| `tour-r1-ff2bb5ca` | €12,340.71     |       346 |     98.6% |
+| `tour-r1-d0cceb91` | €11,426.56     |       405 |     98.8% |
+| `tour-r2-8e605453` | €11,345.03     |       389 |     96.7% |
+| `tour-r2-cb24a8ee` | €15,561.94     |       448 |     98.7% |
+| `tour-r2-32a6c4eb` | €9,660.22      |       347 |     99.1% |
+| `tour-r2-3dcdedfe` | €6,367.20      |       368 |     91.8% |
+| **Total**          | **€66,701.66** | **2,303** | **97.3%** |
+
+`all_in_75` won 2,505 orders in the same run, 202 more than this system's 2,303: 417.5 against 383.8 a week. It made
+€65,937.61, €764.05 less in total, but more on four of the six seeds. `all_in_65` therefore makes more per order (€28.96
+against €26.32), while `all_in_75` reaches the 400-to-480-order range of the leading weeks more often. Six weeks are
+not enough to put one ahead of the other with confidence; other changes to a week move it by more than the difference.
