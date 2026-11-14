@@ -98,6 +98,8 @@ export const DEFAULTS = {
   overhead: 0.06,
   /** An option needs this many waking hours between now and the last minute to book, or we do not quote it. */
   minHours: 4,
+  /** The most of a price that may be margin over the expected cost; 1 leaves the price to the win model. */
+  maxShare: 1,
   /** Never quote under this × the expected cost. */
   minMargin: 1.05,
   /** The noise that stays in one request's threshold, as a logistic scale in log price: 20 to 25% stays whatever
@@ -133,6 +135,8 @@ export const DEFAULTS = {
   chainLast: 3,
   /** Minutes between two raises of a chain's fee, each 0.09 × what the chain is worth to a driver, up to
    * `chainTop` × that; 0 holds the opening fee for half of the chain's time and then creeps. */
+  /** Post only the chains that are likely to book (planner.ts, `likely`). */
+  chainPick: false,
   chainRaise: 0,
   chainTop: 1.25,
   /** A new car that may join a chain waits this many hours for a partner before it is posted alone: half of the
@@ -225,7 +229,10 @@ class Lean extends Strategy<LeanParams> {
       const charge = cost + this.capacity * crowd * place * (share < 1 ? p.pairCharge : 1)
       const best = bestPrice(belief, option.listPriceCents, charge)
       if (best === null) continue
-      quotes.push([option.kind, Math.round(Math.max(best, cost * p.minMargin))])
+      // No price keeps more than `maxShare` of itself over the cost: on a rich week the model's best price runs
+      // far over the cost, and the leaders take a rich week as more orders.
+      const most = p.maxShare < 1 ? cost / (1 - p.maxShare) : Infinity
+      quotes.push([option.kind, Math.round(Math.max(Math.min(best, most), cost * p.minMargin))])
     }
     return quotes.length > 0 ? Object.fromEntries(quotes) : null
   }
