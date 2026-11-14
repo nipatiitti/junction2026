@@ -77,6 +77,7 @@ import {
 import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees.ts'
 import { lateRiskOf, newLateRisk } from './late.ts'
 import { legsOf, WeekLog } from './log.ts'
+import { OutageWatch } from './outage.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
 
 /** A quote at this many times the list price or more is a decline. */
@@ -93,6 +94,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   readonly learning: CostLearning
   readonly log = new WeekLog()
   readonly lateRisk: ReturnType<typeof newLateRisk>
+  readonly outage: OutageWatch | null
   /** The latest minute an event or action has told, for the summary. */
   private now = 0
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
@@ -108,11 +110,13 @@ export class BidPrice extends Strategy<BidPriceParams> {
     this.cost = newCostState(this.costPrior)
     this.learning = { learn: params.costLearn, pseudoGigs: params.costPseudo }
     this.lateRisk = newLateRisk(setup.roster, setup.map)
+    this.outage = params.outage ? new OutageWatch(setup.map, params) : null
   }
 
   observe(event: DeskEvent): void {
     this.now = Math.max(this.now, event.at)
     this.log.observe(event)
+    this.outage?.observe(event, this.quotes, this.quoteParams)
     observeQuotes(this.quotes, event, this.quoteParams)
     learn(this.fees, event, this.feeParams)
     this.learnCost(event)
@@ -206,6 +210,12 @@ export class BidPrice extends Strategy<BidPriceParams> {
   }
 
   decide(request: PriceRequest, now: number) {
+    const o = this.outage
+    if (o && (o.lifts(request, now) || o.outToday(now))) {
+      const params = { ...this.quoteParams, flags: { ...this.quoteParams.flags, war: 'follow' as const } }
+      const priced = o.lifts(request, now) ? o.lifted(request) : request
+      return bestQuote(priced, this.costs(request, now), this.quotes, params, now)
+    }
     return bestQuote(request, this.costs(request, now), this.quotes, this.quoteParams, now)
   }
 
@@ -333,6 +343,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([k, v]) => `${k} ${v}`)
         .join(' ')}`,
+      ...(this.outage ? [this.outage.summary()] : []),
     ].join(', ')
   }
 
@@ -410,7 +421,8 @@ export class BidPrice extends Strategy<BidPriceParams> {
   private quoted(requestId: string, prices: Prices): void {
     const request = this.log.requests.get(requestId)
     if (!request) return
-    recordQuote(this.quotes, request, prices, this.quoteParams)
+    if (!this.outage?.sent(request, prices, this.now, this.quotes, this.quoteParams))
+      recordQuote(this.quotes, request, prices, this.quoteParams)
     const real = request.options.some((o) => (prices[o.kind] ?? Infinity) < DECLINED * o.listPriceCents)
     if (real) this.tally.quoted++
   }

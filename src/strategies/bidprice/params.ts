@@ -71,6 +71,12 @@ export type BidPriceParams = {
   climbStep: number
   climbTop: number
   repriceMax: number
+  /** The competitor's outage (outage.ts): find the region from our answers, price it with the win curve shifted up
+   * by `outageLift`, out when the region's z passes `outageZ`, probed with the lift from `outageProbeZ`. */
+  outage: boolean
+  outageLift: number
+  outageZ: number
+  outageProbeZ: number
 }
 
 export const DEFAULTS: BidPriceParams = {
@@ -113,6 +119,10 @@ export const DEFAULTS: BidPriceParams = {
   climbStep: 0.1,
   climbTop: 3,
   repriceMax: 10,
+  outage: false,
+  outageLift: 1.25,
+  outageZ: 2.5,
+  outageProbeZ: 1.2,
 }
 
 /** The quote models' params from the strategy's. */
