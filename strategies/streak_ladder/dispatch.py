@@ -1,7 +1,7 @@
 """Our dispatch system with streak-scaled ladder pricing and a capacity shadow price: a copy of the price-ladder
-dispatch.py whose quote ladder moves by a step that grows with the run of consecutive wins and losses, and whose
-admission charges the driver capacity an order uses (README.md next to this file). The root dispatch.py and the
-strategies it builds stay as they are.
+dispatch.py whose quote ladder moves by a step that grows with the run of consecutive wins and losses, more on a loss
+than on a win, and whose admission charges the driver capacity an order uses (README.md next to this file). The root
+dispatch.py and the strategies it builds stay as they are.
 
 Run it from the repository root: uv run strategies/streak_ladder/dispatch.py --level 8 --seed spread-1
 """
