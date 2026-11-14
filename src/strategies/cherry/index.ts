@@ -75,6 +75,11 @@ export type CherryParams = {
   feeSteps: number
   feeCurve: number
   feeHorizonH: number
+  /** Load: cost += ref x loadPenalty x (open orders / loadTarget). */
+  loadPenalty: number
+  loadTarget: number
+  /** same_day only with this many hours of slack. */
+  sameSlackH: number
 }
 
 const DEFAULTS: CherryParams = {
@@ -100,18 +105,21 @@ const DEFAULTS: CherryParams = {
   nearMinutes: 30,
   tightRisk: 0.1,
   tightSlackH: 8,
-  minEv: 300,
-  minMargin: 0.06,
+  minEv: 700,
+  minMargin: 0.15,
   gridLo: 0.95,
   gridHi: 1.9,
   ladderFloor: 1.0,
-  feeOpen: 0.85,
-  feeTop: 1.45,
+  feeOpen: 1.0,
+  feeTop: 1.65,
   feeUrgent: 2.3,
   feeRepost: 1.15,
   feeSteps: 8,
   feeCurve: 1.5,
-  feeHorizonH: 20,
+  feeHorizonH: 12,
+  loadPenalty: 0.35,
+  loadTarget: 100,
+  sameSlackH: 7,
 }
 
 /** Standard normal CDF. */
@@ -187,15 +195,19 @@ class Cherry extends Strategy<CherryParams> {
     const region = this.capitalIds.has(delivery) ? p.capitalFactor : p.otherFactor
     const trust = 1 + p.trustStep * Math.min(p.trustCap, this.trust.get(request.dealerId) ?? 0)
     const fri = weekday(dayOf(books.now)) === 4 ? p.friday : 1
+    let open = 0
+    for (const o of books.orders.values()) if (o.deliveredAt.some((at) => at == null)) open++
+    const load = p.loadPenalty * ref * (open / p.loadTarget)
     let best: { option: DeliveryOption; price: number; ev: number } | null = null
     const served: DeliveryOption[] = []
     for (const option of request.options) {
       const verdict = canServe(request, option, books.now, this.context)
       if (!verdict.ok) continue
+      if (option.kind === 'same_day' && verdict.slack < p.sameSlackH * HOUR) continue
       served.push(option)
       const base = option.kind === 'same_day' ? p.flipSame : option.kind === 'next_day' ? p.flipNext : p.flipThree
       const median = base * region * trust * option.listPriceCents
-      let cost = ref * this.costScore(request, option) * fri
+      let cost = ref * this.costScore(request, option) * fri + load
       if (verdict.slack < p.tightSlackH * HOUR) cost += p.tightRisk * ref
       let top: { price: number; ev: number } | null = null
       for (let m = p.gridLo; m <= p.gridHi + 1e-9; m += 0.01) {
