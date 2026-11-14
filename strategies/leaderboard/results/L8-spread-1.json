@@ -647,6 +647,21 @@
         "ranked": true
       }
     },
+    "radar_broker": {
+      "file": "strategies/radar_broker/dispatch.py",
+      "fingerprint": "1b35dfecdd04825f",
+      "world_id": "w578b5a4520020aba42ba",
+      "played_at": "2026-11-14T15:44:01+0000",
+      "score": {
+        "marginCents": 1112822,
+        "revenueCents": 3290885,
+        "marginShare": 0.33815280691971916,
+        "wonOrders": 373,
+        "onTimeShare": 0.9785522788203753,
+        "undeliveredShare": 0,
+        "ranked": true
+      }
+    },
     "ratchet": {
       "file": "strategies/ratchet/dispatch.py",
       "fingerprint": "ab17a92d221db41a",
@@ -733,6 +748,21 @@
         "marginShare": 0.1826030674400373,
         "wonOrders": 365,
         "onTimeShare": 0.9726027397260274,
+        "undeliveredShare": 0,
+        "ranked": true
+      }
+    },
+    "simply_jack": {
+      "file": "strategies/simply_jack/dispatch.py",
+      "fingerprint": "929c29ce2519fb8f",
+      "world_id": "w66e81639ec4b49a766ae",
+      "played_at": "2026-11-14T15:43:59+0000",
+      "score": {
+        "marginCents": 1116702,
+        "revenueCents": 3358595,
+        "marginShare": 0.3324908183332614,
+        "wonOrders": 348,
+        "onTimeShare": 0.9568965517241379,
         "undeliveredShare": 0,
         "ranked": true
       }
@@ -915,6 +945,21 @@
         "onTimeShare": 0.4609704641350211,
         "undeliveredShare": 0.013713080168776372,
         "ranked": false
+      }
+    },
+    "volume": {
+      "file": "strategies/volume/dispatch.py",
+      "fingerprint": "f4acf0da4a9427ec",
+      "world_id": "wdbf7952a9f1d0e104667",
+      "played_at": "2026-11-14T15:44:00+0000",
+      "score": {
+        "marginCents": 1308938,
+        "revenueCents": 3428830,
+        "marginShare": 0.3817447934134967,
+        "wonOrders": 372,
+        "onTimeShare": 0.9838709677419355,
+        "undeliveredShare": 0,
+        "ranked": true
       }
     },
     "war_guard": {
