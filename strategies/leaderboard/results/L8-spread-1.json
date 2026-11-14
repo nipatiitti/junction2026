@@ -800,8 +800,8 @@
     "snow_aware": {
       "file": "strategies/snow_aware/dispatch.py",
       "fingerprint": "fdeb86a8a283eaf1",
-      "world_id": "wc7effda61a8f0c7e8644",
-      "played_at": "2026-11-14T12:43:00+0200",
+      "world_id": "wd763b77495db0d887d11",
+      "played_at": "2026-11-14T15:59:41+0000",
       "score": {
         "marginCents": 1242911,
         "revenueCents": 3226918,
