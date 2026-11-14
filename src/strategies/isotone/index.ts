@@ -10,7 +10,7 @@ const OWN = {
   gridHi: 2.2,
   gridStep: 0.05,
   /** Prior counts per cell, from the trust-0 threshold quantiles below. */
-  priorWeight: 25,
+  priorWeight: 20,
   /** Prior threshold scale: capital-region deliveries and the rest; trust raises it by `trustLift` a point. */
   capitalScale: 0.88,
   otherScale: 1.05,
@@ -23,6 +23,8 @@ const OWN = {
   nextDayLadder: 1.13,
   /** Counts of a context fade by this on each of its outcomes, so the week's level and price-war days show. */
   decay: 0.997,
+  /** Cost × this in the argmax: under 1 buys volume, which pays back in trust. */
+  costWeight: 0.85,
   /** Thompson spread: 1 = the posterior's own, 0 = greedy. */
   explore: 1,
   /** Final price × this, a nudge after the argmax. */
@@ -99,7 +101,7 @@ class Isotone extends PricedStrategy<P> {
   price(ctx: PriceCtx): number | null {
     const c = this.cellsOf(ctx.request)
     const unit = this.anchor(ctx.request) * this.ladder(ctx.option.kind)
-    const cost = ctx.costCents / unit
+    const cost = (this.params.costWeight * ctx.costCents) / unit
     let best = -1
     let bestZ = 0
     let cap = 1
