@@ -37,7 +37,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`option_menu/`](option_menu/README.md)           | `OptionMenu`                           | Ceiling, quoting admission's option and every slower one                                |
 | [`slack_fees/`](slack_fees/README.md)             | `SlackFeePlanner`                      | Ceiling, with the early fee held for cars that have a day to wait                       |
 | [`tempo/`](tempo/README.md)                       | `TempoAdmission`                       | Ceiling, with each area's capacity set by how fast our gigs book there                  |
-| [`max_margin/`](max_margin/README.md)             | `MaxPricing`                           | Slack fees and the war guard, charging each dealer up to 2.0 x the list price           |
+| [`max_margin/`](max_margin/README.md)             | `MaxPricing`                           | Slack fees and the war guard, pricing up to 2.0 x the list price by option and lane     |
 
 [`bench/`](bench/README.md) is not a strategy either: it compares versions of `dispatch.py` on the same seeds.
 
