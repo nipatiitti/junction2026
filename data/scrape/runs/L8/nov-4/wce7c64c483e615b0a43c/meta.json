@@ -1,0 +1,24 @@
+{
+  "seed": "nov-4",
+  "level": 8,
+  "policy": "snow-aware",
+  "kind": "practice",
+  "worldId": "wce7c64c483e615b0a43c",
+  "version": "35a064b3a34d3d92c4a7d4508bb4b7a78eff9ea4",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 9457,
+  "score": {
+    "marginCents": 1257155,
+    "revenueCents": 3356769,
+    "marginShare": 0.3745134085783085,
+    "wonOrders": 298,
+    "onTimeShare": 0.9899328859060402,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 41.2,
+  "requests": 517
+}
