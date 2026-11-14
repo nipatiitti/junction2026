@@ -6,16 +6,16 @@ import { type BaseParams, type OptionKind, type PriceCtx, PricedStrategy, priced
 
 const OWN = {
   /** Base multiples of the list price at the target utilisation. */
-  sameDay: 1.48,
-  nextDay: 1.42,
-  within3: 1.36,
+  sameDay: 1.42,
+  nextDay: 1.36,
+  within3: 1.3,
   /** Soft capacity: open load per pickup day where utilisation is 1. */
-  capacity: 14,
+  capacity: 12,
   /** Utilisation at which the surge is neutral (×1). */
   target: 0.5,
   /** Surge slope: multiple = exp(surgeK × (u − target)), clamped to [idleFloor, surgeCap]. */
   surgeK: 0.35,
-  idleFloor: 0.9,
+  idleFloor: 0.85,
   surgeCap: 1.5,
   /** Late surge: × (1 + lateK × lateShare). */
   lateK: 3,
@@ -25,7 +25,7 @@ const OWN = {
   slackDiscount: 0.02,
   slackDiscountMax: 0.05,
   /** Trust premium per trust point (each on-time order raises the dealer's threshold about 1%). */
-  trustStep: 0.011,
+  trustStep: 0.016,
   /** Backstop brake: far above the surge's working range, and a high markup instead of a decline. */
   maxOpenPerDay: 40,
   brakeMarkup: 1.25,
