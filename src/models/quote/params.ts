@@ -70,6 +70,8 @@ export type QuoteParams = QuotePriors & {
   gridStep: number
   /** The highest premium of a faster option over a slower one that the search tries. */
   maxPremium: number
+  /** Shift each request's level by the threshold model's offset (src/params/threshold.json). */
+  thresholdModel?: boolean
 }
 
 const DEFAULT_FLAGS: QuoteFlags = { pricing: 'profit', trust: true, ladder: true, lane: true, war: 'follow' }

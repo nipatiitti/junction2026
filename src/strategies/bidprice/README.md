@@ -90,3 +90,13 @@ the saved week won, each deadline warning, failed visit and expired gig. The sav
 `sent`, as the desk's journal would: the answers in a saved week are to its own quotes. A third copy runs `tick` every 30 minutes and hears its own reprices back. It prints the share quoted, the
 options offered (and those offered under 9 hours of slack), quote and `c` over list and typical, the fees planned, timings, and whether a strategy rebuilt at
 mid-week holds the same state. It is not a test; it plays nothing online.
+
+## Threshold model (`thresholdModel`, off by default)
+
+`analysis/threshold_model.py` fits, on the recall memories of six seeds, the part of each option's trust-free
+threshold that repeats across worlds: pickup and delivery town, premium car, private address and list / typical fee
+(the dealer id does not transfer). Held out a seed at a time it removes 15-28% of the variance of log(threshold /
+world-day median) on five seeds, none on spread-1. With `thresholdModel: true` each request's win curve is shifted by
+that offset (`src/params/threshold.json`, read by `src/models/quote/threshold.ts`), and the online learning moves the
+rest. `board-threshold.json` is `board.json` with it on. Refit:
+`uv run --no-project --python 3.13 --with numpy python analysis/threshold_model.py`.

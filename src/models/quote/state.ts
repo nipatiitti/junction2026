@@ -5,6 +5,7 @@ import type { DeskEvent, LedgerLine, PriceRequest } from '../../../vendor/spread
 import { type Belief, drift, learn, level, type Term } from './belief.ts'
 import { shapeOf, survival } from './flips.ts'
 import { OPTIONS, type Option, type QuoteParams } from './params.ts'
+import { thresholdOffset } from './threshold.ts'
 
 const DAY = 24 * 60
 const OPEN = 8 * 60 // requests come, the price war runs, from 08:00 to 18:00
@@ -152,7 +153,11 @@ export function termsFor(
 
 /** The terms of a request's option now. */
 export function requestTerms(state: QuoteState, request: PriceRequest, option: Option, params: QuoteParams): Term[] {
-  return termsFor(option, laneOf(state, request), trustOf(state, request.dealerId, params), true, params)
+  const terms = termsFor(option, laneOf(state, request), trustOf(state, request.dealerId, params), true, params)
+  // A fixed part: the offset as the weight of a part that stays at 1, so the learning leaves it and moves the rest.
+  if (params.thresholdModel)
+    terms.push({ key: 'threshold', weight: thresholdOffset(request, option), prior: [1, 1e-12] })
+  return terms
 }
 
 /** Drivers near the delivery place of the request's first leg, on the log2 scale the lanes pool by. */
