@@ -10,9 +10,9 @@ Jack makes two decisions, each a few plain rules with their numbers at the top o
    c. Each morning every dealer's factor falls by MORNING_STEP: overnight the competitor cuts its prices for the
       dealers we won most from.
    d. Too few drivers: each car that got the deadline warning in the last 24 hours adds WARN_STEP to every price.
-   e. The price war: when Jack wins at most one of his last WAR_WINDOW quotes, from Tuesday on, the competitor is
-      20% cheaper today. Until 18:00 Jack quotes WAR_PRICE times his price and the factors learn nothing. Once a
-      week; the window counts every quote.
+   e. The price war: when Jack wins at most one of his last WAR_WINDOW quotes, the competitor is 20% cheaper
+      today. Until 18:00 Jack quotes WAR_PRICE times his price and the factors learn nothing. Once a week, and not
+      on the day after the trust days, when his new prices lose a lot anyway; the window counts every quote.
    f. Quote every option at its list price times the factor, but leave out an option that gives a driver less
       than MIN_LEAD to reach the car (its deadline, less the drive, less the minute the dealer decides).
    g. Decline when no option is left, when a car goes from or to a private address, or when the typical driver
@@ -181,7 +181,7 @@ class Ladder:
         return sum(1 for at in self.warnings.values() if now - at < DAY)
 
     def at_war(self, now: int) -> bool:
-        """True from a run of WAR_WINDOW quotes with at most one win, from Tuesday on, until 18:00 that day."""
+        """True from a run of WAR_WINDOW quotes with at most one win, after the day the trust days end, until 18:00."""
         war = self.war_day == now // DAY and now % DAY < 18 * HOUR
         self.war_quotes += war
         return war
@@ -204,7 +204,8 @@ class Ladder:
         self.won, self.lost = self.won + won, self.lost + (not won)
         self.recent = [*self.recent, won][-WAR_WINDOW:]
         war = len(self.recent) == WAR_WINDOW and sum(self.recent) <= 1
-        if war and at >= DAY and self.war_day < 0:  # one price war a week
+        # One price war a week; not the day after the trust days, when Jack's new prices lose a lot anyway.
+        if war and at >= (TRUST_DAYS + 1) * DAY and self.war_day < 0:
             self.war_day = at // DAY
         if self.war_day == at // DAY and at % DAY < 18 * HOUR:
             return  # the price war teaches nothing about our dealers
