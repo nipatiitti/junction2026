@@ -1,0 +1,24 @@
+{
+  "seed": "spread-1",
+  "level": 8,
+  "policy": "ratchet",
+  "kind": "practice",
+  "worldId": "wed47e9055d6f4d70fa94",
+  "version": "68efe59cd4f8149ca8a6013ae12724b8048b5db6",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 19169,
+  "score": {
+    "marginCents": 517302,
+    "revenueCents": 3932454,
+    "marginShare": 0.131546866155332,
+    "wonOrders": 422,
+    "onTimeShare": 0.9052132701421801,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 49.4,
+  "requests": 726
+}
