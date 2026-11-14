@@ -65,3 +65,4 @@ dawn ladder do not move with the opening.
 | `step`        | 0.015      | The world's step per gig, times (raised − (1 − `quick_share`))       |
 | `town_step`   | 0.03       | The same for the town's offset                                       |
 | `town_limit`  | 0.12       | A town's offset stays within this of the world's opening             |
+| `same`        | 0.05       | A gig that opened within this of its town's fee teaches              |

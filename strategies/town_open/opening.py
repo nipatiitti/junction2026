@@ -29,6 +29,9 @@ class Params:
     step: float = 0.015  # the world's step per gig: -0.6% after a quick booking, +0.9% after a raise
     town_step: float = 0.03  # the same for the town's own offset: -1.2% and +1.8%
     town_limit: float = 0.12  # a town's offset stays within this of the world's opening
+    same: float = (
+        0.05  # a gig that opened within this of its town's fee teaches; one with little time left opens higher
+    )
 
 
 @dataclass
@@ -60,9 +63,9 @@ class TownOpening(Strategy[Params]):
         return min(p.high, max(p.low, self.world + self.offset.get(place, 0.0)))
 
     def posted(self, gig_id: str, place: str, at: int, fee: int, multiple: float) -> None:
-        """A gig of one order that the world accepted. It teaches only when it opened at its town's fee: a gig
-        with little time left opens higher (strategies/fees), and says nothing of the town."""
-        if abs(multiple - self.multiple(place)) <= 0.011:
+        """A gig of one order that the world accepted. It teaches only when it opened at about its town's fee: a gig
+        with little time left opens far higher (strategies/fees), and says nothing of the town."""
+        if multiple <= self.multiple(place) + self.params.same:
             self.open[gig_id] = Posted(place, at, fee)
 
     def observe(self, event: DeskEvent) -> None:

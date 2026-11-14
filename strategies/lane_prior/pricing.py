@@ -28,6 +28,7 @@ class Params(HeadroomParams):
 
     prior_weight: float = 0.7  # the share of a place's fitted offset that lifts its prices
     prior_limit: float = 0.15  # no place's lift is larger than this, in logs, up or down
+    prior_down: float = 1.0  # the share of that for a place whose offset is negative: 0 only lifts, never lowers
 
 
 class PriorPricing(HeadroomPricing):
@@ -47,7 +48,10 @@ class PriorPricing(HeadroomPricing):
         fitted = json.loads(PRIORS.read_text())["delivery"] if priors is None else priors
         p = self.params
         self.prior = {
-            place: max(-p.prior_limit, min(p.prior_limit, p.prior_weight * offset)) for place, offset in fitted.items()
+            place: max(
+                -p.prior_limit, min(p.prior_limit, p.prior_weight * offset * (p.prior_down if offset < 0 else 1.0))
+            )
+            for place, offset in fitted.items()
         }
         self.lifted = {"up": 0, "down": 0}  # the week's quotes on a dearer and on a cheaper delivery place
 
