@@ -38,7 +38,7 @@ offers, the final) is the root [`dispatch.py`](../../dispatch.py), unchanged.
 **2. The driver fee.** For each gig: post it at `FEE_OPEN` (1.0) times the typical fee, then raise it in `FEE_STEPS`
 (6) even steps to `FEE_TOP` (1.5) times the typical fee, which it reaches `TOP_BEFORE` (3 hours) before the car's
 last pickup. Drivers plan their day in the morning, so when the top is due on a later day, the gig holds its opening
-fee until `DAWN` (06:00) of that day, and only then climbs. With an hour or less to go, as after the deadline warning,
+fee until `DAWN` (05:00) of that day, and only then climbs. With an hour or less to go, as after the deadline warning,
 the gig goes at the top fee at once.
 
 The prices start again at `PRICE` after a restart in the final: they learn only from the quotes this run sent.
@@ -205,6 +205,14 @@ as it is, and each later change is judged against it on that seed. For reference
 |  131 | spread-1  | PRICE_MIN 1.30 → 1.25                                                            | €10,674 |    338 |              95.9% | yes  |
 |  132 | spread-1  | PRICE start 1.55 → 1.50                                                          | €10,736 |    342 |              96.2% | yes  |
 |  133 | spread-1  | MAX_FEE_LIST 1.16 → 1.25                                                         | €10,529 |    365 |              93.4% | no   |
+|  134 | spread-19 | new seed: v132 as it is                                                          | €15,277 |    349 |              95.4% | base |
+|  135 | spread-19 | war = at most 2 wins in 20                                                       | €14,990 |    350 |              95.4% | no   |
+|  136 | spread-19 | TOP_BEFORE 3h → 2h                                                               | €14,983 |    342 |              94.2% | no   |
+|  137 | spread-19 | DAWN 06:00 → 05:00                                                               | €15,973 |    358 |              95.0% | yes  |
+|  138 | spread-19 | DAWN 05:00 → 04:00                                                               | €15,359 |    352 |              94.0% | no   |
+|  139 | spread-16 | new seed: v137 as it is                                                          | €15,705 |    367 |              91.8% | base |
+|  140 | spread-16 | FEE_TOP 1.5 → 1.4                                                                | €15,225 |    372 |              91.1% | no   |
+|  141 | spread-16 | MAX_FEE_LIST 1.16 → 1.10                                                         | €14,634 |    329 |              90.3% | no   |
 
 What the steps taught:
 
