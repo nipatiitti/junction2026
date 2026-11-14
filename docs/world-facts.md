@@ -50,6 +50,7 @@ Revised 14 Nov 13:00 with 1,720 fee probes, 1,291 quote probes and 84 policy for
 ## From the fork probes (14 Nov)
 
 Dealers:
+
 - **Limit at zero trust**: median 1.24x list. Short lanes are lower (list under €40: 1.12x), long ones higher (€70–120: 1.34x).
 - **Trust is real and is the rule's size**: each on-time order for a dealer raises its limit by 1% (fitted 0.92 ± 0.09 of that).
 - **A late order** lowers that dealer's limit by about 2.1%, on top of halving its trust count.
@@ -57,6 +58,7 @@ Dealers:
 - Monday limits were near 1.0x list on two of three seeds, then 1.25–1.5x. Expect to learn the level on Monday, and for trust to lift it later.
 
 Drivers (lowest flat fee that books within 3 hours, over typical fee):
+
 - **Pickup today costs half as much again as pickup tomorrow**: median 0.97 vs 0.66. This holds whatever the deadline.
 - **No booking at any fee up to 1.8x**: 25% for pickup today, 9% for tomorrow, 29% for orders won on Friday.
 - **Load**: with under 50 gigs booked, median 0.77 and 7% unbookable; with over 300, 0.94 and 25%.
@@ -65,6 +67,7 @@ Drivers (lowest flat fee that books within 3 hours, over typical fee):
 - **Few drivers book**: about 15% of the driver list books on a weekday, 1.6 gigs each, even when fees go to 2.5x typical. Most of the list only browses.
 
 Marginal orders (random-price desk winning 330–450 orders, forked Tue/Wed/Thu, 4 seeds):
+
 - Quoting 10% lower won 84 more orders and lost €5,700 more: about -€67 per extra order. On-time share fell 5 points.
 - Quoting 10% higher won 70 fewer and gained €2,900: about €28 saved per order shed. On-time share rose 3.5 points.
 - Opening fees 0.15x typical lower or higher: no clear effect (within noise).
