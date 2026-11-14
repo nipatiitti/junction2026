@@ -1,0 +1,32 @@
+{
+  "seed": "pr-2",
+  "level": 8,
+  "mode": "quote",
+  "worldId": "w1613d00f23062f71a3d2",
+  "params": {
+    "qLo": 1.1,
+    "qHi": 1.7,
+    "qScale": 1,
+    "townScale": {},
+    "dealerSplit": true,
+    "fOpen": 0.9,
+    "fStep": 0.1,
+    "fCap": 1.6
+  },
+  "share": 0.3,
+  "window": 180,
+  "at": [],
+  "score": {
+    "marginCents": -1219329,
+    "revenueCents": 5339229,
+    "marginShare": -0.22837173681818104,
+    "wonOrders": 515,
+    "onTimeShare": 0.7223300970873786,
+    "undeliveredShare": 0,
+    "ranked": false
+  },
+  "probes": 314,
+  "refused": 0,
+  "seconds": 860.45,
+  "requests": 21683
+}
