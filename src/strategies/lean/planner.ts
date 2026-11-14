@@ -11,7 +11,6 @@ import { awake, BOOK_AHEAD, planBy, slow } from './fees.ts'
 export type PlannerParams = ChainParams & {
   chains: boolean
   open: number
-  chainHours: number
   holdHours: number
   chainPatience: number
   /** Plan by the drivers' day (fees.ts, `planBy`): no hold and no chain in the last hours before it. */
@@ -25,10 +24,15 @@ export type PlannerParams = ChainParams & {
  * and a car waits for a partner only while such a chain is still possible. */
 const PICK_LEAD = 20 * HOUR
 const FRIDAY = 4
+/** Whether a chain whose first last pickup is `collectBy` is of that kind when posted at the minute `at`. */
+const postable = (collectBy: number, at: number): boolean =>
+  Math.floor(at / DAY) < FRIDAY && collectBy - at >= PICK_LEAD
+/** The most chains posted in one tick. */
+const MAX_POSTS = 5
 
 /** What the planner asks of the strategy: the context for reading a gig's shape, and whether a car had a setback or
- * its gig was given back by a driver (such cars stay single). */
-export type Host = { context(): Context; troubled(orderId: string, gigId?: string): boolean }
+ * not (such cars stay single). */
+export type Host = { context(): Context; troubled(orderId: string): boolean }
 
 /** A chain in the app, as its post action and the world's answer tell it. */
 type Posted = { orders: string[]; startBy: number; typical: number; at: number }
@@ -71,15 +75,15 @@ export class Planner {
       const live = orders.some((orderId) => books.gigsOf(orderId).includes(gigId))
       if (!live) this.posted.delete(gigId)
       const patient = !(p.chainPatience > 0) || awake(at, now) < p.chainPatience * HOUR // hours drivers could see it
-      // With `spread`, its cars go back to single gigs while drivers still plan the day of its last start.
-      const planned = !p.spread || awake(now, planBy(now, startBy)) >= p.chainLast * HOUR
-      if (!live || books.booked.has(gigId) || (patient && planned && now < startBy - p.chainHours * HOUR)) continue
+      if (!live || books.booked.has(gigId) || (patient && this.mayBeOpen(startBy, now))) continue
       // The harness posts each car again, as a single gig. `sent` marks the cars once the world has taken the gig out.
       actions.push({ type: 'withdraw', gigId })
     }
-    const found = findChains(this.openCars(books), this.map, now, p)
-    const timely = found.filter((c) => c.startBy - now >= (p.chainHours + 3) * HOUR)
-    for (const chain of timely.filter((c) => this.likely(c, now)).slice(0, 5)) {
+    // A chain needs a car that no driver has seen, so without one there is nothing to search.
+    const cars = this.openCars(books).filter((car) => postable(car.collectBy, now))
+    if (!cars.some((car) => !car.gigId)) return actions
+    const worth = (c: Chain) => this.likely(c, now) && this.mayBeOpen(c.startBy, now, p.chainPatience)
+    for (const chain of findChains(cars, this.map, now, p, worth).slice(0, MAX_POSTS)) {
       // The first pickup ends at the chain's last start: a driver who starts later misses a later car's window.
       // `sent` reads the last start back from this window.
       const stops = chain.cars.flatMap((car) => car.stops)
@@ -99,9 +103,15 @@ export class Planner {
 
   /** Whether a chain is of the kind that books (see `PICK_LEAD`). */
   private likely(chain: Chain, now: number): boolean {
-    if (Math.floor(now / DAY) >= FRIDAY) return false
-    if (Math.min(...chain.cars.map((car) => car.collectBy)) - now < PICK_LEAD) return false
-    return chain.cars.some((car) => !car.gigId)
+    return postable(Math.min(...chain.cars.map((car) => car.collectBy)), now) && chain.cars.some((car) => !car.gigId)
+  }
+
+  /** Whether a chain with the last start `startBy` may be in the app at `now`, and for `more` waking hours after:
+   * while drivers have `chainLast` waking hours left to plan the day of its last start. After that its cars go back
+   * to single gigs, which need that time for their raises. The same rule posts a chain, withdraws it, and decides
+   * whether a car waits for one, so no chain is posted that the next tick takes apart. */
+  private mayBeOpen(startBy: number, now: number, more = 0): boolean {
+    return !this.p.spread || awake(now, planBy(now, startBy)) >= (this.p.chainLast + more) * HOUR
   }
 
   /** A new car that may join a chain waits `holdHours` for a partner, while it has time to spare after the wait:
@@ -118,12 +128,13 @@ export class Planner {
     if (!this.on || !(p.holdHours > 0)) return false
     if (!this.chainable(order, books) || books.gigsOf(order.id).length > 0) return false
     const since = this.wonAt.get(order.id) ?? books.now
-    // With `spread`, only while drivers have 5 waking hours left to plan it after the wait.
-    const planned = !p.spread || awake(books.now, planBy(books.now, order.lastPickupAt)) >= (p.holdHours + 5) * HOUR
-    // Only while a chain with this car could still be posted after the wait.
-    const pickable =
-      Math.floor(books.now / DAY) < FRIDAY && books.now < order.lastPickupAt - PICK_LEAD - p.holdHours * HOUR
-    return planned && pickable && books.now < since + p.holdHours * HOUR
+    if (books.now >= since + p.holdHours * HOUR) return false
+    // Only while a chain with this car could still be posted, and stay its `chainPatience`, after the wait.
+    const collectBy = Math.min(order.legs[0]?.pickup.window.to ?? Infinity, order.lastPickupAt)
+    return (
+      postable(collectBy, books.now + p.holdHours * HOUR) &&
+      this.mayBeOpen(order.lastPickupAt, books.now, p.holdHours + p.chainPatience)
+    )
   }
 
   /** An order was won at the minute `at`. */
@@ -184,13 +195,12 @@ export class Planner {
     return `Chains: ${c.posted} posted with ${c.cars} cars, ${c.booked} booked with ${c.bookedCars} cars at ${ratio} × their cars' typical, ${c.undone} taken apart.`
   }
 
-  /** Whether an order's car may join a chain: one car, no setback, no warning, a dealer's yard, and time left. */
+  /** Whether an order's car may join a chain: one car, no setback, no warning, and a dealer's yard. */
   private chainable(order: Order, books: Books): boolean {
     const leg = order.legs[0]
     if (!leg || order.legs.length !== 1 || order.deliveredAt[0] !== null || books.urgent.has(order.id)) return false
     if (this.single.has(order.id) || this.host.troubled(order.id)) return false
-    if (leg.car.premium || leg.pickup.privateAddress) return false
-    return books.now <= order.lastPickupAt - (this.p.chainHours + 3) * HOUR
+    return !leg.car.premium && !leg.pickup.privateAddress
   }
 
   /** Our open cars that may join a chain: the cars that wait for a partner, and the single gigs that any driver may
@@ -204,7 +214,7 @@ export class Planner {
       const [gigId, ...more] = books.gigsOf(order.id)
       if (!leg || !request || more.length > 0 || !this.chainable(order, books)) continue
       if (!gigId && !this.waits(order, books)) continue
-      if (gigId && (books.booked.has(gigId) || this.host.troubled(order.id, gigId))) continue
+      if (gigId && books.booked.has(gigId)) continue
       const post = gigId
         ? books.posts.get(gigId)
         : gigShape(order, [0], readNote(request.note, request.arrivedAt), FIRST_TRY, now, this.host.context())[0]

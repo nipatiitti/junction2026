@@ -95,22 +95,19 @@ export const DEFAULTS = {
   lateTop: 1.7,
   /** Chains (chains.ts): post open cars together when one driver can take them one after the other. A car joins
    * when the next is collected within `maxHop` road minutes of its delivery, a chain holds `maxCars` at most and
-   * must cost a driver `minSaving` less than its cars alone. It goes back to single gigs when no driver has taken
-   * it `chainHours` before its last start. */
+   * must cost a driver `minSaving` less than its cars alone. */
   chains: true,
   maxHop: 60,
   maxCars: 4,
   minSaving: 0.15,
-  chainHours: 5,
-  /** With `spread`, a chain goes back to single gigs when drivers have this many waking hours left to plan the day
-   * of its last start. */
+  /** A chain may be in the app while drivers have this many waking hours left to plan the day of its last start
+   * (planner.ts, `mayBeOpen`); then its cars go back to single gigs. */
   chainLast: 3,
   /** A new car that may join a chain waits this many hours for a partner before it is posted alone: half of the
    * single gigs book within half an hour, before a partner can arrive. 0 posts at once. */
   holdHours: 2,
   /** A chain that no driver took this many waking hours after its post is taken apart: 51% of the chains book
-   * within the hour, and one still open then books 24% of the time. 0 waits until `chainHours` before its last
-   * start. */
+   * within the hour, and one still open then books 24% of the time. 0 waits until `chainLast`. */
   chainPatience: 1,
 }
 export type LeanParams = typeof DEFAULTS
@@ -155,8 +152,7 @@ class Lean extends Strategy<LeanParams> {
     this.demand = new Demand(setup.level, params.noise)
     this.planner = new Planner(params, setup.map, params.chains && setup.level >= 3, {
       context: () => this.context(),
-      troubled: (orderId, gigId) =>
-        this.retries.has(`${orderId} 0`) || (gigId !== undefined && this.dropped.has(gigId)),
+      troubled: (orderId) => this.retries.has(`${orderId} 0`),
     })
   }
 

@@ -54,8 +54,20 @@ export type Chain = {
 
 export type ChainParams = { maxHop: number; maxCars: number; minSaving: number }
 
-/** The chains worth posting among `cars`, best saving first, each car in one chain at most. */
-export function findChains(cars: Car[], map: WorldMap, now: number, p: ChainParams): Chain[] {
+/** The search stops after this many paths, so that one tick stays far inside its 3 seconds: 20 cars near each other
+ * make 116,000 paths of four. The cars are walked in the order of their ids, so the same cars give the same chains. */
+const MAX_PATHS = 20_000
+
+/** The chains worth posting among `cars` that `keep` lets through, best saving first, each car in one chain at
+ * most. */
+export function findChains(
+  open: Car[],
+  map: WorldMap,
+  now: number,
+  p: ChainParams,
+  keep: (chain: Chain) => boolean = () => true,
+): Chain[] {
+  const cars = [...open].sort((a, b) => a.orderId.localeCompare(b.orderId))
   const found: Chain[] = []
   const next = new Map<Car, Car[]>()
   for (const a of cars)
@@ -63,10 +75,13 @@ export function findChains(cars: Car[], map: WorldMap, now: number, p: ChainPara
       a,
       cars.filter((b) => b !== a && minutes(map, a.to, b.from) <= p.maxHop && b.due > a.ready),
     )
+  let paths = 0
   const walk = (path: Car[], drive: number): void => {
+    if (paths >= MAX_PATHS) return
     if (path.length >= 2) {
-      const chain = judge(path, drive, map, now)
-      if (chain && chain.typical <= (1 - p.minSaving) * chain.singles) found.push(chain)
+      paths++
+      const chain = judge(path, drive, map, now, p.minSaving)
+      if (chain && keep(chain)) found.push(chain)
     }
     if (path.length >= p.maxCars) return
     const last = path.at(-1) as Car
@@ -77,7 +92,8 @@ export function findChains(cars: Car[], map: WorldMap, now: number, p: ChainPara
     }
   }
   for (const car of cars) walk([car], car.drive)
-  found.sort((a, b) => b.singles - b.typical - (a.singles - a.typical))
+  const key = (chain: Chain): string => chain.cars.map((car) => car.orderId).join(' ')
+  found.sort((a, b) => b.singles - b.typical - (a.singles - a.typical) || key(a).localeCompare(key(b)))
   const used = new Set<Car>()
   return found.filter((chain) => {
     if (chain.cars.some((car) => used.has(car))) return false
@@ -86,23 +102,33 @@ export function findChains(cars: Car[], map: WorldMap, now: number, p: ChainPara
   })
 }
 
-/** The chain of a path, or null when no driver can do it inside every window. */
-function judge(path: Car[], drive: number, map: WorldMap, now: number): Chain | null {
+/** A chain's start is tried every `GRID` minutes of the clock, for `HORIZON` from the first minute a driver could
+ * start; a gap of over `NIGHT` between two starts that work ends the search (a night between two days is shorter). */
+const GRID = 30
+const HORIZON = 48 * HOUR
+const NIGHT = 16 * HOUR
+
+/** The chain of a path, or null when it saves a driver less than `minSaving` of its cars' fees, or no driver can do
+ * it inside every window. */
+function judge(path: Car[], drive: number, map: WorldMap, now: number, minSaving: number): Chain | null {
   const first = path[0] as Car
   const last = path.at(-1) as Car
-  const earliest = Math.max(now + LEAD, first.ready)
-  if (!feasible(path, earliest, map)) return null
-  let startBy = earliest
-  for (let start = earliest + 30; start <= earliest + 48 * HOUR; start += 30) {
-    if (feasible(path, start, map)) startBy = start
-    else if (start > startBy + 16 * HOUR) break // a night between two days that work
-  }
   const singles = path.reduce((sum, car) => sum + car.typical, 0)
   const modelled = path.reduce((sum, car) => sum + FIXED + PER_MINUTE * car.drive, 0)
   const home = minutes(map, last.to, first.from)
   const cost = FIXED + PER_MINUTE * ((1 - HOME_SHARE) * drive + HOME_SHARE * (Number.isFinite(home) ? home : drive))
   // The cars' own typical fees carry the world's noise for their lanes: the chain keeps it.
-  return { cars: path, drive, startBy, singles, typical: Math.round((cost * singles) / modelled) }
+  const typical = Math.round((cost * singles) / modelled)
+  if (typical > (1 - minSaving) * singles) return null // before the search for its starts, which costs the most
+  // The first start that works may be a later one: a start this afternoon can reach the second yard after it
+  // closes, where one tomorrow morning does not.
+  const earliest = Math.ceil(Math.max(now + LEAD, first.ready) / GRID) * GRID
+  let startBy: number | undefined
+  for (let start = earliest; start <= earliest + HORIZON; start += GRID) {
+    if (feasible(path, start, map)) startBy = start
+    else if (startBy !== undefined && start > startBy + NIGHT) break
+  }
+  return startBy === undefined ? null : { cars: path, drive, startBy, singles, typical }
 }
 
 /** Whether a driver who collects the first car at `start` meets every window, without long waits. */
