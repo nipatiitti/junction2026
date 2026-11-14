@@ -755,8 +755,8 @@
     "simply_jack": {
       "file": "strategies/simply_jack/dispatch.py",
       "fingerprint": "929c29ce2519fb8f",
-      "world_id": "w66e81639ec4b49a766ae",
-      "played_at": "2026-11-14T15:43:59+0000",
+      "world_id": "w627cb8443fcd1202e28f",
+      "played_at": "2026-11-14T16:05:59+0000",
       "score": {
         "marginCents": 1116702,
         "revenueCents": 3358595,
@@ -890,8 +890,8 @@
     "trust_farm": {
       "file": "strategies/trust_farm/dispatch.py",
       "fingerprint": "418efd0884cf6271",
-      "world_id": "wd2859510608800fe37bb",
-      "played_at": "2026-11-14T12:43:36+0200",
+      "world_id": "w9a2c970cfdb50a916581",
+      "played_at": "2026-11-14T16:06:00+0000",
       "score": {
         "marginCents": 1100700,
         "revenueCents": 2693243,
