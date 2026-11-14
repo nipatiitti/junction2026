@@ -385,3 +385,16 @@ Warning: pass 3 on spread-4 ended at 89.8% on time, UNRANKED. champion3 runs nea
 
 Neither beats champion3's best week on its seed (spread-3 €9,065, spread-5 €13,494). The searches can be resumed with
 `pnpm tune --resume out/tune-20261114-033820.json` (spread-3) and `out/tune-20261114-033823.json` (spread-5).
+
+## Leaderboard key, level 8, ranking round "Saturday 00:00" (season 4)
+
+Ranking worlds are secret seeds, so recall's memory cannot apply; the entry is plain bidprice with
+`src/strategies/bidprice/board.json` (= `tuned-6b.json` + lateRisk=true, lateRiskMax=0.15).
+
+| Run | Margin | Orders | On time | Ranked | World |
+| --- | --- | --- | --- | --- | --- |
+| 1 of 5 | €10,871 | 323 | 96.0% | yes | wee84cb83fdf11d1dd12b |
+
+For scale, run 1 of the round's leaders: freya €17,211 (453 orders), skadi €17,292 (480), razors €16,535, ppo
+€16,318; the top total over five runs is €85,925. Our run 1 sits around 35th-40th of 62 ranked teams.
+Runs 2-5 are held until the general strategy wins more orders: each is one-shot and stays public.
