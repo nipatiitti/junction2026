@@ -29,6 +29,18 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-15: five decision algorithms, all off (issue #354)
+
+- **Version changed**: TypeScript.
+- **What changed**: five new params, all off, so the week is played as before: `value` (a value table for the
+  quote's capacity charge, dynamic programming), `feeTable` (a single gig's raises from a dynamic program), `pace`
+  (a controller on the capacity charge), `sample` (Thompson sampling on the win model) and `rollout` with
+  `rolloutPlan` (lookahead in the offline simulator). Ten server seeds: with the chain model `value=1` made
+  +€251 ± 457 a week at a point less on time, `pace=1` +€50, `feeTable=true` −€2,058; before it `sample` lost €607
+  to €708 and `rollout` €305. The tables:
+  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#five-decision-algorithms-all-off-15-november-354).
+- **In step**: no (#329). The Python version does not have the params; at the defaults they change nothing.
+
 ### 2026-11-15: the chain model (issue #351)
 
 - **Version changed**: TypeScript.
