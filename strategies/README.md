@@ -12,13 +12,15 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`offers/`](offers/README.md)       | `Offers`       | Direct offers to drivers near a gig's pickup                    |
 | [`bundling/`](bundling/README.md)   | `Bundler`      | Which orders' cars go together in one gig                       |
 
-Two folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played there
-is that system's, not `dispatch.py`'s. Neither changes the folders above.
+Four folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played there
+is that system's, not `dispatch.py`'s. None changes the folders above.
 
 | Folder                                    | Classes                                | What it is                                                |
 | ----------------------------------------- | -------------------------------------- | --------------------------------------------------------- |
 | [`baseline/`](baseline/README.md)         | `BaselineAdmission`, `BaselineFees`, … | The organisers' starter as strategies: our fixed baseline |
 | [`price_ladder/`](price_ladder/README.md) | `LadderPricing`, `ShadowAdmission`     | A clamped price ladder with a shadow price on capacity    |
+| [`baseline_ladder/`](baseline_ladder/README.md) | `BaselineLadderPricing`, `RampFees` | The baseline, with a quote ladder and a fee ramp       |
+| [`baseline_tiers/`](baseline_tiers/README.md) | `FixedMultiplePricing`, `TierFees` | The baseline, with a fixed quote multiple and fee tiers |
 
 [`bench/`](bench/README.md) is not a strategy either: it compares versions of `dispatch.py` on the same seeds.
 
