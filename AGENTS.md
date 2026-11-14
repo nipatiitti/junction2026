@@ -323,6 +323,8 @@ on one line, so two PRs that each add a command do not conflict.
 - Split saved weeks' margin by the hour an order was won: `uv run python -m analysis.phases`
 - Build the simulator's data packs: `uv run python sim/build_data.py`
 - Serve the offline simulator: `pnpm sim --port 8787`
+- Serve the joke-video player: `node video/serve.ts --port 8790`
+- Make the joke video's voice lines with ElevenLabs: `node --env-file=.env.local video/voices.ts`
 - Oracle margin of a week in the simulator: `pnpm oracle spread-1`
 - Probe a week (online unless `SPREAD_URL` is the simulator; needs the user's request): `pnpm prober --mode fee --seeds spread-1`
 - Replay a saved week in the simulator: `pnpm replay data/scrape/runs/L8/spread-1/<world id>`
