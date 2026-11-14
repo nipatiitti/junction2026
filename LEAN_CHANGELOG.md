@@ -29,7 +29,7 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
-### 2026-11-14: shared learning of a lost request (issue #357)
+### 2026-11-14: shared learning of a lost request (PR #358, issue #357)
 
 - **Version changed**: TypeScript.
 - **What changed**: `sharedOutcome` averages a lost request's shared demand updates over its quoted options instead
