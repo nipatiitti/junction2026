@@ -39,7 +39,7 @@ from strategies.strategy import Strategy
 from tools import record
 
 # The values this system plays with, by part, over the defaults of each part's class.
-PARAMS: dict[str, dict[str, object]] = {"pricing": {"cost_slope": 0.0}}
+PARAMS: dict[str, dict[str, object]] = {"fees": {"open": 0.8}}  # the bench's best: README.md
 
 TAG = os.environ.get("EIGHTY_TAG", "")
 POLICY = f"eighty-{TAG}" if TAG else "eighty"  # its saved weeks form their own group in out/spread.sqlite
