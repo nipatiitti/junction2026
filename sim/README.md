@@ -107,7 +107,7 @@ Tier d assigns drivers in five passes over the week: a driver-day that blocked a
 - `--mode quote`: for each request (a `--share` of them), the highest price the dealer accepts, per option.
 - `--mode branch --at 1920,3360`: from each minute, seven policy variants played to the end of the week on forks.
 
-**Against the Spread server the prober is an online run** (`pnpm prober ...`): run it only when the user explicitly asks, one run at a time, as `AGENTS.md` says. Against the simulator it is offline: use `sim/run.sh`, or `SPREAD_URL=http://localhost:8787 SPREAD_KEY=sim node sim/prober.ts --mode fee --share 0.05 --seeds spread-1 --out out/sim`. `data/scrape/probe2/` holds the server's results from 14 Nov.
+**Against the Spread server the prober is an online run** (`pnpm prober ...`): run it only when the user explicitly asks, one run at a time, as `AGENTS.md` says. Against the simulator it is offline: use `sim/run.sh`, or `SPREAD_URL=http://localhost:8787 SPREAD_KEY=sim node sim/prober.ts --mode fee --share 0.05 --seeds spread-1 --out out/sim`. `data/scrape/probe2/` holds the server's results from 14 Nov. `data/scrape/probe3/` holds a later batch from the same day, on seeds `p3f-1` to `p3f-24` and `p3q-1`: 5,463 fee probes on 24 weeks (odd seeds quote 1.0–1.7 times the estimate and win about 600 orders, even seeds 1.25–1.9 and about 300) and 173 quote probes on one week. `sim/build_data.py` does not read it yet.
 
 ## Recalibrate
 
