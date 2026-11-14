@@ -470,3 +470,28 @@ price it got accepted (same_day 10.5%). Win rate by day: Mon 46%, Tue 38%, Wed 5
 
 Reading: no single large leak. The volume gap to the leaders is not in admission; it is price level (about 8% high
 where we lose) and what volume costs us in drivers and lateness.
+
+## Stacking small gains on untested seeds (plain bidprice, `board.json` with `war: follow` as the baseline)
+
+| Variant | spread-6 | spread-7 | spread-8 | spread-10 | Mean | All ranked |
+| --- | --- | --- | --- | --- | --- | --- |
+| baseline, `war: follow` | €8,194 | €10,286 (93.0%) | €12,300 | €8,828 (91.8%) | €9,902 | yes |
+| baseline, `war: decline` (earlier batch) | €8,003 | €11,245 (94.4%) | €12,215 | €9,993 (91.7%) | €10,364 | yes |
+| A: minValueCents=60 | €7,996 | €11,266 (92.8%) | €12,996 | €10,637 (91.6%) | **€10,724** | yes |
+| B: costScale=1.12 | €8,225 | €8,677 (89.7%) | €11,039 | €8,470 | €9,103 | no |
+| A+B | €9,288 | €7,878 (89.1%) | €12,618 | €9,037 | €9,705 | no |
+
+Reading: quoting low-value requests is worth +€822 a week at the same on-time share. Lower prices alone lose money.
+Following the war day is −€462 on the four-seed mean (it was +€60-85 on the two seeds first measured): reverted.
+
+Per-driver offers (worktree agent-a08e9da81236043a6, analysis only): a driver's booked fee is not predictable from
+distance, rating or experience (R² 0.03); 0.5% of 137,557 direct offers in saved weeks were accepted; 11% of
+bookings went to a driver who had seen the gig cheaper and waited (median +€16). Realistic saving €100-250: not built.
+
+| C: minValueCents=60, `war: decline` | €7,781 | €11,670 (95.8%) | €12,263 | €10,204 (91.8%) | €10,479 | yes |
+| D: minValueCents=20, `war: decline` | €7,724 | €10,958 (94.7%) | €11,764 | €9,344 (92.7%) | €9,948 | yes |
+
+Reading after the second batch: minValueCents=60 helps in both pairings (+€822 with `war: follow`, +€115 with
+`war: decline`); 20 is too low. The war-day rule flips sign between the pairings (−€462, then +€245), so it is
+inside the noise of a four-seed mean, about ±€400. `board.json` is now minValueCents=60 with `war: follow`
+(the best measured combination, €10,724). Ranking anything smaller than about €400 needs more seeds.
