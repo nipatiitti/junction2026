@@ -26,8 +26,8 @@ const OWN = {
   sameDay: 1.367,
   /** Each trust point raises the threshold this much. */
   trustStep: 0.01,
-  /** Value of a win beyond its margin (trust, future orders), as a share of list. */
-  winBonus: 0.05,
+  /** Value of a win beyond its margin, as a share of list: negative is the shadow cost of a driver slot. */
+  winBonus: -0.12,
   /** Bluff: probability `bluff` + `bluffShare` × dealer share (capped at `bluffMax`), one or two `bluffStep` up. */
   bluff: 0.08,
   bluffShare: 0.5,
