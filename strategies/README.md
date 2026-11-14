@@ -12,13 +12,15 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`offers/`](offers/README.md)       | `Offers`       | Direct offers to drivers near a gig's pickup                    |
 | [`bundling/`](bundling/README.md)   | `Bundler`      | Which orders' cars go together in one gig                       |
 
-Sixteen folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Twenty-five folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                                              |
 | ------------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------- |
 | [`baseline/`](baseline/README.md)                 | `BaselineAdmission`, `BaselineFees`, … | The organisers' starter as strategies: our fixed baseline                               |
 | [`price_ladder/`](price_ladder/README.md)         | `LadderPricing`, `ShadowAdmission`     | A clamped price ladder with a shadow price on capacity                                  |
+| [`city_ladder/`](city_ladder/README.md)           | `CityLadderPricing`                    | The price ladder with one position per pickup city                                      |
+| [`dealer_ladder/`](dealer_ladder/README.md)       | `DealerLadderPricing`                  | The price ladder with one position per dealer                                           |
 | [`streak_ladder/`](streak_ladder/README.md)       | `StreakLadderPricing`                  | The price ladder with a step that grows with the run of wins and losses, more on a loss |
 | [`scarcity_cost/`](scarcity_cost/README.md)       | `ScarcityAdmission`                    | Admission with the town's quotas per driver priced in                                   |
 | [`bundling_more/`](bundling_more/README.md)       | `WaitingBundler`                       | Every order waits for a chain, so more cars share a gig                                 |
@@ -28,6 +30,13 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`delivery_urgency/`](delivery_urgency/README.md) | `UrgencyPricing`, `UrgencyAdmission`   | The ladder's quote priced by the delivery option's kind                                 |
 | [`scarcity_urgency/`](scarcity_urgency/README.md) | `ScarcityUrgencyAdmission`             | The town's scarcity and the urgency quote in one folder                                 |
 | [`scarcity_ceiling/`](scarcity_ceiling/README.md) | `ChainScarcityAdmission`               | The ceiling's quote over the scarcity-priced admission                                  |
+| [`profit_max/`](profit_max/README.md)             | `ProfitPricing`                        | Ceiling, quoting the price with the most expected margin on a win curve                 |
+| [`learned_cost/`](learned_cost/README.md)         | `LearnedCostAdmission`                 | Ceiling, with the driver cost corrected by our own bookings, by town                    |
+| [`trust_value/`](trust_value/README.md)           | `TrustValueAdmission`                  | Ceiling, counting the dealer trust that an order on time buys                           |
+| [`war_guard/`](war_guard/README.md)               | `WarGuardPricing`, `WarGuardAdmission` | Ceiling, undoing the price war's lessons and widening the outage                        |
+| [`option_menu/`](option_menu/README.md)           | `OptionMenu`                           | Ceiling, quoting admission's option and every slower one                                |
+| [`slack_fees/`](slack_fees/README.md)             | `SlackFeePlanner`                      | Ceiling, with the early fee held for cars that have a day to wait                       |
+| [`tempo/`](tempo/README.md)                       | `TempoAdmission`                       | Ceiling, with each area's capacity set by how fast our gigs book there                  |
 | [`dawn_fees/`](dawn_fees/README.md)               | `DawnFeePlanner`                       | Ceiling, with fees held low overnight and a ladder from 06:00 on the last morning       |
 | [`lead_cost/`](lead_cost/README.md)               | `LeadCostAdmission`                    | Dawn fees, with the driver cost by lead time and the option of the most margin          |
 | [`headroom/`](headroom/README.md)                 | `HeadroomPricing`                      | Lead cost, with a price maximum that moves with the wins and losses at it               |
