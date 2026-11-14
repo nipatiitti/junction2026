@@ -14,10 +14,12 @@ type Ev = { at: number; kind: string; order?: { id: string; dealerId: string; de
 type DeliveredEv = Ev & { orderId: string; leg: number }
 
 const here = dirname(fileURLToPath(import.meta.url))
-const seed = process.argv[2] ?? 'spread-1'
+const raw = process.argv.includes('--raw')
+const args = process.argv.filter((a) => a !== '--raw')
+const seed = args[2] ?? 'spread-1'
 const dirs =
-  process.argv.length > 3
-    ? process.argv.slice(3)
+  args.length > 3
+    ? args.slice(3)
     : ['/home/nipatiitti/projects/hackathons/junction2026/data/scrape/runs', join(here, '../../../data/scrape/runs')]
 const gz = (p: string) => gunzipSync(readFileSync(p)).toString('utf8')
 
@@ -25,7 +27,10 @@ const gz = (p: string) => gunzipSync(readFileSync(p)).toString('utf8')
 export const sigOf = (r: Req) => `${r.dealerId}|${r.options.map((o) => o.listPriceCents).join(',')}`
 
 const sig: Record<string, string> = {}
-const bracket: Record<string, [number | null, number | null]> = {}
+const obs: Record<string, [number, boolean][]> = {}
+/** `--raw`: the old bracket (highest win, lowest loss), out of order when one outlier crosses. By default the bracket
+ * is cut at the single threshold that misclassifies the fewest observations (analyse.ts: about 2% of them), and is
+ * the highest win at or below it and the lowest loss above it, so it is always in order. */
 const seen = new Set<string>()
 let weeks = 0
 for (const root of dirs) {
@@ -75,12 +80,35 @@ for (const root of dirs) {
         const lost = outcome !== 'won'
         if (!won && !lost) continue
         const key = `${request.id}/${o.kind}`
-        const b = (bracket[key] ??= [null, null])
-        if (won) b[0] = Math.max(b[0] ?? 0, free)
-        else b[1] = Math.min(b[1] ?? Number.POSITIVE_INFINITY, free)
+        ;(obs[key] ??= []).push([free, won])
       }
     }
   }
+}
+const bracket: Record<string, [number | null, number | null]> = {}
+for (const [key, xs] of Object.entries(obs)) {
+  const wins = xs.filter(([, w]) => w).map(([x]) => x)
+  const losses = xs.filter(([, w]) => !w).map(([x]) => x)
+  if (raw || !wins.length || !losses.length) {
+    bracket[key] = [wins.length ? Math.max(...wins) : null, losses.length ? Math.min(...losses) : null]
+    continue
+  }
+  xs.sort((a, b) => a[0] - b[0] || Number(b[1]) - Number(a[1]))
+  let winsAbove = wins.length
+  let lossesBelow = 0
+  let best = winsAbove
+  let cut = -1
+  xs.forEach(([, w], i) => {
+    if (w) winsAbove--
+    else lossesBelow++
+    if (lossesBelow + winsAbove < best) {
+      best = lossesBelow + winsAbove
+      cut = i
+    }
+  })
+  const below = xs.slice(0, cut + 1).filter(([, w]) => w)
+  const above = xs.slice(cut + 1).filter(([, w]) => !w)
+  bracket[key] = [below.length ? below[below.length - 1][0] : null, above.length ? above[0][0] : null]
 }
 const r4 = (x: number | null) => (x === null ? null : Math.round(x * 1e4) / 1e4)
 const opts = Object.fromEntries(Object.entries(bracket).map(([k, [w, l]]) => [k, [r4(w), r4(l)]]))
