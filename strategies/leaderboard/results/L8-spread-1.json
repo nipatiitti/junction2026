@@ -65,8 +65,8 @@
     "all_in": {
       "file": "strategies/all_in/dispatch.py",
       "fingerprint": "1b5611cd4c645196",
-      "world_id": "w3b74a46db7f6cf233638",
-      "played_at": "2026-11-14T12:27:58+0200",
+      "world_id": "wec754f7367b5036b0a91",
+      "played_at": "2026-11-14T15:53:39+0000",
       "score": {
         "marginCents": 1359171,
         "revenueCents": 3309683,
@@ -125,8 +125,8 @@
     "bulk_yard": {
       "file": "strategies/bulk_yard/dispatch.py",
       "fingerprint": "48d7989296360ce6",
-      "world_id": "w081bd044f72c73f9f92d",
-      "played_at": "2026-11-14T12:29:38+0200",
+      "world_id": "wb050e51848219b040fd3",
+      "played_at": "2026-11-14T16:04:14+0000",
       "score": {
         "marginCents": 1178444,
         "revenueCents": 3149761,
@@ -185,8 +185,8 @@
     "chain_opt": {
       "file": "strategies/chain_opt/dispatch.py",
       "fingerprint": "ec536a076b3653be",
-      "world_id": "wbc47243b9422ebdbb620",
-      "played_at": "2026-11-14T12:32:40+0200",
+      "world_id": "w23b0af0d833d06c3ffa4",
+      "played_at": "2026-11-14T15:55:40+0000",
       "score": {
         "marginCents": 1293196,
         "revenueCents": 3254649,
@@ -230,8 +230,8 @@
     "contextual_mix": {
       "file": "strategies/contextual_mix/dispatch.py",
       "fingerprint": "b26219f960b82919",
-      "world_id": "w096d966529d5179c3b16",
-      "played_at": "2026-11-14T12:32:50+0200",
+      "world_id": "w46b44eb25dbe876433ca",
+      "played_at": "2026-11-14T15:57:28+0000",
       "score": {
         "marginCents": 1272671,
         "revenueCents": 3200376,
@@ -305,8 +305,8 @@
     "drop_risk": {
       "file": "strategies/drop_risk/dispatch.py",
       "fingerprint": "dfc64649e4f236d8",
-      "world_id": "w7772e520aa052bd97665",
-      "played_at": "2026-11-14T12:34:01+0200",
+      "world_id": "wa54780439095f7481007",
+      "played_at": "2026-11-14T16:03:33+0000",
       "score": {
         "marginCents": 1204081,
         "revenueCents": 3250652,
@@ -320,8 +320,8 @@
     "eighty": {
       "file": "strategies/eighty/dispatch.py",
       "fingerprint": "d0e80deb88fe8f37",
-      "world_id": "w53aab09452fb10deab37",
-      "played_at": "2026-11-14T12:49:07+0200",
+      "world_id": "wd78f11bd5809079d1398",
+      "played_at": "2026-11-14T15:56:05+0000",
       "score": {
         "marginCents": 1285704,
         "revenueCents": 3223716,
@@ -335,8 +335,8 @@
     "flu_guard": {
       "file": "strategies/flu_guard/dispatch.py",
       "fingerprint": "da9b7d88a4e89aaa",
-      "world_id": "w533cab0e788e578c8e72",
-      "played_at": "2026-11-14T12:34:11+0200",
+      "world_id": "wced7d0ebc4dee743f362",
+      "played_at": "2026-11-14T15:55:34+0000",
       "score": {
         "marginCents": 1311578,
         "revenueCents": 3244934,
@@ -365,8 +365,8 @@
     "hazard_fee": {
       "file": "strategies/hazard_fee/dispatch.py",
       "fingerprint": "8e3a1566023eb5d9",
-      "world_id": "wf01d2798cdf79818b07c",
-      "played_at": "2026-11-14T12:34:43+0200",
+      "world_id": "wae4206a7724ef614c88d",
+      "played_at": "2026-11-14T15:59:30+0000",
       "score": {
         "marginCents": 1267071,
         "revenueCents": 3238635,
@@ -380,8 +380,8 @@
     "headroom": {
       "file": "strategies/headroom/dispatch.py",
       "fingerprint": "56308eaa4766cc85",
-      "world_id": "wb3a11a10786981c3f833",
-      "played_at": "2026-11-14T12:34:50+0200",
+      "world_id": "w856810d83ddb234cc872",
+      "played_at": "2026-11-14T15:58:00+0000",
       "score": {
         "marginCents": 1267071,
         "revenueCents": 3238635,
@@ -395,8 +395,8 @@
     "herd_competitor": {
       "file": "strategies/herd_competitor/dispatch.py",
       "fingerprint": "9151882c1434b583",
-      "world_id": "wf396e1fe2af8133f44e6",
-      "played_at": "2026-11-14T12:35:33+0200",
+      "world_id": "wed7756e8af0f533089aa",
+      "played_at": "2026-11-14T16:04:12+0000",
       "score": {
         "marginCents": 1188336,
         "revenueCents": 3106721,
@@ -425,8 +425,8 @@
     "ifs": {
       "file": "strategies/ifs/dispatch.py",
       "fingerprint": "75c832354e458922",
-      "world_id": "we4830b9be154595b8187",
-      "played_at": "2026-11-14T12:35:42+0200",
+      "world_id": "w96e1a7e471cfb6ba4a36",
+      "played_at": "2026-11-14T16:02:17+0000",
       "score": {
         "marginCents": 1210457,
         "revenueCents": 3277961,
@@ -455,8 +455,8 @@
     "lane_prior": {
       "file": "strategies/lane_prior/dispatch.py",
       "fingerprint": "a4353faa375e2418",
-      "world_id": "wbd0c0637015334cc2d5f",
-      "played_at": "2026-11-14T12:36:24+0200",
+      "world_id": "w84395333a0737e5720f1",
+      "played_at": "2026-11-14T16:02:15+0000",
       "score": {
         "marginCents": 1217085,
         "revenueCents": 3112601,
@@ -485,8 +485,8 @@
     "learned_hold": {
       "file": "strategies/learned_hold/dispatch.py",
       "fingerprint": "38745ade0b22aeb2",
-      "world_id": "we1706c190d538400f027",
-      "played_at": "2026-11-14T12:37:08+0200",
+      "world_id": "wafe36a7050ad02771575",
+      "played_at": "2026-11-14T16:00:16+0000",
       "score": {
         "marginCents": 1258198,
         "revenueCents": 3190784,
@@ -500,8 +500,8 @@
     "learned_notes": {
       "file": "strategies/learned_notes/dispatch.py",
       "fingerprint": "58a89f499c900df0",
-      "world_id": "w0dea2343d0a599412261",
-      "played_at": "2026-11-14T12:37:18+0200",
+      "world_id": "w0d8a30fefe2b97bb29a6",
+      "played_at": "2026-11-14T15:57:36+0000",
       "score": {
         "marginCents": 1267071,
         "revenueCents": 3238635,
@@ -545,8 +545,8 @@
     "offer_probe": {
       "file": "strategies/offer_probe/dispatch.py",
       "fingerprint": "8888817446bb9e6e",
-      "world_id": "w03408517ee8d2fc61d82",
-      "played_at": "2026-11-14T12:37:56+0200",
+      "world_id": "w8674878fb254643300f0",
+      "played_at": "2026-11-14T16:00:17+0000",
       "score": {
         "marginCents": 1232150,
         "revenueCents": 3225247,
@@ -590,8 +590,8 @@
     "outage_harvest": {
       "file": "strategies/outage_harvest/dispatch.py",
       "fingerprint": "d21c4c1d245b207f",
-      "world_id": "w6e9f11b97cbb247c43bf",
-      "played_at": "2026-11-14T12:38:37+0200",
+      "world_id": "w798060dbbc3d2bc4e349",
+      "played_at": "2026-11-14T15:57:33+0000",
       "score": {
         "marginCents": 1267071,
         "revenueCents": 3238635,
@@ -605,8 +605,8 @@
     "pair_first": {
       "file": "strategies/pair_first/dispatch.py",
       "fingerprint": "3d34865f4b8432f2",
-      "world_id": "wa19fed5a7d45a684edb8",
-      "played_at": "2026-11-14T12:38:50+0200",
+      "world_id": "wd262132576dfea5ea154",
+      "played_at": "2026-11-14T16:01:42+0000",
       "score": {
         "marginCents": 1229201,
         "revenueCents": 3385818,
@@ -647,6 +647,21 @@
         "ranked": true
       }
     },
+    "radar_broker": {
+      "file": "strategies/radar_broker/dispatch.py",
+      "fingerprint": "1b35dfecdd04825f",
+      "world_id": "wa0c7c550ec140ead9872",
+      "played_at": "2026-11-14T16:06:14+0000",
+      "score": {
+        "marginCents": 1112822,
+        "revenueCents": 3290885,
+        "marginShare": 0.33815280691971916,
+        "wonOrders": 373,
+        "onTimeShare": 0.9785522788203753,
+        "undeliveredShare": 0,
+        "ranked": true
+      }
+    },
     "ratchet": {
       "file": "strategies/ratchet/dispatch.py",
       "fingerprint": "ab17a92d221db41a",
@@ -665,8 +680,8 @@
     "robust_tune": {
       "file": "strategies/robust_tune/dispatch.py",
       "fingerprint": "8f1d1e6e5650d247",
-      "world_id": "w77d9042121c2e2c53167",
-      "played_at": "2026-11-14T12:39:38+0200",
+      "world_id": "w3a8e6a5bd67bd8308f24",
+      "played_at": "2026-11-14T16:04:00+0000",
       "score": {
         "marginCents": 1197444,
         "revenueCents": 3183426,
@@ -680,8 +695,8 @@
     "same_day": {
       "file": "strategies/same_day/dispatch.py",
       "fingerprint": "934741f57ec927dc",
-      "world_id": "wd5825cc6d0ed8e918b38",
-      "played_at": "2026-11-14T12:40:01+0200",
+      "world_id": "w0be30f93157177cac686",
+      "played_at": "2026-11-14T16:02:04+0000",
       "score": {
         "marginCents": 1228373,
         "revenueCents": 3335169,
@@ -737,11 +752,26 @@
         "ranked": true
       }
     },
+    "simply_jack": {
+      "file": "strategies/simply_jack/dispatch.py",
+      "fingerprint": "929c29ce2519fb8f",
+      "world_id": "w627cb8443fcd1202e28f",
+      "played_at": "2026-11-14T16:05:59+0000",
+      "score": {
+        "marginCents": 1116702,
+        "revenueCents": 3358595,
+        "marginShare": 0.3324908183332614,
+        "wonOrders": 348,
+        "onTimeShare": 0.9568965517241379,
+        "undeliveredShare": 0,
+        "ranked": true
+      }
+    },
     "slack_budget": {
       "file": "strategies/slack_budget/dispatch.py",
       "fingerprint": "db6da0e8bcd3ec8e",
-      "world_id": "wf33fd664df3f3172f76e",
-      "played_at": "2026-11-14T12:41:00+0200",
+      "world_id": "wab8b7e5cb18de25572df",
+      "played_at": "2026-11-14T15:53:45+0000",
       "score": {
         "marginCents": 1333624,
         "revenueCents": 3639513,
@@ -770,8 +800,8 @@
     "snow_aware": {
       "file": "strategies/snow_aware/dispatch.py",
       "fingerprint": "fdeb86a8a283eaf1",
-      "world_id": "wc7effda61a8f0c7e8644",
-      "played_at": "2026-11-14T12:43:00+0200",
+      "world_id": "wd763b77495db0d887d11",
+      "played_at": "2026-11-14T15:59:41+0000",
       "score": {
         "marginCents": 1242911,
         "revenueCents": 3226918,
@@ -785,8 +815,8 @@
     "soft_top": {
       "file": "strategies/soft_top/dispatch.py",
       "fingerprint": "440002cbfc71e05a",
-      "world_id": "w8f263101f7dcb0abbb03",
-      "played_at": "2026-11-14T12:43:21+0200",
+      "world_id": "w68268786c7205501a382",
+      "played_at": "2026-11-14T15:53:38+0000",
       "score": {
         "marginCents": 1329712,
         "revenueCents": 3273375,
@@ -860,8 +890,8 @@
     "trust_farm": {
       "file": "strategies/trust_farm/dispatch.py",
       "fingerprint": "418efd0884cf6271",
-      "world_id": "wd2859510608800fe37bb",
-      "played_at": "2026-11-14T12:43:36+0200",
+      "world_id": "w9a2c970cfdb50a916581",
+      "played_at": "2026-11-14T16:06:00+0000",
       "score": {
         "marginCents": 1100700,
         "revenueCents": 2693243,
@@ -889,16 +919,16 @@
     },
     "ts:lean": {
       "file": "src/dispatch.ts --strategy lean",
-      "fingerprint": "001e95a6e4877207",
-      "world_id": "wab55932adc3f209f08b3",
-      "played_at": "2026-11-14T12:59:56+0200",
+      "fingerprint": "2504c689f590ec7f",
+      "world_id": "w67d4cc6984d1b623a869",
+      "played_at": "2026-11-14T15:54:12+0000",
       "score": {
-        "marginCents": 949653,
-        "revenueCents": 2252310,
-        "marginShare": 0.4216351212754905,
-        "wonOrders": 212,
-        "onTimeShare": 0.9669811320754716,
-        "undeliveredShare": 0,
+        "marginCents": 1416393,
+        "revenueCents": 3333434,
+        "marginShare": 0.4249050678669504,
+        "wonOrders": 382,
+        "onTimeShare": 0.9712041884816754,
+        "undeliveredShare": 0.002617801047120419,
         "ranked": true
       }
     },
@@ -915,6 +945,21 @@
         "onTimeShare": 0.4609704641350211,
         "undeliveredShare": 0.013713080168776372,
         "ranked": false
+      }
+    },
+    "volume": {
+      "file": "strategies/volume/dispatch.py",
+      "fingerprint": "f4acf0da4a9427ec",
+      "world_id": "w1b02c31be83e41a986c4",
+      "played_at": "2026-11-14T15:55:37+0000",
+      "score": {
+        "marginCents": 1308938,
+        "revenueCents": 3428830,
+        "marginShare": 0.3817447934134967,
+        "wonOrders": 372,
+        "onTimeShare": 0.9838709677419355,
+        "undeliveredShare": 0,
+        "ranked": true
       }
     },
     "war_guard": {
@@ -935,8 +980,8 @@
     "war_sweep": {
       "file": "strategies/war_sweep/dispatch.py",
       "fingerprint": "a88a8a0fd1ee4884",
-      "world_id": "w0bef2f6e5bf457c0a938",
-      "played_at": "2026-11-14T12:44:46+0200",
+      "world_id": "w02a407a9bb3124ed9c9e",
+      "played_at": "2026-11-14T16:05:42+0000",
       "score": {
         "marginCents": 1134968,
         "revenueCents": 2817407,
