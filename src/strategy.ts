@@ -93,6 +93,13 @@ export abstract class Strategy<P extends Params = Params> {
    * any leg of `need.legs` that no plan carries with the starter's plan. */
   abstract gig(need: GigNeed, books: Books): GigPlan | GigPlan[]
 
+  /** Whether to wait with the gig for these legs instead of posting it now, as when the cars may join a gig with
+   * cars still to come. The harness asks again on every sweep, and the legs have no gig until the answer is false or
+   * a tick action posts them. */
+  hold(_need: GigNeed, _books: Books): boolean {
+    return false
+  }
+
   /** Learns what became of one action the harness sent for the strategy (quote, post, reprice, withdraw, offer): the
    * action as it went out, also when the harness sent the safe one instead, and the world's answer (`ok` with the gig
    * id, or the refusal). Called once for each action, and again in order on a rebuild, from the journal. */

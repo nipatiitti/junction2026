@@ -242,12 +242,18 @@ export class Desk implements Books {
   /** Posts the strategy's gigs for the legs. A leg that none of them got, as a trade-in over the 12-hour limit for a
    * gig with two cars, goes again as a gig of its own. */
   async post(why: GigNeed['why'], order: Order, legs: number[], failed?: GigNeed['failed']): Promise<void> {
+    if (this.held({ why, order, legs, failed })) return
     const plans = this.plan({ why, order, legs, failed })
     this.outbox.push(...plans)
     if (legs.length === 1) return
     await this.answered(plans)
     for (const leg of legs.filter((leg) => !this.legGigs.get(order.id)?.has(leg) && !this.waiting(order.id, leg)))
       await this.post('split', order, [leg], failed)
+  }
+
+  /** Whether the strategy waits with the gig for these legs. A strategy that fails here posts. */
+  held(need: GigNeed): boolean {
+    return this.guard.run('gig', () => this.strategy.hold(need, this)) === true
   }
 
   /** Posts every undelivered leg of a live order that no gig carries and no post waits for: a refused post, a change
@@ -259,8 +265,9 @@ export class Desk implements Books {
       const legs = undelivered(order).filter(
         (leg) => !this.legGigs.get(order.id)?.has(leg) && !this.waiting(order.id, leg) && due(leg),
       )
+      if (legs.length === 0 || this.held({ why: 'lost', order, legs })) continue
       for (const leg of legs) this.swept.set(`${order.id} ${leg}`, this.now)
-      if (legs.length > 0) await this.post('lost', order, legs)
+      await this.post('lost', order, legs)
     }
   }
 
