@@ -68,7 +68,11 @@ function where(legs: Leg[], deadline: number, at: number, setup: Setup) {
 
 /** From the deadline warning on, the fee is at least `topRatio` × typical, rising every half hour to `urgentTop` ×
  * typical two hours later: a car left undelivered costs twice its price. */
-export const urgentRamp = (now: number, typicalCents: number, p: BidPriceParams): FeeStep[] =>
+export const urgentRamp = (
+  now: number,
+  typicalCents: number,
+  p: Pick<BidPriceParams, 'topRatio' | 'urgentTop'>,
+): FeeStep[] =>
   [0, 1, 2, 3, 4].map((k) => ({
     at: now + k * 30,
     feeCents: typicalCents * (p.topRatio + ((p.urgentTop - p.topRatio) * k) / 4),
@@ -78,7 +82,12 @@ export const urgentRamp = (now: number, typicalCents: number, p: BidPriceParams)
  * 1.38 after three), and `topFee` × typical `topLeadHours` before the last pickup (22:00 the evening before when that
  * falls at night). Closer to the top when little time is left. Before the top no step goes above what the car
  * earns; the top stays under the price plus what a late car costs, and under three prices. */
-export function ramp(gig: FeeGig, now: number, p: BidPriceParams, level: number): FeeStep[] {
+export function ramp(
+  gig: FeeGig,
+  now: number,
+  p: Pick<BidPriceParams, 'openFee' | 'topFee' | 'topLeadHours'>,
+  level: number,
+): FeeStep[] {
   const { typicalCents: typical, priceCents: price } = gig
   const worth = Math.min(Math.max(price, typical), 3 * price)
   const top = Math.max(1, Math.min(p.topFee * typical, worth + price, 3 * price))
@@ -97,7 +106,13 @@ export function ramp(gig: FeeGig, now: number, p: BidPriceParams, level: number)
 
 /** A gig left open after its schedule ended: from `from` cents, `climbStep` × typical more every hour, up to
  * `climbTop` × typical but never above twice the price, what leaving the car costs. */
-export function climb(from: number, now: number, gig: FeeGig, p: BidPriceParams, level: number): FeeStep[] {
+export function climb(
+  from: number,
+  now: number,
+  gig: FeeGig,
+  p: Pick<BidPriceParams, 'climbStep' | 'climbTop'>,
+  level: number,
+): FeeStep[] {
   const cap = Math.max(from, Math.min(p.climbTop * gig.typicalCents, 2 * gig.priceCents))
   const step = Math.max(1, p.climbStep * gig.typicalCents)
   const steps: FeeStep[] = []
