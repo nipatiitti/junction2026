@@ -71,6 +71,9 @@ export type BidPriceParams = {
   climbStep: number
   climbTop: number
   repriceMax: number
+  /** Shift each request's win curve by the threshold model's cross-world offset (src/params/threshold.json: pickup
+   * and delivery town, premium car, private address, list / typical fee), over the online level learning. */
+  thresholdModel: boolean
 }
 
 export const DEFAULTS: BidPriceParams = {
@@ -113,6 +116,7 @@ export const DEFAULTS: BidPriceParams = {
   climbStep: 0.1,
   climbTop: 3,
   repriceMax: 10,
+  thresholdModel: false,
 }
 
 /** The quote models' params from the strategy's. */
@@ -128,6 +132,7 @@ export function quoteParamsOf(p: BidPriceParams): QuoteParams {
     },
     minValueCents: p.minValueCents,
     trustValue: p.trustValue,
+    thresholdModel: p.thresholdModel,
   })
 }
 
