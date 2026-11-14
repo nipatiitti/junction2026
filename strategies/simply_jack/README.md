@@ -22,7 +22,7 @@ offers, the final) is the root [`dispatch.py`](../../dispatch.py), unchanged.
 - **Each morning** every dealer's price falls by `MORNING_STEP` (2%): overnight the competitor cuts its prices for the
   dealers we won most from.
 - **Too few drivers.** Each car that got the deadline warning (no driver 3 hours before its last pickup) in the last
-  24 hours adds `WARN_STEP` (1%) to every price, so Jack takes fewer cars while his drivers are behind.
+  24 hours adds `WARN_STEP` (2%) to every price, so Jack takes fewer cars while his drivers are behind.
 - **The price war.** Once a week the competitor quotes 20% less for a day. When Jack wins at most one of his last
   `WAR_WINDOW` (15) quotes, from Tuesday on, he quotes `WAR_PRICE` (0.85) times his prices until 18:00, and the
   prices learn nothing that day. It comes once a week, and the window counts every quote (step 76).
@@ -155,6 +155,19 @@ as it is, and each later change is judged against it on that seed. For reference
 |   84 | spread-19 | new seed: v83 as it is                                              | €14,727 |    409 |              93.6% | base |
 |   85 | spread-19 | MORNING_STEP 0.05 → 0.02                                            | €14,917 |    380 |              95.8% | yes  |
 |   86 | spread-19 | TRUST_DAYS 2 → 1 (equal)                                            | €14,902 |    355 |              96.3% | no   |
+|   87 | spread-19 | FEE_OPEN 1.0 → 0.9                                                  | €15,318 |    370 |              92.2% | yes  |
+|   88 | spread-19 | LADDER_UP 0.02 → 0.025                                              | €13,940 |    359 |              91.4% | no   |
+|   89 | spread-16 | new seed: v87 as it is (unranked)                                   | €13,767 |    389 | 86.1% (not ranked) | base |
+|   90 | spread-16 | WARN_STEP 0.01 → 0.02 (unranked)                                    | €14,226 |    341 | 87.1% (not ranked) | yes  |
+|   91 | spread-16 | TRUST_DAYS 2 → 1 (unranked)                                         | €14,580 |    319 | 88.7% (not ranked) | yes  |
+|   92 | spread-16 | FEE_OPEN 0.9 → 1.0 (ranked again)                                   | €13,987 |    300 |              91.0% | yes  |
+|   93 | spread-16 | PRICE start 1.50 → 1.55 (+€93 but 90.1% on time)                    | €14,080 |    322 |              90.1% | no   |
+|   95 | spread-9  | private pickups while no car is warned                              | €15,310 |    370 |              97.0% | no   |
+|   96 | spread-9  | outage rule again (its lifted losses set off the war window)        | €13,874 |    339 |              96.5% | no   |
+|   97 | spread-9  | WARN_STEP 0.02 → 0.01                                               | €16,239 |    388 |              96.6% | yes  |
+|   98 | spread-9  | FEE_OPEN 1.0 → 1.1                                                  | €13,488 |    386 |              97.2% | no   |
+|   99 | spread-4  | new seed: v97 as it is (unranked)                                   | €10,821 |    303 | 89.4% (not ranked) | base |
+|  100 | spread-4  | WARN_STEP 0.01 → 0.02 (ranked again)                                | €10,504 |    274 |              90.9% | yes  |
 
 What the steps taught:
 
@@ -171,6 +184,11 @@ What the steps taught:
 - **The price war is worth a rule**, and so is seeing it reliably: on the war day the other systems quote about 1.45
   times the list price and win three times as many cars as Jack did at 1.58 (step 40). A war that the rule missed
   cost about €1,000 (steps 70, 71, 73).
+- **Rules that lift the price confuse the price war.** Losses at prices that the outage rule (step 96) or the
+  warnings lifted look like the war, and a war seen on the wrong day costs the real one (steps 92, 95, 96).
+- **Seeds pull the numbers apart.** A weak brake on warnings and more volume suit `spread-9`, where drivers are many,
+  and leave `spread-4` and `spread-16` unranked (steps 89, 99). A ranked week beats an unranked one, so the brake
+  stays at 2%.
 - **One week is noisy.** A small change moves what every driver does for the rest of the week, so two versions that
   differ by a few hundred euros are within the noise of one week. Step 77 was undone although it made €37 more: it
   left the week at 90.2% on time, a few cars from not being ranked.
