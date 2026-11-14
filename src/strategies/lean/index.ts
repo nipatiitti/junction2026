@@ -88,6 +88,9 @@ export const DEFAULTS = {
   minMargin: 1.05,
   /** How much of the dealer's trust (1% for each order on time) goes into the price. */
   trust: 0.7,
+  /** How much the target falls for each 1.0 × typical that bookings cost over `feeRatio`. 0 leaves volume to the
+   * lateness alone: dear bookings are already in the price. */
+  feeBrake: 1.5,
   /** The late share from which we win less, and the one from which options need twice the room. */
   lateSoft: 0.04,
   lateHard: 0.05,
@@ -295,7 +298,7 @@ class Lean extends Strategy<LeanParams> {
     return (
       p.target *
       this.drivers *
-      clamp(1 - 1.5 * (this.feeRatio - p.feeRatio), 0.5, 1.25) *
+      clamp(1 - p.feeBrake * (this.feeRatio - p.feeRatio), 0.5, 1.25) *
       clamp(2 - open / p.openGigs, 0.4, 1) *
       clamp(1 - 10 * Math.max(0, this.lateShare(books) - p.lateSoft), 0.2, 1)
     )
