@@ -25,7 +25,7 @@ offers, the final) is the root [`dispatch.py`](../../dispatch.py), unchanged.
   24 hours adds `WARN_STEP` (1%) to every price, so Jack takes fewer cars while his drivers are behind.
 - **The price war.** Once a week the competitor quotes 20% less for a day. When Jack wins at most one of his last
   `WAR_WINDOW` (15) quotes, from Tuesday on, he quotes `WAR_PRICE` (0.85) times his prices until 18:00, and the
-  prices learn nothing that day. It comes once a week, and losses at prices that the warnings lifted do not count.
+  prices learn nothing that day. It comes once a week, and the window counts every quote (step 76).
 - **Leave out** every option that gives a driver less than `MIN_LEAD` (8 hours) to reach the car: the option's
   deadline, less the drive, less the minute the dealer decides.
 - **Decline** when no option is left, when a car goes from or to a private address (its narrow booked slot made a

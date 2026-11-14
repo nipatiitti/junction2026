@@ -12,7 +12,7 @@ Jack makes two decisions, each a few plain rules with their numbers at the top o
    d. Too few drivers: each car that got the deadline warning in the last 24 hours adds WARN_STEP to every price.
    e. The price war: when Jack wins at most one of his last WAR_WINDOW quotes, from Tuesday on, the competitor is
       20% cheaper today. Until 18:00 Jack quotes WAR_PRICE times his price and the factors learn nothing. Once a
-      week, and losses at prices that the warnings lifted do not count.
+      week; the window counts every quote.
    f. Quote every option at its list price times the factor, but leave out an option that gives a driver less
       than MIN_LEAD to reach the car (its deadline, less the drive, less the minute the dealer decides).
    g. Decline when no option is left, when a car goes from or to a private address, or when the typical driver
