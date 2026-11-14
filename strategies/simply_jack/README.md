@@ -21,6 +21,8 @@ offers, the final) is the root [`dispatch.py`](../../dispatch.py), unchanged.
   lets a dealer accept 1% more from us), and takes the bigger margin later in the week.
 - **Each morning** every dealer's price falls by `MORNING_STEP` (2%): overnight the competitor cuts its prices for the
   dealers we won most from.
+- **Friday** prices are `FRIDAY_PRICE` (0.92) times lower: a car asked for on Friday has the weekend to wait, and the
+  other systems' Friday prices were lower than their Thursday ones on every seed we played (step 120).
 - **Too few drivers.** Each car that got the deadline warning (no driver 3 hours before its last pickup) in the last
   24 hours adds `WARN_STEP` (2%) to every price, so Jack takes fewer cars while his drivers are behind.
 - **The price war.** Once a week the competitor quotes 20% less for a day. When Jack wins at most one of his last
@@ -189,6 +191,10 @@ as it is, and each later change is judged against it on that seed. For reference
 |  117 | spread-16 | LADDER_DOWN 0.015 → 0.01 (ranked again)                                          | €13,889 |    322 |              90.1% | yes  |
 |  118 | spread-16 | PRICE_MIN 1.25 → 1.30                                                            | €14,080 |    322 |              90.1% | yes  |
 |  119 | spread-9  | new seed: v118 as it is                                                          | €16,483 |    348 |              97.7% | base |
+|  120 | spread-9  | FRIDAY_PRICE 0.92                                                                | €16,867 |    367 |              97.8% | yes  |
+|  121 | spread-9  | FRIDAY_PRICE 0.92 → 0.86                                                         | €16,722 |    377 |              97.9% | no   |
+|  122 | spread-9  | WAR_PRICE 0.85 → 0.80                                                            | €15,780 |    373 |              96.2% | no   |
+|  123 | spread-9  | outage rule kept out of the war window                                           | €14,351 |    347 |              98.0% | no   |
 
 What the steps taught:
 
