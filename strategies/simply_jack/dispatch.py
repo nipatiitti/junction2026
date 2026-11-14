@@ -1,26 +1,25 @@
 """Simply Jack: a dispatch system that anyone can follow. See README.md next to this file.
 
-Jack makes two decisions, and each is a few plain rules with its numbers at the top of this file:
+Jack makes two decisions, each a few plain rules with their numbers at the top of this file.
 
-1. The price. Each dealer has its own price factor. It starts at PRICE, rises by LADDER_UP after each request of
-   that dealer we win and falls by LADDER_DOWN after each we lose, between PRICE_MIN and PRICE_MAX. In the first
-   TRUST_DAYS of the week the steps swap, so a loss cuts more than a win adds: Jack wins most requests early, at a
-   small margin, to earn the dealers' trust, and takes the bigger margin that trust allows later in the week.
-   Each morning every dealer's price falls by MORNING_STEP: overnight the competitor cuts its prices for the
-   dealers we won most from.
-   The price war: once a week the competitor quotes 20% less for a day. When Jack wins at most one of his last
-   WAR_WINDOW quotes from Tuesday on, he quotes WAR_PRICE times his prices until 18:00, and the ladder learns nothing then. The
-   discount does not change which requests he takes, and it comes once a week. Too few drivers: for each car
-   that got the deadline warning in the last 24 hours, every price is WARN_STEP higher, so Jack takes fewer cars
-   while his drivers are behind. Quote every
-   option of a request at its list price times the dealer's factor. Leave out an option that gives a driver less
-   than MIN_LEAD to reach the car: its deadline, less the drive, less the minute the dealer decides. Decline a
-   request with no option left, with a private address (its narrow booked slot makes a quarter of those cars
-   late), or whose typical driver fee is more than MAX_FEE_LIST times its list price.
-2. The driver fee. Post each gig at FEE_OPEN times the typical fee, then raise it in FEE_STEPS even steps to
-   FEE_TOP times the typical fee, which it reaches TOP_BEFORE minutes before the car's last pickup. When that is on
-   a later day, the gig holds its opening fee until DAWN of that day, and only then climbs. A gig with an hour or
-   less to go, as after the deadline warning, goes at once at the top fee.
+1. The price of a request.
+   a. Each dealer has its own price factor, a multiple of the list price. It starts at PRICE. A win raises it by
+      LADDER_UP and a loss lowers it by LADDER_DOWN, between PRICE_MIN and PRICE_MAX. So Jack wins about a third.
+   b. Earn trust first: in the first TRUST_DAYS of the week the two steps swap, so Jack wins most requests at a
+      small margin. Each order on time lets its dealer accept 1% more from us later in the week.
+   c. Each morning every dealer's factor falls by MORNING_STEP: overnight the competitor cuts its prices for the
+      dealers we won most from.
+   d. Too few drivers: each car that got the deadline warning in the last 24 hours adds WARN_STEP to every price.
+   e. The price war: when Jack wins at most one of his last WAR_WINDOW quotes, from Tuesday on, the competitor is
+      20% cheaper today. Until 18:00 Jack quotes WAR_PRICE times his price and the factors learn nothing. Once a
+      week, and losses at prices that the warnings lifted do not count.
+   f. Quote every option at its list price times the factor, but leave out an option that gives a driver less
+      than MIN_LEAD to reach the car (its deadline, less the drive, less the minute the dealer decides).
+   g. Decline when no option is left, when a car goes from or to a private address, or when the typical driver
+      fee is more than MAX_FEE_LIST times the list price.
+2. The driver fee of a gig: FEE_OPEN times the typical fee, raised in FEE_STEPS even steps to FEE_TOP times it,
+   reached TOP_BEFORE the car's last pickup. When that is on a later day, the fee holds until DAWN of that day,
+   when drivers plan their day, and climbs from then. With an hour or less to go, the gig goes at the top at once.
 
 Everything else (posting, notes, retries, bundling, direct offers, the final) is the root dispatch.py, unchanged.
 
