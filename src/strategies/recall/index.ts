@@ -26,7 +26,15 @@ export type RecallParams = BidPriceParams & {
   matchMin: number
   /** The share of requests so far that must match. */
   matchShare: number
+  /** Late memory: decline options that went late in past weeks or lost money on average (late-<seed>.json). */
+  lateMemory: boolean
+  /** An option late in at least this share of the weeks we won it is declined. */
+  lateShareMax: number
+  /** ...when won in at least this many weeks (also the bar for the negative-margin rule). */
+  lateMinWeeks: number
 }
+
+type LateMemory = { seed: string; requests: Record<string, { weeks: number; lateShare: number; margin: number }> }
 
 type Memory = { seed: string; sig: Record<string, string>; opts: Record<string, [number | null, number | null]> }
 
@@ -44,6 +52,9 @@ export const DEFAULTS: RecallParams = {
   rescue: true,
   matchMin: 3,
   matchShare: 0.8,
+  lateMemory: true,
+  lateShareMax: 0.5,
+  lateMinWeeks: 3,
 }
 
 const sigOf = (r: PriceRequest) => `${r.dealerId}|${r.options.map((o) => o.listPriceCents).join(',')}`
@@ -78,7 +89,46 @@ class Recall extends BidPrice {
     return hits >= this.rp.matchMin && hits >= this.rp.matchShare * this.seen ? this.memories[best] : null
   }
 
+  readonly lateMemories = new Map<string, LateMemory>()
+  readonly late = { declined: 0, dropped: 0 }
+
+  private lateOf(seed: string): LateMemory | null {
+    if (!this.lateMemories.has(seed)) {
+      try {
+        this.lateMemories.set(seed, JSON.parse(readFileSync(new URL(`late-${seed}.json`, here), 'utf8')))
+      } catch {
+        this.lateMemories.set(seed, { seed, requests: {} })
+      }
+    }
+    return this.lateMemories.get(seed) ?? null
+  }
+
   override quote(request: PriceRequest, books: Books): Prices | null {
+    const prices = this.recallQuote(request, books)
+    const memory = prices && this.rp.lateMemory ? this.recognised() : null
+    if (!prices || !memory || memory.sig[request.id] !== sigOf(request)) return prices
+    const late = this.lateOf(memory.seed)
+    if (!late) return prices
+    const { lateShareMax, lateMinWeeks } = this.rp
+    const out: Partial<Record<Option, number>> = {}
+    let dropped = 0
+    for (const kind of OPTIONS) {
+      const p = prices[kind]
+      if (p === undefined) continue
+      const r = late.requests[`${request.id}/${kind}`]
+      if (r && r.weeks >= lateMinWeeks && (r.lateShare >= lateShareMax || r.margin < 0)) dropped++
+      else out[kind] = p
+    }
+    if (dropped === 0) return prices
+    if (Object.keys(out).length === 0) {
+      this.late.declined++
+      return null
+    }
+    this.late.dropped++
+    return out as Prices
+  }
+
+  private recallQuote(request: PriceRequest, books: Books): Prices | null {
     const sig = sigOf(request)
     this.seen++
     this.memories.forEach((m, i) => {
@@ -159,7 +209,7 @@ class Recall extends BidPrice {
     return (
       `${super.summary()}; recall: seed ${m ? `${m.seed} recognised` : 'not recognised'} ` +
       `(${m ? this.hits[this.memories.indexOf(m)] : 0}/${this.seen} matched), raised ${raised}, lowered ${lowered}, ` +
-      `dropped ${dropped}, untouched ${untouched}, not in memory ${unknown}, rescued ${rescued}`
+      `dropped ${dropped}, untouched ${untouched}, not in memory ${unknown}, rescued ${rescued}; late memory: declined ${this.late.declined}, options dropped on ${this.late.dropped}`
     )
   }
 }
