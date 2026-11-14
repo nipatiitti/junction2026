@@ -500,8 +500,8 @@
     "learned_notes": {
       "file": "strategies/learned_notes/dispatch.py",
       "fingerprint": "58a89f499c900df0",
-      "world_id": "w0dea2343d0a599412261",
-      "played_at": "2026-11-14T12:37:18+0200",
+      "world_id": "w0d8a30fefe2b97bb29a6",
+      "played_at": "2026-11-14T15:57:36+0000",
       "score": {
         "marginCents": 1267071,
         "revenueCents": 3238635,
@@ -590,8 +590,8 @@
     "outage_harvest": {
       "file": "strategies/outage_harvest/dispatch.py",
       "fingerprint": "d21c4c1d245b207f",
-      "world_id": "w6e9f11b97cbb247c43bf",
-      "played_at": "2026-11-14T12:38:37+0200",
+      "world_id": "w798060dbbc3d2bc4e349",
+      "played_at": "2026-11-14T15:57:33+0000",
       "score": {
         "marginCents": 1267071,
         "revenueCents": 3238635,
