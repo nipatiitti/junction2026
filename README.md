@@ -46,6 +46,19 @@ Several of us build dispatch systems in parallel; the team picks one for the fin
   would play.
 - Every week played online is saved under `data/scrape/runs/`; commit the new folders with your PR.
 
+### `--fast-mode`: fewer requests per week
+
+The runner, `uv run dispatch.py --fast-mode --level 8 --seed spread-1`, only wakes for urgent events
+(`visit_failed`, `gig_expired`, `deadline_close`) and the quote polls. `order_won`, `order_changed` and
+`order_cancelled` are handled at the next poll rather than on a separate stop, and the midnight `/score` reads are
+skipped. Actions still ride the next `advance`, one request per stop. In a saved `spread-1` week the normal loop
+takes 583 stops and fast mode 117 (a timeline-replay estimate, not a played comparison; the organisers target ~350).
+
+**It is a different week**: orders are posted and retried up to one `POLL` later, so it can score differently. Use
+it for cheap broad comparisons, not for adopting a change without a normal-mode bench on the same seeds. It is a
+`dispatch.py` option, not a `strategies/bench` option; to bench it, give `fast_mode` to `play_practice` or use a
+wrapper. On the live server only run it with the user's say-so.
+
 ## Where things are
 
 | Folder                            | What it holds                                                                   |

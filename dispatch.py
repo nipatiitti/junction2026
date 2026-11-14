@@ -64,6 +64,9 @@ WAKE_ON: list[DeskEventKind] = [
 # quotes every request it finds then, together with the answers to the other events.
 WAKE_ON_BUSY: list[DeskEventKind] = [kind for kind in WAKE_ON if kind != "price_request"]
 POLL = 14  # a request that comes a minute after a stop is quoted at the latest a minute before its respondBy
+# --fast-mode: only an event that costs money when it waits stops the loop. A new order, a change of plan and a
+# cancellation are handled at the quote poll, like a price request, instead of getting a stop each.
+FAST_WAKE: list[DeskEventKind] = ["visit_failed", "gig_expired", "deadline_close"]
 
 
 class Retry(NamedTuple):
@@ -597,17 +600,23 @@ def narrower(stop: StopRef, window: TimeWindow, base: TimeWindow) -> StopRef:
     return {**stop, "window": window} if window["from"] > base["from"] or window["to"] < base["to"] else stop
 
 
-def play_practice(world: World, level: int) -> Counter[str]:
+def play_practice(world: World, level: int, fast_mode: bool = False) -> Counter[str]:
     """Steps the world from one event that needs an answer to the next, and stops at each midnight for a report.
     While price requests keep coming, it looks every POLL minutes instead of stopping at each one. Returns the
-    reason for each stop: the kind of event that stopped it, "poll", "midnight" or "end"."""
+    reason for each stop: the kind of event that stopped it, "poll", "midnight" or "end".
+
+    In fast mode there is no midnight report, and only `FAST_WAKE` events stop the loop: order changes are handled
+    at the quote poll. That is a different week, later posts and fewer stops, not a comparable play of the same one."""
     snapshot = world.snapshot()
     desk, ends_at = Desk(world, level, snapshot["now"]), snapshot["endsAt"]
     stops: Counter[str] = Counter()
     busy = False  # price requests came at the last stop, so more may follow
     while desk.now < ends_at:
         day, midnight = desk.now // DAY, (desk.now // DAY + 1) * DAY
-        until, poll_at = (WAKE_ON_BUSY, desk.now + POLL) if busy else (WAKE_ON, ends_at)
+        if fast_mode:  # order_won, order_changed and order_cancelled are answered at this stop instead
+            until, poll_at = (FAST_WAKE, desk.now + POLL) if busy else (FAST_WAKE, ends_at)
+        else:
+            until, poll_at = (WAKE_ON_BUSY, desk.now + POLL) if busy else (WAKE_ON, ends_at)
         held_until = desk.bundler.next_due()  # an order waiting for a bundle must go when its wait ends
         if held_until is not None:
             poll_at = min(poll_at, max(desk.now + 1, held_until))
@@ -627,7 +636,7 @@ def play_practice(world: World, level: int) -> Counter[str]:
         desk.post_due()  # the new orders that bundling lets go now
         desk.outbox += desk.offers.due(desk.now)  # once all the step's events are read
         desk.outbox += desk.raises_due()
-        if desk.now // DAY > day:
+        if desk.now // DAY > day and not fast_mode:
             report(WEEKDAYS[day % 7], world.score())
     for strategy in desk.strategies:  # a line on the week from each strategy that keeps one: offers, bundling
         if line := strategy.summary():
@@ -725,6 +734,11 @@ def main() -> None:
         help="play your next ranking run at the level; it counts in the practice rankings",
     )
     parser.add_argument("--final", action="store_true", help="play your copy of the final from the live stream")
+    parser.add_argument(
+        "--fast-mode",
+        action="store_true",
+        help="fewer requests: urgent wakes only; orders handled at the quote poll (a different week)",
+    )
     args = parser.parse_args()
     try:
         client = ProxyClient()
@@ -759,7 +773,7 @@ def main() -> None:
             print(f"{name}, level {args.level}. {stops}", flush=True)
             try:
                 recorder = Recorder(world, args.level, args.seed, "board" if args.board else "practice")
-                stop_reasons = play_practice(world, args.level)
+                stop_reasons = play_practice(world, args.level, fast_mode=args.fast_mode)
             except BaseException as error:  # a world left behind holds one of the team's eight practice slots
                 try:
                     world.delete()
