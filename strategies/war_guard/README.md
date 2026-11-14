@@ -52,6 +52,12 @@ Ceiling pricing (through `strategies/pricing`) flags both days from our wins and
   taken back. The same orders are kept (3,232 of 3,233, €65,676). The outage takes 0 to 60 requests a week. What the
   undo and the outage earn depends on quotes the weeks did not make, so the bench below measures them.
 
+On the five distinct saved `scarcity-ceiling` weeks, which ceiling pricing quoted over another admission (seeds
+`spread-1` to `spread-5`; the two `spread-1` weeks are the same week), the war is flagged in all five, on Wednesday to
+Friday, and 12 to 38 of the day's outcomes are taken back. The same 1,327 orders are kept. The outage takes 0 to 49
+requests a week.
+
 ## Bench
 
-To be played.
+Not played online yet: the checkout it was built in had no team key. The bench command under [Run it](#run-it) plays it
+beside ceiling on the same practice seeds; its result belongs here.

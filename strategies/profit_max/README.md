@@ -49,6 +49,12 @@ Everything else is ceiling's: the maximum and its lift for trust and the outage,
 week can tell, 43.2% win against 45.4% for ceiling's own, but 3,058 quotes have an unknown answer against 2,040 for
 ceiling, because they differ from the week's price. The replay cannot price this idea; the bench below does.
 
+On the five distinct saved `scarcity-ceiling` weeks, which ceiling pricing quoted over another admission (seeds
+`spread-1` to `spread-5`; the two `spread-1` weeks are the same week), the same 1,327 orders are kept. The curve put 218
+to 321 quotes a week under the learned price and 225 to 401 over it, and 47.7% of the known answers win against 54.7%
+for ceiling's own.
+
 ## Bench
 
-To be played.
+Not played online yet: the checkout it was built in had no team key. The bench command under [Run it](#run-it) plays it
+beside ceiling on the same practice seeds; its result belongs here.
