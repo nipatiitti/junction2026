@@ -1,31 +1,12 @@
 /** The chain book: which of our open cars go out together, and what happens to a chain that no driver takes. It
- * holds every piece of chain state, so index.ts only asks it five things: what a request costs as part of a chain
- * (`share`), whether a new car waits for a partner (`hold`), what to post and withdraw now (`actions`), what a gig's
- * fee schedule counts in (`typical`), and what the world answered (`sent`, `booked`, `expired`). */
-import type {
-  Action,
-  ActionResult,
-  DeliveryOption,
-  Order,
-  PriceRequest,
-  StopRef,
-  WorldMap,
-} from '../../../vendor/spread-typescript/spread.ts'
-import {
-  type Context,
-  DAY,
-  driveMinutes,
-  earliestPickup,
-  FIRST_TRY,
-  gigShape,
-  HOUR,
-  minutes,
-  type NoteFacts,
-  readNote,
-} from '../../ops/index.ts'
+ * holds every piece of chain state, so index.ts only asks it four things: whether a new car waits for a partner
+ * (`hold`), what to post and withdraw now (`actions`), what a gig's fee schedule counts in (`typical`), and what the
+ * world answered (`sent`, `booked`, `expired`). */
+import type { Action, ActionResult, Order, StopRef, WorldMap } from '../../../vendor/spread-typescript/spread.ts'
+import { type Context, DAY, driveMinutes, FIRST_TRY, gigShape, HOUR, readNote } from '../../ops/index.ts'
 import type { Books, GigNeed } from '../../strategy.ts'
-import { bestChainWith, type Car, type Chain, type ChainParams, findChains } from './chains.ts'
-import { awake, BOOK_AHEAD, fast, planBy, slow } from './fees.ts'
+import { type Car, type Chain, type ChainParams, findChains } from './chains.ts'
+import { awake, BOOK_AHEAD, planBy, slow } from './fees.ts'
 
 export type PlannerParams = ChainParams & {
   chains: boolean
@@ -33,14 +14,17 @@ export type PlannerParams = ChainParams & {
   chainHours: number
   holdHours: number
   chainPatience: number
-  chainBid: boolean
   /** Plan by the drivers' day (fees.ts, `planBy`): no hold and no chain in the last hours before it. */
   spread: boolean
   chainLast: number
-  chainPick: boolean
-  chainRaise: number
-  chainTop: number
 }
+
+/** A chain books 69% of the time when it is posted from Monday to Thursday, has `PICK_LEAD` hours to its first
+ * last pickup and holds a car that no driver has seen; 23% of the time otherwise (28 server weeks, 2,430 chains).
+ * A chain that fails costs its cars 1.06 × typical and their one notification, so only the first kind is posted,
+ * and a car waits for a partner only while such a chain is still possible. */
+const PICK_LEAD = 20 * HOUR
+const FRIDAY = 4
 
 /** What the planner asks of the strategy: the context for reading a gig's shape, and whether a car had a setback or
  * its gig was given back by a driver (such cars stay single). */
@@ -53,8 +37,6 @@ export class Planner {
   /** The chains decided: the key of their stops -> the chain; and, once posted, gig id -> the chain and its minute. */
   private readonly planned = new Map<string, Chain>()
   private readonly posted = new Map<string, { chain: Chain; at: number }>()
-  /** Our car's order id -> the pending request whose bid counts on it as a chain partner. */
-  private readonly claims = new Map<string, string>()
   /** The orders that were in a chain no driver took: they stay single. */
   private readonly single = new Set<string>()
   /** Order id -> the minute it first waited for a partner; and the orders whose wait is over. */
@@ -72,44 +54,6 @@ export class Planner {
     this.map = map
     this.on = on
     this.host = host
-  }
-
-  /** What an option's car costs as part of the best chain with the cars we hold or have open, over its cost alone:
-   * the chain's worth to a driver over its cars' typical fees, or 1 when it fits no chain. The partners are claimed
-   * for this request until the dealer answers (`release`), so one car of ours does not cheapen several bids. */
-  share(request: PriceRequest, option: DeliveryOption, facts: NoteFacts, books: Books): number {
-    const leg = request.legs[0]
-    if (!this.on || !this.p.chainBid) return 1
-    if (!leg || request.legs.length !== 1 || leg.car.premium || leg.pickup.privateAddress) return 1
-    const drive = driveMinutes(this.map, [leg])
-    const due = Math.min(option.deadline, facts.deadline ?? Infinity)
-    const room = (this.p.chainHours + 4) * HOUR
-    if (!Number.isFinite(drive) || due - drive < books.now + room) return 1
-    const car: Car = {
-      gigId: undefined,
-      orderId: request.id,
-      from: leg.pickup.placeId,
-      to: leg.delivery.placeId,
-      ready: Math.max(leg.pickup.window.from, earliestPickup(facts) ?? 0),
-      collectBy: Math.min(leg.pickup.window.to, due - drive),
-      due: leg.delivery.privateAddress ? Math.min(due, leg.delivery.window.to) : due,
-      drive,
-      typical: request.referenceFeeCents,
-      pickupHours: leg.pickup.hours,
-      deliveryHours: leg.delivery.hours,
-      stops: [],
-      audience: { experienced: false, manualLicence: facts.manual },
-    }
-    const free = this.openCars(books).filter((other) => (this.claims.get(other.orderId) ?? request.id) === request.id)
-    const chain = bestChainWith(car, free, this.map, books.now, this.p)
-    if (!chain || chain.startBy - books.now < room) return 1
-    for (const other of chain.cars) if (other !== car) this.claims.set(other.orderId, request.id)
-    return chain.typical / chain.singles
-  }
-
-  /** The dealer answered a request: its claims on our cars end. */
-  release(requestId: string): void {
-    for (const [orderId, by] of this.claims) if (by === requestId) this.claims.delete(orderId)
   }
 
   /** Takes apart the chains that no driver took in time, and posts the new chains among the open single cars: each
@@ -134,7 +78,7 @@ export class Planner {
     }
     const found = findChains(this.openCars(books), this.map, now, p)
     const timely = found.filter((c) => c.startBy - now >= (p.chainHours + 3) * HOUR)
-    for (const chain of timely.filter((c) => !p.chainPick || this.likely(c, now)).slice(0, 5)) {
+    for (const chain of timely.filter((c) => this.likely(c, now)).slice(0, 5)) {
       // The first pickup ends at the chain's last start: a driver who starts later misses a later car's window.
       const stops = chain.cars.flatMap((car) => car.stops)
       const first = stops[0]
@@ -146,27 +90,17 @@ export class Planner {
         type: 'post',
         stops,
         audience: { experienced: false, manualLicence: chain.cars.some((car) => car.audience.manualLicence) },
-        // Three chains in four that book do so within the hour: one that waits needs more, and still costs less
-        // than its cars alone.
-        schedule:
-          p.chainRaise > 0
-            ? fast(now, chain.typical, p.open, 0.09, p.chainRaise, p.chainTop)
-            : slow(now, chain.typical, chain.startBy - BOOK_AHEAD, p.open, 1.3),
+        schedule: slow(now, chain.typical, chain.startBy - BOOK_AHEAD, p.open, 1.3),
       })
     }
     return actions
   }
 
-  /** Whether a chain is likely to book, from 4,758 chains on the server: one posted on a Friday books 30% of the
-   * time, one with under 20 hours to its first deadline 15%, one after 18:00 49%, one with a trip home of over
-   * 250 km 45%, and one whose cars drivers have all seen before 22%. A chain that fails has used its cars' one
-   * notification, and they then cost 1.3 × typical. */
+  /** Whether a chain is of the kind that books (see `PICK_LEAD`). */
   private likely(chain: Chain, now: number): boolean {
-    const hour = (now % DAY) / HOUR
-    if (Math.floor(now / DAY) % 7 >= 4 || hour >= 18) return false
-    if (Math.min(...chain.cars.map((car) => car.collectBy)) - now < 20 * HOUR) return false
-    if (minutes(this.map, chain.cars.at(-1)?.to ?? '', chain.cars[0]?.from ?? '') > 200) return false
-    return chain.cars.filter((car) => !car.gigId).length >= 0.6 * chain.cars.length
+    if (Math.floor(now / DAY) >= FRIDAY) return false
+    if (Math.min(...chain.cars.map((car) => car.collectBy)) - now < PICK_LEAD) return false
+    return chain.cars.some((car) => !car.gigId)
   }
 
   /** A new car that may join a chain waits `holdHours` for a partner, while it has time to spare after the wait:
@@ -181,8 +115,10 @@ export class Planner {
     this.heldSince.set(order.id, since)
     // With `spread`, only while drivers have 5 waking hours left to plan it after the wait.
     const planned = !p.spread || awake(books.now, planBy(books.now, order.lastPickupAt)) >= (p.holdHours + 5) * HOUR
-    const holds =
-      planned && books.now < since + p.holdHours * HOUR && books.now < order.lastPickupAt - (p.chainHours + 6) * HOUR
+    // Only while a chain with this car could still be posted after the wait.
+    const pickable =
+      Math.floor(books.now / DAY) < FRIDAY && books.now < order.lastPickupAt - PICK_LEAD - p.holdHours * HOUR
+    const holds = planned && pickable && books.now < since + p.holdHours * HOUR
     if (!holds) this.released.add(order.id)
     return holds
   }

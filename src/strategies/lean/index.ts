@@ -1,9 +1,8 @@
 /** The lean strategy: the whole policy in three decisions, each from the measured level 8 facts (README.md).
  *
  * 1. Price. Each option is quoted at the price that earns the most: the chance that the dealer takes it (demand.ts,
- *    learned from this week's wins and losses) times what the win leaves after the drivers and after `capacity`, the
- *    worth of one order's place in the week. Drivers move about a third of what dealers ask for, so that worth is
- *    high, and it is steered so that we win `target` of the requests: the dearest third, not the first third.
+ *    learned from this week's wins and losses) times what the win leaves after the drivers (supply.ts, learned from
+ *    this week's bookings, and outlook.ts, what this request costs against the mean order).
  * 2. Fee. A gig holds `open` × typical and raises only at a few hours of its own before the last pickup (fees.ts):
  *    drivers who see fees rise wait for the rise. It climbs fast only when the last pickup is near.
  * 3. Serve. Only options that can arrive on time with room to spare are quoted, and the note decides the windows,
@@ -49,57 +48,39 @@ import {
 } from '../../strategy.ts'
 import { bestPrice, Demand } from './demand.ts'
 import { awake, BOOK_AHEAD, fast, feeAt, SHORT, stepped } from './fees.ts'
-import { Offers } from './offers.ts'
 import { loadOrders, type OrderModel, outlook } from './outlook.ts'
 import { Planner } from './planner.ts'
 import { Supply } from './supply.ts'
 
 export const DEFAULTS = {
-  /** The share of the week's requests to win, in a world with 777 drivers (the median). */
-  target: 0.3,
-  /** The worth of an order's place in the week when it starts, × the typical fee, and how fast it follows the
-   * share won: this much for each quote that wins above or loses below the target. Both 0 (off): with the wider
-   * `noise` the best price needs no charge, and the charge priced us out by Friday (README.md). */
-  capacity: 0,
-  gain: 0,
-  /** How much of that worth is the same for every order (`flatEuros` × `capacity`), not in proportion to its typical
-   * fee: a short hop takes a driver's place in the day as a long one does. */
-  flatShare: 0.5,
-  flatEuros: 60,
-  /** The fee a gig opens at, × typical. It holds it and raises only 24, 16, 10 and 6 hours before the last pickup
-   * (to 1.05, 1.25, 1.55 and 2 × typical). */
+  /** The fee a gig opens at, × typical. It holds it and raises three times over the time drivers have to plan it
+   * (to 1.05, 1.25 and 1.55 × typical), then to 2. */
   open: 0.88,
-  /** 1 moves each gig's raises by up to 1.5 hours either way and their size by 5%, drawn from the order id, so that
+  /** 1 moves each gig's raises by up to 40 minutes either way and their size by 5%, drawn from the order id, so that
    * drivers cannot time a second look; 0 keeps the table. */
   jitter: 1,
   /** Time the raises by the drivers' planning (fees.ts, `planBy`): three raises over the waking time until a gig
    * should have its driver (21:00 the evening before for a last pickup before 16:00, else 5 hours before it), then
-   * the top. Without it the raises come at fixed hours before the last pickup, a car won 7 hours before it opens
-   * at 1.55 × typical, and a morning pickup gets its raises when drivers have planned their day. It also ends a
-   * hold or a chain that would run into the last planning hours. */
+   * the top. It also ends a hold or a chain that would run into the last planning hours. */
   spread: true,
-  /** A premium car's cost × this, and what a private pickup and a private delivery add × typical. */
+  /** A gig whose planning time is over would open at its last raises. It opens at `lateOpen` × typical instead and
+   * climbs to `urgentTop` in 90 minutes: 5 such cars a week opened at 2 × typical and were booked within 3 minutes. */
+  lateOpen: 1.25,
+  /** The fee a gig for a later day shows in its first hour, × typical; 0 opens at `open`. */
+  early: 0.8,
+  /** What a booking costs × typical before this week's bookings say (supply.ts). */
+  feeRatio: 0.84,
+  /** `lateCost` × the list price for each unit of the request's chance to be late (outlook.ts). */
+  lateCost: 1,
+  /** A premium car's cost × this. Below level 7, where the order model does not play: what a private pickup and a
+   * private delivery add × typical. */
   premium: 3,
   privatePickup: 0.25,
   privateDelivery: 0.25,
-  /** The fee a gig for a later day shows in its first hour, × typical; 0 opens at `open`. */
-  early: 0.8,
-  /** What a booking costs × typical before this week's bookings say: the measured median with the climb's steps. */
-  feeRatio: 0.84,
-  /** Learn what a booking costs by pickup place, delivery place and whether the car goes today (supply.ts), not
-   * as one figure for the week. */
-  supply: true,
-  /** Price each request by its own outlook (outlook.ts, fitted on the saved weeks' real orders): its cost as a
-   * share of the mean order's, in place of the surcharges for private addresses, trade-ins, weekends and notes, and
-   * `lateCost` × its list price for each unit of chance to be late. */
-  order: true,
-  lateCost: 1,
   /** Added to the cost × typical for drops, failed visits and refunds. */
   overhead: 0.06,
   /** An option needs this many waking hours between now and the last minute to book, or we do not quote it. */
   minHours: 4,
-  /** The most of a price that may be margin over the expected cost; 1 leaves the price to the win model. */
-  maxShare: 1,
   /** Never quote under this × the expected cost. */
   minMargin: 1.05,
   /** The noise that stays in one request's threshold, as a logistic scale in log price: 20 to 25% stays whatever
@@ -107,17 +88,8 @@ export const DEFAULTS = {
   noise: 0.28,
   /** How much of the dealer's trust (1% for each order on time) goes into the price. */
   trust: 0.7,
-  /** How much the target falls for each 1.0 × typical that bookings cost over `feeRatio`. 0 leaves volume to the
-   * lateness alone: dear bookings are already in the price. */
-  feeBrake: 1.5,
-  /** The late share from which we win less, and the one from which options need twice the room. */
-  lateSoft: 0.04,
+  /** The late share from which options need twice the room. */
   lateHard: 0.05,
-  /** Open gigs without a driver from which we win less. */
-  openGigs: 40,
-  /** Direct offers (offers.ts): each driver who views a gig and lives near it gets the fee in the app × this as an
-   * offer, so that waiting for a raise pays nothing. 0 sends none. */
-  offers: 0,
   /** The top of the fast climb × typical, and for a car that is late already. */
   urgentTop: 2,
   lateTop: 1.7,
@@ -133,23 +105,13 @@ export const DEFAULTS = {
   /** With `spread`, a chain goes back to single gigs when drivers have this many waking hours left to plan the day
    * of its last start. */
   chainLast: 3,
-  /** Minutes between two raises of a chain's fee, each 0.09 × what the chain is worth to a driver, up to
-   * `chainTop` × that; 0 holds the opening fee for half of the chain's time and then creeps. */
-  /** Post only the chains that are likely to book (planner.ts, `likely`). */
-  chainPick: false,
-  chainRaise: 0,
-  chainTop: 1.25,
   /** A new car that may join a chain waits this many hours for a partner before it is posted alone: half of the
-   * single gigs book within half an hour, before a partner can arrive, and a chain of cars never posted before
-   * books 79% of the time against 57%. 0 posts at once. */
+   * single gigs book within half an hour, before a partner can arrive. 0 posts at once. */
   holdHours: 2,
-  /** A chain that no driver took this many hours after its post is taken apart while its cars still have time; 0
-   * waits until `chainHours` before its last start. */
-  chainPatience: 0,
-  /** Plan the chain before the bid: a request that completes a chain with a car we hold or have open is costed at
-   * its share of the chain and pays `pairCharge` of the capacity charge. Each of our cars backs one bid at a time. */
-  chainBid: false,
-  pairCharge: 1,
+  /** A chain that no driver took this many waking hours after its post is taken apart: 51% of the chains book
+   * within the hour, and one still open then books 24% of the time. 0 waits until `chainHours` before its last
+   * start. */
+  chainPatience: 1,
 }
 export type LeanParams = typeof DEFAULTS
 
@@ -162,18 +124,12 @@ class Lean extends Strategy<LeanParams> {
   private readonly demand: Demand
   private readonly planner: Planner
   private readonly supply: Supply
-  private readonly offers: Offers
   private readonly outlooks: OrderModel | undefined
   /** Place id -> the drivers who live there; day -> the orders won on it. */
   private readonly homes = new Map<string, number>()
   private readonly wonOn = new Map<number, number>()
-  private readonly drivers: number
-  private capacity: number
-  private feeRatio: number
   /** Our quotes that wait for the dealer: request id -> prices. */
   private readonly pending = new Map<string, Prices>()
-  /** The requests that wait for their dealer: the yard of the first car, and when the dealer decides. */
-  private asked: { id: string; yard: string | undefined; respondBy: number }[] = []
   /** Gig id -> the schedule in the app. */
   private readonly schedules = new Map<string, FeeStep[]>()
   /** Gig id -> the fee its driver booked at, for the gigs a driver gave back. */
@@ -192,13 +148,9 @@ class Lean extends Strategy<LeanParams> {
   constructor(setup: Setup, params: LeanParams) {
     super(setup, params)
     this.supply = new Supply(params.feeRatio)
-    this.outlooks = params.order && setup.level >= 7 ? loadOrders() : undefined
+    this.outlooks = setup.level >= 7 ? loadOrders() : undefined
     for (const d of setup.roster) this.homes.set(d.homePlaceId, (this.homes.get(d.homePlaceId) ?? 0) + 1)
-    this.offers = new Offers(setup.map, setup.roster)
     this.demand = new Demand(setup.level, params.noise)
-    this.drivers = setup.roster.length > 0 ? setup.roster.length / 777 : 1
-    this.capacity = params.capacity
-    this.feeRatio = params.feeRatio
     this.planner = new Planner(params, setup.map, params.chains && setup.level >= 3, {
       context: () => this.context(),
       troubled: (orderId, gigId) =>
@@ -219,20 +171,12 @@ class Lean extends Strategy<LeanParams> {
     for (const option of options) {
       if (!canServe(request, option, now, context).ok) continue
       if (this.setup.level <= 3) return { [option.kind]: option.listPriceCents }
-      const alone = this.cost(request, option, facts, now, books)
-      if (alone === null) continue
-      const share = this.planner.share(request, option, facts, books)
-      const cost = alone * share
+      const cost = this.cost(request, option, facts, now, books)
+      if (cost === null) continue
       const belief = this.demand.belief(this.demand.keys(request, option.kind), this.trustOffset(request.dealerId))
-      const crowd = 1 + 0.04 * Math.max(0, this.askedFrom(request) - 4)
-      const place = (1 - p.flatShare) * request.referenceFeeCents + p.flatShare * p.flatEuros * 100
-      const charge = cost + this.capacity * crowd * place * (share < 1 ? p.pairCharge : 1)
-      const best = bestPrice(belief, option.listPriceCents, charge)
+      const best = bestPrice(belief, option.listPriceCents, cost)
       if (best === null) continue
-      // No price keeps more than `maxShare` of itself over the cost: on a rich week the model's best price runs
-      // far over the cost, and the leaders take a rich week as more orders.
-      const most = p.maxShare < 1 ? cost / (1 - p.maxShare) : Infinity
-      quotes.push([option.kind, Math.round(Math.max(Math.min(best, most), cost * p.minMargin))])
+      quotes.push([option.kind, Math.round(Math.max(best, cost * p.minMargin))])
     }
     return quotes.length > 0 ? Object.fromEntries(quotes) : null
   }
@@ -254,7 +198,7 @@ class Lean extends Strategy<LeanParams> {
     const leg = request.legs[0]
     const today = lastPickup < (Math.floor(now / DAY) + 1) * DAY
     const learned = this.supply.ratio(this.supply.keys(leg?.pickup.placeId, leg?.delivery.placeId, today))
-    let ratio = (this.params.supply ? learned : this.feeRatio) + this.params.overhead
+    let ratio = learned + this.params.overhead
     if (this.outlooks) {
       let open = 0
       for (const order of books.orders.values())
@@ -292,22 +236,6 @@ class Lean extends Strategy<LeanParams> {
     return request.referenceFeeCents * ratio
   }
 
-  /** The share of the requests to win now: less when bookings cost more than planned, when gigs wait without a
-   * driver, and when orders arrive late. */
-  private target(books: Books): number {
-    const p = this.params
-    let open = 0
-    for (const order of books.orders.values())
-      for (const gigId of books.gigsOf(order.id)) if (!books.booked.has(gigId)) open++
-    return (
-      p.target *
-      this.drivers *
-      clamp(1 - p.feeBrake * (this.feeRatio - p.feeRatio), 0.5, 1.25) *
-      clamp(2 - open / p.openGigs, 0.4, 1) *
-      clamp(1 - 10 * Math.max(0, this.lateShare(books) - p.lateSoft), 0.2, 1)
-    )
-  }
-
   /** Late orders, and half of each one warned without a driver, over the orders done (and 20 on time for a start). */
   private lateShare(books: Books): number {
     let atRisk = 0
@@ -332,17 +260,8 @@ class Lean extends Strategy<LeanParams> {
     return count
   }
 
-  /** The other requests from the same yard that wait for their dealer: a bulk order asks for 30 to 40 at once, and
-   * one yard cannot find that many drivers. */
-  private askedFrom(request: PriceRequest): number {
-    const yard = request.legs[0]?.pickup.placeId
-    return this.asked.filter((other) => other.yard === yard && other.id !== request.id).length
-  }
-
-  /** A quote won (with the option the dealer took) or lost: the demand learns, and the worth of capacity follows
-   * the share won. */
+  /** A quote won (with the option the dealer took) or lost: the demand learns. */
   private outcome(requestId: string, won: OptionKind | null, books: Books): void {
-    this.planner.release(requestId)
     const prices = this.pending.get(requestId)
     const request = books.requests.get(requestId)
     this.pending.delete(requestId)
@@ -360,7 +279,6 @@ class Lean extends Strategy<LeanParams> {
       const day = Math.floor(books.now / DAY)
       this.wonOn.set(day, (this.wonOn.get(day) ?? 0) + 1)
     }
-    this.capacity = clamp(this.capacity + this.params.gain * ((won ? 1 : 0) - this.target(books)), 0, 2)
   }
 
   // --------------------------------------------------------------------------------------------------- the gig
@@ -397,7 +315,11 @@ class Lean extends Strategy<LeanParams> {
     if (now > order.lastPickupAt) return fast(now, typical, Math.max(shown, 1.1), 0.05, 30, p.lateTop)
     if (warned || awake(now, order.lastPickupAt - BOOK_AHEAD) < SHORT)
       return fast(now, typical, Math.max(shown + 0.05, 1.15), 0.12, 15, Math.max(p.urgentTop, shown + 0.05))
-    return stepped(now, typical, order.lastPickupAt, p.open, shown, p.jitter, order.id, p.spread, p.early)
+    const steps = stepped(now, typical, order.lastPickupAt, p.open, shown, p.jitter, order.id, p.spread, p.early)
+    // Raises whose time is over fold into the opening fee. A driver who gets the notification takes far less.
+    const late = Math.max(shown + 0.05, p.lateOpen)
+    if ((steps[0]?.feeCents ?? 0) > late * typical) return fast(now, typical, late, 0.125, 15, p.urgentTop)
+    return steps
   }
 
   private retryOf(orderId: string, legs: readonly number[]): Retry {
@@ -431,10 +353,6 @@ class Lean extends Strategy<LeanParams> {
       const schedule = this.fees(order, this.typicalOf(post.stops, books), books.now, fee)
       if (schedule.length > 0) actions.push({ type: 'reprice', gigId, schedule })
     }
-    if (this.params.offers > 0 && this.setup.level >= 3) {
-      const fee = (gigId: string) => this.params.offers * feeAt(this.schedules.get(gigId) ?? [], books.now)
-      actions.push(...this.offers.actions(books, fee))
-    }
     return [...actions, ...this.planner.actions(books)]
   }
 
@@ -465,18 +383,6 @@ class Lean extends Strategy<LeanParams> {
       case 'price_request':
         this.tally.requests++
         this.demand.dawn(Math.floor(event.at / DAY))
-        this.asked = this.asked.filter((other) => other.respondBy > event.at)
-        this.asked.push({
-          id: event.request.id,
-          yard: event.request.legs[0]?.pickup.placeId,
-          respondBy: event.request.respondBy,
-        })
-        break
-      case 'gig_viewed':
-        if (this.params.offers > 0) this.offers.viewed(event.gigId, event.driverId)
-        break
-      case 'offer_answered':
-        this.offers.answered(event.answer === 'accepted')
         break
       case 'order_won':
         this.outcome(event.order.id, event.order.option, books)
@@ -499,8 +405,6 @@ class Lean extends Strategy<LeanParams> {
           const today = order.lastPickupAt < (Math.floor(event.at / DAY) + 1) * DAY
           this.supply.learn(this.supply.keys(leg.pickup.placeId, leg.delivery.placeId, today), ratio)
         }
-        // A chain counts once for each of its cars: the cost behind a bid is a car's, not a booking's.
-        for (let i = pickups(post.stops).length; i > 0; i--) this.feeRatio += 0.04 * (ratio - this.feeRatio)
         this.tally.bookings++
         this.tally.ratios += ratio
         break
@@ -553,7 +457,7 @@ class Lean extends Strategy<LeanParams> {
     const share = t.requests > 0 ? (100 * t.won) / t.requests : 0
     const multiple = t.won > 0 ? t.multiples / t.won : 0
     const paid = t.bookings > 0 ? t.ratios / t.bookings : 0
-    return `lean: won ${t.won} of ${t.requests} requests (${share.toFixed(1)}%) at ${multiple.toFixed(2)} × list, ${t.bookings} bookings at ${paid.toFixed(2)} × typical, capacity worth ${this.capacity.toFixed(2)} × typical at the end, ${this.late.size} late of ${this.done} done. ${this.planner.summary()} Offers: ${this.offers.tally.accepted} accepted of ${this.offers.tally.sent}.`
+    return `lean: won ${t.won} of ${t.requests} requests (${share.toFixed(1)}%) at ${multiple.toFixed(2)} × list, ${t.bookings} bookings at ${paid.toFixed(2)} × typical, ${this.late.size} late of ${this.done} done. ${this.planner.summary()}`
   }
 
   private context(tightening = 1): Context {
