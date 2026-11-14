@@ -10,6 +10,21 @@ It decides exactly as the TypeScript `lean`. On the offline simulator, seven see
 every quote, post, withdrawal and reprice at the same minute with the same prices and fees, about 10,500 actions in
 all. A week takes about 4 seconds there, as the TypeScript one does.
 
+On the server it played the six roster tournament seeds (`tour-r1-*`, `tour-r2-*`) as the TypeScript `lean` did, to
+the cent: the same orders won at the same prices and the same bookings at the same fees, all six weeks ranked.
+
+| Seed               | TypeScript `lean` | Python `lean` | Orders | On time | `all_in`   |
+| ------------------ | ----------------: | ------------: | -----: | ------: | ---------: |
+| `tour-r1-ff2bb5ca` |        €12,770.36 |    €12,770.36 |    352 |   98.3% | €11,122.95 |
+| `tour-r1-d0cceb91` |        €13,361.56 |    €13,361.56 |    367 |   97.3% | €10,428.12 |
+| `tour-r2-8e605453` |        €17,049.26 |    €17,049.26 |    385 |   97.1% | €12,972.30 |
+| `tour-r2-cb24a8ee` |        €22,645.05 |    €22,645.05 |    421 |   97.1% | €19,633.53 |
+| `tour-r2-32a6c4eb` |        €12,465.03 |    €12,465.03 |    356 |   97.5% |  €8,874.16 |
+| `tour-r2-3dcdedfe` |        €12,266.89 |    €12,266.89 |    332 |   98.5% | €10,980.48 |
+| **Mean**           |       **€15,093** |   **€15,093** |    369 |   97.6% | **€12,335** |
+
+Against `all_in` on the same seeds: +€2,758 a week (standard error €445), ahead on all six.
+
 ## Run it
 
 From the repository root:
