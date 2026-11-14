@@ -13,7 +13,8 @@
       "!docs/spread",
       "!vendor",
       "!analysis/snapshots/**/*.html",
-      "!analysis/snapshots/**/*.json"
+      "!analysis/snapshots/**/*.json",
+      "!data/scrape/probe2"
     ]
   },
   "formatter": {
@@ -39,5 +40,27 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["sim/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off",
+            "noAssignInExpressions": "off",
+            "useIterableCallbackReturn": "off"
+          },
+          "style": {
+            "noNonNullAssertion": "off",
+            "noParameterAssign": "off",
+            "useTemplate": "off"
+          },
+          "complexity": {
+            "noCommaOperator": "off"
+          }
+        }
+      }
+    }
+  ]
 }
