@@ -79,6 +79,25 @@ export function slow(
   return schedule(points, typical)
 }
 
+/** The stepped schedule: the opening fee, then a raise only at a few fixed hours before the last pickup. A driver
+ * who looks twice sees the same fee, so waiting for a rise pays only near the end. Steps that have passed fold into
+ * the opening. */
+const STEPS: [number, number][] = [
+  [24, 1.05],
+  [16, 1.25],
+  [10, 1.55],
+  [6, 2],
+]
+export function stepped(now: number, typical: number, lastPickup: number, open: number, floor = 0): FeeStep[] {
+  const points: [number, number][] = [[now, Math.max(open, floor)]]
+  for (const [hours, ratio] of STEPS) {
+    const at = lastPickup - hours * HOUR
+    if (at <= now) points[0] = [now, Math.max(points[0]?.[1] ?? 0, ratio)]
+    else points.push([at, ratio])
+  }
+  return schedule(points, typical)
+}
+
 /** The fast schedule from `now`: `open` × typical at once, then `step` × typical more every `every` minutes up to
  * `cap` × typical. */
 export function fast(now: number, typical: number, open: number, step: number, every: number, cap: number): FeeStep[] {
