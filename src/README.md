@@ -140,3 +140,13 @@ functions: see [its README](ops/README.md).
 
 The `bidprice` strategy (`strategies/bidprice/`) joins the three: it quotes at the expected cost of moving the car and
 posts each gig with the fee schedule from the same function. See [its README](strategies/bidprice/README.md).
+
+## Arena: offline scores in seconds
+
+`pnpm arena starter bidprice:key=value --seeds spread-1,spread-9 [--level 8]` plays a strategy through the harness's
+own desk against a simple model built from the saved weeks (`data/scrape/runs`, `out/spread.sqlite`, or `ARENA_DB`),
+with no server, and prints margin, revenue, orders won, estimated fees and late orders. Win thresholds per request
+option come from the quotes of every saved week of the seed (trust-adjusted midpoint of the highest taken and lowest
+lost ratio); the fee is the first step of the first gig's schedule at or above a seeded lognormal multiple of the
+typical fee. It ignores reprices, offers, combined-gig savings, changes, cancellations, failed visits, drops,
+deadline warnings and notes; the header of `src/arena.ts` has the details. Use it to rank, then confirm on the server.

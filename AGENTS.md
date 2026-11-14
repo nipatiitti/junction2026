@@ -221,6 +221,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Write a week to CSV (TS): `pnpm reveal-csv <world id>`
 - Compare TypeScript strategies: `pnpm bench starter --level 8 --seeds spread-1..spread-5`
 - Tune a TypeScript strategy's params: `pnpm tune <strategy> --space <space.json> --holdout spread-6..spread-10`
+- Score strategies offline on saved weeks: `pnpm arena starter --seeds spread-1`
 - Build the facts tables: `uv run python -m analysis.facts`
 - Export the fee model priors: `uv run python -m analysis.priors_fees`
 - Margin gap report (oracle): `uv run python -m analysis.oracle`

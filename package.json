@@ -14,7 +14,8 @@
     "reveal-csv": "NODE_USE_ENV_PROXY=1 node --env-file-if-exists=.env vendor/spread-typescript/reveal-csv.ts",
     "check": "tsc --noEmit",
     "lint": "biome check",
-    "format": "biome check --write"
+    "format": "biome check --write",
+    "arena": "node src/arena.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.7",
