@@ -29,9 +29,8 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
-### 2026-11-14: quote, booking and chain bug fixes (local bug-audit branch)
+### 2026-11-14: quote, booking and chain bug fixes (PR #375, issue #374)
 
-- **PR / issue**: no issue was supplied and no pull request has been opened; branch `fix/typescript-lean-bugs`.
 - **Version changed**: both, with TypeScript-only state and model fixes.
 - **What changed**: delayed-readiness notes now move the deadline used by quote costs, and private pickup and delivery add independent
   surcharges in both versions. Chain timing now includes plates, charging and private-delivery waits in both versions. Deadline
