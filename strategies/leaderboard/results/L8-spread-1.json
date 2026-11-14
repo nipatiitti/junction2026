@@ -425,8 +425,8 @@
     "ifs": {
       "file": "strategies/ifs/dispatch.py",
       "fingerprint": "75c832354e458922",
-      "world_id": "we4830b9be154595b8187",
-      "played_at": "2026-11-14T12:35:42+0200",
+      "world_id": "w96e1a7e471cfb6ba4a36",
+      "played_at": "2026-11-14T16:02:17+0000",
       "score": {
         "marginCents": 1210457,
         "revenueCents": 3277961,
@@ -455,8 +455,8 @@
     "lane_prior": {
       "file": "strategies/lane_prior/dispatch.py",
       "fingerprint": "a4353faa375e2418",
-      "world_id": "wbd0c0637015334cc2d5f",
-      "played_at": "2026-11-14T12:36:24+0200",
+      "world_id": "w84395333a0737e5720f1",
+      "played_at": "2026-11-14T16:02:15+0000",
       "score": {
         "marginCents": 1217085,
         "revenueCents": 3112601,
