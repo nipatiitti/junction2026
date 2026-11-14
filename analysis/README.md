@@ -621,3 +621,59 @@ Limits: `probe.py`'s parent world wins nothing, so the competitor has not raised
 and the level 8 quote probes cover Monday and Tuesday only. A fee flip is the fee a driver took at the post: a
 schedule that reaches it hours later may find that driver gone, and the starter's steep fees after a deadline warning
 are left out. The starter's weeks and our saved runs are played on different seeds.
+
+## The quotas database (`out/quotas.sqlite`)
+
+`analysis/quotas.py` copies the incoming price requests out of the raw tables into a database of their own, so a
+question about demand is one query without the events, views and actions of `out/spread.sqlite`:
+
+```sh
+uv run python -m tools.db                     # the raw tables, out/spread.sqlite
+uv run python -m analysis.quotas              # out/spread.sqlite -> out/quotas.sqlite
+uv run python -m analysis.quotas --rebuild    # drop the tables and build every week again
+uv run python -m analysis.quotas --db other.sqlite --out /tmp/quotas.sqlite
+```
+
+It builds only the weeks the target does not hold yet, so a rerun after new runs adds those and stops. One row per
+delivery option keeps an option's list price and our quote together, so a request with two options has two rows.
+
+| Table          | One row for each                                                                                                                                                                                                     |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `quota`        | delivery option of a request in a played world: the request's ids, dealer, arrival and respond-by times, day and hour, legs, total km and minutes, lane (leg 0), car flags and charge, note language, and the option's rank, kind, deadline and list price; then the same world's quote, ratio, declined, taken and outcome |
+| `world_stream` | world: its number of requests and `stream_hash`                                                                                                                                                                       |
+| `seed_stream`  | level and seed: worlds, distinct streams, the range of requests per world, and `consistent`                                                                                                                          |
+
+A quota is the demand side only. `stream_hash` covers the incoming fields alone (ids, dealer, times, legs, note, and
+each option's kind, deadline and list price) and never our quotes or the outcomes, so two worlds of a seed hash the
+same whatever the system did; it also leaves out the reveal's truth for a won car (its ready time and real hours),
+which only the system that won the order has. The columns after `list_price_cents` are the world's own answer, so a
+row still reads on its own.
+
+`seed_stream.consistent` is 1 when every world of a seed saw the same request stream. **It is 1 for every one of the
+514 seeds and 3,016 saved worlds**: the same seed always has the same incoming quotas, whatever the system did, and
+only the quotes and the outcomes differ. Read demand from one world per seed, and the other worlds for win models.
+
+```sql
+-- do two worlds of one seed disagree on the requests? (none do)
+select * from seed_stream where consistent = 0;
+
+-- how many requests a seed brings, and the spread across seeds
+select level, count(*) seeds, min(requests_min) fewest, max(requests_max) most,
+       round(avg(requests_min), 1) mean from seed_stream group by level;
+
+-- option list prices, and the average of the ones a dealer took
+select option_kind, count(*) n, round(avg(list_price_cents) / 100.0, 2) avg_eur,
+       round(avg(list_price_cents) filter (where taken = 1) / 100.0, 2) taken_eur
+from quota group by option_kind;
+
+-- demand by day (0 Monday) and hour
+select day, hour, count(*) n from quota group by day, hour order by 1, 2;
+
+-- the busiest lanes
+select pickup_place, delivery_place, count(*) n, round(avg(km), 1) km
+from quota group by 1, 2 order by n desc limit 20;
+```
+
+`level` and `policy` are kept, so a seed played at two levels or by several systems has one `world_stream` row per
+world, and `quota.week_id` joins back to `weeks` in `out/spread.sqlite`. `quote_facts` above has the same options
+with the win model's features; `quota` is the flat, one-file table for the seed questions.
