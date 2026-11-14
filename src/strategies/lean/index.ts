@@ -54,9 +54,10 @@ export const DEFAULTS = {
   /** The share of the week's requests to win, in a world with 777 drivers (the median). */
   target: 0.3,
   /** The worth of an order's place in the week when it starts, × the typical fee, and how fast it follows the
-   * share won: this much for each quote that wins above or loses below the target. */
-  capacity: 0.4,
-  gain: 0.02,
+   * share won: this much for each quote that wins above or loses below the target. Both 0 (off): with the wider
+   * `noise` the best price needs no charge, and the charge priced us out by Friday (README.md). */
+  capacity: 0,
+  gain: 0,
   /** How much of that worth is the same for every order (`flatEuros` × `capacity`), not in proportion to its typical
    * fee: a short hop takes a driver's place in the day as a long one does. */
   flatShare: 0.5,
@@ -67,6 +68,11 @@ export const DEFAULTS = {
   /** 1 moves each gig's raises by up to 1.5 hours either way and their size by 5%, drawn from the order id, so that
    * drivers cannot time a second look; 0 keeps the table. */
   jitter: 1,
+  /** Spread the raises of a gig with little time over the waking time it has (the first after 30% of it, the last
+   * after 85%) and move a raise in the night to the evening before. Without it, a car won 7 hours before its last
+   * pickup opens at 1.55 × typical, because the table's raises have passed. Off until the server confirms it: the
+   * simulator gains 1,150 euros a week with it and loses 2.5 points of orders on time. */
+  spread: false,
   /** A premium car's cost × this, and what a private address adds × typical. */
   premium: 3,
   privateAddress: 0.25,
@@ -78,12 +84,11 @@ export const DEFAULTS = {
   minHours: 4,
   /** Never quote under this × the expected cost. */
   minMargin: 1.05,
+  /** The noise that stays in one request's threshold, as a logistic scale in log price: 20 to 25% stays whatever
+   * we learn. A wider noise makes the best price higher, because a dearer quote then loses fewer wins. */
+  noise: 0.28,
   /** How much of the dealer's trust (1% for each order on time) goes into the price. */
   trust: 0.7,
-  /** Start the week's win model from the measured dealer facts (demand.ts): the middle without trust (1.27 × list,
-   * so set `trust` to 1 with it), the towns, the hour, the order's size, 2.1% off for each late order of the
-   * dealer, and the competitor's daily answer to the share of a dealer's requests that we win. */
-  facts: false,
   /** How much the target falls for each 1.0 × typical that bookings cost over `feeRatio`. 0 leaves volume to the
    * lateness alone: dear bookings are already in the price. */
   feeBrake: 1.5,
@@ -105,8 +110,9 @@ export const DEFAULTS = {
   minSaving: 0.15,
   chainHours: 5,
   /** A new car that may join a chain waits this many hours for a partner before it is posted alone: half of the
-   * single gigs book within half an hour, before a partner can arrive. 0 posts at once. */
-  holdHours: 0,
+   * single gigs book within half an hour, before a partner can arrive, and a chain of cars never posted before
+   * books 79% of the time against 57%. 0 posts at once. */
+  holdHours: 2,
   /** A chain that no driver took this many hours after its post is taken apart while its cars still have time; 0
    * waits until `chainHours` before its last start. */
   chainPatience: 0,
@@ -149,7 +155,7 @@ class Lean extends Strategy<LeanParams> {
   private readonly tally = { requests: 0, quoted: 0, won: 0, multiples: 0, bookings: 0, ratios: 0 }
   constructor(setup: Setup, params: LeanParams) {
     super(setup, params)
-    this.demand = new Demand(setup.level, params.facts)
+    this.demand = new Demand(setup.level, params.noise)
     this.drivers = setup.roster.length > 0 ? setup.roster.length / 777 : 1
     this.capacity = params.capacity
     this.feeRatio = params.feeRatio
@@ -177,7 +183,7 @@ class Lean extends Strategy<LeanParams> {
       if (alone === null) continue
       const share = this.planner.share(request, option, facts, books)
       const cost = alone * share
-      const belief = this.demand.belief(this.demand.keys(request, option.kind), this.trustOffset(request.dealerId, now))
+      const belief = this.demand.belief(this.demand.keys(request, option.kind), this.trustOffset(request.dealerId))
       const crowd = 1 + 0.04 * Math.max(0, this.askedFrom(request) - 4)
       const place = (1 - p.flatShare) * request.referenceFeeCents + p.flatShare * p.flatEuros * 100
       const charge = cost + this.capacity * crowd * place * (share < 1 ? p.pairCharge : 1)
@@ -232,13 +238,9 @@ class Lean extends Strategy<LeanParams> {
     return (this.late.size + 0.5 * atRisk) / (this.done + atRisk + 20)
   }
 
-  /** What moves a dealer's threshold at minute `at`: its trust (each order on time adds 1%, a late one halves the
-   * count), and with `facts` 2.1% off for each late order and the competitor's answer to yesterday's wins. */
-  private trustOffset(dealerId: string, at: number): number {
-    const trust = this.params.trust * Math.log(1 + this.trustCount(dealerId) / 100)
-    if (!this.params.facts) return trust
-    const lates = (this.delivered.get(dealerId) ?? []).filter((id) => this.late.has(id)).length
-    return trust - 0.021 * lates + this.demand.rival(dealerId, Math.floor(at / DAY))
+  /** The dealer's trust as a move of its threshold: each order on time adds 1%, a late one halves the count. */
+  private trustOffset(dealerId: string): number {
+    return this.params.trust * Math.log(1 + this.trustCount(dealerId) / 100)
   }
 
   /** The dealer's count of orders on time, up to 25; a late one halves it. */
@@ -264,8 +266,7 @@ class Lean extends Strategy<LeanParams> {
     const request = books.requests.get(requestId)
     this.pending.delete(requestId)
     if (!prices || !request) return
-    const offset = this.trustOffset(request.dealerId, request.arrivedAt)
-    if (won) this.demand.count(request.dealerId, request.arrivedAt, true)
+    const offset = this.trustOffset(request.dealerId)
     for (const option of request.options) {
       const cents = prices[option.kind]
       if (cents === undefined || (won && option.kind !== won)) continue
@@ -311,7 +312,7 @@ class Lean extends Strategy<LeanParams> {
     if (now > order.lastPickupAt) return fast(now, typical, Math.max(shown, 1.1), 0.05, 30, p.lateTop)
     if (warned || awake(now, order.lastPickupAt - BOOK_AHEAD) < SHORT)
       return fast(now, typical, Math.max(shown + 0.05, 1.15), 0.12, 15, Math.max(p.urgentTop, shown + 0.05))
-    return stepped(now, typical, order.lastPickupAt, p.open, shown, p.jitter, order.id)
+    return stepped(now, typical, order.lastPickupAt, p.open, shown, p.jitter, order.id, p.spread)
   }
 
   private retryOf(orderId: string, legs: readonly number[]): Retry {
@@ -375,7 +376,6 @@ class Lean extends Strategy<LeanParams> {
       case 'price_request':
         this.tally.requests++
         this.demand.dawn(Math.floor(event.at / DAY))
-        this.demand.count(event.request.dealerId, event.request.arrivedAt, false)
         this.asked = this.asked.filter((other) => other.respondBy > event.at)
         this.asked.push({
           id: event.request.id,
@@ -397,7 +397,8 @@ class Lean extends Strategy<LeanParams> {
         if (!post || !(singles > 0)) break
         this.planner.booked(event.gigId, event.feeCents / singles)
         const ratio = clamp(event.feeCents / singles, 0.3, 2.5)
-        this.feeRatio += 0.04 * (ratio - this.feeRatio)
+        // A chain counts once for each of its cars: the cost behind a bid is a car's, not a booking's.
+        for (let i = pickups(post.stops).length; i > 0; i--) this.feeRatio += 0.04 * (ratio - this.feeRatio)
         this.tally.bookings++
         this.tally.ratios += ratio
         break

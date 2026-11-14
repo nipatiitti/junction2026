@@ -72,18 +72,33 @@ export function stepped(
   floor = 0,
   jitter = 0,
   seed = '',
+  spread = false,
 ): FeeStep[] {
   const random = rng(seed)
   const points: [number, number][] = [[now, Math.max(open, floor)]]
-  for (const [hours, ratio] of STEPS) {
+  const time = awake(now, lastPickup - BOOK_AHEAD)
+  STEPS.forEach(([hours, ratio], i) => {
     // Each gig raises at its own minutes and by its own size, so a driver cannot plan a second look for the raise.
-    const at = lastPickup - hours * HOUR + (random() - 0.5) * 3 * HOUR * jitter
+    let at = lastPickup - hours * HOUR + (random() - 0.5) * 3 * HOUR * jitter
     const to = ratio * (1 + (random() - 0.5) * 0.1 * jitter)
+    if (spread) {
+      // A gig with less time than the table spreads its raises over the waking time it has, and a raise that
+      // falls in the night comes the evening before: no driver looks at 02:00.
+      at = Math.max(at, later(now, (SPREAD[i] ?? 1) * time))
+      const minute = ((at % DAY) + DAY) % DAY
+      if (minute < WAKE) at -= minute + DAY - SLEEP + 30
+      else if (minute > SLEEP) at -= minute - SLEEP + 30
+    }
     if (at <= now) points[0] = [now, Math.max(points[0]?.[1] ?? 0, to)]
     else points.push([at, to])
-  }
-  return schedule(points, typical)
+  })
+  return schedule(
+    points.sort((a, b) => a[0] - b[0]),
+    typical,
+  )
 }
+/** With `spread`: the share of a gig's waking time after which each raise of STEPS comes at the latest. */
+const SPREAD = [0.3, 0.5, 0.7, 0.85]
 
 /** A small seeded generator (mulberry32 over a string hash): the same numbers for the same seed, so a strategy
  * rebuilt in the final draws the same schedule. */

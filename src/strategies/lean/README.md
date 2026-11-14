@@ -184,12 +184,44 @@ Each batch is five fresh random seeds, with the baseline on the same seeds (leve
 The defaults are unchanged: every param of this section is off. What is left to do for volume: stop chains from coming
 apart (a third of those posted do), then raise the chain share of the bids step by step.
 
+## Simulator batches (14 November, evening)
+
+Played on the offline simulator ([`sim/`](../../../sim/README.md)): 40 recorded seeds per batch, every variant on the
+same seeds, mean margin a week. The simulator agrees with the server on the winner of a pair in 90% of the cases
+for gaps of €500 to €1,500 and in all cases above that; it does not rank on-time shares, is too gentle on overload
+and is unreliable on fee timing. **None of this is confirmed on the server yet.**
+
+| Change                                                            | Margin            | Orders    | On time      | Against                        |
+| ----------------------------------------------------------------- | ----------------- | --------- | ------------ | ------------------------------ |
+| Old defaults (`capacity` 0.4, `gain` 0.02, `noise` 0.08, no hold) | €15,251           | 246       | 96.8%        |                                |
+| `target` 0.45 / 0.6                                               | €15,761 / €14,829 | 332 / 402 | 96.6 / 95.7% | old: +€604 ± 187 / −€328 ± 262 |
+| No capacity charge, `noise` 0.08                                  | €12,740           | 482       | 93.6%        | old: −€2,416 ± 347             |
+| No capacity charge, `noise` 0.28                                  | €16,213           | 297       | 96.7%        | old: +€1,057                   |
+| … and `holdHours` 2 (chain first)                                 | €17,039           | 296       | 97.0%        | row above: +€826 ± 150         |
+| … and the booking cost learned per car (**the new defaults**)     | €17,432           | 328       | 96.8%        | old: +€2,181 ± 186, 38 of 40   |
+| … and `spread`                                                    | €18,602           | 367       | 94.3%        | new: +€1,170 ± 198, 2 unranked |
+
+What they showed:
+
+- **Volume alone pays nothing.** With the old win model, more orders came only at lower prices: the margin per order
+  fell from €63 to €37 between 242 and 402 orders, at the same cost per order.
+- **The win model was too sure.** With a noise of 0.08 it saw a steep win curve and priced low once the capacity
+  charge was gone. With 0.28 the best price needs no charge and no controller (0.22 and 0.33 are both worse).
+- **Chain first.** A new car that waits up to 2 hours for a partner lifts the chained cars from about 55 to about
+  200 of 300 a week, at 0.69 × typical; 4 hours loses €780.
+- **Did nothing measurable, and are not in the code:** choosing chains by their chance to book (from driving time,
+  trip home and drivers at the end town), limits on a chain's driving time and trip home, several chain tries per
+  car, the dealer tables (towns, hour, order size, the competitor's daily answer). **Lost:** bidding lower for a
+  dealer's trust (−€800 to −€1,100), `overhead` 0.12, `minHours` 2.
+- **`spread` is the open question.** It cuts the fees of short-lead cars, which the old schedule opened at up to
+  1.55 × typical, but 2.5 points more orders are late, and the simulator is weakest exactly there.
+
 ## Params
 
-`target` 0.3, `capacity` 0.4 (its start), `gain` 0.02, `flatShare` 0.5, `flatEuros` 60, `open` 0.88, `jitter` 1,
+`target` 0.3, `capacity` 0 (its start), `gain` 0, `noise` 0.28, `flatShare` 0.5, `flatEuros` 60, `open` 0.88, `jitter` 1, `spread` false,
 `premium` 3, `privateAddress` 0.25, `feeRatio` 0.84, `overhead` 0.06, `minHours` 4, `minMargin` 1.05, `trust` 0.7,
 `feeBrake` 1.5, `lateSoft` 0.04, `lateHard` 0.05, `openGigs` 40, `urgentTop` 2, `lateTop` 1.7, `chains` true,
-`maxHop` 60, `maxCars` 4, `minSaving` 0.15, `chainHours` 5, `holdHours` 0, `chainPatience` 0, `chainBid` false,
+`maxHop` 60, `maxCars` 4, `minSaving` 0.15, `chainHours` 5, `holdHours` 2, `chainPatience` 0, `chainBid` false,
 `pairCharge` 1. Override one
 with `--set key=value`. The end of a week prints the share won, the mean price × list, the mean fee × typical, the
 late orders and the chains posted, booked and taken apart.
