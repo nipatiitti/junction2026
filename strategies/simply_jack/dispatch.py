@@ -14,7 +14,7 @@ Jack makes two decisions, and each is a few plain rules with its numbers at the 
    option of a request at its list price times the dealer's factor. Leave out an option that gives a driver less
    than MIN_LEAD to reach the car: its deadline, less the drive, less the minute the dealer decides. Decline a
    request with no option left, with a private address (its narrow booked slot makes a quarter of those cars
-   late), or whose typical driver fee is more than MAX_FEE_SHARE of our price.
+   late), or whose typical driver fee is more than MAX_FEE_LIST times its list price.
 2. The driver fee. Post each gig at FEE_OPEN times the typical fee, then raise it in FEE_STEPS even steps to
    FEE_TOP times the typical fee, which it reaches TOP_BEFORE minutes before the car's last pickup. When that is on
    a later day, the gig holds its opening fee until DAWN of that day, and only then climbs. A gig with an hour or
@@ -52,7 +52,7 @@ WAR_LOSSES, WAR_PRICE = 12, 0.85  # this many lost requests in a row are the pri
 WARN_STEP = 0.01  # each car warned in the last 24 hours (no driver 3 hours before its last pickup) adds this
 PRICE_MIN, PRICE_MAX = 1.40, 2.00  # a dealer's price stays between these times the list price
 MIN_LEAD = 6 * HOUR  # leave out an option whose driver would have less than this to reach the car
-MAX_FEE_SHARE = 0.75  # decline when the typical fee is more than this share of our price
+MAX_FEE_LIST = 1.16  # decline when the typical fee is more than this times the list price: too dear a lane
 FEE_OPEN = 0.8  # post a gig at the typical fee times this
 FEE_TOP = 2.0  # and raise it to the typical fee times this
 FEE_STEPS = 6  # in this many even steps, the opening fee included
@@ -70,7 +70,7 @@ NUMBERS = {
     "PRICE_MIN": PRICE_MIN,
     "PRICE_MAX": PRICE_MAX,
     "MIN_LEAD": MIN_LEAD,
-    "MAX_FEE_SHARE": MAX_FEE_SHARE,
+    "MAX_FEE_LIST": MAX_FEE_LIST,
     "FEE_OPEN": FEE_OPEN,
     "FEE_TOP": FEE_TOP,
     "FEE_STEPS": FEE_STEPS,
@@ -92,7 +92,8 @@ def jack_prices(
         if option["deadline"] - drive - request["respondBy"] >= MIN_LEAD
     }
     private = any(leg["pickup"]["privateAddress"] or leg["delivery"]["privateAddress"] for leg in request["legs"])
-    if not prices or private or request["referenceFeeCents"] > MAX_FEE_SHARE * min(prices.values()):
+    dear = request["referenceFeeCents"] > MAX_FEE_LIST * min(option["listPriceCents"] for option in request["options"])
+    if not prices or private or dear:
         return {}
     return {kind: round(cents * discount) for kind, cents in prices.items()}  # the war discount comes last
 
