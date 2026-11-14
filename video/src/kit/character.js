@@ -24,6 +24,7 @@ export function character({
   tank = false,
   puffer = false,
   tired = false,
+  cap = null,
 } = {}) {
   const root = new THREE.Group()
   const body = new THREE.Group()
@@ -89,6 +90,10 @@ export function character({
   if (beanie) {
     head.add(at(box(0.57, 0.24, 0.55, beanie), 0, 0.6, 0))
     head.add(at(box(0.59, 0.08, 0.57, shade(beanie, 0.75)), 0, 0.5, 0))
+  }
+  if (cap) {
+    head.add(at(box(0.58, 0.12, 0.56, cap), 0, 0.58, 0))
+    head.add(at(box(0.5, 0.04, 0.22, shade(cap, 0.8)), 0, 0.54, 0.34))
   }
   if (mustache) head.add(at(box(0.28, 0.06, 0.04, hairColor, { shadow: false }), 0, 0.2, 0.265))
   if (sunglasses) head.add(at(box(0.46, 0.11, 0.03, '#0b0b0d', { shadow: false }), 0, 0.31, 0.265))
