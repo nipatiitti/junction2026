@@ -455,6 +455,88 @@ What the 15 saved weeks of the defaults (these ten and five ranking runs) say of
   minutes 77%.
 - **A chain books at once or not at all.** Half of the bookings come within 4 minutes and 90% within 37.
 
+### Three tries to book more chains (#351)
+
+Each played on the same ten seeds, against the saved weeks of the defaults (mean margin a week, all weeks ranked):
+
+| Variant                                            | Margin  | Against the defaults | Orders | Chains posted, booked | Cars in booked chains |
+| -------------------------------------------------- | ------- | -------------------- | ------ | --------------------- | --------------------- |
+| Defaults                                           | €16,875 |                      | 440    | 94, 52%               | 120                   |
+| `chainFit` 1                                       | €16,971 | +€96 ± 343, 6 of 10  | 446    | 96, 56%               | 130                   |
+| `chainTries` 2                                     | €16,644 | −€230 ± 282, 3 of 10 | 443    | 132, 44%              | 142                   |
+| `chainPatience` 0.67                               | €16,578 | −€297 ± 155, 2 of 10 | 440    | 94, 53%               | 123                   |
+| `chainFit` 1, `chainTries` 2, `chainPatience` 0.67 | €17,028 | +€153 ± 351, 7 of 10 | 452    | 134, 47%              | 149                   |
+
+- **None is a measured gain** without the chain model below (`chainFit` 0, `chainPatience` 1); with it,
+  `chainTries` 3 is the default.
+- **`chainFit`** ranks two chains that want the same car by saving × chance to book (`bookChance` in `chains.ts`,
+  from the drivers who can do the chain as a round from home). 4 points more chains book and 10 more cars ride in
+  them.
+- **`chainTries`** lets a car of a failed chain join one more chain. 22 more cars ride in chains, but the second
+  chains book less often, and the fees over all orders do not fall (0.963 × typical against 0.960).
+- **The three together** put 29 more cars in chains (149 against 120) with 11 more orders; that should be worth
+  about €500 and measures as +€153 ± 351. It needs more seeds to say.
+
+### The chain model: a fee for each chain by its chance to book (#351)
+
+**The fee decides whether a chain books.** Ten server weeks drew each chain's fee level by its cars' orders
+(`chainSpread` 1, 898 chains): at 0.78 × the chain's fee 12% booked, at 0.88 × 31%, at 1 × 46% and at 1.12 × 66%.
+With chains off, the cars that could ride in one pay 0.94 × typical as single gigs when won on the Monday and
+0.99 × from Tuesday to Thursday (ten server weeks), so a chain at 0.75 × that books is worth more than one at
+0.68 × that does not. Today's level is right on the Monday (73% book) and too low after it (38%).
+
+**Which chains book is known ahead.** `uv run --no-project --python 3.13 --with scikit-learn python -m
+analysis.chain_model` fits the chance that a chain books within an hour on every chain that the saved weeks posted
+(26,151 chains of 295 weeks). On seeds it did not see, the fifth of the chains it rates lowest books 12% of the
+time and the fifth it rates highest 88%. What counts most: the fee for each hour of driving, long chains late in
+the week (the bookings so far per driver × the hours), the trip from the last delivery to the first pickup, the
+drivers who live near the last delivery or can do the chain as a round from home, cars that no driver has seen,
+and the Monday. The weights are in `chain.json`; `score` in `chains.ts` computes the same features.
+
+**What `chainModel` does.** Each path gets the fee level from 0.85 to 1.3 that earns the most: its chance to book
+at that level × (what its cars pay alone − the chain's fee) − (1 − the chance) × what a failed chain costs them
+(0.05 × typical). The best chain earns the most a car, and a path that earns nothing is not posted.
+`chainTries` 3 lets the cars of a chain that no driver took join two more chains.
+
+On the server, against the defaults with the weekend rule (mean margin a week, every week ranked):
+
+| Variant                                         | `supply-1` to `-10` | `supply-11` to `-20` | Both    |
+| ----------------------------------------------- | ------------------- | -------------------- | ------- |
+| Every chain at 1.12 × (`chainOpen`)             | +€307 ± 278         |                      |         |
+| `chainModel`                                    | +€581 ± 400         |                      |         |
+| `chainModel`, `chainTries` 2                    | +€914 ± 429         | +€1,242 ± 366        | +€1,078 |
+| `chainModel`, `chainTries` 3 (**the defaults**) | +€872 ± 463         | +€1,379 ± 355        | +€1,126 |
+| … and `chainAlone` 1.06                         | +€1,263 ± 450       | +€986 ± 414          | +€1,125 |
+| … and `pickLead` 12, `holdHours` 3              | +€982 ± 307         | +€1,479 ± 304        | +€1,231 |
+
+With the defaults 71% of the chains book where 53% did, 197 cars a week ride in them where 117 did, at 0.71 ×
+typical where they paid 0.68 ×, and the week wins 27 more orders at the same on-time share (96.1% against 96.2%).
+
+Each setting was then pushed one step past where it paid, on `supply-1` to `supply-10` over `chainModel` with
+`chainTries` 3 (+€872): `chainAlone` 1.06 +€1,263, 1.12 +€665, 1.18 +€621; `holdHours` 3 +€1,055, 4 +€577;
+`pickLead` 12 +€1,057, 6 +€985; `chainPatience` 1.5 +€943; `chainTries` 5 +€679; `minSaving` 0.05 +€780. On 20
+seeds the settings of the last two rows are level with the defaults, so the defaults change the fewest params.
+
+**Direct offers of an open chain do not pay** (`chainOfferSpread` 1, ten server weeks, 2,436 offers to drivers who
+viewed a chain and did not book it). Drivers who read the offer took it 2.7% of the time at the app's fee, 8.4% at
+1.15 × and 16.2% at 1.3 ×, so an offer over the app's fee does find drivers. But the chains they booked paid 0.79,
+0.85 and 0.97 × their cars' typical fees, where the cars alone pay 0.99 ×, and the week made €372 less than
+without offers. `chainOffers` stays 0.
+
+### Premium cars at a lower cost factor (#351)
+
+`premium` multiplies a premium car's cost by 3, so `lean` wins none of the 49 premium requests a week. Lower
+factors on `supply-1` to `supply-10`, over the chain defaults above (mean a week, every week ranked):
+
+| `premium` | Margin against 3 | Premium orders | Their fee × typical | Late  | Their margin |
+| --------- | ---------------- | -------------- | ------------------- | ----- | ------------ |
+| 2         | −€184 ± 270      | 0.4            | 0.89                | 0%    | €29 a week   |
+| 1.5       | −€132 ± 451      | 3.4            | 1.03                | 5.9%  | €204 a week  |
+| 1         | −€364 ± 433      | 15.2           | 1.09                | 13.2% | €496 a week  |
+
+The premium orders earn €33 to €60 each, but the week does not earn more with them: at 1 they are late four times
+as often as the other orders, and the week wins only 5 orders more in all. `premium` stays 3.
+
 ## No raises over the weekend (15 November, #347)
 
 Cars due on the last Monday were booked at 0.84 to 0.91 × typical on the Friday and the Saturday (46 a week), 2 a
@@ -479,4 +561,5 @@ false week of `supply-1` is the saved week of the old schedule to the cent.
 `lateFrom` 1.1, `lateStep` 0.05, `lateEvery` 30, `lateTop` 1.7, `feeRatio` 0.84, `lateCost` 1, `premium` 3,
 `privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 0.98, `minHours` 4, `noise` 0.11,
 `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
-`pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1.
+`pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1, `chainTries` 3, `chainFit` 0,
+`chainModel` true, `chainAlone` 1, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0.
