@@ -59,7 +59,7 @@ low-poly hatchback.
 
 - Set: a hackathon hall at night: RGB LED strips, beanbags, pizza boxes, a pyramid of energy-drink cans.
 - Cast: the developer at a laptop with a pixel face on its screen; teammates asleep in beanbags.
-- Beats: 0–2 the screen shows `−€72,612` in red. 2–4 slow-motion Enter; the number spins to `+€12,335` in green.
+- Beats: 0–2 the screen shows `−€72,612` in red. 2–4 slow-motion Enter; the number spins to `+€24,451` in green.
   4–7 euro notes shoot out of the laptop and fill the hall; the sleepers float on the money in their beanbags; the can
   pyramid falls. 7–8.5 developer: "Chat… is this real?" A sleeper mumbles: "we're so back."
 - The two numbers are placeholders (the kit starter's loss on one level 8 week, our best mean margin); keep them in the
