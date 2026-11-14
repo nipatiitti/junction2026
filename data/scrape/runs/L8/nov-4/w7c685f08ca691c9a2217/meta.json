@@ -1,0 +1,24 @@
+{
+  "seed": "nov-4",
+  "level": 8,
+  "policy": "bulk-yard",
+  "kind": "practice",
+  "worldId": "w7c685f08ca691c9a2217",
+  "version": "35a064b3a34d3d92c4a7d4508bb4b7a78eff9ea4",
+  "revealed": true,
+  "recorded": false,
+  "quoteRange": null,
+  "feeRange": null,
+  "events": 8818,
+  "score": {
+    "marginCents": 1294291,
+    "revenueCents": 3424050,
+    "marginShare": 0.378000029205181,
+    "wonOrders": 304,
+    "onTimeShare": 0.9901315789473685,
+    "undeliveredShare": 0,
+    "ranked": true
+  },
+  "seconds": 50.6,
+  "requests": 519
+}
