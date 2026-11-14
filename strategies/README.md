@@ -47,6 +47,18 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`tight_margin/`](tight_margin/README.md)         | `TightPricing`                         | Max margin's prices only once the week's drivers fall behind                            |
 | [`low_opening/`](low_opening/README.md)           | `LowOpeningPlanner`                    | Slack fees, opening a patient gig's first post at 0.8 x the typical fee                 |
 | [`headroom/`](headroom/README.md)                 | `HeadroomPricing`                      | Ceiling, with the lane fee, the cost by lead time, dawn fees and a maximum that moves   |
+| [`lane_prior/`](lane_prior/README.md)             | `PriorPricing`                         | Headroom, with a lift for each dear delivery place, fitted on the saved weeks           |
+| [`town_open/`](town_open/README.md)               | `TownOpening`, `TownFeePlanner`        | Headroom, with the opening fee of each pickup town learned from its bookings            |
+| [`same_day/`](same_day/README.md)                 | `SameDayAdmission`                     | Headroom, quoting the fastest option that still pays                                    |
+| [`soft_top/`](soft_top/README.md)                 | `SoftTopPlanner`                       | Headroom, with a top fee of twice the lane fee, not 2.5 times                           |
+| [`drop_risk/`](drop_risk/README.md)               | `DropRiskFeePlanner`                   | Headroom, with higher, flatter fees where booked drivers drop their gigs                |
+| [`slack_budget/`](slack_budget/README.md)         | `SlackBudgetAdmission`                 | Headroom, spending on-time slack above a reserve and refusing known risks at it       |
+| [`snow_aware/`](snow_aware/README.md)             | `SnowPlanner`, `SnowBundler`           | Headroom, stretching snowy legs and opening snowy pickup gigs earlier and dearer       |
+| [`opening_offers/`](opening_offers/README.md)     | `OpeningOffers`                        | Direct offers to nearby homes from a gig's first post, at the chain-offer fee           |
+| [`home_return/`](home_return/README.md)           | `HomeReturnFees`                       | A discounted fee where many drivers live at the delivery town                           |
+| [`adaptive_fees/`](adaptive_fees/README.md)       | `AdaptiveFees`                         | Cheaper fees while the running on-time share is above 95%, normal fees below it         |
+| [`hazard_admission/`](hazard_admission/README.md) | `LeadCostAdmission`                    | The root system with admission's driver cost fitted by lead time                        |
+| [`ifs/`](ifs/README.md)                           | `IfRules`, `IfFees`                    | Plain if rules with every number in one file, and a search that plays for better ones   |
 | [`joint_bid/`](joint_bid/README.md)               | `JointPricing`, `JointFeePlanner`      | Headroom, quoting over the expected fee of the schedule the fee planner will post       |
 | [`pair_first/`](pair_first/README.md)             | `PairFirstAdmission`                   | Headroom, pricing an assumed chain saving when a held order can pair with the request   |
 | [`robust_tune/`](robust_tune/README.md)           | `RobustPricing`                        | Headroom with one slower world estimate and no place or dealer offsets by default       |
@@ -54,7 +66,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`offer_probe/`](offer_probe/README.md)           | `ProbeOffers`                          | Headroom, offering only to active drivers and learning acceptance by fee ratio           |
 | [`outage_harvest/`](outage_harvest/README.md)     | `OutageAdmission`, `OutagePricing`     | Headroom, reserving shared driver capacity for the flagged outage region               |
 | [`contextual_mix/`](contextual_mix/README.md)     | `ContextualPricing`                   | Headroom, switching to a lower price cap where a pickup town's gigs book slowly          |
-Forty-eight folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Forty-nine folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                                               |
