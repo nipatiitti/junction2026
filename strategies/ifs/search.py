@@ -20,8 +20,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import random
 import re
+import shutil
 import signal
 import sys
 import time
@@ -29,13 +31,19 @@ from pathlib import Path
 
 from spread.client import SpreadError
 
+from strategies.bench import bench as seed_bench
 from strategies.bench.bench import Bench, Result, RunFailed, Version, euros, parse_seeds, table
 from strategies.ifs.rules import VALUES, load_values, read_values
+from tools.record import safe_name
 from tools.spread_proxy import ProxyClient
 
 ROOT = Path(__file__).resolve().parents[2]
 DISPATCH = Path(__file__).with_name("dispatch.py")
 OUT = ROOT / "out" / "ifs"
+# A search plays hundreds of weeks. It saves them here, outside git, and copies the weeks behind its result to the
+# folder of the saved online runs, which is committed. SPREAD_RUNS_DIR names another folder for the first.
+SEARCH_RUNS = ROOT / "out" / "scrape" / "ifs-search"
+COMMITTED_RUNS = ROOT / "data" / "scrape" / "runs"
 DEFAULT_SEEDS = "spread-1,spread-2,spread-3"
 # The code that plays a week of this system. A week that other code played is played again, not read from the file.
 PLAYS = [
@@ -158,6 +166,7 @@ class Search:
         self.weeks_file = self.folder / "weeks.json"
         self.best_file = self.folder / "best.json"
         self.code = code_version()
+        self.runs = Path(os.environ.get("SPREAD_RUNS_DIR") or SEARCH_RUNS).resolve()
         # Every week played, by code, level, seed and values: the same week is never played twice.
         self.played: dict[str, dict] = json.loads(self.weeks_file.read_text()) if self.weeks_file.exists() else {}
 
@@ -279,6 +288,21 @@ class Search:
                 return "no single value and no jump gives a better week"
             self.save()
 
+    def keep_weeks(self, sets: list[Values]) -> int:
+        """Copies the saved weeks of these sets of values to the folder of the saved online runs, so the weeks behind
+        the result are committed with the rest of the team's data. Returns how many it copied."""
+        copied = 0
+        for values in sets:
+            for seed in self.state["seeds"]:
+                week = self.played.get(self.key(seed, values))
+                if week is None:
+                    continue
+                place = Path(f"L{self.state['level']}") / safe_name(seed) / week["worldId"]
+                if (self.runs / place).is_dir() and not (COMMITTED_RUNS / place).exists():
+                    shutil.copytree(self.runs / place, COMMITTED_RUNS / place)
+                    copied += 1
+        return copied
+
     def report(self, why: str) -> None:
         """What the search found, where the values are, and the commands that use them."""
         state, args = self.state, self.args
@@ -299,6 +323,11 @@ class Search:
         )
         print(f"Make them the values of {shown(VALUES)}:")
         print(f"  uv run python -m strategies.ifs.search --adopt {shown(self.best_file)}")
+        copied = self.keep_weeks([best["values"], state["start"]])
+        print(
+            f"Every week of the search is saved in {shown(self.runs)}. The weeks of the best and the starting values "
+            f"are in {shown(COMMITTED_RUNS)} too, {copied} of them copied now: commit those."
+        )
         # A search stopped by its stop file plays nothing more.
         if args.holdout and best["values"] != state["start"] and not args.stop_file.exists():
             holdout = parse_seeds(args.holdout)
@@ -480,6 +509,9 @@ def main() -> None:
             return
         ProxyClient()  # stops at once when SPREAD_KEY is not set
         search = Search(args, load_state(args), space, names)
+        # Each week saves its folder into the search's own folder and stays out of the database (dispatch.py).
+        seed_bench.RUNS = search.runs
+        os.environ["IFS_FOLDER_ONLY"] = "1"
         signal.signal(signal.SIGTERM, interrupt)
         signal.signal(signal.SIGHUP, interrupt)
         state = search.state
