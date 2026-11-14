@@ -10,6 +10,7 @@ from the repository root, for example `uv run python -m tools.db`.
 | `stats.py`        | Turns saved weeks into distributions, in `summary.json`                           |
 | `scrape.py`       | Plays weeks on the server only to collect data                                    |
 | `sweep.py`        | Plays the models of `active-models.md` on fresh seeds until stopped ([below](#play-many-fresh-seeds)) |
+| `roster_tournament.py` | Tournaments for all systems, with a leaderboard ([below](#roster-tournament-and-shadow-leaderboard)) |
 | `probe.py`        | Forks a world to find the price or fee where an outcome flips                     |
 | `kill_old_worlds.py` | Deletes the team's open practice worlds older than 15 minutes ([below](#delete-forgotten-worlds)) |
 | `spread_proxy.py` | The kit's client through `HTTPS_PROXY` ([below](#claude-code-cloud-environments)) |
@@ -86,6 +87,33 @@ world. Ranking runs are skipped unless `--include-board` asks for them, because 
 deleted run still counts on the rankings with its score at its end. Finals are always skipped: the server answers 403
 to `DELETE` on a final. A run costs one practice request for the list, one per listed world and one per deletion; it
 is an online run like any other, so run it only when asked and not beside another run.
+
+## Roster tournament and shadow leaderboard
+
+`roster_tournament.py` plays the root `dispatch.py` and every `strategies/*/dispatch.py`: two random seeds in round
+one, then 4, 8 and 16 across later rounds. The seeds are fresh, randomly named (`tour-r<N>-...`) and shared by all
+systems in that round, so the comparison stays paired without reselecting on tuning seeds. About half the survivors
+are shelved after each round; systems within one standard error of the cutoff stay, and self-diagnosed running errors
+shelve a system without cancelling the rest. Play is always **normal mode**; fast mode is not comparable.
+
+```sh
+uv run --env-file .env python -m tools.roster_tournament --play                 # until ten finalists
+uv run --env-file .env python -m tools.roster_tournament --play --jobs 4 --out out/my-tournament
+```
+
+`--out` defaults to `out/tournament-<time>` and keeps every result. Rerunning with the same `--out` resumes the round
+in progress rather than replaying finished weeks; use `--fresh` to discard that state's results. `--seeds 2,4,8`
+changes the per-round seed budget. Results include the world id, orders, on-time share and ranked status per seed.
+`--jobs` gives the jobs inside one entrant's weeks (slot failures then retry serially): 4 by default. It never uses
+`--board` or `--final`.
+
+The folder's important files:
+
+- `results.csv`: every played week, one row per system and seed;
+- `state.json`: the survivor and drop status, all rounds and all seeds, for resume;
+- `leaderboard.json`: full mean, standard error, on-time/ranked share and world metadata per system;
+- `LEADERBOARD.md`: the same ordering for a human review;
+- `logs/`: each entrant's bench output. This is a shadow board, not a performance ranking to delete systems from.
 
 ## Get the team's scraped data
 
