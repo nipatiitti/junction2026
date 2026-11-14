@@ -13,6 +13,7 @@ import { atlas } from './atlas/index.ts'
 import { groundhog } from './groundhog/index.ts'
 import { gambit } from './gambit/index.ts'
 import { menu } from './menu/index.ts'
+import { steady } from './steady/index.ts'
 import { readFileSync } from 'node:fs'
 const boardParams = JSON.parse(readFileSync(new URL('./bidprice/board.json', import.meta.url), 'utf8'))
 /** bidprice with the params of bidprice/board.json as its defaults, so the tuner searches around them. */
@@ -30,5 +31,6 @@ export const STRATEGIES: Record<string, StrategyKind> = {
   gambit,
   menu,
   recall,
+  steady,
   bidboard,
 }
