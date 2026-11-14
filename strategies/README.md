@@ -12,7 +12,7 @@ the abstract base class `Strategy` in [`strategy.py`](strategy.py), so they are 
 | [`offers/`](offers/README.md)       | `Offers`       | Direct offers to drivers near a gig's pickup                    |
 | [`bundling/`](bundling/README.md)   | `Bundler`      | Which orders' cars go together in one gig                       |
 
-Twenty-five folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
+Twenty-six folders are whole systems of their own: each holds a dispatcher plus its own strategies, so a week played
 there is that system's, not `dispatch.py`'s. None of them changes the folders above.
 
 | Folder                                            | Classes                                | What it is                                                                              |
@@ -21,6 +21,7 @@ there is that system's, not `dispatch.py`'s. None of them changes the folders ab
 | [`price_ladder/`](price_ladder/README.md)         | `LadderPricing`, `ShadowAdmission`     | A clamped price ladder with a shadow price on capacity                                  |
 | [`city_ladder/`](city_ladder/README.md)           | `CityLadderPricing`                    | The price ladder with one position per pickup city                                      |
 | [`dealer_ladder/`](dealer_ladder/README.md)       | `DealerLadderPricing`                  | The price ladder with one position per dealer                                           |
+| [`dealer_streak/`](dealer_streak/README.md)       | `DealerStreakPricing`                  | The dealer ladder with a step that grows with the dealer's run of wins and losses       |
 | [`streak_ladder/`](streak_ladder/README.md)       | `StreakLadderPricing`                  | The price ladder with a step that grows with the run of wins and losses, more on a loss |
 | [`scarcity_cost/`](scarcity_cost/README.md)       | `ScarcityAdmission`                    | Admission with the town's quotas per driver priced in                                   |
 | [`bundling_more/`](bundling_more/README.md)       | `WaitingBundler`                       | Every order waits for a chain, so more cars share a gig                                 |

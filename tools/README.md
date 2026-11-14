@@ -58,6 +58,10 @@ left held. Each round's output goes to `out/sweep-<time>-round-<n>.log`, and its
 A round that fails is logged and the sweep goes on; three failed rounds in a row stop it, so a bad key does not spin
 all night. The sweep is one online run, however many `--jobs` weeks it plays at once.
 
+A full night is about 3,000 weeks, near 1 GB, which is a release asset rather than a commit (`data/scrape/runs`
+holds only small batches). Publish them as `spread-runs-<stamp>.tar.gz`, the `data/scrape/runs/L8/sweep-*` folders
+alone, and get them back with `gh release download` into `data/scrape` (see "Get the team's scraped data").
+
 ## Get the team's scraped data
 
 The team's scraped weeks (`out/scrape`) and probe rows (`out/probe`) are too big for git, so each batch goes up as
