@@ -238,6 +238,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the lane-prior week: `uv run strategies/lane_prior/dispatch.py --level 8 --seed spread-1`
 - Play the same-day week: `uv run strategies/same_day/dispatch.py --level 8 --seed spread-1`
 - Play the soft-top week: `uv run strategies/soft_top/dispatch.py --level 8 --seed spread-1`
+- Play the eighty week: `uv run strategies/eighty/dispatch.py --level 8 --seed spread-1`
 - Play the drop-risk week: `uv run strategies/drop_risk/dispatch.py --level 8 --seed spread-1`
 - Play the flu-guard week: `uv run strategies/flu_guard/dispatch.py --level 8 --seed spread-1`
 - Play the all-in week: `uv run strategies/all_in/dispatch.py --level 8 --seed spread-1`
