@@ -792,6 +792,34 @@ The original raw comparisons are [`value-screen.csv`](value-screen.csv), [`value
 [`value-110-validation.csv`](value-110-validation.csv). Their pre-registered 30-pair server design is in
 [`VALUE_SERVER_PROTOCOL.md`](VALUE_SERVER_PROTOCOL.md).
 
+### Frozen online validation: rejected
+
+At the user's explicit request, the untouched arms then played all 30 pre-registered `vt1-*` server seeds, one online
+benchmark at level 8 with `--jobs 3` and recording enabled. The result is a significant loss, not an improvement:
+
+| 30 fresh online pairs | Control    | Candidate  |
+| --------------------- | ---------- | ---------- |
+| Mean margin           | €16,200.37 | €15,694.61 |
+| Margin SD             | €3,554.56  | €3,846.04  |
+| Mean orders           | 412.7      | 399.0      |
+| Mean on time          | 96.46%     | 95.37%     |
+| Lowest on time        | 90.70%     | 86.05%     |
+| Ranked                | 30 of 30   | 29 of 30   |
+
+The paired candidate-minus-control margin was **−€505.76**, SD €1,191.22, SE €217.49, t(29) −2.326 and 95% CI
+**−€950.57 to −€60.95**. It was behind on 21 of 30 seeds with median difference −€535.16; the 10% winsorized mean was
+−€545.09. Mean on-time share fell 1.09 points. The candidate-only unranked week was `vt1-fd40776b`: its 86.05% on time
+lost the delivery minimum while the control was ranked at 90.70%.
+
+The delivery problems are in the money too: mean late refunds were €913.64 a week for the candidate against €613.25
+for control (+€300.39), and mean driver fees were €24,255.14 against €23,688.95 (+€566.19) despite the candidate
+winning fewer orders. That more than paid away its small mean revenue increase of €388.32.
+
+This rejects every part of the pre-registered acceptance test: the mean is negative, the CI excludes zero in the
+harmful direction, there is a candidate-only unranked week, and the late/refund pattern is worse. **Do not enable
+`value=1` by default, do not select a stronger dose, and do not retune on the `vt1-*` holdout.** Raw output is
+[`value-server.csv`](value-server.csv); all 60 weeks are saved under `data/scrape/runs/L8/vt1-<seed>/<world id>`.
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
@@ -800,4 +828,4 @@ The original raw comparisons are [`value-screen.csv`](value-screen.csv), [`value
 `privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 0.98, `minHours` 4, `noise` 0.11,
 `sharedOutcome` true, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
 `pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1, `chainTries` 3, `chainFit` 0,
-`chainModel` true, `chainAlone` 1, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0.
+`chainModel` true, `chainAlone` 1, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0, `value` 0.

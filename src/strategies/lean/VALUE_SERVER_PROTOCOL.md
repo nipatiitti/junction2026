@@ -1,5 +1,14 @@
 # Frozen protocol: Lean `value=1` paired server validation
 
+## Outcome: rejected (issue #371)
+
+The protocol completed on all 30 pairs, after explicit user authorization. Candidate-minus-control margin was
+**−€505.76** (SD €1,191.22, SE €217.49, paired 95% CI **−€950.57 to −€60.95**), ahead 9/30. Candidate and control
+ranked 29/30 and 30/30; the candidate-only unranked week was `vt1-fd40776b` at 86.05% on time. Mean on-time difference
+was −1.09 points and the minimum candidate share was 86.05%. Mean late refunds were €913.64 candidate against €613.25
+control. This fails every acceptance condition. Keep `value=0`; do not tune or repeat doses on the `vt1-*` holdout. Raw
+data is `value-server.csv` and the saved `vt1-*` worlds, with statistics and replay commands in `README.md`.
+
 ## Status and scope
 
 The candidate adds `value.ts` and `value.json` to current TypeScript Lean and wires the `value` charge into

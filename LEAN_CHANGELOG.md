@@ -29,14 +29,17 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
-### 2026-11-14: time-dependent opportunity cost (local experimental patch)
+### 2026-11-14: time-dependent opportunity cost (issue #371)
 
 - **Version changed**: TypeScript.
 - **What changed**: `value` replaces the uniform load charge with a table of crowding and 90%-cliff costs by hour,
-  load and late share (`value.ts`, `value.json`, fitted by `analysis.lean_value`). Zero is unchanged. One gained
-  €680.93 on 40 paired simulator seeds, then €387.35 on 40 fresh paired validation seeds (SE €187.77, CI +€7.55 to
-  +€767.15), with every week ranked in both batches. Its server check has not run. Details and raw CSVs:
-  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#time-dependent-opportunity-cost-local-experimental).
+  load and late share (`value.ts`, `value.json`, fitted by `analysis.lean_value`). Zero is unchanged. The candidate
+  gained €680.93 on one simulator screen and €387.35 on its fresh validation, but 40 independent fresh simulator
+  seeds gained only €71.56 ± €170.61 (SE), ahead on 19 of 40. On all 30 pre-registered server pairs, `value=1` lost
+  **€505.76 a week**, SE €217.49, paired 95% CI **−€950.57 to −€60.95**, ahead on 9 of 30. Candidate weeks ranked
+  29 of 30 against 30 of 30 for control; its 86.05% week lost the delivery minimum and mean late refunds were €300
+  higher. The default remains zero and this candidate is rejected rather than retuned. Details and raw CSVs:
+  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#frozen-online-validation-rejected).
 - **In step**: no (#329). The Python version does not have `value`.
 
 ### 2026-11-15: shared outcomes on (issue #360)
