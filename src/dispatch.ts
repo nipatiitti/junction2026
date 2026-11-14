@@ -73,7 +73,7 @@ async function playPractice(client: Client, run: Run, level: number, seed: strin
 async function main(): Promise<void> {
   const { values: args } = parseArgs({
     options: {
-      strategy: { type: 'string', default: 'starter' },
+      strategy: { type: 'string', default: 'lean' },
       params: { type: 'string', multiple: true },
       set: { type: 'string', multiple: true },
       level: { type: 'string', default: '8' },
