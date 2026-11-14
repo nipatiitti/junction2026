@@ -3,6 +3,7 @@
 import { type FeeParams, feeParams } from '../../models/fees/index.ts'
 import { type QuoteParams, quoteParams } from '../../models/quote/index.ts'
 import { HOUR } from '../../time.ts'
+import type { RushParams } from './rush.ts'
 
 export type BidPriceParams = {
   /** `profit`: the price that maximises the expected profit; `median`: the price that wins half the time. */
@@ -71,7 +72,7 @@ export type BidPriceParams = {
   climbStep: number
   climbTop: number
   repriceMax: number
-}
+} & RushParams
 
 export const DEFAULTS: BidPriceParams = {
   pricing: 'profit',
@@ -113,6 +114,13 @@ export const DEFAULTS: BidPriceParams = {
   climbStep: 0.1,
   climbTop: 3,
   repriceMax: 10,
+  // trustRush (rush.ts): off by default.
+  trustRush: false,
+  rushShare: 0.05,
+  rushUntil: 20,
+  rushValueCents: 1000,
+  rushComfortHours: 9,
+  rushFee: 1.08,
 }
 
 /** The quote models' params from the strategy's. */

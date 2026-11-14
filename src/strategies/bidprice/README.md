@@ -99,3 +99,7 @@ served option over `lateRiskMax`), `war` (the war-day rule), `minValue` (best va
 `underCost` (no price on the grid covers the cost); `opt-<rule>` counts the options each rule left out of a quote.
 Set `BIDPRICE_DECLINE_LOG=<file>` to append one JSON line per request (id, minute, reason, options left out, costs,
 value, win chance, prices).
+
+**trustRush** (`rush.ts`, off by default): for a dealer with at least `rushShare` (0.05) of the requests so far and a
+trust count under `rushUntil` (20), the fastest offered option's cost drops by `rushValueCents` (1000) x week left x
+dealer share (at most a quarter of the cost), admission needs `rushComfortHours` (9) of slack, and gigs open at `rushFee` (1.08) x the planned fee.

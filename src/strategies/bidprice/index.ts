@@ -77,6 +77,7 @@ import {
 import { climb, higher, orderFeeGig, ramp, tightening, urgentRamp } from './fees.ts'
 import { lateRiskOf, newLateRisk } from './late.ts'
 import { legsOf, WeekLog } from './log.ts'
+import { isRush, newRush, observeRush, rushCut, rushOpen, rushSummary } from './rush.ts'
 import { type BidPriceParams, DEFAULTS, feeParamsOf, quoteParamsOf } from './params.ts'
 
 /** A quote at this many times the list price or more is a decline. */
@@ -93,6 +94,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   readonly learning: CostLearning
   readonly log = new WeekLog()
   readonly lateRisk: ReturnType<typeof newLateRisk>
+  readonly rush = newRush()
   /** The latest minute an event or action has told, for the summary. */
   private now = 0
   readonly tally = { requests: 0, quoted: 0, won: 0, booked: 0, paidOverTypical: 0 }
@@ -113,6 +115,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
   observe(event: DeskEvent): void {
     this.now = Math.max(this.now, event.at)
     this.log.observe(event)
+    observeRush(this.rush, event)
     observeQuotes(this.quotes, event, this.quoteParams)
     learn(this.fees, event, this.feeParams)
     this.learnCost(event)
@@ -222,7 +225,9 @@ export class BidPrice extends Strategy<BidPriceParams> {
   costOf(request: PriceRequest, option: DeliveryOption, now: number): number {
     const { fee, late } = this.costParts(request, option, now)
     const risk = this.params.lateRisk ? this.riskOf(request, option, now) * this.params.lateRiskCents : 0
-    return (fee + late) * this.params.costScale + risk
+    const c = (fee + late) * this.params.costScale + risk
+    if (!this.params.trustRush) return c
+    return c - rushCut(this.rush, this.params, request.dealerId, option, this.offered(request, now), now, c)
   }
 
   /** The late share the late-risk table predicts for this option if we win it now. */
@@ -253,7 +258,10 @@ export class BidPrice extends Strategy<BidPriceParams> {
       .filter((verdict) => verdict.ok)
       .filter((verdict) => !this.params.lateRisk || this.riskOf(request, verdict.option, now) < this.params.lateRiskMax)
     if (this.params.comfortHours <= 0) return served.map((verdict) => verdict.option)
-    const comfortable = served.filter((v) => v.slack >= (this.params.comfortHours * HOUR) / (context.tightening ?? 1))
+    const hours = isRush(this.rush, this.params, request.dealerId)
+      ? this.params.rushComfortHours
+      : this.params.comfortHours
+    const comfortable = served.filter((v) => v.slack >= (hours * HOUR) / (context.tightening ?? 1))
     return (comfortable.length > 0 ? comfortable : served.slice(-1)).map((verdict) => verdict.option)
   }
 
@@ -278,7 +286,8 @@ export class BidPrice extends Strategy<BidPriceParams> {
     const gig = this.orderGig(order, legsOf(stops, order.id), experienced, books.now)
     if (!gig) throw new Error(`no request for order ${order.id}`) // the harness posts the starter's gig
     const { schedule } = this.plan(gig, books.now)
-    if (!books.urgent.has(order.id)) return schedule
+    if (!books.urgent.has(order.id))
+      return isRush(this.rush, this.params, order.dealerId) ? rushOpen(schedule, this.params) : schedule
     return higher(schedule, urgentRamp(books.now, gig.typicalCents, this.params), this.setup.level)
   }
 
@@ -333,6 +342,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([k, v]) => `${k} ${v}`)
         .join(' ')}`,
+      ...(this.params.trustRush ? [rushSummary(this.rush)] : []),
     ].join(', ')
   }
 
@@ -413,6 +423,7 @@ export class BidPrice extends Strategy<BidPriceParams> {
     recordQuote(this.quotes, request, prices, this.quoteParams)
     const real = request.options.some((o) => (prices[o.kind] ?? Infinity) < DECLINED * o.listPriceCents)
     if (real) this.tally.quoted++
+    if (real && isRush(this.rush, this.params, request.dealerId)) this.rush.rushIds.add(requestId) && this.rush.sent++
   }
 
   /** The fee learner's event for a gig action of ours, with the `FeeGig` that planned it. */
