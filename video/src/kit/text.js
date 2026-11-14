@@ -128,7 +128,8 @@ export function caption(
   g.restore()
 }
 
-function rounded(g, x, y, w, h, r) {
+/** Fills a rounded rectangle in the current fill style. */
+export function rounded(g, x, y, w, h, r) {
   g.beginPath()
   g.roundRect(x, y, w, h, r)
   g.fill()

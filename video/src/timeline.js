@@ -63,14 +63,19 @@ export const SEGMENTS = [
     duration: 9,
     lines: {
       clock: '3:07 AM',
-      prices: [
-        ['TAXI', '€48.90'],
-        ['BLACK APP', '€44.20'],
-        ['GREEN APP', '€41.60'],
+      battery: '3%',
+      whereTo: 'Where to?',
+      where: 'Home',
+      // [name, price, wait] for each ride the phone offers, then ours
+      rides: [
+        ['TAXI', '€48.90', '18 min'],
+        ['BLACK APP', '€44.20', '14 min'],
+        ['GREEN APP', '€41.60', '12 min'],
       ],
-      ours: ['US', '€6.70'],
+      ours: ['US', '€6.70', '0 min'],
       bro: 'Bro…',
       sixSeven: 'SIX SEVEN!',
+      cooked: 'COOKED',
       chews: 'W chews.',
       shop: 'KEBAB 24/7',
     },
