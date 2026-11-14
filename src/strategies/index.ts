@@ -2,10 +2,12 @@
 import type { StrategyKind } from '../strategy.ts'
 import { bidprice } from './bidprice/index.ts'
 import { flat } from './flat/index.ts'
+import { isotone } from './isotone/index.ts'
 import { starter } from './starter/index.ts'
 
 export const STRATEGIES: Record<string, StrategyKind> = {
   starter,
   bidprice,
   flat,
+  isotone,
 }
