@@ -1,0 +1,64 @@
+# Option menu
+
+A dispatch system built on [`strategies/ceiling`](../ceiling/README.md): its `Desk` is a subclass of the ceiling
+desk that quotes admission's option and every slower one. Issue #187. Ceiling and the root system stay as they are.
+
+| File          | Class        | Builds on        | What it decides                                          |
+| ------------- | ------------ | ---------------- | -------------------------------------------------------- |
+| `menu.py`     | `OptionMenu` | `Strategy`       | Which options go on a quote, and the slower ones' prices |
+| `dispatch.py` | `Desk`       | the ceiling desk | The system: the ceiling desk's quote with the menu       |
+
+## Run it
+
+From the repository root:
+
+```sh
+uv run strategies/option_menu/dispatch.py --level 8 --seed spread-1
+uv run python -m strategies.bench strategies/option_menu/dispatch.py strategies/ceiling/dispatch.py --jobs 2
+```
+
+Its weeks are saved with the policy `option-menu`. The `Option menu` line at the end of a week counts the quotes with
+slower options, and how many won orders took admission's pick or a slower option.
+
+## The strategy
+
+Admission (`strategies/admission`) quotes one option: the earliest that leaves comfortable time for the drive, which
+is the dearest one that fits. On the saved `ceiling` weeks every won order was `same_day` or `next_day`: ceiling never
+quoted `within_3_days`. A dealer who would rather wait than pay for speed has nothing cheaper from us, and takes the
+competitor's price.
+
+1. **The menu.** The quote carries admission's option and every option of the request with a later deadline, at most
+   `most` = 3. A later option leaves more time, so it is never harder to deliver on time than the pick.
+2. **The prices.** Each option gets ceiling pricing's price for its own list price, which is lower for a later
+   deadline: on the saved weeks `next_day` lists at 0.93 × `same_day`, and `within_3_days` at 0.93 × `next_day`.
+   `slow_discount` (0 by default) takes a further share off for each step slower, never under the driver cost floor.
+3. **The dealer chooses.** The dealer compares each option's price with the value of its speed, then with the
+   competitor. A dealer who values speed takes the pick as before; one who does not can take a slower option from us.
+
+## Offline replay
+
+`analysis.replay`'s quote replay with this desk on the ten distinct saved `ceiling` weeks. Admission does not
+change: 65.4% of the requests are taken, and 3,231 of ceiling's 3,233 won orders are kept. The weeks quoted one
+option, so a quote with more options has an unknown answer more often (2,344 against 2,040). The bench below
+measures which options the dealers take.
+
+On the five distinct saved `scarcity-ceiling` weeks, which ceiling pricing quoted over another admission (seeds
+`spread-1` to `spread-5`; the two `spread-1` weeks are the same week), 165 to 373 quotes a week carry slower options,
+and the same 1,327 orders are kept.
+
+## Bench
+
+`strategies.bench` on 2026-11-14 at level 8, in one run with `ceiling` and the root `dispatch.py` (€17,610.37 in total)
+on the same seeds. Every week was ranked. The weeks are saved under `data/scrape/runs/L8/` with the policy
+`option-menu`.
+
+| Seed       |  `ceiling` | `option_menu` | Difference | On time |
+| ---------- | ---------: | ------------: | ---------: | ------: |
+| `spread-1` |  €9,831.09 |     €8,529.94 | −€1,301.15 |   97.9% |
+| `spread-2` |  €6,673.95 |     €6,921.81 |   +€247.86 |   97.9% |
+| `spread-3` |  €4,312.02 |     €4,138.87 |   −€173.15 |   99.2% |
+| Total      | €20,817.06 |    €19,590.62 | −€1,226.44 |         |
+
+Behind ceiling by €1,226.44 in total, on two of the three seeds. 823 quotes carried slower options, and dealers took
+`within_3_days` on 31 orders, while its `same_day` and `next_day` orders fell by 22 and 12 against ceiling's. The orders
+that both won made €860 less, and late refunds were €553 against €407. Dealers seldom chose to wait for a lower price.
