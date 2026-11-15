@@ -193,6 +193,9 @@ export const DEFAULTS = {
   chainRamp: 20,
   /** Chains are posted on the first `chainDays` days of the week: 4 is Monday to Thursday, 5 adds Friday. */
   chainDays: 4,
+  /** How much of the `taxLoad` charge is gone on Friday, and half of that on Thursday: an order costs the cars booked
+   * after it, and few are booked after a Friday's. 0 keeps the charge all week, 1 has none on Friday. */
+  taxFade: 0,
   /** Not 0: the charge of `taxLoad` gives way to this × the value table's (value.ts, value.json, fitted by
    * analysis/lean_value.py): what the order costs the cars booked after it, by the hour of the week and the orders
    * won so far per driver (dear on Monday, cheap on Friday; at 1 it has the mean of the `taxLoad` charge), and
@@ -291,7 +294,9 @@ class Lean extends Strategy<LeanParams> {
     const options = this.setup.level <= 3 ? request.options.slice(0, 1) : request.options
     const quotes: [OptionKind, number][] = []
     const open = this.openGigs(books)
-    const tax = this.params.tax + (this.params.value ? 0 : this.params.taxLoad * this.load())
+    // The load charge fades from Wednesday to Friday by `taxFade`: few cars are booked after a Friday order.
+    const fade = 1 - this.params.taxFade * clamp((Math.floor(now / DAY) - 2) / 2, 0, 1)
+    const tax = this.params.tax + (this.params.value ? 0 : this.params.taxLoad * this.load() * fade)
     const won = this.tally.won / (this.setup.roster.length || MEDIAN_DRIVERS)
     for (const option of options) {
       if (!canServe(request, option, now, context).ok) continue
