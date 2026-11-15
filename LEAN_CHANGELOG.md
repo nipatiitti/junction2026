@@ -29,6 +29,17 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-15: the room for late orders, and the volume settings as defaults (issue #381)
+
+- **Version changed**: TypeScript.
+- **What changed**: new param `room` (3.5). From Friday 21:00 the strategy compares the late chances of its orders
+  without a driver with the late orders the week can still take under the 90% minimum, and while the room is too
+  small it raises the fees of the single gigs at risk, on Saturday and Monday. In 174 of 188 saved weeks it does
+  nothing. On `confirm-7` (90.1% on time before) the week ended at 91.8%, for €687. New defaults `taxFade` 1 (was 0)
+  and `pairShare` 0.5 (was 0): the volume settings, +€430 to +€860 a week over the defaults before.
+  `src/strategies/lean/volume.json` is gone.
+- **In step**: no. Issue #329 brings the Python version up to date.
+
 ### 2026-11-15: the squeeze (PR #368, issue #367)
 
 - **Version changed**: TypeScript.

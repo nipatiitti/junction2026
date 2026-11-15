@@ -209,15 +209,22 @@ export const DEFAULTS = {
   /** The share of a chain's saving that comes off the cost of a request which would ride in that chain with open
    * cars we hold (planner.ts, `saving`): such a car costs the chain's rate, not a single gig's, and it makes its
    * partners cheaper too. 0 prices every request as a single gig. */
-  pairShare: 0,
+  pairShare: 0.5,
   /** How much of the `taxLoad` charge is gone on Friday, and half of that on Thursday: an order costs the cars booked
    * after it, and few are booked after a Friday's. 0 keeps the charge all week, 1 has none on Friday. */
-  taxFade: 0,
+  taxFade: 1,
   /** Not 0: the charge of `taxLoad` gives way to this × the value table's (value.ts, value.json, fitted by
    * analysis/lean_value.py): what the order costs the cars booked after it, by the hour of the week and the orders
    * won so far per driver (dear on Monday, cheap on Friday; at 1 it has the mean of the `taxLoad` charge), and
    * what it adds to the risk of a week under 90% on time, which grows with the late share so far. */
   value: 0,
+  /** The room for late orders (a week under 90% on time scores nothing). After the last request the week knows how
+   * many more late orders it can take: a tenth of its orders, less the late ones. Each order without a driver has a
+   * measured chance to be late (ROOM_RISK), and the worst saved week had 3.2 × the sum of those chances. When this ×
+   * the sum is more than the room, the fees of the orders at risk rise step by step on Saturday and Monday, until
+   * enough of them have a driver. In 174 of 188 saved weeks the sum stays under the room and nothing changes. 0 is
+   * off. */
+  room: 3.5,
 }
 export type LeanParams = typeof DEFAULTS
 
@@ -247,6 +254,21 @@ const HARD_ROOM = 0.5
 /** The rescue (`rescue`): not before this many orders are won, and a warned car's climb × typical. */
 const RESCUE_ORDERS = 50
 const [RESCUE_OPEN, RESCUE_STEP, RESCUE_EVERY, RESCUE_TOP] = [1.6, 0.2, 10, 3]
+/** The room for late orders (`room`). It counts from Friday 21:00: the last request of a level 8 week comes on
+ * Friday before 18:20. The chance of an order without a driver on Saturday 07:00 to be late, by whether its typical
+ * fee is ROOM_LONG or more and whether its last pickup is before ROOM_EARLY on its day (5,911 such orders of 188
+ * server weeks): 38%, 15%, 19% and 5%. */
+const ROOM_FROM = 4 * DAY + 21 * HOUR
+const ROOM_LONG = 8000
+const ROOM_EARLY = 15 * HOUR
+const ROOM_RISK = { longEarly: 0.4, longLate: 0.16, shortEarly: 0.22, shortLate: 0.06 }
+/** The fees rise for the orders with this chance or more. A rise is ROOM_STEP × typical over the fee shown, to
+ * ROOM_OPEN × typical at least and ROOM_TOP at most: every 60 minutes on Saturday and every 30 on Monday, between
+ * 05:00 and 21:00 (Saturday's drivers book from 05:00 to 10:00, Monday's from 06:00 to 09:00, and nobody books on
+ * a Sunday: 12 bookings in 62,000 views). */
+const ROOM_RAISE = 0.15
+const [ROOM_OPEN, ROOM_STEP, ROOM_TOP] = [1.1, 0.1, 2.5]
+const [ROOM_WAKE, ROOM_SLEEP, ROOM_REST] = [5 * HOUR, 21 * HOUR, 6]
 /** The guard (`guard`) counts the gigs given back in the first GUARD_HOUR minutes of a day, and lifts the climbs to
  * these × typical. */
 const [GUARD_HOUR, GUARD_URGENT, GUARD_LATE] = [60, 2, 1.7]
@@ -300,6 +322,11 @@ class Lean extends Strategy<LeanParams> {
   private rescueOn = false
   private readonly rescued = new Set<string>()
   private guardUntil = -1
+  /** The room for late orders: the orders whose car a driver has, the minute of the last rise, the rises made and
+   * the weeks' state at the first one. */
+  private readonly picked = new Set<string>()
+  private roomAt = -1
+  private readonly roomTally = { rises: 0, gigs: 0, first: '' }
   private readonly tally = {
     requests: 0,
     quoted: 0,
@@ -669,7 +696,59 @@ class Lean extends Strategy<LeanParams> {
           actions.push({ type: 'reprice', gigId, schedule: this.fees(order, unit, books.now, shown, true) })
         }
       }
+    actions.push(...this.roomRises(books))
     return [...actions, ...this.planner.actions(books)]
+  }
+
+  /** The rises of the room for late orders (`room`): a new schedule, from a higher fee, for each single gig of an
+   * order at risk. */
+  private roomRises(books: Books): Action[] {
+    const now = books.now
+    const [day, minute] = [Math.floor(now / DAY), now % DAY]
+    if (!(this.params.room > 0) || now < ROOM_FROM || day % 7 === ROOM_REST) return []
+    if (minute < ROOM_WAKE || minute >= ROOM_SLEEP || now - this.roomAt < (day % 7 === 5 ? 60 : 30)) return []
+    let late = this.late.size
+    let risk = 0
+    const raise: Order[] = []
+    for (const order of books.orders.values()) {
+      if (this.late.has(order.id) || !order.deliveredAt.some((at) => at === null) || this.picked.has(order.id)) continue
+      // A car that nobody has collected by its last pickup is late.
+      if (now > order.lastPickupAt) late++
+      else if (!books.gigsOf(order.id).some((gigId) => books.booked.has(gigId))) {
+        const long = (books.requests.get(order.id)?.referenceFeeCents ?? 0) >= ROOM_LONG
+        const early = order.lastPickupAt % DAY < ROOM_EARLY
+        const chance = long
+          ? early
+            ? ROOM_RISK.longEarly
+            : ROOM_RISK.longLate
+          : early
+            ? ROOM_RISK.shortEarly
+            : ROOM_RISK.shortLate
+        risk += chance
+        if (chance >= ROOM_RAISE) raise.push(order)
+      }
+    }
+    const room = Math.floor(books.orders.size / 10) - late
+    if (this.params.room * risk <= room) return []
+    this.roomAt = now
+    const actions: Action[] = []
+    for (const order of raise)
+      for (const gigId of books.gigsOf(order.id)) {
+        const post = books.posts.get(gigId)
+        // A chain keeps its own schedule (planner.ts): one driver for its cars is the cheapest way to be on time.
+        if (!post || books.booked.has(gigId) || pickups(post.stops).length !== 1) continue
+        const unit = this.typicalOf(post.stops, books)
+        const shown = feeAt(this.schedules.get(gigId) ?? post.schedule, now) / unit
+        if (shown >= ROOM_TOP) continue
+        const from = Math.min(ROOM_TOP, Math.max(shown + ROOM_STEP, ROOM_OPEN))
+        actions.push({ type: 'reprice', gigId, schedule: this.fees(order, unit, now, from) })
+      }
+    if (actions.length > 0) {
+      if (this.roomTally.rises++ === 0)
+        this.roomTally.first = `room for ${room} late orders with ${risk.toFixed(1)} expected of the orders without a driver`
+      this.roomTally.gigs += actions.length
+    }
+    return actions
   }
 
   override hold(need: GigNeed, books: Books): boolean {
@@ -752,6 +831,9 @@ class Lean extends Strategy<LeanParams> {
         if (event.kind === 'gig_dropped' && event.at % DAY < GUARD_HOUR) this.troubles.push(event.at)
         this.dropped.set(event.gigId, this.bookedAt.get(event.gigId) ?? 0)
         break
+      case 'picked_up':
+        this.picked.add(event.orderId)
+        break
       case 'visit_failed':
         this.setback(event.orderId, event.leg, event.reason, event.at, books)
         break
@@ -801,7 +883,7 @@ class Lean extends Strategy<LeanParams> {
     const share = t.requests > 0 ? (100 * t.won) / t.requests : 0
     const multiple = t.won > 0 ? t.multiples / t.won : 0
     const paid = t.bookings > 0 ? t.ratios / t.bookings : 0
-    return `lean: won ${t.won} of ${t.requests} requests (${share.toFixed(1)}%) at ${multiple.toFixed(2)} × list, ${t.bookings} bookings at ${paid.toFixed(2)} × typical, ${this.late.size} late of ${this.done} done. ${this.planner.summary()}${this.rescueOn ? ` Rescue: on, ${this.rescued.size} warned gigs repriced.` : ''}${t.pairs > 0 ? ` Pairs: ${t.pairs} options priced with a chain partner, saving €${(t.pairCents / t.pairs / 100).toFixed(0)} each.` : ''}`
+    return `lean: won ${t.won} of ${t.requests} requests (${share.toFixed(1)}%) at ${multiple.toFixed(2)} × list, ${t.bookings} bookings at ${paid.toFixed(2)} × typical, ${this.late.size} late of ${this.done} done. ${this.planner.summary()}${this.rescueOn ? ` Rescue: on, ${this.rescued.size} warned gigs repriced.` : ''}${this.roomTally.rises > 0 ? ` Room: ${this.roomTally.rises} rises of ${(this.roomTally.gigs / this.roomTally.rises).toFixed(0)} gigs each (at the first, ${this.roomTally.first}).` : ''}${t.pairs > 0 ? ` Pairs: ${t.pairs} options priced with a chain partner, saving €${(t.pairCents / t.pairs / 100).toFixed(0)} each.` : ''}`
   }
 
   private context(tightening = 1): Context {
