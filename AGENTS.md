@@ -305,6 +305,8 @@ on one line, so two PRs that each add a command do not conflict.
 - Play only the new or changed TypeScript strategies for the leaderboard: `uv run --env-file .env python -m strategies.leaderboard --language typescript`
 - Run the roster tournament: `uv run python -m tools.roster_tournament --play`
 - List open worlds older than 15 minutes (`--yes` deletes them): `uv run --env-file .env python -m tools.kill_old_worlds`
+- Search a strategy's params with an L27 array (online; needs the user's request): `uv run python -m tools.orthogonal play --dir out/orth/screen --l27 factors.json --seeds orth-1..orth-12`
+- Report an orthogonal-array search: `uv run python -m tools.orthogonal report --dir out/orth/screen`
 - Build the saved-weeks DB: `uv run python -m tools.db`
 - Lint / format Python: `uv run ruff check --fix . && uv run ruff format .`
 - Play a week in TypeScript: `pnpm dispatch --level 8 --seed spread-1`
