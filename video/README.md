@@ -5,7 +5,7 @@ Two videos share this player, its kit, its sound and its MP4 export:
 - **The joke video** (the default): a 45-second vertical video (1080×1920, 30 fps) about our dispatcher, in the
   low-poly 3D look of a "what if" TikTok, made with Three.js, with its own music and sound effects. `PROMPT.md` has
   the full brief: the joke, the look, every scene and its beats.
-- **The ts:lean video** (`?video=lean`): a 119-second (1:59) technical video in 16:10 (1920×1200, 30 fps) for YouTube.
+- **The ts:lean video** (`?video=lean`): a 127-second (2:07) technical video in 16:10 (1920×1200, 30 fps) for YouTube.
   Four developers throw 63 strategies at a wall like spaghetti, the problem is stated, an "I am speed" race leads into
   `ts:lean`, and `ts:lean` is shown for 75.5 seconds as a block diagram of the real code: a 15-second zoom into
   `bestPrice()`, a closer look at the fees, the chains and the learning, and a zoom out while cars and drivers drive
@@ -103,7 +103,7 @@ frames instead of TikTok's), and Render MP4 saves `lean-video-<view>.mp4`.
 
 The diagram's names are the code's names on main (15 November 2026), and they are the only words on it and on the
 cards beside it (graphs show the rest); check them again before a render when `ts:lean` has changed. Every block keeps
-the margins that the head of `lean/diagram.js` sets, and a deep dive dims the picture round its blocks. Its 26 voice
+the margins that the head of `lean/diagram.js` sets, and a deep dive dims the picture round its blocks. Its 27 voice
 lines (`lean-*` in `voices.ts`) are made like the joke video's (below) and committed in `audio/voice/`; a line's
 `rate` in `lean/timeline.js` speeds it up to fit its subtitle, at most 1.12.
 

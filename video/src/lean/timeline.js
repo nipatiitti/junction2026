@@ -9,6 +9,11 @@ export const NUMBERS = {
   baseline: '−€72,456', // the first strategy's week
   onTime: '99.9999999%', // the one joke number
   strategies: 63,
+  // the result's second row, Vesa's figures: what drivers get paid less and dealers pay over list a week, and the two
+  // together as "stakeholder value"
+  drivers: '+€3,000',
+  dealers: '+€19,500',
+  stakeholders: '+€22,500',
 }
 
 /**
@@ -166,7 +171,7 @@ export const SEGMENTS = [
   {
     id: 'result',
     view: 'result',
-    duration: 7.0,
+    duration: 15.0,
     chapter: RESULT,
     lines: [
       line(
@@ -178,6 +183,13 @@ export const SEGMENTS = [
         1.05,
       ),
       line('lean-ontime', 4.3, 6.8, 'On time: basically always.', '[trust me bro]'),
+      line(
+        'lean-stealing',
+        7.3,
+        14.4,
+        'By stealing from drivers and dealers, we add twenty-two thousand five hundred euros to stakeholder value each week.',
+        'By stealing from drivers and dealers, we add €22,500 to stakeholder value each week.',
+      ),
     ],
     texts: {
       margin: NUMBERS.ourMargin,
@@ -186,6 +198,12 @@ export const SEGMENTS = [
       onTimeLabel: 'on time (90% to be ranked)',
       strategies: `${NUMBERS.strategies} → 1`,
       strategiesLabel: 'strategies tried → shipped',
+      drivers: NUMBERS.drivers,
+      driversLabel: ['stolen from poor drivers', 'we pay them less, every week'],
+      stakeholders: NUMBERS.stakeholders,
+      stakeholdersLabel: ['stakeholder value added', 'from drivers and dealers, a week'],
+      dealers: NUMBERS.dealers,
+      dealersLabel: ['stolen way more from dealers', 'they pay over list price, a week'],
       fine: 'All euros are game euros.',
     },
   },

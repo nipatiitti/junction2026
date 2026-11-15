@@ -1,13 +1,13 @@
 # Prompt: build the ts:lean video
 
-Build a 119-second (1:59) technical video for YouTube, 16:10 (1920×1200, 30 fps), that shows how `ts:lean` works: the
+Build a 127-second (2:07) technical video for YouTube, 16:10 (1920×1200, 30 fps), that shows how `ts:lean` works: the
 dispatch system our team Blib Blib built at Junction 2026 for Bahn's Spread challenge. It is built in `video/` beside
 the joke video and shares its player, kit, sound and export (`?video=lean`; `video/README.md` says where its parts
 are). Four developers throw spaghetti at a wall, the problem is stated, a race like a car leads into `ts:lean`, and
 the solution is shown as a block diagram of the real code: a 15-second zoom in, a closer look at the fees, the chains
 and the learning, and a zoom out during which cars and drivers drive along the diagram's lanes the way the code moves
-them. `ts:lean` is on screen for 75.5 seconds, well over a minute. It has three cutaway jokes and no more, ends with the
-four developers' high five at the same wall, and stays under 2 minutes.
+them. `ts:lean` is on screen for 75.5 seconds, well over a minute. It has three cutaway jokes and no more, ends with
+the four developers' high five at the same wall, and runs 2:07: the result's second row may take it past 2 minutes.
 
 ## The story
 
@@ -27,15 +27,19 @@ stuck.
 | `[BASELINE]`   | −€72,456                                                                    | "It did not"                                 |
 | `[X]%`         | 99.9999999% on time (the one joke number; the line for being ranked is 90%) | the result                                   |
 | Strategies     | 63                                                                          | the spaghetti, the result                    |
+| Drivers        | +€3,000 a week, what drivers are paid less ("stolen from poor drivers")     | the result                                   |
+| Dealers        | +€19,500 a week, what dealers pay over list ("stolen way more")             | the result                                   |
+| Stakeholders   | +€22,500 a week, the two together as "stakeholder value"                    | the result, the voice                        |
 
-The effects tagged on the diagram come from `src/strategies/lean/README.md`: each change against the same code
-without it, on the same seeds, at level 8. All euros are game euros. Every text, number and diagram label lives in
-`video/src/lean/timeline.js` and `video/src/lean/diagram.js`.
+The diagram shows no measured effects (they stay in `src/strategies/lean/README.md`), and the result's second row is
+Vesa's figures. All euros are game euros. Every text, number and diagram label lives in `video/src/lean/timeline.js`
+and `video/src/lean/diagram.js`.
 
 ## Format and style
 
-- 119 s (1:59) in all; no view is longer than 15 s; never over 2 minutes. `ts:lean` is on screen from the race to the
-  end of the traffic: 75.5 s, at a calm pace, its deep dives 11 to 14 s each.
+- 127 s (2:07) in all; no view is longer than 15 s. The result's second row takes it past 2 minutes, as Vesa allowed.
+  `ts:lean` is on screen from the race to the end of the traffic: 75.5 s, at a calm pace, its deep dives 11 to 14 s
+  each.
 - In chapter 02 the only words are names, of systems, classes and functions, the cards' titles, and the subtitles;
   graphs, colours and small pictures carry the rest, and the voice says the numbers. Every block keeps the same
   margins (see the block diagram below), and nothing that matters is cut by the edge of the picture.
@@ -55,21 +59,21 @@ without it, on the same seeds, at level 8. All euros are game euros. Every text,
 
 ## Timeline (all times in seconds)
 
-| Start | End   | View      | Chapter         | Content                                                   |
-| ----- | ----- | --------- | --------------- | --------------------------------------------------------- |
-| 0.0   | 9.0   | spaghetti |                 | Joke 1: four developers throw 63 strategies at the wall   |
-| 9.0   | 12.0  | title     |                 | `ts:lean`, what the video is about, the team              |
-| 12.0  | 23.0  | problem   | 01 The problem  | price now, driver later; too high; too little; 90%        |
-| 23.0  | 27.5  | didnot    |                 | Joke 2: "This will definitely work." "It did not."        |
-| 27.5  | 33.0  | speed     |                 | Joke 3: "I am speed", a race down `ts:lean`'s lanes       |
-| 33.0  | 48.0  | zoomin    | 02 The solution | into the diagram, 15 s                                    |
-| 48.0  | 62.0  | fees      | 02 The solution | the fee steps and the weekend                             |
-| 62.0  | 76.0  | chains    | 02 The solution | one driver for up to four cars, and the chain's fee       |
-| 76.0  | 87.0  | learning  | 02 The solution | the win curve and the driver costs learn from every quote |
-| 87.0  | 97.0  | zoomout   | 02 The solution | out again, with the traffic, 10 s                         |
-| 97.0  | 103.0 | traffic   | 02 The solution | the whole map at its busiest                              |
-| 103.0 | 110.0 | result    | 03 The result   | three cards: margin, strategies, on time                  |
-| 110.0 | 119.0 | ending    |                 | the four developers' high five, with the end title        |
+| Start | End   | View      | Chapter         | Content                                                                     |
+| ----- | ----- | --------- | --------------- | --------------------------------------------------------------------------- |
+| 0.0   | 9.0   | spaghetti |                 | Joke 1: four developers throw 63 strategies at the wall                     |
+| 9.0   | 12.0  | title     |                 | `ts:lean`, what the video is about, the team                                |
+| 12.0  | 23.0  | problem   | 01 The problem  | price now, driver later; too high; too little; 90%                          |
+| 23.0  | 27.5  | didnot    |                 | Joke 2: "This will definitely work." "It did not."                          |
+| 27.5  | 33.0  | speed     |                 | Joke 3: "I am speed", a race down `ts:lean`'s lanes                         |
+| 33.0  | 48.0  | zoomin    | 02 The solution | into the diagram, 15 s                                                      |
+| 48.0  | 62.0  | fees      | 02 The solution | the fee steps and the weekend                                               |
+| 62.0  | 76.0  | chains    | 02 The solution | one driver for up to four cars, and the chain's fee                         |
+| 76.0  | 87.0  | learning  | 02 The solution | the win curve and the driver costs learn from every quote                   |
+| 87.0  | 97.0  | zoomout   | 02 The solution | out again, with the traffic, 10 s                                           |
+| 97.0  | 103.0 | traffic   | 02 The solution | the whole map at its busiest                                                |
+| 103.0 | 118.0 | result    | 03 The result   | six cards: margin, strategies, on time; drivers, stakeholder value, dealers |
+| 118.0 | 127.0 | ending    |                 | the four developers' high five, with the end title                          |
 
 ## The block diagram
 
@@ -159,10 +163,14 @@ Times inside a scene are its local seconds.
   are price requests; red ones are won orders." and "A thousand requests a week, all through these lanes."
 - **Traffic (6.0 s), chapter 02.** The whole map, turning slowly as the camera rises, with the most cars of the
   video. No voice; the music comes up.
-- **Result (7.0 s), chapter 03.** The diagram stays behind, dimmed, with its traffic. Three cards come up:
-  `+€24,451` (margin a week), `63 → 1` (strategies tried → shipped) and the on-time share, its decimals ticking in to
-  `99.9999999%`. "All euros are game euros." Says the margin line and "On time: basically always." (subtitle
-  `[trust me bro]`).
+- **Result (15.0 s), chapter 03.** The diagram stays behind, dimmed, with its traffic. Six cards come up in two rows
+  of three. The first: `+€24,451` (margin a week), `63 → 1` (strategies tried → shipped) and the on-time share, its
+  decimals ticking in to `99.9999999%`. Says the margin line and "On time: basically always." (subtitle `[trust me
+  bro]`). Then, as the voice says "By stealing from drivers and dealers, we add twenty-two thousand five hundred euros
+  to stakeholder value each week." (subtitle with `€22,500`), the second row: `+€3,000` "stolen from poor drivers, we
+  pay them less, every week" at "drivers" (8.2), `+€19,500` "stolen way more from dealers, they pay over list price,
+  a week" at "dealers" (8.9), and in the middle, glowing, `+€22,500` "stakeholder value added, from drivers and
+  dealers, a week" at the number (9.9). "All euros are game euros." under the cards.
 - **Ending (9.0 s), the end.** Back at the spaghetti wall at hour 48, under a `SHIPPED` banner: sauce, fallen strands,
   and `ts:lean`, the single strand, still stuck with its tag. The four developers, with `BLIB BLIB` lanyards, stand in
   a ring. At 1.1 they wind up and jump, and their hands meet at 1.7 in a four-way high five ("Ship it!"), hanging in
@@ -178,7 +186,7 @@ copy of a real person's. The files are named `lean-…` so they never overwrite 
 subtitles and times are in `video/src/lean/timeline.js`: `lean-careful`, `lean-spaghetti`, `lean-stuck`,
 `lean-problem`, `lean-high`, `lean-low`, `lean-ranked`, `lean-work`, `lean-didnot`, `lean-speed`, `lean-touches`,
 `lean-events`, `lean-decisions`, `lean-price`, `lean-fees`, `lean-weekend`, `lean-chains`, `lean-chancefee`,
-`lean-learn`, `lean-supply`, `lean-cars`, `lean-requests`, `lean-margin`, `lean-ontime`, `lean-shipit`,
+`lean-learn`, `lean-supply`, `lean-cars`, `lean-requests`, `lean-margin`, `lean-ontime`, `lean-stealing`, `lean-shipit`,
 `lean-thatsit`.
 
 ## Sound
@@ -203,7 +211,7 @@ copyrighted songs, and nothing from the film the speed joke points at.
 ### Check
 
 - [x] The voice lines are made (`node --env-file=.env.local video/voices.ts`), and each fits its subtitle's time
-- [ ] Under 2 minutes, and the spaghetti makes someone curious within 3 seconds
+- [ ] About 2 minutes (2:07), and the spaghetti makes someone curious within 3 seconds
 - [ ] Three cutaway jokes at most: the spaghetti, "It did not" and "I am speed"
 - [ ] Every system, class and function on the diagram exists under that name in the code
 - [ ] +€24,451 and −€72,456 match the test URL; 99.9999999% is the one joke number
