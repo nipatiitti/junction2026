@@ -29,6 +29,27 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-15: the defaults of the orthogonal-array search (PR #390, issue #389)
+
+- **Version changed**: TypeScript.
+- **What changed**: ten defaults, the best levels of a Taguchi L27 search of 13 params on the server: `costLevel`
+  1.01, `middle` 1.55, `trust` 0.55, `pairShare` 0.3, `feeRatio` 0.8, `urgentTop` 1.45, `lateOpen` 1.15,
+  `lateRestart` 0.9, `holdHours` 3, `chainAlone` 0.97. On 132 seeds that the search had not seen: +€308 ± 82 a
+  week, ahead on 87. Results:
+  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#the-orthogonal-array-search-of-the-defaults-15-november-389).
+- **In step**: no (#329).
+
+### 2026-11-15: a car that missed its last pickup starts again (PR #388, issue #387)
+
+- **Version changed**: TypeScript.
+- **What changed**: new param `lateRestart` (1; 0 is off). A single car past its last pickup with no driver is taken
+  out and posted again at once with windows to the end of the world, and opens at `lateRestart` × typical with the
+  usual raises towards the next weekday, where it held 1.65 × typical after 2.5 hours in which no driver could book
+  it. Eight fresh server seeds: +€545 ± 187 a week, ahead on 7 of 8. `trust=0.55` was played beside it and is not a
+  gain (−€117 ± 130). Details:
+  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#a-car-that-missed-its-last-pickup-starts-again-15-november-387).
+- **In step**: no (#329).
+
 ### 2026-11-15: the room for late orders, and the volume settings as defaults (issue #381)
 
 - **Version changed**: TypeScript.
@@ -104,6 +125,13 @@ every quote, post, withdrawal and reprice should be the same.
   orders. The fit and the table:
   [`src/strategies/lean/README.md`](src/strategies/lean/README.md#supply-and-demand-15-november).
 - **In step**: no (#329). The Python version still has `noise` 0.28 and no charge.
+
+### 2026-11-14: documentation formatting (PR #344, issue #343)
+
+- **Version changed**: both (documentation only).
+- **What changed**: Biome formatting in `src/strategies/lean/README.md` and `strategies/lean/README.md`. No decisions
+  or params changed.
+- **In step**: no code changed; the existing port status is unchanged (#329).
 
 ### 2026-11-14: straightening (PR #330, issue #335)
 

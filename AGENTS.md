@@ -305,6 +305,8 @@ on one line, so two PRs that each add a command do not conflict.
 - Play only the new or changed TypeScript strategies for the leaderboard: `uv run --env-file .env python -m strategies.leaderboard --language typescript`
 - Run the roster tournament: `uv run python -m tools.roster_tournament --play`
 - List open worlds older than 15 minutes (`--yes` deletes them): `uv run --env-file .env python -m tools.kill_old_worlds`
+- Search a strategy's params with an L27 array (online; needs the user's request): `uv run python -m tools.orthogonal play --dir out/orth/screen --l27 factors.json --seeds orth-1..orth-12`
+- Report an orthogonal-array search: `uv run python -m tools.orthogonal report --dir out/orth/screen`
 - Build the saved-weeks DB: `uv run python -m tools.db`
 - Lint / format Python: `uv run ruff check --fix . && uv run ruff format .`
 - Play a week in TypeScript: `pnpm dispatch --level 8 --seed spread-1`
@@ -313,16 +315,14 @@ on one line, so two PRs that each add a command do not conflict.
 - Tune a TypeScript strategy's params: `pnpm tune <strategy> --space <space.json> --holdout spread-6..spread-10`
 - Build the facts tables: `uv run python -m analysis.facts`
 - Build the quotas database: `uv run python -m analysis.quotas`
-- Export the fee model priors: `uv run python -m analysis.priors_fees`
 - Margin gap report (oracle): `uv run python -m analysis.oracle`
 - Get the team's scraped data: `mkdir -p out && gh release download --pattern 'spread-data-*.tar.gz' --output - | tar -xz -C out`
 - Build and serve the report: `uv run python -m analysis.report`
 - Build the report file only: `uv run python -m analysis.report --no-serve`
 - Replay the strategies offline and serve the charts: `uv run python -m analysis.replay`
 - Write the replay files only: `uv run python -m analysis.replay --no-serve`
-- Export the quote priors: `uv run python -m analysis.priors_quote`
-- Replay the quote models on the probes: `node analysis/replay_quote.ts`
 - Split saved weeks' margin by the hour an order was won: `uv run python -m analysis.phases`
+- Draw the weekend charts of lean's README from the saved weeks: `uv run python -m analysis.weekend`
 - Build the simulator's data packs: `uv run python sim/build_data.py`
 - Serve the offline simulator: `pnpm sim --port 8787`
 - Serve the video player (the joke video; `?video=lean` for the ts:lean video): `node video/serve.ts --port 8790`

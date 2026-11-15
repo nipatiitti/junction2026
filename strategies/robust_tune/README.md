@@ -4,10 +4,10 @@ A deliberately reduced-parameter dispatch system built on [`strategies/headroom`
 robustness hypothesis for unseen worlds, not a claim of better performance. **No tuning, online run or online
 comparison was performed.** The system should be benched against headroom on many seeds before drawing any conclusion.
 
-| File          | Class           | Builds on         | What it decides                                      |
-| ------------- | --------------- | ----------------- | ---------------------------------------------------- |
-| `pricing.py`  | `RobustPricing` | `HeadroomPricing` | One world price estimate under one moving maximum    |
-| `dispatch.py` | `Desk`          | the headroom desk | The headroom system with only its pricing changed    |
+| File          | Class           | Builds on         | What it decides                                   |
+| ------------- | --------------- | ----------------- | ------------------------------------------------- |
+| `pricing.py`  | `RobustPricing` | `HeadroomPricing` | One world price estimate under one moving maximum |
+| `dispatch.py` | `Desk`          | the headroom desk | The headroom system with only its pricing changed |
 
 ## Run it
 

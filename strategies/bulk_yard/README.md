@@ -4,11 +4,11 @@ A dispatch system built on [`strategies/headroom`](../headroom/README.md). It tr
 one capacity problem, then keeps its won orders together for yard-first chains. Headroom and the root system stay as
 they are. Issue #249.
 
-| File           | Class              | Builds on           | What it decides                                      |
-| -------------- | ------------------ | ------------------- | ---------------------------------------------------- |
+| File           | Class               | Builds on           | What it decides                                               |
+| -------------- | ------------------- | ------------------- | ------------------------------------------------------------- |
 | `admission.py` | `BulkYardAdmission` | `LaneCostAdmission` | How many requests of a large batch to quote, and the discount |
-| `bundling.py`  | `BulkYardBundler`   | `Bundler`           | Which cars of a large batch share a yard-first chain |
-| `dispatch.py`  | `Desk`              | the headroom desk   | Joint batch quoting, with the two strategies above   |
+| `bundling.py`  | `BulkYardBundler`   | `Bundler`           | Which cars of a large batch share a yard-first chain          |
+| `dispatch.py`  | `Desk`              | the headroom desk   | Joint batch quoting, with the two strategies above            |
 
 Both strategies have frozen `Params` dataclasses. The defaults are conservative placeholders, not tuned values; no
 online weeks or benchmarks were run for this change.

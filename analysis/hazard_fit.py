@@ -16,18 +16,20 @@ import gzip
 import json
 import sys
 from collections import defaultdict
+from pathlib import Path
 
-P = json.load(open('src/params/fees.json'))
-H = P['hazard']
+PARAMS = Path("src/params/fees.json")
+P = json.loads(PARAMS.read_text())
+H = P["hazard"]
 DAY, HOUR = 1440, 60
 
 
 def prior(fee, lead, seen):
     band = 0
-    while band + 1 < len(H['leadHours']) and lead >= H['leadHours'][band + 1] * HOUR:
+    while band + 1 < len(H["leadHours"]) and lead >= H["leadHours"][band + 1] * HOUR:
         band += 1
-    row = (H['seen'] if seen else H['fresh'])[band]
-    g = H['feeGrid']
+    row = (H["seen"] if seen else H["fresh"])[band]
+    g = H["feeGrid"]
     if fee <= 0:
         return 0
     if fee <= g[0]:
@@ -41,71 +43,73 @@ def prior(fee, lead, seen):
 
 def clock(t):
     m = t % DAY
-    return (H['night'] if (m < 7 * HOUR or m >= 23 * HOUR) else 1) * (H['weekend'] if (t // DAY) % 7 >= 5 else 1)
+    return (H["night"] if (m < 7 * HOUR or m >= 23 * HOUR) else 1) * (H["weekend"] if (t // DAY) % 7 >= 5 else 1)
 
 
 def band_of(lead):
-    return '<3h' if lead < 180 else '3-12h' if lead < 720 else '12-24h' if lead < 1440 else '24h+'
+    return "<3h" if lead < 180 else "3-12h" if lead < 720 else "12-24h" if lead < 1440 else "24h+"
 
 
 def fee_at(schedule, t):
-    fee = schedule[0]['feeCents']
+    fee = schedule[0]["feeCents"]
     for s in schedule:
-        if s['at'] <= t:
-            fee = s['feeCents']
+        if s["at"] <= t:
+            fee = s["feeCents"]
     return fee
 
 
 def fee_band(r):
-    return '<0.9' if r < 0.9 else '0.9-1.2' if r < 1.2 else '1.2-1.6' if r < 1.6 else '1.6-2.2' if r < 2.2 else '2.2+'
+    return "<0.9" if r < 0.9 else "0.9-1.2" if r < 1.2 else "1.2-1.6" if r < 1.6 else "1.6-2.2" if r < 2.2 else "2.2+"
 
 
 expo = defaultdict(lambda: [0.0, 0.0, 0, 0.0])  # key -> [exposure hours (clock-weighted), prior expected, booked]
 
 
 def week(d):
-    ev = [json.loads(line) for line in gzip.open(f'{d}/events.jsonl.gz', 'rt')]
-    snap = json.load(gzip.open(f'{d}/snapshot.json.gz', 'rt'))
-    end = snap['endsAt']
+    with gzip.open(f"{d}/events.jsonl.gz", "rt") as stream:
+        ev = [json.loads(line) for line in stream]
+    with gzip.open(f"{d}/snapshot.json.gz", "rt") as stream:
+        snap = json.load(stream)
+    end = snap["endsAt"]
     typical, last, legs_n = {}, {}, {}
     for e in ev:
-        if e['kind'] == 'price_request':
-            typical[e['request']['id']] = e['request']['referenceFeeCents']
-        elif e['kind'] in ('order_won', 'order_changed'):
-            last[e['order']['id']] = e['order']['lastPickupAt']
-            legs_n[e['order']['id']] = len(e['order']['legs'])
+        if e["kind"] == "price_request":
+            typical[e["request"]["id"]] = e["request"]["referenceFeeCents"]
+        elif e["kind"] in ("order_won", "order_changed"):
+            last[e["order"]["id"]] = e["order"]["lastPickupAt"]
+            legs_n[e["order"]["id"]] = len(e["order"]["legs"])
     gig_events = defaultdict(list)
     for e in ev:
-        if 'gigId' in e and e['kind'] in ('gig_booked', 'gig_dropped', 'no_show', 'gig_expired'):
-            gig_events[e['gigId']].append(e)
-        if e['kind'] == 'order_cancelled':
-            for g in e['gigs']:
-                gig_events[g['gigId']].append({'kind': 'gig_expired', 'at': e['at']})
-        if e['kind'] == 'deadline_close':
-            last[e['orderId']] = e['lastPickupAt']
+        if "gigId" in e and e["kind"] in ("gig_booked", "gig_dropped", "no_show", "gig_expired"):
+            gig_events[e["gigId"]].append(e)
+        if e["kind"] == "order_cancelled":
+            for g in e["gigs"]:
+                gig_events[g["gigId"]].append({"kind": "gig_expired", "at": e["at"]})
+        if e["kind"] == "deadline_close":
+            last[e["orderId"]] = e["lastPickupAt"]
     posted_cars = set()
-    for g in sorted(snap['gigs'], key=lambda g: g['postedAt']):
-        oid = g['stops'][0]['orderId']
+    for g in sorted(snap["gigs"], key=lambda g: g["postedAt"]):
+        oid = g["stops"][0]["orderId"]
         if oid not in typical or oid not in last:
             continue
-        cars = [s for s in g['stops'] if s['kind'] == 'pickup']
-        typ = sum(typical.get(s['orderId'], 0) / legs_n.get(s['orderId'], 1) for s in cars)
-        keys = {(s['orderId'], s['leg']) for s in cars}
-        fresh_until = None if keys & posted_cars else g['postedAt']
+        cars = [s for s in g["stops"] if s["kind"] == "pickup"]
+        typ = sum(typical.get(s["orderId"], 0) / legs_n.get(s["orderId"], 1) for s in cars)
+        keys = {(s["orderId"], s["leg"]) for s in cars}
+        fresh_until = None if keys & posted_cars else g["postedAt"]
         posted_cars |= keys
         # Open intervals.
-        opened, intervals = g['postedAt'], []
-        for e in sorted(gig_events[g['id']], key=lambda e: e['at']):
-            if e['kind'] == 'gig_booked' and opened is not None:
-                intervals.append((opened, e['at'], True))
+        opened, intervals = g["postedAt"], []
+        for e in sorted(gig_events[g["id"]], key=lambda e: e["at"]):
+            if e["kind"] == "gig_booked" and opened is not None:
+                intervals.append((opened, e["at"], True))
                 opened = None
-            elif e['kind'] in ('gig_dropped', 'no_show'):
-                opened = e['at']
-            elif e['kind'] == 'gig_expired' and opened is not None:
-                intervals.append((opened, e['at'], False))
+            elif e["kind"] in ("gig_dropped", "no_show"):
+                opened = e["at"]
+            elif e["kind"] == "gig_expired" and opened is not None:
+                intervals.append((opened, e["at"], False))
                 opened = None
         if opened is not None:
-            stop = end if g['status'] != 'withdrawn' else opened  # withdrawn: time unknown, count nothing
+            stop = end if g["status"] != "withdrawn" else opened  # withdrawn: time unknown, count nothing
             intervals.append((opened, stop, False))
         # Fresh: first 60 daytime minutes after the post.
         fresh_start = None
@@ -121,9 +125,9 @@ def week(d):
                 if lead < -DAY:  # long past the last pickup: leave out
                     t = u
                     continue
-                fresh = fresh_start is not None and fresh_start <= t < fresh_start + 60 and a == g['postedAt']
-                r = fee_at(g['schedule'], t) / max(1, typ)
-                k = (band_of(max(lead, 0)), 'fresh' if fresh else 'seen', fee_band(r))
+                fresh = fresh_start is not None and fresh_start <= t < fresh_start + 60 and a == g["postedAt"]
+                r = fee_at(g["schedule"], t) / max(1, typ)
+                k = (band_of(max(lead, 0)), "fresh" if fresh else "seen", fee_band(r))
                 hrs = (u - t) / 60 * clock(t)
                 expo[k][0] += hrs
                 expo[k][1] += hrs * prior(r, max(lead, 0), not fresh)
@@ -131,15 +135,15 @@ def week(d):
                 t = u
             if booked:
                 lead = last[oid] - b
-                fresh = fresh_start is not None and fresh_start <= b < fresh_start + 60 and a == g['postedAt']
-                r = fee_at(g['schedule'], b) / max(1, typ)
-                expo[(band_of(max(lead, 0)), 'fresh' if fresh else 'seen', fee_band(r))][2] += 1
+                fresh = fresh_start is not None and fresh_start <= b < fresh_start + 60 and a == g["postedAt"]
+                r = fee_at(g["schedule"], b) / max(1, typ)
+                expo[(band_of(max(lead, 0)), "fresh" if fresh else "seen", fee_band(r))][2] += 1
 
 
 def ratios(policy, dirs):
     expo.clear()
     for d in dirs:
-        if json.load(open(f'{d}/meta.json'))['policy'] == policy:
+        if json.loads(Path(d, "meta.json").read_text())["policy"] == policy:
             week(d)
     tot = defaultdict(lambda: [0.0, 0.0, 0, 0.0])
     for (band, state, fb), (h, e, n, f) in expo.items():
@@ -152,22 +156,22 @@ def ratios(policy, dirs):
     return tot
 
 
-BANDS = ['<3h', '3-12h', '12-24h', '24h+']
-args = [a for a in sys.argv[1:] if a != '--write']
+BANDS = ["<3h", "3-12h", "12-24h", "24h+"]
+args = [a for a in sys.argv[1:] if a != "--write"]
 policy = args[0]
-fallback = args[1] if len(args) > 1 and '/' not in args[1] else None
+fallback = args[1] if len(args) > 1 and "/" not in args[1] else None
 dirs = args[2:] if fallback else args[1:]
 tot = ratios(policy, dirs)
-print(f'{policy}: booked / prior-expected over the same open hours (daytime-weighted hours)')
-for key in sorted(tot, key=lambda k: (BANDS.index(k[0]), k[1], k[2] if len(k) > 2 else '')):
+print(f"{policy}: booked / prior-expected over the same open hours (daytime-weighted hours)")
+for key in sorted(tot, key=lambda k: (BANDS.index(k[0]), k[1], k[2] if len(k) > 2 else "")):
     h, e, n, f = tot[key]
     if h < 3:
         continue
     print(
         f"{' / '.join(key):28s} hours {h:8.1f}  booked {n:5d}  rate {n / h:6.3f}  prior {e / h:6.3f}  "
-        f'ratio {n / max(e, 1e-9):5.2f}  over fresh-shaped {n / max(f, 1e-9):5.3f}'
+        f"ratio {n / max(e, 1e-9):5.2f}  over fresh-shaped {n / max(f, 1e-9):5.3f}"
     )
-if '--write' in sys.argv:
+if "--write" in sys.argv:
     back = ratios(fallback, dirs) if fallback else {}
 
     def fit(state, band):
@@ -177,7 +181,7 @@ if '--write' in sys.argv:
                 return round(n / f, 3)
         return 1.0
 
-    fees = json.load(open('src/params/fees.json'))
-    fees['hazard']['fit'] = {state: [fit(state, band) for band in BANDS] for state in ('fresh', 'seen')}
-    open('src/params/fees.json', 'w').write(json.dumps(fees, indent=2) + '\n')
-    print('wrote hazard.fit:', fees['hazard']['fit'])
+    fees = json.loads(PARAMS.read_text())
+    fees["hazard"]["fit"] = {state: [fit(state, band) for band in BANDS] for state in ("fresh", "seen")}
+    PARAMS.write_text(json.dumps(fees, indent=2) + "\n")
+    print("wrote hazard.fit:", fees["hazard"]["fit"])

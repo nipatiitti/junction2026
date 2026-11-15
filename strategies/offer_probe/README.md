@@ -4,8 +4,8 @@ A dispatch system built on [`strategies/headroom`](../headroom/README.md): its `
 offers with targeted measurements of which fee ratios drivers accept. Issue #253. Headroom and the systems below it
 stay as they are; admission, fee schedules and pricing do not change.
 
-| File          | Class         | Builds on         | What it decides                                  |
-| ------------- | ------------- | ----------------- | ------------------------------------------------ |
+| File          | Class         | Builds on         | What it decides                                   |
+| ------------- | ------------- | ----------------- | ------------------------------------------------- |
 | `offers.py`   | `ProbeOffers` | `Offers`          | Whom to offer a gig to, and the offered fee ratio |
 | `dispatch.py` | `Desk`        | the headroom desk | The headroom system with the offer strategy above |
 
@@ -57,10 +57,10 @@ With no observations at any ratio, the cold start is the base rule: 0.85 of the 
 a rescue. Since a rescue uses the current app fee after its steep reprice, its cold-start offer is the steep fee.
 The grid applies to that same current fee for later probes.
 
-| Variable       | Default                 | What it does                                               |
-| -------------- | ----------------------- | ---------------------------------------------------------- |
-| `recent_hours` | 3                       | How long a completed gig counts as recent driver activity  |
-| `target_accept`| 0.25                    | Accepted share a ratio must reach to be chosen             |
-| `fee_grid`     | (0.65, 0.75, 0.85, 1.0) | Nonempty set of app-fee ratios to consider, cheapest first |
+| Variable        | Default                 | What it does                                               |
+| --------------- | ----------------------- | ---------------------------------------------------------- |
+| `recent_hours`  | 3                       | How long a completed gig counts as recent driver activity  |
+| `target_accept` | 0.25                    | Accepted share a ratio must reach to be chosen             |
+| `fee_grid`      | (0.65, 0.75, 0.85, 1.0) | Nonempty set of app-fee ratios to consider, cheapest first |
 
 No online weeks or performance measurements are reported here.

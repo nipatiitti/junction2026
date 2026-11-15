@@ -107,11 +107,11 @@ folders of the strategy modules it reaches. READMEs and the vendored kits in `ve
 
 - Python: a change to the root `dispatch.py` or to a shared module such as `strategies/fees` replays every strategy
   built on it; a change inside one strategy's folder replays that strategy and those that import it.
-- TypeScript: the harness (`src/dispatch.ts` and what it imports, such as `src/harness/` and `src/models/`) counts
+- TypeScript: the harness (`src/dispatch.ts` and what it imports, such as `src/harness/` and `src/strategies/`) counts
   for every TypeScript strategy; a strategy's own folder, and what it imports, counts for that strategy. The registry
   imports every strategy, but that does not tie them together: a change in `src/strategies/lean/` replays `ts:lean`
-  only. A JSON file read with `new URL('…', import.meta.url)` counts too, such as `src/params/quote.json`. A strategy
-  defined in the registry itself, as a variant of another one's params, also counts the registry file.
+  only. A JSON file read with `new URL('…', import.meta.url)` counts too, such as `src/strategies/lean/order.json`. A
+  strategy defined in the registry itself, as a variant of another one's params, also counts the registry file.
 
 ## The results and the chart
 

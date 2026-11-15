@@ -4,11 +4,11 @@ A dispatch system built on [`strategies/headroom`](../headroom/README.md). Admis
 requests, while the fee planner separately builds the schedule posted after a win. This system makes the quote use the
 schedule's expected paid fee too, so the two prices are sides of one decision. Headroom and its desk stay unchanged.
 
-| File          | Class              | Builds on          | What it decides                                      |
-| ------------- | ------------------ | ------------------ | ---------------------------------------------------- |
-| `pricing.py`  | `JointPricing`     | `HeadroomPricing`  | The quote, with the schedule's expected fee as cost  |
-| `fees.py`     | `JointFeePlanner`  | `LaneFeePlanner`   | A pure preview of the schedule the desk would post   |
-| `dispatch.py` | `Desk`             | the headroom desk  | Wiring the fee preview into each quote               |
+| File          | Class             | Builds on         | What it decides                                     |
+| ------------- | ----------------- | ----------------- | --------------------------------------------------- |
+| `pricing.py`  | `JointPricing`    | `HeadroomPricing` | The quote, with the schedule's expected fee as cost |
+| `fees.py`     | `JointFeePlanner` | `LaneFeePlanner`  | A pure preview of the schedule the desk would post  |
+| `dispatch.py` | `Desk`            | the headroom desk | Wiring the fee preview into each quote              |
 
 ## Run it
 

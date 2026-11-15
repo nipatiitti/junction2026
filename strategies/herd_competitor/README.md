@@ -5,10 +5,10 @@ competitor cuts its prices for a dealer whose recent requests we mostly won, and
 system sometimes loses such a dealer's low-margin requests on purpose, rather than winning every car and inviting
 the cut. Headroom and the other systems stay as they are.
 
-| File          | Class          | Builds on         | What it decides                                             |
-| ------------- | -------------- | ----------------- | ----------------------------------------------------------- |
-| `pricing.py`  | `HerdPricing`  | `HeadroomPricing` | Which low-margin requests to lose, and every ordinary price |
-| `dispatch.py` | `Desk`         | the headroom desk | The system, with every request registered for its outcome   |
+| File          | Class         | Builds on         | What it decides                                             |
+| ------------- | ------------- | ----------------- | ----------------------------------------------------------- |
+| `pricing.py`  | `HerdPricing` | `HeadroomPricing` | Which low-margin requests to lose, and every ordinary price |
+| `dispatch.py` | `Desk`        | the headroom desk | The system, with every request registered for its outcome   |
 
 `HerdPricing` is a subclass of `Strategy` through `HeadroomPricing`, with the constructor
 `(roster, world_map, level=8, params=None)` and a frozen `Params`. No separate admission strategy is needed: pricing

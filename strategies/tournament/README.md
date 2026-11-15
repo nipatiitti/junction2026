@@ -23,35 +23,35 @@ uv run python -m strategies.tournament --layers slack_fees,war_guard,tempo --see
 uv run strategies/tournament/mix.py --layers slack_fees,tempo --level 8 --seed spread-1   # one week of one mix
 ```
 
-| Option     | Default                     | What it does                                                                      |
-| ---------- | --------------------------- | --------------------------------------------------------------------------------- |
-| `--seeds`  | `spread-1..spread-3`        | The seeds every line-up plays, as the bench reads them. More seeds, more weeks.   |
-| `--layers` | every layer                 | The layers that take part, comma-separated.                                       |
-| `--also`   | `dispatch.py`               | Other systems that play the same seeds as they are. `--also` alone: none.         |
-| `--rounds` | no limit                    | Stop after this many rounds. `--rounds 1` compares the layers and mixes nothing.  |
-| `--jobs`   | `6`                         | Weeks played at once, 1 to 8. Six leaves two practice slots for teammates.        |
-| `--level`  | `8`                         | The practice level. The final is level 8.                                         |
-| `--fresh`  | off                         | Play every week, also those with a saved week.                                    |
-| `--plan`   | off                         | Print round 1 and its saved weeks, and play nothing.                              |
-| `--csv`    | `out/tournament-<time>.csv` | Where to write the weeks as CSV.                                                  |
+| Option     | Default                     | What it does                                                                     |
+| ---------- | --------------------------- | -------------------------------------------------------------------------------- |
+| `--seeds`  | `spread-1..spread-3`        | The seeds every line-up plays, as the bench reads them. More seeds, more weeks.  |
+| `--layers` | every layer                 | The layers that take part, comma-separated.                                      |
+| `--also`   | `dispatch.py`               | Other systems that play the same seeds as they are. `--also` alone: none.        |
+| `--rounds` | no limit                    | Stop after this many rounds. `--rounds 1` compares the layers and mixes nothing. |
+| `--jobs`   | `6`                         | Weeks played at once, 1 to 8. Six leaves two practice slots for teammates.       |
+| `--level`  | `8`                         | The practice level. The final is level 8.                                        |
+| `--fresh`  | off                         | Play every week, also those with a saved week.                                   |
+| `--plan`   | off                         | Print round 1 and its saved weeks, and play nothing.                             |
+| `--csv`    | `out/tournament-<time>.csv` | Where to write the weeks as CSV.                                                 |
 
 ## The layers
 
 A layer is one folder's change to the ceiling system: the class it puts in one part of the desk. Each folder's
 README says what the change is and how it did alone.
 
-| Layer              | Part it changes     | Class                                    | The change                                       |
-| ------------------ | ------------------- | ---------------------------------------- | ------------------------------------------------ |
-| `slack_fees`       | fees                | `SlackFeePlanner`                        | The early fee held for cars with a day to wait   |
-| `war_guard`        | admission, pricing  | `WarGuardAdmission`, `WarGuardPricing`   | The price war's lessons undone, a wider outage   |
-| `tempo`            | admission           | `TempoAdmission`                         | An area's capacity by how fast our gigs book     |
-| `learned_cost`     | admission           | `LearnedCostAdmission`                   | The driver cost corrected by our own bookings    |
-| `trust_value`      | admission           | `TrustValueAdmission`                    | The dealer trust that an order on time buys      |
-| `scarcity_ceiling` | admission           | `ChainScarcityAdmission`                 | The town's scarcity priced in, no capacity gate  |
-| `profit_max`       | pricing             | `ProfitPricing`                          | The price with the most expected margin          |
-| `option_menu`      | the quote           | `OptionMenu`                             | Admission's option and every slower one          |
-| `bundling_more`    | bundling            | `WaitingBundler`                         | Every order waits for a chain                    |
-| `bundling_cheaper` | bundling            | `CheapBundler`                           | A bundle keeps a smaller share of its solo fees  |
+| Layer              | Part it changes    | Class                                  | The change                                      |
+| ------------------ | ------------------ | -------------------------------------- | ----------------------------------------------- |
+| `slack_fees`       | fees               | `SlackFeePlanner`                      | The early fee held for cars with a day to wait  |
+| `war_guard`        | admission, pricing | `WarGuardAdmission`, `WarGuardPricing` | The price war's lessons undone, a wider outage  |
+| `tempo`            | admission          | `TempoAdmission`                       | An area's capacity by how fast our gigs book    |
+| `learned_cost`     | admission          | `LearnedCostAdmission`                 | The driver cost corrected by our own bookings   |
+| `trust_value`      | admission          | `TrustValueAdmission`                  | The dealer trust that an order on time buys     |
+| `scarcity_ceiling` | admission          | `ChainScarcityAdmission`               | The town's scarcity priced in, no capacity gate |
+| `profit_max`       | pricing            | `ProfitPricing`                        | The price with the most expected margin         |
+| `option_menu`      | the quote          | `OptionMenu`                           | Admission's option and every slower one         |
+| `bundling_more`    | bundling           | `WaitingBundler`                       | Every order waits for a chain                   |
+| `bundling_cheaper` | bundling           | `CheapBundler`                         | A bundle keeps a smaller share of its solo fees |
 
 The two bundling layers were built on the price ladder; here their bundlers run on the ceiling system.
 
@@ -96,15 +96,15 @@ best single ranked week with its world id. The CSV has one row for each week.
 
 ## The standings
 
-| Column         | Meaning                                                                               |
-| -------------- | ------------------------------------------------------------------------------------- |
-| Round          | The round the line-up first played in.                                                |
-| Margin a week  | The mean gross margin over the seeds: the score.                                      |
-| vs ceiling     | That mean less the plain ceiling system's, on the same seeds.                         |
-| Ahead          | On how many of the seeds its margin was above the ceiling system's.                   |
-| Ranked         | How many of its weeks count for the rankings: at least 90% on time.                   |
-| Lowest on time | The on-time share of its worst week. Under 90%, that week does not count at all.      |
-| Best week      | Its highest margin of a week.                                                         |
+| Column         | Meaning                                                                          |
+| -------------- | -------------------------------------------------------------------------------- |
+| Round          | The round the line-up first played in.                                           |
+| Margin a week  | The mean gross margin over the seeds: the score.                                 |
+| vs ceiling     | That mean less the plain ceiling system's, on the same seeds.                    |
+| Ahead          | On how many of the seeds its margin was above the ceiling system's.              |
+| Ranked         | How many of its weeks count for the rankings: at least 90% on time.              |
+| Lowest on time | The on-time share of its worst week. Under 90%, that week does not count at all. |
+| Best week      | Its highest margin of a week.                                                    |
 
 Round 1 of the seven layers that have a system of their own, read from their saved weeks on 2026-11-14 with
 `--rounds 1 --also`, level 8, `spread-1` to `spread-3`. No week was played for it:

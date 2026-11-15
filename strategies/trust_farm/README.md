@@ -4,11 +4,11 @@ A dispatch system built on [`strategies/headroom`](../headroom/README.md). For a
 buys dealer trust with discounted, easy orders, then stops discounting and uses headroom's full trust uplift. The
 headroom desk and every other system stay unchanged. Issue #246.
 
-| File           | Class                | Builds on          | What it decides                                            |
-| -------------- | -------------------- | ------------------ | ---------------------------------------------------------- |
-| `pricing.py`   | `TrustFarmPricing`   | `HeadroomPricing`  | The farm set and phase, and the discounted farm quote      |
-| `admission.py` | `TrustFarmAdmission` | `LaneCostAdmission` | Which farm-phase orders are easy enough to take            |
-| `dispatch.py`  | `Desk`               | the headroom desk  | Connects the two strategies and times new gigs' bookings   |
+| File           | Class                | Builds on           | What it decides                                          |
+| -------------- | -------------------- | ------------------- | -------------------------------------------------------- |
+| `pricing.py`   | `TrustFarmPricing`   | `HeadroomPricing`   | The farm set and phase, and the discounted farm quote    |
+| `admission.py` | `TrustFarmAdmission` | `LaneCostAdmission` | Which farm-phase orders are easy enough to take          |
+| `dispatch.py`  | `Desk`               | the headroom desk   | Connects the two strategies and times new gigs' bookings |
 
 Both strategies have the usual constructor and a frozen `Params` dataclass.
 
@@ -76,16 +76,16 @@ The easy-order filter applies only during FARM, not to other dealers or the harv
 
 ### Parameters
 
-| Parameter        | File           | Default | Meaning                                                        |
-| ---------------- | -------------- | ------- | -------------------------------------------------------------- |
-| `farm_dealers`   | `pricing.py`   | 3       | Number of busiest dealers eligible for farming                |
-| `farm_target`    | `pricing.py`   | 10      | Reconstructed on-time count at which harvesting starts        |
+| Parameter        | File           | Default | Meaning                                                         |
+| ---------------- | -------------- | ------- | --------------------------------------------------------------- |
+| `farm_dealers`   | `pricing.py`   | 3       | Number of busiest dealers eligible for farming                  |
+| `farm_target`    | `pricing.py`   | 10      | Reconstructed on-time count at which harvesting starts          |
 | `farm_markup`    | `pricing.py`   | 0.10    | Markup removed from the normal pre-uplift ceiling while farming |
-| `farm_until_day` | `pricing.py`   | 2       | Last zero-based day on which farming may run or resume        |
-| `easy_drive`     | `admission.py` | 120     | Maximum road minutes of an easy farm request                  |
-| `quick`          | `admission.py` | 30      | Minutes after a post within which a booking counts as quick   |
-| `fast_share`     | `admission.py` | 0.5     | Minimum quick-booking share at the pickup town                |
-| `fast_prior`     | `admission.py` | 2.0     | Neutral observation weight for a town with little evidence    |
+| `farm_until_day` | `pricing.py`   | 2       | Last zero-based day on which farming may run or resume          |
+| `easy_drive`     | `admission.py` | 120     | Maximum road minutes of an easy farm request                    |
+| `quick`          | `admission.py` | 30      | Minutes after a post within which a booking counts as quick     |
+| `fast_share`     | `admission.py` | 0.5     | Minimum quick-booking share at the pickup town                  |
+| `fast_prior`     | `admission.py` | 2.0     | Neutral observation weight for a town with little evidence      |
 
 ## The risk
 

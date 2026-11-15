@@ -4,10 +4,10 @@ A dispatch system built on [`strategies/headroom`](../headroom/README.md). Admis
 when its cars can continue on a transport we already hold, pricing a possible chain saving into the accept decision.
 Issue #241. Headroom and the systems it builds on stay as they are.
 
-| File           | Class               | Builds on           | What it decides                                      |
-| -------------- | ------------------- | ------------------- | ---------------------------------------------------- |
+| File           | Class                | Builds on           | What it decides                                     |
+| -------------- | -------------------- | ------------------- | --------------------------------------------------- |
 | `admission.py` | `PairFirstAdmission` | `LaneCostAdmission` | Which requests to take, preferring a possible chain |
-| `dispatch.py`  | `Desk`              | the headroom desk   | The system: headroom with the admission above        |
+| `dispatch.py`  | `Desk`               | the headroom desk   | The system: headroom with the admission above       |
 
 `PairFirstAdmission` is a subclass of `Strategy` ([`strategies/strategy.py`](../strategy.py)) through
 `LaneCostAdmission`, `LeadCostAdmission` and `ChainAdmission`, with the constructor
@@ -51,11 +51,11 @@ bundling are unchanged.
 
 The variables are in `Params`, exported as `PairFirstParams`, next to headroom's inherited admission thresholds.
 
-| Variable         | Default | What it does                                                       |
-| ---------------- | ------- | ------------------------------------------------------------------ |
-| `near`           | 30 min  | The most road minutes from the partner's last delivery to pickup  |
-| `chain_discount` | 0.15    | The fraction removed from a paired request's expected driver cost |
-| `pair_weight`    | 0.5     | The area-capacity places a paired request uses                    |
+| Variable         | Default   | What it does                                                      |
+| ---------------- | --------- | ----------------------------------------------------------------- |
+| `near`           | 30 min    | The most road minutes from the partner's last delivery to pickup  |
+| `chain_discount` | 0.15      | The fraction removed from a paired request's expected driver cost |
+| `pair_weight`    | 0.5       | The area-capacity places a paired request uses                    |
 | `back`           | unbounded | No return-to-start constraint for a pair                          |
 
 The saving is an assumption until bundled drivers really take these cars. Admission may accept a pair at a lower

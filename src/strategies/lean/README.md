@@ -11,6 +11,37 @@ pnpm bench lean --level 8 --seeds spread-1..spread-5
 `strategies/lean/` is a Python port that plays the same weeks action for action. A change to either version gets an
 entry in [`LEAN_CHANGELOG.md`](../../../LEAN_CHANGELOG.md) in the same PR.
 
+**In pictures:** [how it decides](#how-it-decides) · [the best score over the weekend](#the-best-score-over-the-weekend)
+· [the seeds and strategies explored](#the-seeds-and-strategies-explored)
+
+## How it decides
+
+[![How lean decides: a price request becomes a price, a chain and a fee, and every answer of the world sets the next quote](../../../docs/images/lean/algorithm.svg)](../../../docs/images/lean/algorithm.svg)
+
+Blue is a decision of `lean`, grey an answer of the world, orange what `lean` learns from it during the week. Sections
+1 to 4 below say each step in full.
+
+## The best score over the weekend
+
+[![The best level 8 week so far and the mean week of each ranking round, by the hour of the weekend](../../../docs/images/lean/best-score.svg)](../../../docs/images/lean/best-score.svg)
+
+The blue line is the highest margin of any ranked level 8 practice week saved so far, by any of our systems. One week
+depends on its seed, so the orange line is the fairer one: the mean week of our best system in each ranking round,
+which is 5 weeks that no team has seen. A week that is not ranked is left out, and so is `ts-recall`, which played
+seeds from what it remembered of them.
+
+## The seeds and strategies explored
+
+[![The number of strategies tried and of seeds played so far, by the hour of the weekend](../../../docs/images/lean/explored.svg)](../../../docs/images/lean/explored.svg)
+
+A strategy is a name that weeks were saved under (`policy` in `meta.json`), so a tournament variant counts and the
+same name with new params does not. A seed is one week; the ranking rounds and the finals have no seed of ours and
+are not counted.
+
+Both charts are drawn from the weeks under `data/scrape/runs` by `uv run python -m analysis.weekend`, which plays
+nothing online. A saved week has no clock time, so each is dated by the commit that saved it, in Helsinki time. The
+diagram is drawn by hand: change `docs/images/lean/algorithm.svg` when a rule in it changes.
+
 ## 1. The price (`demand.ts`, `index.ts`)
 
 - **What wins.** For one option of one request there is one price below which the dealer takes it. Its log, as a
@@ -49,7 +80,8 @@ drivers who booked on their first view paid 0.80 ×. So the fee holds still and 
   urgent one.
 - The urgent climb, from the deadline warning on or with under 45 minutes left to book: from `urgentOpen` (1.15),
   `urgentStep` (0.125) every `urgentEvery` (15) waking minutes to `urgentTop`. A car that is late already climbs
-  from `lateFrom` (1.1) by `lateStep` (0.05) every `lateEvery` (30) minutes to `lateTop` (1.3). A gig that a driver
+  from `lateFrom` (1.1) by `lateStep` (0.05) every `lateEvery` (30) minutes to `lateTop` (1.3) only with
+  `lateRestart` 0; with it, [it starts again](#a-car-that-missed-its-last-pickup-starts-again-15-november-387). A gig that a driver
   gives back starts again from the fee that booked it.
 - Every time in a schedule counts waking minutes (07:00 to 21:00): a raise at night shows to nobody.
 - A gig whose last pickup is on the Monday after the weekend, posted before that Monday 06:00, keeps its opening
@@ -966,15 +998,100 @@ the lowest week.
 
 The defaults are unchanged; `trust` 0.55 is for the team to decide.
 
+## A car that missed its last pickup starts again (15 November, #387)
+
+A car that passes its last pickup with no driver is late whatever happens. In 50 saved weeks of the defaults
+(`squeeze`, `confirm` and `third` seeds) that was 15 single cars a week, and they were handled badly twice:
+
+- Their gig stayed in the app until one of its windows ended, 2.5 hours later on average, and no driver can book a
+  gig that they cannot do inside its windows.
+- The repost held the fee that the urgent climb had reached, 1.65 × typical: the fee it showed at the end is the
+  least a repost opens at, so the late climb from `lateFrom` to `lateTop` never played. Half of the reposts were
+  booked within 10 minutes, 88% of them posted between 18:00 and 21:00, by drivers who plan the next day: work that
+  books at 0.80 to 0.88 × typical when it is not late. They paid €774 a week over 1.0 × typical.
+
+**The rule** (`lateRestart`, × typical; 0 is off). On the first tick after the last pickup of an order with one car
+in a single gig that no driver holds, `lean` takes the gig out and posts the car again at once, with windows that
+run to the end of the world. A car past its last pickup opens at `lateRestart` × typical, whatever fee it showed
+before, and takes the usual raises (`raiseAt1` to `raise3`, then `urgentTop`) towards the same minute of the next
+weekday that is three hours ahead or more: the refund steps count 24 hours and then business days, so that minute is
+the last pickup of the next step. A private pickup is left as it was: its slot does not extend.
+
+**The result.** Eight fresh server seeds (`late-1` to `late-8`, level 8), four settings on the same seeds, every
+week ranked. ± is one standard error of the paired difference:
+
+| Setting                       | Margin a week | Against the defaults | Seeds ahead | On time |
+| ----------------------------- | ------------- | -------------------- | ----------- | ------- |
+| The defaults before           | €18,051       |                      |             | 94.7%   |
+| `lateRestart=1` (**default**) | €18,596       | +€545 ± 187          | 7 of 8      | 94.7%   |
+| `trust=0.55`                  | €17,796       | −€255 ± 222          | 4 of 8      | 94.3%   |
+| `lateRestart=1,trust=0.55`    | €18,617       | +€567 ± 164          | 7 of 8      | 95.0%   |
+
+- **`lateRestart`** gains €683 ± 181 a week over both pairs. The cars booked after their last pickup (17 a week)
+  paid 1.20 × typical where they paid 1.65 ×, €550 a week less in fees.
+- **Its leak:** those cars wait longer for a driver (8.9 hours at the median against 4.1), and 9.9 a week end with
+  a refund of 50% or more against 5.8, about €140 a week more in refunds. The cars that find no driver on the first
+  evening book the next morning at 1.41 × typical, and half of them slip a refund step. A higher opening or an
+  earlier top for them is not tried yet.
+- **`trust=0.55`** is not a gain here: −€117 ± 130 a week over both pairs. An earlier bench had it at +€342 ± 99
+  on ten seeds; the two together say it is near nothing, and `trust` stays 0.7.
+
+## The orthogonal-array search of the defaults (15 November, #389)
+
+Before the final, 13 params were searched together on the server with a Taguchi L27 array
+(`tools/orthogonal.py`, [`tools/README.md`](../../../tools/README.md#orthogonal-array-search)): three levels each,
+the default in the middle, 27 setups and the defaults on the same 12 fresh seeds (`orth-1` to `orth-12`, 336
+weeks). Each level of a param has 108 weeks, and the difference of two levels a standard error of €117.
+
+| Param         | Low         | Middle (the default then) | High        | Best less worst |
+| ------------- | ----------- | ------------------------- | ----------- | --------------- |
+| `chainAlone`  | 0.97: +€171 | 1: −€36                   | 1.03: −€164 | €335 (2.9 SE)   |
+| `holdHours`   | 1: −€148    | 2: −€20                   | 3: +€140    | €289 (2.5 SE)   |
+| `noise`       | 0.08: −€167 | 0.11: +€97                | 0.14: +€42  | €265 (2.3 SE)   |
+| `costLevel`   | 0.95: −€87  | 0.98: −€84                | 1.01: +€143 | €230 (2.0 SE)   |
+| `taxLoad`     | 0.35: −€132 | 0.47: +€89                | 0.6: +€15   | €221 (1.9 SE)   |
+| `trust`       | 0.55: +€89  | 0.7: −€26                 | 0.85: −€91  | €180 (1.5 SE)   |
+| `middle`      | 1.25: −€119 | 1.4: +€32                 | 1.55: +€59  | €178 (1.5 SE)   |
+| `feeRatio`    | 0.8: +€77   | 0.84: −€87                | 0.88: −€18  | €164 (1.4 SE)   |
+| `urgentTop`   | 1.45: +€36  | 1.6: +€14                 | 1.75: −€79  | €115 (1.0 SE)   |
+| `lateRestart` | 0.9: +€55   | 1: −€31                   | 1.1: −€52   | €107 (0.9 SE)   |
+| `open`        | 0.84: −€32  | 0.88: +€52                | 0.92: −€48  | €100 (0.9 SE)   |
+| `lateOpen`    | 1.15: +€54  | 1.25: −€38                | 1.35: −€45  | €99 (0.8 SE)    |
+| `pairShare`   | 0.3: +€29   | 0.5: −€2                  | 0.7: −€55   | €84 (0.7 SE)    |
+
+Each cell is the level's mean margin a week against the mean of its seed. No single param is clear on its own
+after allowing for 13 of them, and no setup of the array beat the defaults clearly (the best: +€364 ± 249). The
+defaults were near a local best: the mean setup of the array made €260 a week less than they did.
+
+Then the best level of every param together (`all_best`: the ten changes below; `noise`, `taxLoad` and `open`
+keep their middle) was played against the defaults on 132 seeds that the search had not seen (`climb-1` to
+`climb-132`), with the two chain params alone (`chains`) and those with `costLevel` 1.01 (`chains_cost`):
+
+| Setup                                         | Seeds | Margin a week | Against the defaults | Ahead on  |
+| --------------------------------------------- | ----- | ------------- | -------------------- | --------- |
+| The defaults before                           | 132   | €17,348       |                      |           |
+| `all_best` (**the defaults now**)             | 132   | €17,655       | +€308 ± 82           | 87 of 132 |
+| `chains` (`chainAlone` 0.97, `holdHours` 3)   | 84    |               | +€86 ± 95            | 46 of 84  |
+| `chains_cost` (`chains` and `costLevel` 1.01) | 48    |               | −€120 ± 112          | 24 of 48  |
+
+- **The new defaults**: `costLevel` 1.01, `middle` 1.55, `trust` 0.55, `pairShare` 0.3, `feeRatio` 0.8,
+  `urgentTop` 1.45, `lateOpen` 1.15, `lateRestart` 0.9, `holdHours` 3, `chainAlone` 0.97. They win 19 orders a
+  week fewer (469 against 488) at the same on-time share (95.4%).
+- **The gain is many small steps, not one param**: the two clearest params alone gain €86, and three of them
+  together lose. Which of the ten changes carry it is not known.
+- **Weeks under 90% on time are not a matter of these params**: 3 of the 132 weeks of each setup scored nothing,
+  on four seeds (`climb-20`, `-39`, `-72`, `-95`) where both setups end between 88.7% and 92.2%. With such a week
+  counted as €0, the new defaults are €272 ± 156 a week ahead.
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
-`early` 0.8, `rest` true, `lateWithin` 60, `lateOpen` 1.25, `urgentOpen` 1.15, `urgentStep` 0.125, `urgentEvery` 15, `urgentTop` 1.6,
-`lateFrom` 1.1, `lateStep` 0.05, `lateEvery` 30, `lateTop` 1.3, `feeRatio` 0.84, `lateCost` 1, `premium` 3,
-`privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 0.98, `minHours` 4, `noise` 0.11,
-`sharedOutcome` true, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
-`pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1, `chainTries` 3, `chainFit` 0,
-`chainModel` true, `chainAlone` 1, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0,
-`chainDays` 5, `taxFade` 1, `pairShare` 0.5, `room` 3.5, and the switches of
+`early` 0.8, `rest` true, `lateWithin` 60, `lateOpen` 1.15, `urgentOpen` 1.15, `urgentStep` 0.125, `urgentEvery` 15, `urgentTop` 1.45,
+`lateFrom` 1.1, `lateStep` 0.05, `lateEvery` 30, `lateTop` 1.3, `feeRatio` 0.8, `lateCost` 1, `premium` 3,
+`privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 1.01, `minHours` 4, `noise` 0.11,
+`sharedOutcome` true, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.55, `trust` 0.55, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
+`pickLead` 20, `chainLast` 3, `holdHours` 3, `chainPatience` 1, `chainTries` 3, `chainFit` 0,
+`chainModel` true, `chainAlone` 0.97, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0,
+`chainDays` 5, `taxFade` 1, `pairShare` 0.3, `room` 3.5, `lateRestart` 0.9, and the switches of
 [the squeeze](#the-squeeze-15-november-367) that are off: `longCost` 1, `chainStart` 1, `chainRamp` 20, `value` 0,
 `guard` 0, `rescue` 0.

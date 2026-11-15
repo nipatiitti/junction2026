@@ -76,7 +76,7 @@ export const DEFAULTS = {
   /** A gig posted with under `lateWithin` waking minutes left to plan it opens at `lateOpen` × typical and climbs
    * as an urgent one does: 5 such cars a week opened at 2 × typical and were booked within 3 minutes. */
   lateWithin: 60,
-  lateOpen: 1.25,
+  lateOpen: 1.15,
   /** The urgent climb, for a gig after its deadline warning or with under 45 minutes left to book: it opens at
    * `urgentOpen` × typical (and 0.05 over the fee it showed), and rises `urgentStep` every `urgentEvery` waking
    * minutes to `urgentTop`. The top was 2 until 15 November: with 1.6 here and `lateTop` 1.3, 30 fresh server seeds
@@ -84,7 +84,7 @@ export const DEFAULTS = {
   urgentOpen: 1.15,
   urgentStep: 0.125,
   urgentEvery: 15,
-  urgentTop: 1.6,
+  urgentTop: 1.45,
   /** The climb of a car that is late already: from `lateFrom` × typical, `lateStep` every `lateEvery` waking
    * minutes, to `lateTop` (1.7 until 15 November, measured with `urgentTop`). The other three are not measured. */
   lateFrom: 1.1,
@@ -92,7 +92,7 @@ export const DEFAULTS = {
   lateEvery: 30,
   lateTop: 1.3,
   /** What a booking costs × typical before this week's bookings say (supply.ts). */
-  feeRatio: 0.84,
+  feeRatio: 0.8,
   /** `lateCost` × the list price for each unit of the request's chance to be late (outlook.ts). */
   lateCost: 1,
   /** A premium car's cost × this. Below level 7, where the order model does not play: what a private pickup and a
@@ -104,7 +104,7 @@ export const DEFAULTS = {
    * order model says of this request against the mean order (outlook.ts, mean 1). It is the only level: 0.98 is the
    * one that the server played (five seeds, 351 orders a week); at 1.07 every quote rose 5% and 29 orders a week
    * were lost for the same margin. */
-  costLevel: 0.98,
+  costLevel: 1.01,
   /** × what the order model adds to the cost of a long drive (outlook.ts: over three hours of driving, up to 0.21 ×
    * typical). 1 is the fit; the chance to be late keeps its long-drive terms, and `lateCost` prices them. */
   longCost: 1,
@@ -134,9 +134,9 @@ export const DEFAULTS = {
   /** The multiple of the list price at which half of the quotes win at level 8, before the week's wins and losses
    * say (demand.ts). Measured over whole weeks, so with some trust in it: at zero trust the 349 recorded seeds
    * give 1.25. On the simulator 1.3 and 1.5 were flat or worse. */
-  middle: 1.4,
+  middle: 1.55,
   /** How much of the dealer's trust (1% for each order on time) goes into the price. */
-  trust: 0.7,
+  trust: 0.55,
   /** The late share from which options need twice the room. */
   lateHard: 0.05,
   /** Chains (chains.ts): post open cars together when one driver can take them one after the other. A car joins
@@ -157,7 +157,7 @@ export const DEFAULTS = {
   chainLast: 3,
   /** A new car that may join a chain waits this many hours for a partner before it is posted alone: half of the
    * single gigs book within half an hour, before a partner can arrive. 0 posts at once. */
-  holdHours: 2,
+  holdHours: 3,
   /** A chain that no driver took this many waking hours after its post is taken apart: 51% of the chains book
    * within the hour, and one still open then books 24% of the time. 0 waits until `chainLast`. */
   chainPatience: 1,
@@ -181,7 +181,7 @@ export const DEFAULTS = {
   chainModel: true,
   /** With the model: × what a chain's cars are taken to pay as single gigs (0.94 on the Monday, 0.99 after). Over
    * 1 the model pays chains more, so more of them book. */
-  chainAlone: 1,
+  chainAlone: 0.97,
   /** Direct offers of an open chain to the drivers who viewed it and did not book, at this × the fee in the app
    * (planner.ts). 0 sends none. `chainOfferSpread` 1 draws each chain's offer level from 1, 1.15 and 1.3: an
    * experiment that measures what such offers do. */
@@ -209,7 +209,7 @@ export const DEFAULTS = {
   /** The share of a chain's saving that comes off the cost of a request which would ride in that chain with open
    * cars we hold (planner.ts, `saving`): such a car costs the chain's rate, not a single gig's, and it makes its
    * partners cheaper too. 0 prices every request as a single gig. */
-  pairShare: 0.5,
+  pairShare: 0.3,
   /** How much of the `taxLoad` charge is gone on Friday, and half of that on Thursday: an order costs the cars booked
    * after it, and few are booked after a Friday's. 0 keeps the charge all week, 1 has none on Friday. */
   taxFade: 1,
@@ -225,6 +225,15 @@ export const DEFAULTS = {
    * enough of them have a driver. In 174 of 188 saved weeks the sum stays under the room and nothing changes. 0 is
    * off. */
   room: 3.5,
+  /** Not 0: a car that has missed its last pickup, and is late whatever happens, starts again as a car for a later
+   * day (#387). Its single gig is taken out and posted again at once, with windows that run to the end of the
+   * world, at this × typical, and takes the usual raises towards the next weekday on which it can be collected.
+   * Without it the gig stays in the app until a window ends, 2.5 hours on average, where no driver can book it, and
+   * the repost holds the 1.65 × typical that the urgent climb reached: 15 cars a week, half of them booked within
+   * 10 minutes of the repost, mostly between 18:00 and 21:00, and €774 a week paid over 1.0 × typical (50 server
+   * weeks). At 1 on eight fresh server seeds: +€545 ± 187 a week, ahead on 7 of 8; such cars paid 1.20 × typical.
+   * 0 is off. */
+  lateRestart: 0.9,
 }
 export type LeanParams = typeof DEFAULTS
 
@@ -274,6 +283,15 @@ const [ROOM_WAKE, ROOM_SLEEP, ROOM_REST] = [5 * HOUR, 21 * HOUR, 6]
 const [GUARD_HOUR, GUARD_URGENT, GUARD_LATE] = [60, 2, 1.7]
 /** A request's cost with a chain partner is no less than this × its cost alone (`pairShare`). */
 const PAIR_LEAST = 0.4
+/** A car past its last pickup (`lateRestart`) aims at the same minute of a later weekday, this far ahead or more. */
+const LATE_AHEAD = 3 * HOUR
+/** The last pickup that a car past its own aims at: the refund steps count hours and then business days, so the
+ * next weekday is the next step. */
+function laterPickup(lastPickup: number, now: number): number {
+  let at = lastPickup + DAY
+  while (at < now + LATE_AHEAD || Math.floor(at / DAY) % 7 >= 5) at += DAY
+  return at
+}
 /** A booking teaches the supply no less and no more than these × typical. */
 const BOOKED_LOW = 0.3
 const BOOKED_HIGH = 2.5
@@ -326,6 +344,8 @@ class Lean extends Strategy<LeanParams> {
    * the weeks' state at the first one. */
   private readonly picked = new Set<string>()
   private roomAt = -1
+  /** The orders whose gig `lateRestart` has looked at: each is posted again once. */
+  private readonly restarted = new Set<string>()
   private readonly roomTally = { rises: 0, gigs: 0, first: '' }
   private readonly tally = {
     requests: 0,
@@ -336,6 +356,7 @@ class Lean extends Strategy<LeanParams> {
     ratios: 0,
     pairs: 0,
     pairCents: 0,
+    restarts: 0,
   }
   constructor(setup: Setup, params: LeanParams) {
     super(setup, params)
@@ -623,6 +644,19 @@ class Lean extends Strategy<LeanParams> {
           lateTop: Math.max(this.params.lateTop, GUARD_LATE),
         }
       : this.params
+    if (now > order.lastPickupAt && p.lateRestart > 0)
+      return stepped(now, typical, laterPickup(order.lastPickupAt, now), 0, order.id, {
+        open: p.lateRestart,
+        early: 0,
+        raises: [
+          [p.raiseAt1, Math.max(p.raise1, p.lateRestart)],
+          [p.raiseAt2, Math.max(p.raise2, p.lateRestart)],
+          [p.raiseAt3, Math.max(p.raise3, p.lateRestart)],
+        ],
+        top: Math.max(p.urgentTop, p.lateRestart),
+        jitter: p.jitter,
+        rest: p.rest,
+      })
     if (now > order.lastPickupAt)
       return fast(now, typical, Math.max(shown, p.lateFrom), p.lateStep, p.lateEvery, Math.max(p.lateTop, shown))
     const urgent = warned || awake(now, order.lastPickupAt - BOOK_AHEAD) < SHORT
@@ -697,7 +731,41 @@ class Lean extends Strategy<LeanParams> {
         }
       }
     actions.push(...this.roomRises(books))
+    actions.push(...this.lateRestarts(books))
     return [...actions, ...this.planner.actions(books)]
+  }
+
+  /** The restart of the cars that missed their last pickup (`lateRestart`): the single gig of such an order, which
+   * no driver can book before one of its windows ends, is taken out and posted again with windows that run to the
+   * end of the world and the schedule of a late car (`fees`). Once for each order; a gig that has such a window
+   * already is left, so a rebuilt week does not post it twice. A private pickup has its slot only. */
+  private lateRestarts(books: Books): Action[] {
+    if (!(this.params.lateRestart > 0)) return []
+    const now = books.now
+    const actions: Action[] = []
+    for (const order of books.orders.values()) {
+      if (now <= order.lastPickupAt || this.restarted.has(order.id) || this.picked.has(order.id)) continue
+      const leg = order.legs[0]
+      if (order.legs.length !== 1 || !leg || leg.pickup.privateAddress || order.deliveredAt[0] !== null) continue
+      const [gigId, ...more] = books.gigsOf(order.id)
+      const post = gigId ? books.posts.get(gigId) : undefined
+      if (!gigId || !post || more.length > 0 || books.booked.has(gigId) || pickups(post.stops).length !== 1) continue
+      this.restarted.add(order.id)
+      if (post.stops.some((stop) => stop.kind === 'delivery' && (stop.window?.to ?? 0) >= books.endsAt)) continue
+      const request = books.requests.get(order.id)
+      if (!request) continue
+      const facts = readNote(request.note, request.arrivedAt)
+      const retry = { ...this.retryOf(order.id, [0]), late: true }
+      const [shape] = gigShape(order, [0], facts, retry, now, this.context())
+      if (!shape || pickups(shape.stops).length !== 1) continue
+      const stops = shape.stops.map((stop) =>
+        stop.window ? stop : { ...stop, window: { from: now, to: books.endsAt } },
+      )
+      const schedule = this.fees(order, this.typicalOf(stops, books), now, 0)
+      actions.push({ type: 'withdraw', gigId }, { type: 'post', stops, audience: shape.audience, schedule })
+    }
+    this.tally.restarts += actions.length / 2
+    return actions
   }
 
   /** The rises of the room for late orders (`room`): a new schedule, from a higher fee, for each single gig of an
@@ -883,7 +951,7 @@ class Lean extends Strategy<LeanParams> {
     const share = t.requests > 0 ? (100 * t.won) / t.requests : 0
     const multiple = t.won > 0 ? t.multiples / t.won : 0
     const paid = t.bookings > 0 ? t.ratios / t.bookings : 0
-    return `lean: won ${t.won} of ${t.requests} requests (${share.toFixed(1)}%) at ${multiple.toFixed(2)} × list, ${t.bookings} bookings at ${paid.toFixed(2)} × typical, ${this.late.size} late of ${this.done} done. ${this.planner.summary()}${this.rescueOn ? ` Rescue: on, ${this.rescued.size} warned gigs repriced.` : ''}${this.roomTally.rises > 0 ? ` Room: ${this.roomTally.rises} rises of ${(this.roomTally.gigs / this.roomTally.rises).toFixed(0)} gigs each (at the first, ${this.roomTally.first}).` : ''}${t.pairs > 0 ? ` Pairs: ${t.pairs} options priced with a chain partner, saving €${(t.pairCents / t.pairs / 100).toFixed(0)} each.` : ''}`
+    return `lean: won ${t.won} of ${t.requests} requests (${share.toFixed(1)}%) at ${multiple.toFixed(2)} × list, ${t.bookings} bookings at ${paid.toFixed(2)} × typical, ${this.late.size} late of ${this.done} done. ${this.planner.summary()}${this.rescueOn ? ` Rescue: on, ${this.rescued.size} warned gigs repriced.` : ''}${this.roomTally.rises > 0 ? ` Room: ${this.roomTally.rises} rises of ${(this.roomTally.gigs / this.roomTally.rises).toFixed(0)} gigs each (at the first, ${this.roomTally.first}).` : ''}${t.restarts > 0 ? ` Late restarts: ${t.restarts}.` : ''}${t.pairs > 0 ? ` Pairs: ${t.pairs} options priced with a chain partner, saving €${(t.pairCents / t.pairs / 100).toFixed(0)} each.` : ''}`
   }
 
   private context(tightening = 1): Context {
