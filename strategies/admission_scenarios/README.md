@@ -7,11 +7,11 @@ The offline admission replay of 50 saved weeks found the **profit** gate decline
 the drivers actually cost 0.92× what admission expects on the median order. `late_slack` averages +25 orders of on-time slack. So the
 changes here are modest and single-knob.
 
-| Entry point | Changed `Admission.Params` | Default | Here | Weeks saved as policy |
-| --- | --- | --- | --- | --- |
-| `capacity.py` | `capacity_per_driver` | 0.10 | **0.15** | `admission-capacity` |
-| `cost.py` | `cost_base` | 1.15 | **1.05** | `admission-cost` |
-| `both.py` | both of the above | — | — | `admission-both` |
+| Entry point   | Changed `Admission.Params` | Default | Here     | Weeks saved as policy |
+| ------------- | -------------------------- | ------- | -------- | --------------------- |
+| `capacity.py` | `capacity_per_driver`      | 0.10    | **0.15** | `admission-capacity`  |
+| `cost.py`     | `cost_base`                | 1.15    | **1.05** | `admission-cost`      |
+| `both.py`     | both of the above          | —       | —        | `admission-both`      |
 
 Nothing else changes. `dispatch.py` reads the optional `SPREAD_ADMISSION_PARAMS` JSON env var in `Desk.__init__` and applies it with
 `dataclasses.replace` on `Admission.Params`; without it the system is byte-identical to before. Everything is a fixed frozen `Params`

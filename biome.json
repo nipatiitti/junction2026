@@ -14,7 +14,7 @@
       "!vendor",
       "!analysis/snapshots/**/*.html",
       "!analysis/snapshots/**/*.json",
-      "!data/scrape/probe2"
+      "!data/scrape"
     ]
   },
   "formatter": {

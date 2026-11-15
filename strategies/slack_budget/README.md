@@ -5,9 +5,9 @@ fees and replaces only admission. Above a small on-time reserve, admission may t
 the usual cost check declines; at the reserve it refuses known delivery risks. Issue #243. Headroom and the systems
 it builds on stay as they are.
 
-| File           | Class                  | Builds on           | What it decides                                      |
-| -------------- | ---------------------- | ------------------- | ---------------------------------------------------- |
-| `admission.py` | `SlackBudgetAdmission` | `LaneCostAdmission` | When on-time slack permits cost or delivery risk     |
+| File           | Class                  | Builds on           | What it decides                                       |
+| -------------- | ---------------------- | ------------------- | ----------------------------------------------------- |
+| `admission.py` | `SlackBudgetAdmission` | `LaneCostAdmission` | When on-time slack permits cost or delivery risk      |
 | `dispatch.py`  | `Desk`                 | the headroom desk   | The system, and the gig-posting facts admission needs |
 
 `SlackBudgetAdmission` is a subclass of `Strategy` ([`strategies/strategy.py`](../strategy.py)) through
@@ -68,14 +68,14 @@ headroom behavior, including option choice, capacity, return legs and pricing, i
 
 `Params` in `admission.py` extends `LeadCostParams` and is exported beside `SlackBudgetAdmission`.
 
-| Variable        | Default  | What it does                                                       |
-| --------------- | -------- | ------------------------------------------------------------------ |
-| `reserve`       | 2 orders | Slack that admission protects; easing requires strictly more       |
-| `risk_discount` | 0.10     | Maximum expected-cost easing on a retried cost decline             |
-| `long_drive`    | 6 hours  | Drive length that is risky with few drivers near the pickup        |
-| `few_drivers`   | 2.0      | Weighted pickup supply below which such a drive is risky           |
+| Variable        | Default  | What it does                                                        |
+| --------------- | -------- | ------------------------------------------------------------------- |
+| `reserve`       | 2 orders | Slack that admission protects; easing requires strictly more        |
+| `risk_discount` | 0.10     | Maximum expected-cost easing on a retried cost decline              |
+| `long_drive`    | 6 hours  | Drive length that is risky with few drivers near the pickup         |
+| `few_drivers`   | 2.0      | Weighted pickup supply below which such a drive is risky            |
 | `slow_booking`  | 6 hours  | How long a gig may wait for a driver before its town counts as slow |
-| `slow_evidence` | 2 gigs   | Resolved gigs needed before a town's booking speed counts          |
+| `slow_evidence` | 2 gigs   | Resolved gigs needed before a town's booking speed counts           |
 | `slow_share`    | 0.5      | Share of slow resolved gigs that makes the town a risk              |
 
 No played-week result is claimed here: this system has been checked offline only.

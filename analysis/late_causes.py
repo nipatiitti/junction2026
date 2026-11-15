@@ -13,6 +13,7 @@ import gzip
 import json
 import os
 import statistics
+from pathlib import Path
 
 MAIN = "/home/nipatiitti/projects/hackathons/junction2026"
 RUNS = os.path.join(os.path.dirname(__file__), "..", "data", "scrape", "runs", "L8")
@@ -50,13 +51,13 @@ def find_journal(world):
 def weeks():
     for seed in SEEDS:
         for d in sorted(glob.glob(f"{RUNS}/{seed}/*/")):
-            meta = json.load(open(d + "meta.json"))
+            meta = json.loads(Path(d, "meta.json").read_text())
             if meta.get("policy") != "ts-bidprice":
                 continue
             world = os.path.basename(d.rstrip("/"))
             j = find_journal(world)
             if j:
-                yield seed, world, d, meta, json.load(open(d + "score.json")), j
+                yield seed, world, d, meta, json.loads(Path(d, "score.json").read_text()), j
 
 
 def main():
@@ -93,7 +94,12 @@ def main():
         req = {r["request"]["id"]: r["request"] for r in rev["requests"]}
         ref = {k: v["referenceFeeCents"] for k, v in req.items()}
         legs_rev = {o["orderId"]: o["legs"] for o in rev["orders"]}
-        won, changed, gig_ev, refund = {}, collections.defaultdict(list), collections.defaultdict(list), collections.Counter()
+        won, changed, gig_ev, refund = (
+            {},
+            collections.defaultdict(list),
+            collections.defaultdict(list),
+            collections.Counter(),
+        )
         snow = []
         views = collections.Counter()
         for e in ev:
@@ -116,16 +122,17 @@ def main():
         posts = collections.defaultdict(list)  # order -> [(at, gigId, first fee, n reprices)]
         reprices = collections.Counter()
         first_fee = {}
-        for line in open(jpath):
-            x = json.loads(line)
-            a = x["action"]
-            if a["type"] == "post" and x["result"].get("ok"):
-                g = x["result"]["id"]
-                first_fee[g] = a["schedule"][0]["feeCents"]
-                for oid in {s["orderId"] for s in a["stops"]}:
-                    posts[oid].append((x["at"], g))
-            elif a["type"] == "reprice":
-                reprices[a["gigId"]] += 1
+        with Path(jpath).open() as stream:
+            for line in stream:
+                x = json.loads(line)
+                a = x["action"]
+                if a["type"] == "post" and x["result"].get("ok"):
+                    g = x["result"]["id"]
+                    first_fee[g] = a["schedule"][0]["feeCents"]
+                    for oid in {s["orderId"] for s in a["stops"]}:
+                        posts[oid].append((x["at"], g))
+                elif a["type"] == "reprice":
+                    reprices[a["gigId"]] += 1
         gig_orders = collections.defaultdict(set)
         for oid, ps in posts.items():
             for _, g in ps:
@@ -227,7 +234,9 @@ def main():
             print(f"  -- {c} details ({len(rows)}):")
             keys = rows[0].keys()
             for key in keys:
-                vals = [r[key] for r in rows if isinstance(r.get(key), (int, float)) and not isinstance(r.get(key), bool)]
+                vals = [
+                    r[key] for r in rows if isinstance(r.get(key), (int, float)) and not isinstance(r.get(key), bool)
+                ]
                 if vals:
                     q = statistics.quantiles(vals, n=4) if len(vals) > 1 else [vals[0]] * 3
                     print(f"     {key}: n={len(vals)} p25={q[0]:.1f} med={q[1]:.1f} p75={q[2]:.1f}")
