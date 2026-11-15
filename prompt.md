@@ -106,12 +106,13 @@ is as in the code, and only the functions that every decision runs through or wh
 
 Times inside a scene are its local seconds.
 
-- **Spaghetti (9.0 s), joke 1.** The hackathon hall at night. Four developers in red, blue, green and purple
-  shirts stand in front of a white wall, each tipping a pot of spaghetti held out in front of them. The first frame
-  is already mid-throw in slow motion: 63 bundles of thin cooked strands fly at the wall and slap it from 1.2, each
-  with a splash of tomato sauce. From 1.9 to 6.6 they slide down; `profit-max`, `max-margin`, `ratchet` and
-  `war-guard` (all shelved, see `SHELVED.md`) get an ELIMINATED stamp, and a counter on the wall runs from 63 to 1.
-  Then the camera pushes in on the one that sticks, `ts:lean`, with sparkles. Says "We tested every strategy
+- **Spaghetti (9.0 s), joke 1.** The hackathon hall at night. Four developers in red, blue, green and purple shirts
+  stand in front of a white wall, each tipping a pot of spaghetti held out in front of them. The first frame is
+  already mid-throw in slow motion: 63 bundles of thin cooked strands fly at the wall and slap it from 1.2, each with
+  a splash of tomato sauce. From 1.9 to 5.4 they slide down, the last on the floor by 6.7; `profit-max`, `max-margin`,
+  `ratchet` and `war-guard` (all shelved, see `SHELVED.md`) get an ELIMINATED stamp, and a counter on the wall runs
+  from 63 to 1. Then the camera pushes in on the one that sticks, a single strand, `ts:lean`, with sparkles. The floor
+  is clean until the first ones slide off, and no sauce lands on the counter. Says "We tested every strategy
   carefully." (subtitle `[we threw spaghetti at a wall]`), "Spaghetti method: throw all sixty-three at the wall, see
   what sticks." and "Only one stuck."
 - **Title (3.0 s).** Over the drifting grid: `ts:lean` rises in, a red rule grows under it, then "How we price a car
@@ -162,11 +163,11 @@ Times inside a scene are its local seconds.
   `+€24,451` (margin a week), `63 → 1` (strategies tried → shipped) and the on-time share, its decimals ticking in to
   `99.9999999%`. "All euros are game euros." Says the margin line and "On time: basically always." (subtitle
   `[trust me bro]`).
-- **Ending (9.0 s), the end.** Back at the spaghetti wall at hour 48, under a `SHIPPED` banner: sauce, fallen
-  strands, and `ts:lean` still stuck with its tag. The four developers, with `BLIB BLIB` lanyards, stand in a ring.
-  At 1.1 they wind up and jump, and their hands meet at 1.7 in a four-way high five ("Ship it!"), hanging in slow
-  motion while confetti and spaghetti burst. They land by 3.6 and cheer while the camera circles a quarter turn round
-  them. At 3.0 the end title comes up as a lower third: `ts:lean`, "by BLIB BLIB · Junction 2026". "That's
+- **Ending (9.0 s), the end.** Back at the spaghetti wall at hour 48, under a `SHIPPED` banner: sauce, fallen strands,
+  and `ts:lean`, the single strand, still stuck with its tag. The four developers, with `BLIB BLIB` lanyards, stand in
+  a ring. At 1.1 they wind up and jump, and their hands meet at 1.7 in a four-way high five ("Ship it!"), hanging in
+  slow motion while confetti and spaghetti burst. They land by 3.6 and cheer while the camera circles a quarter turn
+  round them. At 3.0 the end title comes up as a lower third: `ts:lean`, "by BLIB BLIB · Junction 2026". "That's
   ts:lean." Fade to black from 8.4.
 
 ## Voice lines
