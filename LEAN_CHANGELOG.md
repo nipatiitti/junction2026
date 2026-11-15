@@ -29,6 +29,17 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-15: a car that missed its last pickup starts again (PR #388, issue #387)
+
+- **Version changed**: TypeScript.
+- **What changed**: new param `lateRestart` (1; 0 is off). A single car past its last pickup with no driver is taken
+  out and posted again at once with windows to the end of the world, and opens at `lateRestart` × typical with the
+  usual raises towards the next weekday, where it held 1.65 × typical after 2.5 hours in which no driver could book
+  it. Eight fresh server seeds: +€545 ± 187 a week, ahead on 7 of 8. `trust=0.55` was played beside it and is not a
+  gain (−€117 ± 130). Details:
+  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#a-car-that-missed-its-last-pickup-starts-again-15-november-387).
+- **In step**: no (#329).
+
 ### 2026-11-15: the room for late orders, and the volume settings as defaults (issue #381)
 
 - **Version changed**: TypeScript.
