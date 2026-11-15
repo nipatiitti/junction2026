@@ -78,6 +78,7 @@ const LEAN_LINES: Line[] = [
   { name: 'lean-requests', voice: VOICES.liam, text: `${CLEAR} ${said('lean-requests')}` },
   { name: 'lean-margin', voice: VOICES.liam, text: `[proud] ${said('lean-margin')}` },
   { name: 'lean-ontime', voice: VOICES.liam, text: `[smug] ${said('lean-ontime')}` },
+  { name: 'lean-stealing', voice: VOICES.liam, text: `[proud, matter-of-fact] ${said('lean-stealing')}` },
   { name: 'lean-shipit', voice: VOICES.liam, text: `[excited, shouting] ${said('lean-shipit')}`, stability: 0.3 },
   { name: 'lean-thatsit', voice: VOICES.liam, text: `[warm, satisfied] ${said('lean-thatsit')}` },
 ]
