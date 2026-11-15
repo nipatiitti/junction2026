@@ -468,6 +468,7 @@ class Lean extends Strategy<LeanParams> {
     const quoted = this.pending.get(requestId)
     const request = books.requests.get(requestId)
     this.pending.delete(requestId)
+    this.planner.release(requestId)
     if (won) {
       this.tally.won++
       const day = Math.floor(at / DAY)
