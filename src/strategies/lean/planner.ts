@@ -56,6 +56,8 @@ const [OFFER_OPEN, OFFERS_PER_GIG, OFFERS_PER_DAY, OFFER_AFTER] = [10, 3, 3, 3]
 const [OFFER_FROM, OFFER_TO] = [7 * HOUR, 21 * HOUR]
 /** The offer levels that `chainOfferSpread` draws from, × the fee that the app shows. */
 const OFFER_LEVELS = [1, 1.15, 1.3]
+/** A chain with a car that is in the app already counts this much of its saving in a quote (`saving`). */
+const POSTED = 0.5
 /** The most chains posted in one tick. */
 const MAX_POSTS = 5
 
@@ -88,6 +90,8 @@ export class Planner {
   /** Gig id of a posted chain -> the drivers who viewed it and the minute, and the drivers we offered it to. */
   private readonly views = new Map<string, Map<string, number>>()
   private readonly offered = new Map<string, Map<string, number>>()
+  /** Request id -> the open cars that its quote counts on as chain partners (`saving`). */
+  private readonly claims = new Map<string, string[]>()
   /** Driver id and day -> the offers we sent them that day. */
   private readonly asked = new Map<string, number>()
   private readonly tally = { posted: 0, cars: 0, booked: 0, bookedCars: 0, ratios: 0, undone: 0, offers: 0, taken: 0 }
@@ -265,8 +269,10 @@ export class Planner {
     )
   }
 
-  /** What winning this request saves through a chain with the open cars we hold, in cents: what the chain model
-   * expects of the best chain that carries the new car with them, over all its cars as single gigs. `ready`,
+  /** What winning this request adds through a chain with the open cars we hold, in cents: what the chain model
+   * expects of the best chain that carries the new car with them, less what those cars would save in chains
+   * without it. An open car counts for one request at a time (`claims`), and a chain with a car that is in the
+   * app already counts POSTED of its saving, because half of the single gigs book within half an hour. `ready`,
    * `lastPickup` and `deadline` are the car's as the quote reads them. 0 without the model, for a car that may not
    * join a chain, and when no open car is near either end of its drive. */
   saving(request: PriceRequest, ready: number, lastPickup: number, deadline: number, books: Books): number {
@@ -293,14 +299,33 @@ export class Planner {
       stops: [],
       audience: { experienced: false, manualLicence: false },
     }
-    const near = this.openCars(books).filter(
-      (other) =>
-        postable(other.collectBy, now, p.pickLead, p.chainDays) &&
-        (minutes(this.map, other.to, car.from) <= p.maxHop || minutes(this.map, car.to, other.from) <= p.maxHop),
+    const taken = new Set<string>()
+    for (const [requestId, orders] of this.claims) if (requestId !== request.id) for (const id of orders) taken.add(id)
+    const open = this.openCars(books).filter(
+      (other) => !taken.has(other.orderId) && postable(other.collectBy, now, p.pickLead, p.chainDays),
+    )
+    const near = open.filter(
+      (other) => minutes(this.map, other.to, car.from) <= p.maxHop || minutes(this.map, car.to, other.from) <= p.maxHop,
     )
     if (near.length === 0) return 0
-    const keep = (c: Chain) => c.cars.includes(car) && this.mayBeOpen(c.startBy, now, this.patience())
-    return Math.max(0, findChains([car, ...near], this.map, now, p, keep, this.scene())[0]?.worth ?? 0)
+    const may = (c: Chain) => this.mayBeOpen(c.startBy, now, this.patience())
+    const best = findChains([car, ...near], this.map, now, p, (c) => c.cars.includes(car) && may(c), this.scene())[0]
+    if (!best) return 0
+    const partners = best.cars.filter((other) => other !== car)
+    // What the partners would save without the new car, in the chains that the open cars make among themselves.
+    const without = findChains(open, this.map, now, p, may, this.scene())
+      .filter((c) => c.cars.some((other) => partners.includes(other)))
+      .reduce((sum, c) => sum + c.worth, 0)
+    const share = partners.some((other) => other.gigId) ? POSTED : 1
+    const cents = share * (best.worth - without)
+    if (cents <= 0) return 0
+    this.claims.set(request.id, [...(this.claims.get(request.id) ?? []), ...partners.map((other) => other.orderId)])
+    return cents
+  }
+
+  /** A request's quote was answered: the open cars it counted on are free for another request. */
+  release(requestId: string): void {
+    this.claims.delete(requestId)
   }
 
   /** An order was won at the minute `at`. */
