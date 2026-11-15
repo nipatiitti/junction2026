@@ -193,6 +193,11 @@ export const DEFAULTS = {
   chainRamp: 20,
   /** Chains are posted on the first `chainDays` days of the week: 4 is Monday to Thursday, 5 adds Friday. */
   chainDays: 4,
+  /** The rescue of the delivery minimum (a week under 90% on time scores nothing). When the late orders and the
+   * warned cars without a driver reach this share of the orders won, the week stops adding risk and buys drivers:
+   * no `taxFade`, no `pairShare`, and a warned car climbs from 1.6 × typical by 0.2 every 10 waking minutes to 3 ×.
+   * A late car gives 25 to 50% of its price back anyway. It stays on to the end of the week. 0 is off. */
+  rescue: 0,
   /** The guard of the flu day (the rules: in every level 8 week 30% of the drivers stay at home for one day, and
    * nobody announces it). The drivers give their gigs of that day back in its first hour: 10 of them at the
    * median, against 3 on the next-worst day (41 server weeks). When that hour holds this many, the day and the
@@ -237,6 +242,9 @@ const LOAD_PRIOR = 150
 const LATE_PRIOR = 20
 const AT_RISK = 0.5
 const HARD_ROOM = 0.5
+/** The rescue (`rescue`): not before this many orders are won, and a warned car's climb × typical. */
+const RESCUE_ORDERS = 50
+const [RESCUE_OPEN, RESCUE_STEP, RESCUE_EVERY, RESCUE_TOP] = [1.6, 0.2, 10, 3]
 /** The guard (`guard`) counts the gigs given back in the first GUARD_HOUR minutes of a day, and lifts the climbs to
  * these × typical. */
 const [GUARD_HOUR, GUARD_URGENT, GUARD_LATE] = [60, 2, 1.7]
@@ -286,6 +294,9 @@ class Lean extends Strategy<LeanParams> {
   /** The minutes at which a driver gave a gig back in the first hour of a day; and the guard's state. */
   private readonly troubles: number[] = []
   private guardSeen = 0
+  /** Whether the rescue is on, and the gigs it gave a new schedule. */
+  private rescueOn = false
+  private readonly rescued = new Set<string>()
   private guardUntil = -1
   private readonly tally = {
     requests: 0,
@@ -317,6 +328,7 @@ class Lean extends Strategy<LeanParams> {
   quote(request: PriceRequest, books: Books): Prices | null {
     const now = books.now
     const lateShare = this.lateShare(books)
+    this.rescuing(books)
     const context = this.context(lateShare > this.params.lateHard ? HARD_ROOM : 1)
     const facts = readNote(request.note, request.arrivedAt)
     const options = this.setup.level <= 3 ? request.options.slice(0, 1) : request.options
@@ -387,9 +399,25 @@ class Lean extends Strategy<LeanParams> {
     return request.referenceFeeCents * ratio
   }
 
+  /** Whether the rescue is on (`rescue`): from the tick at which the late orders and the warned cars without a
+   * driver are `rescue` of the orders won. */
+  private rescuing(books: Books): boolean {
+    const least = this.params.rescue
+    if (!(least > 0) || this.rescueOn) return this.rescueOn
+    let atRisk = 0
+    for (const id of books.urgent) {
+      const order = books.orders.get(id)
+      const waits = order?.deliveredAt.some((at) => at === null) && !books.gigsOf(id).some((g) => books.booked.has(g))
+      if (waits) atRisk++
+    }
+    this.rescueOn = this.tally.won >= RESCUE_ORDERS && (this.late.size + atRisk) / this.tally.won >= least
+    return this.rescueOn
+  }
+
   /** Whether the guard is up at `now` (`guard`): from the minute that the first hour of a day held `guard` gigs
    * given back, to the end of the next day. It depends only on the events, so a rebuilt week decides the same. */
   private guarded(now: number): boolean {
+    if (this.rescueOn) return true
     const least = this.params.guard
     if (!(least > 0)) return false
     while (this.guardSeen < this.troubles.length) {
@@ -569,6 +597,10 @@ class Lean extends Strategy<LeanParams> {
     if (now > order.lastPickupAt)
       return fast(now, typical, Math.max(shown, p.lateFrom), p.lateStep, p.lateEvery, Math.max(p.lateTop, shown))
     const urgent = warned || awake(now, order.lastPickupAt - BOOK_AHEAD) < SHORT
+    if (urgent && this.rescueOn) {
+      const open = Math.max(shown + URGENT_RAISE, RESCUE_OPEN)
+      return fast(now, typical, open, RESCUE_STEP, RESCUE_EVERY, Math.max(RESCUE_TOP, open))
+    }
     if (urgent || awake(now, planBy(now, order.lastPickupAt)) < p.lateWithin) {
       const open = Math.max(shown + URGENT_RAISE, urgent ? p.urgentOpen : p.lateOpen)
       return fast(now, typical, open, p.urgentStep, p.urgentEvery, Math.max(p.urgentTop, open))
@@ -621,6 +653,20 @@ class Lean extends Strategy<LeanParams> {
       const unit = this.typicalOf(post.stops, books)
       actions.push({ type: 'reprice', gigId, schedule: this.fees(order, unit, books.now, fee / unit) })
     }
+    // The rescue: each warned car that waits for a driver gets the rescue's climb, once.
+    if (this.rescuing(books))
+      for (const id of books.urgent) {
+        const order = books.orders.get(id)
+        if (!order || books.now > order.lastPickupAt || !order.deliveredAt.some((at) => at === null)) continue
+        for (const gigId of books.gigsOf(id)) {
+          const post = books.posts.get(gigId)
+          if (!post || books.booked.has(gigId) || this.rescued.has(gigId) || this.dropped.has(gigId)) continue
+          this.rescued.add(gigId)
+          const unit = this.typicalOf(post.stops, books)
+          const shown = feeAt(this.schedules.get(gigId) ?? post.schedule, books.now) / unit
+          actions.push({ type: 'reprice', gigId, schedule: this.fees(order, unit, books.now, shown, true) })
+        }
+      }
     return [...actions, ...this.planner.actions(books)]
   }
 
@@ -753,7 +799,7 @@ class Lean extends Strategy<LeanParams> {
     const share = t.requests > 0 ? (100 * t.won) / t.requests : 0
     const multiple = t.won > 0 ? t.multiples / t.won : 0
     const paid = t.bookings > 0 ? t.ratios / t.bookings : 0
-    return `lean: won ${t.won} of ${t.requests} requests (${share.toFixed(1)}%) at ${multiple.toFixed(2)} × list, ${t.bookings} bookings at ${paid.toFixed(2)} × typical, ${this.late.size} late of ${this.done} done. ${this.planner.summary()}${t.pairs > 0 ? ` Pairs: ${t.pairs} options priced with a chain partner, saving €${(t.pairCents / t.pairs / 100).toFixed(0)} each.` : ''}`
+    return `lean: won ${t.won} of ${t.requests} requests (${share.toFixed(1)}%) at ${multiple.toFixed(2)} × list, ${t.bookings} bookings at ${paid.toFixed(2)} × typical, ${this.late.size} late of ${this.done} done. ${this.planner.summary()}${this.rescueOn ? ` Rescue: on, ${this.rescued.size} warned gigs repriced.` : ''}${t.pairs > 0 ? ` Pairs: ${t.pairs} options priced with a chain partner, saving €${(t.pairCents / t.pairs / 100).toFixed(0)} each.` : ''}`
   }
 
   private context(tightening = 1): Context {
