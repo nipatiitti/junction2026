@@ -797,12 +797,13 @@ benches on the server measured what helps. Two things about the measuring:
 | The combination and `pairShare=0.5` (**`volume.json`**)         | +€1,210 ± 321 | +€916 ± 168 | +€1,353 ± 325 |    +84 |               90.1% |
 | The combination and `pairShare=1`                               | +€458 ± 340   |             |               |    +94 |               92.8% |
 | The combination, `pairShare=0.5` and the flu guard (`guard=8`)  | +€371 ± 311   | +€540 ± 225 | +€457 ± 412   |    +53 |               91.4% |
-| The combination, `pairShare=0.5` and the rescue (`rescue=0.06`)      |               | +€281 ± 453 | +€927 ± 326   |    +78 |               90.1% |
+| The combination, `pairShare=0.5` and the rescue (`rescue=0.06`) |               | +€281 ± 453 | +€927 ± 326   |    +78 |               90.1% |
 
 - **The new defaults** are the three that gain with almost no change in the orders on time: lower tops of the urgent
   and late climbs (`urgentTop` 1.6, `lateTop` 1.3: the gigs that reached the last raises paid 1.47 × typical and
   carried 19% of the single gigs' fees) and chains on Friday (`chainDays` 5; 6 plays the same weeks).
-- **`volume.json`** holds `taxFade` 1 and `pairShare` 0.5, for `pnpm dispatch --params src/strategies/lean/volume.json`.
+- **`volume.json`** held `taxFade` 1 and `pairShare` 0.5. They are the defaults since
+  [the room for late orders](#the-room-for-late-orders-15-november-381), and the file is gone.
   Over the defaults it wins about 80 orders a week more and makes €430 to €860 a week more, on all three sets. On
   the ranking round "Sunday 03:00" it made €83,342 with 2,391 orders at 95.1% on time, 2nd of 37 teams
   (`data/rankings/2026-11-15-0315/`). **Its risk is the delivery minimum**: of its 30 fresh weeks one ended at 90.1%
@@ -873,6 +874,62 @@ requests of each step; against our own week this agrees in 282 of 283 steps. `le
 none, some 22 orders and €650 to €700: the system was started after the hour, and `--final` waits by itself when it
 is started before), and it won 101 orders on Thursday and Friday where the first three won 122 to 165.
 
+## The room for late orders (15 November, #381)
+
+A week under 90% on time scores nothing. The volume settings (`taxFade` 1, `pairShare` 0.5) end at 95.3% on average,
+and one of their 47 saved weeks ended at 90.1% (`confirm-7`). The rule `room` keeps such a week ranked, and with it
+the volume settings are the defaults.
+
+**Where the week is lost.** The saved weeks of four settings on the fresh seeds (188 weeks) say:
+
+- The last request comes on Friday before 18:20. From then on the number of orders is final, and so is the number of
+  late orders that the week can take: a tenth of the orders.
+- By Saturday 07:00 the worst week had used 85% of that number, and the median week 30%. No week was lost by then.
+- `confirm-7` had room for 29 more late orders on Saturday, and 29 of its Monday orders came late. Nothing in the
+  week before said so (0.7% of its orders were late by Thursday night). What said so on Saturday 07:00: 98 orders
+  for Monday had no driver, where 30 is usual. Friday was the day when 30% of the drivers stay at home, and Friday is
+  when Monday's gigs book.
+- An order without a driver on Saturday 07:00 is late in 38% of the cases when its typical fee is €80 or more and
+  its last pickup is before 15:00 on Monday, in 15% when only the fee is, in 19% when only the pickup is, and in 5%
+  otherwise. With a driver on Saturday it is late in 1.7%.
+- A long gig that books on Monday after 15:00 is always late (405 of 405): the deadline warning of such a car comes
+  hours after its last pickup, at the minute the pickup place closes. So the urgent climb cannot save it.
+- The drivers are there. In `confirm-7`, 283 drivers looked at the 107 open gigs on Saturday morning and 40 booked,
+  at 0.88 × typical. On a Monday from 07:00 to 08:00 a view of a long gig books in 6% of the cases at 1.0 × typical,
+  in 14% at 1.2 × and in 19% at 1.3 ×.
+
+**The rule.** From Friday 21:00, `lean` adds up the late chances of its orders without a driver (the four numbers
+above) and compares `room` (3.5) × that sum with the late orders the week can still take. The sum times 3.2 is the
+most that any saved week had. While the room is too small, each single gig of an order with a chance of 15% or more
+gets a new schedule from a higher fee: 1.1 × typical at least, then 0.1 × more at each rise, up to 2.5 ×. A rise
+comes every 60 minutes on Saturday and every 30 minutes on Monday, between 05:00 and 21:00, and not on Sunday, when
+nobody books (12 bookings in 62,000 views). The rises stop when enough orders have a driver. Chains keep their own
+schedule. The week's summary line says how many rises there were.
+
+In 174 of the 188 saved weeks the sum never reaches the room, and the rule does nothing.
+
+**The result** on ten saved seeds of the volume settings (one server week each, 15 November):
+
+| Seeds                                            | The rule    | Late on Monday, before → after | Margin against the saved week           |
+| ------------------------------------------------ | ----------- | ------------------------------ | --------------------------------------- |
+| `confirm-1`, `confirm-3`, `confirm-4`, `third-1` | did not act | the same                       | the same to the cent                    |
+| `third-5`                                        | did not act | 2                              | −€740 (13 orders fewer by Friday)       |
+| `confirm-7`                                      | 8 rises     | 29 → 20                        | −€687; 91.8% on time, was 90.1%         |
+| `third-2`                                        | 2 rises     | 10 → 6                         | +€157                                   |
+| `third-4`                                        | 13 rises    | 18 → 7                         | −€1,309 (12 more late orders by Friday) |
+| `confirm-2`                                      | 1 rise      | 7 → 4                          | +€596                                   |
+| `third-7`                                        | 3 rises     | 0 → 0                          | −€196                                   |
+
+- A week on the server does not always replay the same: four of the ten weeks had a different number of orders by
+  Friday, before the rule can act. `third-5` shows how much that moves a week without the rule.
+- `third-4` is the week the rule is for. This time it had 36 late orders by Friday night (24 in the saved week) and
+  room for 51. With the 18 late orders of its saved Monday it would have ended under 90%. With the rule 7 were late,
+  and the week ended at 91.7%.
+- In `confirm-7` the rule paid €1,353 more in fees and saved 9 late orders, which leaves room for 9 more.
+
+**What the rule does not cover:** a week that uses its room before Friday night. The closest saved week used 85%
+of it. `lateHard` works against that during the week.
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
@@ -882,5 +939,6 @@ is started before), and it won 101 orders on Thursday and Friday where the first
 `sharedOutcome` true, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
 `pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1, `chainTries` 3, `chainFit` 0,
 `chainModel` true, `chainAlone` 1, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0,
-`chainDays` 5, and the switches of [the squeeze](#the-squeeze-15-november-367) that are off: `taxFade` 0, `pairShare` 0,
-`longCost` 1, `chainStart` 1, `chainRamp` 20, `value` 0, `guard` 0, `rescue` 0.
+`chainDays` 5, `taxFade` 1, `pairShare` 0.5, `room` 3.5, and the switches of
+[the squeeze](#the-squeeze-15-november-367) that are off: `longCost` 1, `chainStart` 1, `chainRamp` 20, `value` 0,
+`guard` 0, `rescue` 0.
