@@ -11,6 +11,37 @@ pnpm bench lean --level 8 --seeds spread-1..spread-5
 `strategies/lean/` is a Python port that plays the same weeks action for action. A change to either version gets an
 entry in [`LEAN_CHANGELOG.md`](../../../LEAN_CHANGELOG.md) in the same PR.
 
+**In pictures:** [how it decides](#how-it-decides) · [the best score over the weekend](#the-best-score-over-the-weekend)
+· [the seeds and strategies explored](#the-seeds-and-strategies-explored)
+
+## How it decides
+
+[![How lean decides: a price request becomes a price, a chain and a fee, and every answer of the world sets the next quote](../../../docs/images/lean/algorithm.svg)](../../../docs/images/lean/algorithm.svg)
+
+Blue is a decision of `lean`, grey an answer of the world, orange what `lean` learns from it during the week. Sections
+1 to 4 below say each step in full.
+
+## The best score over the weekend
+
+[![The best level 8 week so far and the mean week of each ranking round, by the hour of the weekend](../../../docs/images/lean/best-score.svg)](../../../docs/images/lean/best-score.svg)
+
+The blue line is the highest margin of any ranked level 8 practice week saved so far, by any of our systems. One week
+depends on its seed, so the orange line is the fairer one: the mean week of our best system in each ranking round,
+which is 5 weeks that no team has seen. A week that is not ranked is left out, and so is `ts-recall`, which played
+seeds from what it remembered of them.
+
+## The seeds and strategies explored
+
+[![The number of strategies tried and of seeds played so far, by the hour of the weekend](../../../docs/images/lean/explored.svg)](../../../docs/images/lean/explored.svg)
+
+A strategy is a name that weeks were saved under (`policy` in `meta.json`), so a tournament variant counts and the
+same name with new params does not. A seed is one week; the ranking rounds and the finals have no seed of ours and
+are not counted.
+
+Both charts are drawn from the weeks under `data/scrape/runs` by `uv run python -m analysis.weekend`, which plays
+nothing online. A saved week has no clock time, so each is dated by the commit that saved it, in Helsinki time. The
+diagram is drawn by hand: change `docs/images/lean/algorithm.svg` when a rule in it changes.
+
 ## 1. The price (`demand.ts`, `index.ts`)
 
 - **What wins.** For one option of one request there is one price below which the dealer takes it. Its log, as a
