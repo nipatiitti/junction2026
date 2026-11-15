@@ -737,6 +737,44 @@ With the chain model, against the defaults of that hour (`sharedOutcome` was sti
 Every week of both rounds is in [`decision-algorithms-server.csv`](decision-algorithms-server.csv), and saved under
 `data/scrape/runs/L8/dp-*`.
 
+## What drivers learn from the raises (15 November, #378)
+
+The handbook says that at each booking every driver who viewed the order learns the booked fee over the first fee
+viewed, and that a driver who expects a raise waits. In the 250 saved server weeks of the chain defaults:
+
+- A single gig booked at its first fee had 12 viewers, one booked after raises 70 to 130. So about 75% of all
+  lessons say "the fee rose 10% or more"; a fifth of them come from the step from `early` to `open` alone.
+- On the same weekday, a driver whose last lessons average over 1.3 books a single gig at the opening fee 35 to
+  45% less often than one whose lessons average under 1.03. Such drivers are 34% of Tuesday's first views and
+  56% of Thursday's. This compares drivers, so it may be who browses a lot and not what they learned.
+- Across weeks of one seed, the fee of Wednesday's and Thursday's single gigs follows the bookings of Monday and
+  Tuesday (+0.10 × typical per 100) and not the lessons of those days (−0.01 ± 0.03 per unit of the ratio).
+- Single gigs: 156 a week book at 0.80 to 0.88 × typical, 98 after a raise at 1.33 × (€9,300 of the €19,100 that
+  single gigs cost), 23 of them at about 2 ×, where a gig earns −€9 and refunds €28.
+- One first view in 185 books at 0.88 × on a day before the pickup day, one in 150 at 1.25 to 1.55 ×, and one in
+  55 at 0.88 × on the pickup day. At 1.75 × or more one view in 50 books: no more than at 1.25 to 1.55 × (one
+  in 20 to 23, with the drivers who come back).
+
+Server, five fresh random seeds (`dayof-*`, level 8, every week ranked; ± is one standard error of the paired
+difference; the weeks are in [`fee-raises-server.csv`](fee-raises-server.csv)):
+
+| Setting                                         | Margin a week | Against the defaults | Seeds ahead | Orders | On time | Lowest week |
+| ----------------------------------------------- | ------------: | -------------------: | ----------: | -----: | ------: | ----------: |
+| defaults                                        |       €15,492 |                      |             |    411 |   94.5% |       91.1% |
+| `raise3` 1.4, `urgentTop` 1.6                   |       €16,522 |        +€1,029 ± 669 |      4 of 5 |    419 |   94.1% |       92.0% |
+| `open` 0.84, `early` 0, and the two above       |       €16,247 |          +€755 ± 653 |      4 of 5 |    414 |   94.3% |       90.9% |
+| `dayOf` (tried and removed)                     |       €15,256 |          −€236 ± 426 |      2 of 5 |    408 |   94.4% |       91.2% |
+| `open` 0.84, `early` 0                          |       €15,177 |          −€315 ± 460 |      2 of 5 |    403 |   94.4% |       90.8% |
+
+- **A lower top is the one to play on more seeds.** The gigs booked after a raise paid 1.32 × typical where they
+  paid 1.42 ×, as many gigs reached the top, and the week won 8 more orders: the cost that the price learns from
+  the bookings fell. Five seeds do not prove it (1.5 standard errors), and on-time share fell half a point.
+- **`dayOf` does nothing**: a gig for a later day with a last pickup from 16:00 on held its opening fee until 06:00
+  on that day and raised from there, as `rest` does after a weekend. Fees −€122 ± 145 a week, the same lessons.
+- **No early step loses the chains**: 14 fewer cars a week rode in one, and the week won 8 fewer orders.
+
+The defaults are unchanged.
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,

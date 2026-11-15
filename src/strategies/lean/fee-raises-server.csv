@@ -1,0 +1,31 @@
+strategy,seed,level,world_id,margin_eur,revenue_eur,won_orders,on_time_share,ranked
+lean,dayof-20839e,8,wde96a2d864ec241a3c53,14572.70,36312.99,382,0.9738,yes
+lean:dayOf=true,dayof-20839e,8,w90bb4210ea11d2c9256f,13623.06,35948.36,379,0.9631,yes
+lean,dayof-2cedb7,8,w1850122f5077586ae69c,15554.02,52774.05,451,0.9113,yes
+lean:dayOf=true,dayof-2cedb7,8,we9aeade9a830bb98efca,15596.60,52337.51,443,0.9120,yes
+lean:dayOf=true,dayof-23097c,8,w9d9abb8581099e58fbb7,10825.72,34196.79,328,0.9451,yes
+lean,dayof-23097c,8,wa91a133f09a1fec59aa8,11526.42,35294.87,333,0.9459,yes
+lean,dayof-5ab591,8,w1cd817d7485a705366f3,24106.71,50744.83,501,0.9840,yes
+lean:dayOf=true,dayof-5ab591,8,wed38d45610a00ef88157,23220.48,49907.77,493,0.9757,yes
+lean,dayof-c2f520,8,wec92516df0a1aa1785df,11701.88,35910.65,386,0.9119,yes
+lean:dayOf=true,dayof-c2f520,8,wff88c1b2d3f4e6f03ded,13013.77,36994.97,396,0.9217,yes
+lean,mean,8,,15492.35,42207.48,410.6,0.9454,5 of 5
+lean:dayOf=true,mean,8,,15255.93,41877.08,407.8,0.9435,5 of 5
+"lean:raise3=1.4,urgentTop=1.6",dayof-20839e,8,w98cc7d5ac7190f65de90,14765.42,37594.85,394,0.9645,yes
+"lean:open=0.84,early=0,raise3=1.4,urgentTop=1.6",dayof-20839e,8,w46d48374dbc0065f958c,13389.84,34588.89,366,0.9645,yes
+"lean:open=0.84,early=0",dayof-20839e,8,w7513fcc9f230f9a4803c,13149.10,34018.90,356,0.9663,yes
+"lean:open=0.84,early=0",dayof-2cedb7,8,w382a31c19173fafd482b,14787.59,52826.69,448,0.9085,yes
+"lean:open=0.84,early=0",dayof-23097c,8,w97a7ed263a5aba96f875,10648.46,34673.61,328,0.9268,yes
+"lean:raise3=1.4,urgentTop=1.6",dayof-2cedb7,8,wb7d2e56c6acea253b2c3,18149.90,53301.36,450,0.9222,yes
+"lean:raise3=1.4,urgentTop=1.6",dayof-23097c,8,w0aa9a1c00e5bc253e457,12389.52,36265.60,346,0.9220,yes
+"lean:open=0.84,early=0,raise3=1.4,urgentTop=1.6",dayof-2cedb7,8,wfc91c409d1abea0fc483,16798.54,53177.67,453,0.9095,yes
+"lean:open=0.84,early=0,raise3=1.4,urgentTop=1.6",dayof-23097c,8,w796536f52f43dad16360,11962.68,35269.03,333,0.9219,yes
+"lean:open=0.84,early=0",dayof-5ab591,8,wee78cdcf03854604f2c2,24506.60,51570.98,501,0.9860,yes
+"lean:raise3=1.4,urgentTop=1.6",dayof-5ab591,8,wd4a728eb2b6824006840,23179.37,49595.89,495,0.9758,yes
+"lean:open=0.84,early=0,raise3=1.4,urgentTop=1.6",dayof-5ab591,8,wd181e1467ac45075dd92,24549.06,51839.33,507,0.9822,yes
+"lean:open=0.84,early=0",dayof-c2f520,8,wc0d4389761f7a40ea400,12793.49,35711.67,382,0.9346,yes
+"lean:raise3=1.4,urgentTop=1.6",dayof-c2f520,8,w282f030e6d238b0ed4fd,14123.95,38601.28,410,0.9195,yes
+"lean:open=0.84,early=0,raise3=1.4,urgentTop=1.6",dayof-c2f520,8,w616facb8bc0275755fc6,14536.86,37984.80,412,0.9345,yes
+"lean:open=0.84,early=0",mean,8,,15177.05,41760.37,403,0.9444,5 of 5
+"lean:raise3=1.4,urgentTop=1.6",mean,8,,16521.63,43071.80,419,0.9408,5 of 5
+"lean:open=0.84,early=0,raise3=1.4,urgentTop=1.6",mean,8,,16247.40,42571.94,414.2,0.9425,5 of 5
