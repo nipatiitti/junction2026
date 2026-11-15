@@ -193,6 +193,11 @@ export const DEFAULTS = {
   chainRamp: 20,
   /** Chains are posted on the first `chainDays` days of the week: 4 is Monday to Thursday, 5 adds Friday. */
   chainDays: 4,
+  /** The guard of the on-time share: when this many gigs were given back, not started or expired within 12 hours,
+   * the next 24 hours play safe: no `taxFade`, no `pairShare`, and the urgent and late climbs go to 2 and 1.7 ×
+   * typical at least. A day on which drivers stay at home shows in those events hours before the late cars do
+   * (one week of the combination ended at 90.0% on time; its refunds came after the weekend). 0 is off. */
+  guard: 0,
   /** The share of a chain's saving that comes off the cost of a request which would ride in that chain with open
    * cars we hold (planner.ts, `saving`): such a car costs the chain's rate, not a single gig's, and it makes its
    * partners cheaper too. 0 prices every request as a single gig. */
@@ -231,6 +236,8 @@ const LOAD_PRIOR = 150
 const LATE_PRIOR = 20
 const AT_RISK = 0.5
 const HARD_ROOM = 0.5
+/** The guard (`guard`) counts over this many minutes, holds this long, and lifts the climbs to these × typical. */
+const [GUARD_WINDOW, GUARD_HOLD, GUARD_URGENT, GUARD_LATE] = [12 * HOUR, 24 * HOUR, 2, 1.7]
 /** A request's cost with a chain partner is no less than this × its cost alone (`pairShare`). */
 const PAIR_LEAST = 0.4
 /** A booking teaches the supply no less and no more than these × typical. */
@@ -274,6 +281,10 @@ class Lean extends Strategy<LeanParams> {
   private readonly delivered = new Map<string, string[]>()
   private readonly late = new Set<string>()
   private done = 0
+  /** The minutes at which a driver gave a gig back or did not start it, or a gig expired; and the guard's state. */
+  private readonly troubles: number[] = []
+  private guardSeen = 0
+  private guardUntil = -1
   private readonly tally = {
     requests: 0,
     quoted: 0,
@@ -310,7 +321,7 @@ class Lean extends Strategy<LeanParams> {
     const quotes: [OptionKind, number][] = []
     const open = this.openGigs(books)
     // The load charge fades from Wednesday to Friday by `taxFade`: few cars are booked after a Friday order.
-    const fade = 1 - this.params.taxFade * clamp((Math.floor(now / DAY) - 2) / 2, 0, 1)
+    const fade = this.guarded(now) ? 1 : 1 - this.params.taxFade * clamp((Math.floor(now / DAY) - 2) / 2, 0, 1)
     const tax = this.params.tax + (this.params.value ? 0 : this.params.taxLoad * this.load() * fade)
     const won = this.tally.won / (this.setup.roster.length || MEDIAN_DRIVERS)
     for (const option of options) {
@@ -374,6 +385,19 @@ class Lean extends Strategy<LeanParams> {
     return request.referenceFeeCents * ratio
   }
 
+  /** Whether the guard is up at `now` (`guard`): from the minute that GUARD_WINDOW held `guard` gigs given back, not
+   * started or expired, for GUARD_HOLD. It depends only on the events, so a rebuilt week decides the same. */
+  private guarded(now: number): boolean {
+    const least = this.params.guard
+    if (!(least > 0)) return false
+    while (this.guardSeen < this.troubles.length) {
+      const at = this.troubles[this.guardSeen++] as number
+      const recent = this.troubles.filter((other) => other <= at && other > at - GUARD_WINDOW).length
+      if (recent >= least) this.guardUntil = at + GUARD_HOLD
+    }
+    return now < this.guardUntil
+  }
+
   /** The cost of a request that would ride in a chain with open cars we hold: less `pairShare` of what that chain
    * saves (planner.ts, `saving`), and no less than PAIR_LEAST of the cost. */
   private paired(
@@ -384,7 +408,7 @@ class Lean extends Strategy<LeanParams> {
     deadline: number,
     books: Books,
   ): number {
-    if (!(this.params.pairShare > 0)) return cents
+    if (!(this.params.pairShare > 0) || this.guarded(books.now)) return cents
     const saving = this.planner.saving(request, ready, lastPickup, deadline, books)
     if (saving <= 0) return cents
     this.tally.pairs++
@@ -532,7 +556,14 @@ class Lean extends Strategy<LeanParams> {
    * car that is late already, the urgent climb when the gig is warned, has no time left to book or was posted after
    * its planning time, and the stepped schedule otherwise. */
   private fees(order: Order, typical: number, now: number, shown: number, warned = false): FeeStep[] {
-    const p = this.params
+    const guarded = this.guarded(now)
+    const p = guarded
+      ? {
+          ...this.params,
+          urgentTop: Math.max(this.params.urgentTop, GUARD_URGENT),
+          lateTop: Math.max(this.params.lateTop, GUARD_LATE),
+        }
+      : this.params
     if (now > order.lastPickupAt)
       return fast(now, typical, Math.max(shown, p.lateFrom), p.lateStep, p.lateEvery, Math.max(p.lateTop, shown))
     const urgent = warned || awake(now, order.lastPickupAt - BOOK_AHEAD) < SHORT
@@ -668,12 +699,14 @@ class Lean extends Strategy<LeanParams> {
       }
       case 'gig_dropped':
       case 'no_show':
+        this.troubles.push(event.at)
         this.dropped.set(event.gigId, this.bookedAt.get(event.gigId) ?? 0)
         break
       case 'visit_failed':
         this.setback(event.orderId, event.leg, event.reason, event.at, books)
         break
       case 'gig_expired': {
+        this.troubles.push(event.at)
         const post = books.posts.get(event.gigId)
         this.planner.expired(event.gigId, post?.stops ?? [])
         const shown = feeAt(this.schedules.get(event.gigId) ?? post?.schedule ?? [], event.at)
