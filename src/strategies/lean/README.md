@@ -43,13 +43,13 @@ drivers who booked on their first view paid 0.80 ×. So the fee holds still and 
 - The gig opens at `open` × typical (0.88; 0.8 in its first waking hour when it is for a later day) and rises three
   times over the waking time that drivers have to plan it (`planBy`: by 21:00 the evening before for a last pickup
   before 16:00, else 5 hours before it): after 0.3, 0.55 and 0.8 of that time to 1.05, 1.25 and 1.55 × typical, and
-  to `urgentTop` (2) when the time is over. With `jitter` 1, each raise moves by up to 20 minutes and 5%, drawn from
+  to `urgentTop` (1.6) when the time is over. With `jitter` 1, each raise moves by up to 20 minutes and 5%, drawn from
   the order id, so a driver cannot plan a second look for the rise.
 - A gig posted with under an hour of planning time left (`lateWithin`) opens at `lateOpen` (1.25) and climbs as an
   urgent one.
 - The urgent climb, from the deadline warning on or with under 45 minutes left to book: from `urgentOpen` (1.15),
   `urgentStep` (0.125) every `urgentEvery` (15) waking minutes to `urgentTop`. A car that is late already climbs
-  from `lateFrom` (1.1) by `lateStep` (0.05) every `lateEvery` (30) minutes to `lateTop` (1.7). A gig that a driver
+  from `lateFrom` (1.1) by `lateStep` (0.05) every `lateEvery` (30) minutes to `lateTop` (1.3). A gig that a driver
   gives back starts again from the fee that booked it.
 - Every time in a schedule counts waking minutes (07:00 to 21:00): a raise at night shows to nobody.
 - A gig whose last pickup is on the Monday after the weekend, posted before that Monday 06:00, keeps its opening
@@ -737,12 +737,111 @@ With the chain model, against the defaults of that hour (`sharedOutcome` was sti
 Every week of both rounds is in [`decision-algorithms-server.csv`](decision-algorithms-server.csv), and saved under
 `data/scrape/runs/L8/dp-*`.
 
+## The squeeze (15 November, #367)
+
+The ranking round "Sunday 00:00" and the recorded leaderboard of the 01:00 test final showed where `lean` was behind:
+the leaders win 445 to 488 orders a week where `lean` won 364 to 405, most of the difference on Thursday and Friday,
+and `lean`'s next order cost €92 in fees where its mean order cost €59, because the extra cars rode alone. Nine
+benches on the server measured what helps. Two things about the measuring:
+
+- **The defaults were tuned on `supply-1` to `supply-10`, so that set flatters them**: on it, both directions of
+  one lever lost (`taxLoad` 0.3 and 0.6, `lateCost` 0.5 and 1.5). From the third bench on, every variant plays on
+  fresh seeds (`squeeze-1` to `-10`, `confirm-1` to `-10`, `third-1` to `-10`) beside the defaults in the same
+  bench. ± is one standard error of the paired difference; every week below is ranked unless said.
+- "The combination" is `taxFade=1,urgentTop=1.6,lateTop=1.3,chainDays=5`.
+
+| Variant, against the defaults of 14 November                    | `squeeze`     | `confirm`   | `third`       | Orders | Lowest week on time |
+| --------------------------------------------------------------- | ------------- | ----------- | ------------- | -----: | ------------------: |
+| `urgentTop=1.6,lateTop=1.3`                                     | +€558 ± 129   | +€483 ± 149 |               |     +5 |               92.5% |
+| … and `chainDays=5` (**the defaults now**)                      | +€671 ± 150   | +€492 ± 147 | +€488 ± 176   |     +5 |               91.8% |
+| … and `taxFade=0.5`                                             | +€885 ± 226   | +€627 ± 128 |               |    +21 |               91.1% |
+| The combination (`taxFade=1`)                                   | +€1,024 ± 189 | +€729 ± 185 | +€1,168 ± 211 |    +41 |               90.0% |
+| The combination and `pairShare=0.5` (**`volume.json`**)         | +€1,210 ± 321 | +€916 ± 168 | +€1,353 ± 325 |    +84 |               90.1% |
+| The combination and `pairShare=1`                               | +€458 ± 340   |             |               |    +94 |               92.8% |
+| The combination, `pairShare=0.5` and the flu guard (`guard=8`)  | +€371 ± 311   | +€540 ± 225 | +€457 ± 412   |    +53 |               91.4% |
+| The combination, `pairShare=0.5` and the rescue (`rescue=0.06`) |               | +€281 ± 453 |               |    +71 |               90.1% |
+
+- **The new defaults** are the three that gain with almost no change in the orders on time: lower tops of the urgent
+  and late climbs (`urgentTop` 1.6, `lateTop` 1.3: the gigs that reached the last raises paid 1.47 × typical and
+  carried 19% of the single gigs' fees) and chains on Friday (`chainDays` 5; 6 plays the same weeks).
+- **`volume.json`** holds `taxFade` 1 and `pairShare` 0.5, for `pnpm dispatch --params src/strategies/lean/volume.json`.
+  Over the defaults it wins about 80 orders a week more and makes €430 to €860 a week more, on all three sets. On
+  the ranking round "Sunday 03:00" it made €83,342 with 2,391 orders at 95.1% on time, 2nd of 37 teams
+  (`data/rankings/2026-11-15-0315/`). **Its risk is the delivery minimum**: of its 30 fresh weeks one ended at 90.1%
+  on time (480 orders and 48 late with the combination alone: one late order more and the week scores nothing), and
+  five of 74 weeks of the two volume settings were under 92%, against none of the defaults' 30.
+- **`taxFade`** takes the `taxLoad` charge off on Friday and half of it off on Thursday. It is a patch by weekday.
+  The reason it pays: fitted again on the 290 weeks with the chain model, one more order per driver no longer
+  raises the fees of the cars booked after it (slope −0.24, not above zero on any day), where `taxLoad` 0.47 was
+  fitted on 0.355 × typical before the chain model. A lower charge all week (`taxLoad=0.3`) made +€290 ± 344 on
+  `squeeze` with 30 more orders.
+- **`pairShare`** lets the quote see our books: a request that the chain search can put in a chain with open cars
+  we hold has that chain's saving (the chain model's `worth`), × `pairShare`, taken off its cost, and no less than
+  0.4 × the cost. It fires on about 600 quoted options a week at €22 to €26 each. Alone it gains nothing (−€93 to
+  +€183); on the combination 0.5 adds about €186 on each of the three sets. A stricter form (only what the chain
+  adds over the chains its partners make without the new car, one request per open car, half for a car already in
+  the app) made +€782, +€679 and +€710 at 0.5, 1 and 1.5 on `squeeze`, under the simple form, and is not in the code.
+
+**What lost, and stays off or as it was** (ten seeds each; the first eleven rows on `supply-1` to `-10`, against the
+saved weeks of the defaults there, so each is some €300 to €500 too low):
+
+| Variant                                        | Against the defaults                       |          Orders |
+| ---------------------------------------------- | ------------------------------------------ | --------------: |
+| `longCost=0` (no long-drive cost)              | −€1,319 ± 364                              |             −11 |
+| `longCost=0,lateCost=0.5`                      | −€1,910 ± 548                              |              −6 |
+| `lateCost=0.5` / `1.5`                         | −€505 / −€382                              |        +4 / −10 |
+| `longCost=1.5`                                 | −€380 ± 360                                |              −6 |
+| `chainStart=0.85` / `0.75` with `chainRamp=30` | −€665 / −€778                              |         −2 / −6 |
+| `value=1` / `0.5`, table fitted again          | −€1,029 / −€686                            |       −27 / +37 |
+| `taxLoad=0.15` / `0.3` / `0.6`                 | −€975 / −€698 / −€264                      | +62 / +28 / −25 |
+| `raise3=1.4`                                   | −€288 ± 204                                |              −1 |
+| `urgentTop=1.8,lateTop=1.5`                    | −€69 ± 171                                 |              −1 |
+| `urgentTop=1.4,lateTop=1.2`                    | +€388 ± 235 (and +€333 ± 176 on `squeeze`) |              +2 |
+| On the combination, `squeeze`: `maxHop=90`     | +€546 against the combination's +€1,024    |             +39 |
+| … `maxCars=5,maxDrive=10`                      | +€930                                      |             +39 |
+| … `holdHours=3,pickLead=12`                    | +€1,067                                    |             +44 |
+| … `taxLoad=0.35`                               | under the combination (4 seeds)            |                 |
+
+- **Long lanes are not underpriced.** `lean` wins 9% of the requests with a typical fee of €150 or more, and the
+  dealers' limit there is about 1.31 × list where `lean` quotes 2.04 ×. But without the long-drive cost the week won
+  6.5 long orders more that earned nothing more as a group, and the other orders lost €1,100 a week (16 fewer, fees
+  0.92 against 0.90 × typical, 4.0% late against 2.8%). In the test final no team of the top won them either: the
+  win share of long lanes has no relation to a team's margin (correlation +0.01 over 36 ranked teams).
+- **A chain's fee is right.** 97% of the chains book at their opening fee after 3 minutes at the median, but a
+  lower opening with a climb to the fee lost.
+- **Wider chains do nothing.** 108 cars a week may join a chain and never do; a longer hop, more cars or longer
+  drives did not bring them in.
+
+**The flu, and why no guard is on.** The rules give every level 8 week one day on which 30% of the drivers stay at
+home, unannounced. It shows in the first hour of that day: the drivers give that day's gigs back, 10 at the median
+against 3 on the week's next-worst day (41 weeks of the defaults). For the defaults the weekday of the flu does not
+matter (96 to 97% on time); with the combination a flu on Thursday or Friday costs 1.2 to 1.4 points, and the late
+cars are those due on the second Monday (102 a week with the defaults, 131 with the combination), whose refunds come
+after the weekend. Three guards were built and none pays:
+
+- `guard` as a count of gigs given back, not started or expired in 12 hours (14 or 10): +€359 and +€131 where the
+  combination made +€729, and the 90.0% week ended at 90.7%.
+- `guard` as the first hour of a day (8, the code now): costs €190 to €840 a week against the same settings without
+  it, and lifts the lowest week by about one point.
+- `rescue` (when late orders and warned cars without a driver are that share of the orders won, warned cars climb to
+  3 × typical): 0.06 made +€281 ± 453 on `confirm` where the same settings without it made +€916, and the lowest
+  week stayed at 90.1%; 0.04 made −€277 with one week at 89.1%, not ranked.
+
+**The test final of 01:00.** Every team plays the same requests and each resolves at the same world minute, so a
+team's order count in the recorded leaderboard (`data/finals/2026-11-15-0100-test/`) shows what it won among the
+requests of each step; against our own week this agrees in 282 of 283 steps. `lean` came 6th of 41 with €12,875 and
+364 orders, €1,236 behind the first. It sent its first quote at world minute 709 (the 50 requests before it got
+none, some 22 orders and €650 to €700: the system was started after the hour, and `--final` waits by itself when it
+is started before), and it won 101 orders on Thursday and Friday where the first three won 122 to 165.
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
-`early` 0.8, `rest` true, `lateWithin` 60, `lateOpen` 1.25, `urgentOpen` 1.15, `urgentStep` 0.125, `urgentEvery` 15, `urgentTop` 2,
-`lateFrom` 1.1, `lateStep` 0.05, `lateEvery` 30, `lateTop` 1.7, `feeRatio` 0.84, `lateCost` 1, `premium` 3,
+`early` 0.8, `rest` true, `lateWithin` 60, `lateOpen` 1.25, `urgentOpen` 1.15, `urgentStep` 0.125, `urgentEvery` 15, `urgentTop` 1.6,
+`lateFrom` 1.1, `lateStep` 0.05, `lateEvery` 30, `lateTop` 1.3, `feeRatio` 0.84, `lateCost` 1, `premium` 3,
 `privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 0.98, `minHours` 4, `noise` 0.11,
 `sharedOutcome` true, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
 `pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1, `chainTries` 3, `chainFit` 0,
-`chainModel` true, `chainAlone` 1, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0.
+`chainModel` true, `chainAlone` 1, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0,
+`chainDays` 5, and the switches of [the squeeze](#the-squeeze-15-november-367) that are off: `taxFade` 0, `pairShare` 0,
+`longCost` 1, `chainStart` 1, `chainRamp` 20, `value` 0, `guard` 0, `rescue` 0.

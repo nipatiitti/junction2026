@@ -79,17 +79,18 @@ export const DEFAULTS = {
   lateOpen: 1.25,
   /** The urgent climb, for a gig after its deadline warning or with under 45 minutes left to book: it opens at
    * `urgentOpen` × typical (and 0.05 over the fee it showed), and rises `urgentStep` every `urgentEvery` waking
-   * minutes to `urgentTop`. None of the four is measured. */
+   * minutes to `urgentTop`. The top was 2 until 15 November: with 1.6 here and `lateTop` 1.3, 30 fresh server seeds
+   * made +€483 to +€558 a week at 0.2 to 0.5 points fewer orders on time (#367). The other three are not measured. */
   urgentOpen: 1.15,
   urgentStep: 0.125,
   urgentEvery: 15,
-  urgentTop: 2,
+  urgentTop: 1.6,
   /** The climb of a car that is late already: from `lateFrom` × typical, `lateStep` every `lateEvery` waking
-   * minutes, to `lateTop`. None of the four is measured. */
+   * minutes, to `lateTop` (1.7 until 15 November, measured with `urgentTop`). The other three are not measured. */
   lateFrom: 1.1,
   lateStep: 0.05,
   lateEvery: 30,
-  lateTop: 1.7,
+  lateTop: 1.3,
   /** What a booking costs × typical before this week's bookings say (supply.ts). */
   feeRatio: 0.84,
   /** `lateCost` × the list price for each unit of the request's chance to be late (outlook.ts). */
@@ -191,8 +192,9 @@ export const DEFAULTS = {
    * at the median (five ranking runs). 1 opens at the fee. */
   chainStart: 1,
   chainRamp: 20,
-  /** Chains are posted on the first `chainDays` days of the week: 4 is Monday to Thursday, 5 adds Friday. */
-  chainDays: 4,
+  /** Chains are posted on the first `chainDays` days of the week: 4 is Monday to Thursday, 5 adds Friday (+€119 to
+   * +€310 a week on 20 server seeds; 6 plays the same weeks, as no car is won on a Saturday). */
+  chainDays: 5,
   /** The rescue of the delivery minimum (a week under 90% on time scores nothing). When the late orders and the
    * warned cars without a driver reach this share of the orders won, the week stops adding risk and buys drivers:
    * no `taxFade`, no `pairShare`, and a warned car climbs from 1.6 × typical by 0.2 every 10 waking minutes to 3 ×.
