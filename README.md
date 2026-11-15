@@ -65,20 +65,18 @@ See [`sim/README.md`](sim/README.md) for its limitations and replay tools.
 
 ## Project map
 
-| Path | Purpose |
-| --- | --- |
-| [`src/strategies/lean/`](src/strategies/lean/README.md) | The current pricing, fee, cost, and chaining strategy |
-| [`src/harness/`](src/README.md) | Spread API loop, bookkeeping, validation, persistence, and recovery |
-| [`src/ops/`](src/ops/README.md) | Note parsing, serviceability, timing, and gig construction |
-| [`sim/`](sim/README.md) | Offline simulator, replay, and hindsight analysis |
-| [`docs/spread/`](docs/spread/HANDBOOK.md) | Spread handbook, rules, and API reference |
-| `data/scrape/runs/` | Recorded weeks used for analysis and model fitting |
+| Path                                                    | Purpose                                                             |
+| ------------------------------------------------------- | ------------------------------------------------------------------- |
+| [`src/strategies/lean/`](src/strategies/lean/README.md) | The current pricing, fee, cost, and chaining strategy               |
+| [`src/harness/`](src/README.md)                         | Spread API loop, bookkeeping, validation, persistence, and recovery |
+| [`src/ops/`](src/ops/README.md)                         | Note parsing, serviceability, timing, and gig construction          |
+| [`sim/`](sim/README.md)                                 | Offline simulator, replay, and hindsight analysis                   |
+| [`docs/spread/`](docs/spread/HANDBOOK.md)               | Spread handbook, rules, and API reference                           |
+| `data/scrape/runs/`                                     | Recorded weeks used for analysis and model fitting                  |
 
 ## Contributing
 
 Use `pnpm format`, `pnpm lint`, and `pnpm check` for formatting, linting, and type checking. The development workflow
 and the full command list are in [`AGENTS.md`](AGENTS.md).
 
-[^legacy]: The root `dispatch.py`, most of `strategies/`, and parts of `analysis/` and `tools/` are older Python code
-    used to experiment with many dispatch strategies, including a Python port of lean. They are not the current
-    product, although some analysis and recording tools still use them.
+[^legacy]: The root `dispatch.py`, most of `strategies/`, and parts of `analysis/` and `tools/` are older Python code used to experiment with many dispatch strategies, including a Python port of lean. They are not the current product, although some analysis and recording tools still use them.
