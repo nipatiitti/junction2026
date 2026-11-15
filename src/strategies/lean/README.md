@@ -1009,6 +1009,25 @@ keep their middle) was played against the defaults on 132 seeds that the search 
   on four seeds (`climb-20`, `-39`, `-72`, `-95`) where both setups end between 88.7% and 92.2%. With such a week
   counted as €0, the new defaults are €272 ± 156 a week ahead.
 
+**One more step the same way loses.** Each changed param went to the end of its range, so the new defaults were
+played against a step further on 36 more fresh seeds (`step-1` to `step-36`):
+
+| Setup                                                                                          | Against the new defaults | Orders |
+| ---------------------------------------------------------------------------------------------- | ------------------------ | ------ |
+| `costLevel` 1.04, `middle` 1.7, `trust` 0.4, `pairShare` 0.1, `holdHours` 4, `chainAlone` 0.94 | −€152 ± 182              | −32    |
+| … and `feeRatio` 0.76, `urgentTop` 1.3, `lateOpen` 1.1, `lateRestart` 0.8                      | −€414 ± 164              | −30    |
+
+So the new defaults are the top of this direction.
+
+**Why `room` does not keep every week ranked.** 12 of the 840 weeks of this search ended under 90% on time, with
+the old defaults as often as with the new ones and mostly on the same seeds (`climb-39`, `-72`, `-95`). The rule
+acted in each of them, 17 to 28 rises, but at its first rise on Friday 21:00 the week had room for −1 to 6 more
+late orders where 9 to 11 were expected: these weeks use their room before Friday night, which the rule does not
+cover. They are weeks short of drivers: bookings cost 0.97 to 1.05 × typical where 0.85 is usual, and 35 to 40 cars
+missed their last pickup.
+
+**The final** (15 November, 09:00) was played with these defaults: €21,744.80 with 484 orders at 96.1% on time,
+2nd of 58 ranked teams, €1,186 behind Juhus ([`data/finals/2026-11-15-0900/`](../../../data/finals/2026-11-15-0900/README.md)).
 ## Trust farming (15 November, #391, off)
 
 In the 01:00 test final Juhus and HackandSeek had 131 and 128 orders by Tuesday noon where `lean` had 88, and at
