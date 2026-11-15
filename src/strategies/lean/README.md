@@ -80,7 +80,8 @@ drivers who booked on their first view paid 0.80 ×. So the fee holds still and 
   urgent one.
 - The urgent climb, from the deadline warning on or with under 45 minutes left to book: from `urgentOpen` (1.15),
   `urgentStep` (0.125) every `urgentEvery` (15) waking minutes to `urgentTop`. A car that is late already climbs
-  from `lateFrom` (1.1) by `lateStep` (0.05) every `lateEvery` (30) minutes to `lateTop` (1.3). A gig that a driver
+  from `lateFrom` (1.1) by `lateStep` (0.05) every `lateEvery` (30) minutes to `lateTop` (1.3) only with
+  `lateRestart` 0; with it, [it starts again](#a-car-that-missed-its-last-pickup-starts-again-15-november-387). A gig that a driver
   gives back starts again from the fee that booked it.
 - Every time in a schedule counts waking minutes (07:00 to 21:00): a raise at night shows to nobody.
 - A gig whose last pickup is on the Monday after the weekend, posted before that Monday 06:00, keeps its opening
@@ -923,6 +924,44 @@ In 174 of the 188 saved weeks the sum never reaches the room, and the rule does 
 **What the rule does not cover:** a week that uses its room before Friday night. The closest saved week used 85%
 of it. `lateHard` works against that during the week.
 
+## A car that missed its last pickup starts again (15 November, #387)
+
+A car that passes its last pickup with no driver is late whatever happens. In 50 saved weeks of the defaults
+(`squeeze`, `confirm` and `third` seeds) that was 15 single cars a week, and they were handled badly twice:
+
+- Their gig stayed in the app until one of its windows ended, 2.5 hours later on average, and no driver can book a
+  gig that they cannot do inside its windows.
+- The repost held the fee that the urgent climb had reached, 1.65 × typical: the fee it showed at the end is the
+  least a repost opens at, so the late climb from `lateFrom` to `lateTop` never played. Half of the reposts were
+  booked within 10 minutes, 88% of them posted between 18:00 and 21:00, by drivers who plan the next day: work that
+  books at 0.80 to 0.88 × typical when it is not late. They paid €774 a week over 1.0 × typical.
+
+**The rule** (`lateRestart`, × typical; 0 is off). On the first tick after the last pickup of an order with one car
+in a single gig that no driver holds, `lean` takes the gig out and posts the car again at once, with windows that
+run to the end of the world. A car past its last pickup opens at `lateRestart` × typical, whatever fee it showed
+before, and takes the usual raises (`raiseAt1` to `raise3`, then `urgentTop`) towards the same minute of the next
+weekday that is three hours ahead or more: the refund steps count 24 hours and then business days, so that minute is
+the last pickup of the next step. A private pickup is left as it was: its slot does not extend.
+
+**The result.** Eight fresh server seeds (`late-1` to `late-8`, level 8), four settings on the same seeds, every
+week ranked. ± is one standard error of the paired difference:
+
+| Setting                       | Margin a week | Against the defaults | Seeds ahead | On time |
+| ----------------------------- | ------------- | -------------------- | ----------- | ------- |
+| The defaults before           | €18,051       |                      |             | 94.7%   |
+| `lateRestart=1` (**default**) | €18,596       | +€545 ± 187          | 7 of 8      | 94.7%   |
+| `trust=0.55`                  | €17,796       | −€255 ± 222          | 4 of 8      | 94.3%   |
+| `lateRestart=1,trust=0.55`    | €18,617       | +€567 ± 164          | 7 of 8      | 95.0%   |
+
+- **`lateRestart`** gains €683 ± 181 a week over both pairs. The cars booked after their last pickup (17 a week)
+  paid 1.20 × typical where they paid 1.65 ×, €550 a week less in fees.
+- **Its leak:** those cars wait longer for a driver (8.9 hours at the median against 4.1), and 9.9 a week end with
+  a refund of 50% or more against 5.8, about €140 a week more in refunds. The cars that find no driver on the first
+  evening book the next morning at 1.41 × typical, and half of them slip a refund step. A higher opening or an
+  earlier top for them is not tried yet.
+- **`trust=0.55`** is not a gain here: −€117 ± 130 a week over both pairs. An earlier bench had it at +€342 ± 99
+  on ten seeds; the two together say it is near nothing, and `trust` stays 0.7.
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
@@ -932,6 +971,6 @@ of it. `lateHard` works against that during the week.
 `sharedOutcome` true, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
 `pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1, `chainTries` 3, `chainFit` 0,
 `chainModel` true, `chainAlone` 1, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0,
-`chainDays` 5, `taxFade` 1, `pairShare` 0.5, `room` 3.5, and the switches of
+`chainDays` 5, `taxFade` 1, `pairShare` 0.5, `room` 3.5, `lateRestart` 1, and the switches of
 [the squeeze](#the-squeeze-15-november-367) that are off: `longCost` 1, `chainStart` 1, `chainRamp` 20, `value` 0,
 `guard` 0, `rescue` 0.

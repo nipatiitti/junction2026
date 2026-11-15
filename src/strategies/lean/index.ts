@@ -231,8 +231,9 @@ export const DEFAULTS = {
    * Without it the gig stays in the app until a window ends, 2.5 hours on average, where no driver can book it, and
    * the repost holds the 1.65 × typical that the urgent climb reached: 15 cars a week, half of them booked within
    * 10 minutes of the repost, mostly between 18:00 and 21:00, and €774 a week paid over 1.0 × typical (50 server
-   * weeks). 0 is off. */
-  lateRestart: 0,
+   * weeks). At 1 on eight fresh server seeds: +€545 ± 187 a week, ahead on 7 of 8; such cars paid 1.20 × typical.
+   * 0 is off. */
+  lateRestart: 1,
 }
 export type LeanParams = typeof DEFAULTS
 
