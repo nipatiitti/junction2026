@@ -29,6 +29,18 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-15: the squeeze (PR #368, issue #367)
+
+- **Version changed**: TypeScript.
+- **What changed**: new defaults `urgentTop` 1.6 (was 2), `lateTop` 1.3 (was 1.7) and `chainDays` 5 (chains on
+  Friday too; was Monday to Thursday): +€488 to +€671 a week on 30 fresh server seeds. New params that are off:
+  `taxFade` (no load charge on Friday, half on Thursday) and `pairShare` (a request that would ride in a chain with
+  open cars we hold is priced by that chain's saving), which together make another €430 to €860 a week with 80 more
+  orders and are in `src/strategies/lean/volume.json`, at a risk to the delivery minimum; and `longCost`,
+  `chainStart` with `chainRamp`, `value` (the value table is back, fitted again), `guard` and `rescue`, which all
+  lost. The tables: [`src/strategies/lean/README.md`](src/strategies/lean/README.md#the-squeeze-15-november-367).
+- **In step**: no (#329). The Python version has none of these params and keeps the old tops and chain days.
+
 ### 2026-11-15: shared outcomes on (issue #360)
 
 - **Version changed**: TypeScript.
