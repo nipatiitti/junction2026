@@ -234,6 +234,11 @@ export const DEFAULTS = {
    * weeks). At 1 on eight fresh server seeds: +€545 ± 187 a week, ahead on 7 of 8; such cars paid 1.20 × typical.
    * 0 is off. */
   lateRestart: 0.9,
+  /** Not 0: trust farming (#391). On the first `farmDays` days a request of a dealer whose count of orders on time
+   * is under 25 is priced as if it cost this × its list price less: each order on time raises the prices that its
+   * dealer accepts by 1% for the rest of the week. 0 is off. */
+  farm: 0,
+  farmDays: 2,
 }
 export type LeanParams = typeof DEFAULTS
 
@@ -397,7 +402,12 @@ class Lean extends Strategy<LeanParams> {
       const charge = this.params.value
         ? this.params.value * valueCharge(now, won, lateShare, option.kind, request.referenceFeeCents)
         : 0
-      const best = bestPrice(belief, option.listPriceCents, cost * (1 + tax) + this.params.taxEuros * 100 + charge)
+      const farm =
+        this.params.farm > 0 && now < this.params.farmDays * DAY && this.trustCount(request.dealerId) < 25
+          ? this.params.farm * option.listPriceCents
+          : 0
+      const floor = Math.max(0, cost * (1 + tax) + this.params.taxEuros * 100 + charge - farm)
+      const best = bestPrice(belief, option.listPriceCents, floor)
       if (best === null) continue
       quotes.push([option.kind, Math.round(best)])
     }
