@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 500" width="960" height="500" role="img" aria-label="161 strategies on 167 seeds in 30 hours">
+<title>161 strategies on 167 seeds in 30 hours</title>
+<style>
+  .card { fill: #fcfcfb; stroke: #e4e3de; }
+  .title { font: 650 20px system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; fill: #0b0b0b; }
+  .sub { font: 400 13.5px system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; fill: #52514e; }
+  .tick, .note { font: 400 11.5px system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; fill: #76756f; }
+  .key { font: 400 12.5px system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; fill: #52514e; }
+  .value { font: 650 14px system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; fill: #0b0b0b; }
+  .grid { stroke: #e9e8e3; stroke-width: 1; }
+  .axis { stroke: #c9c8c2; stroke-width: 1; }
+  .dot { fill: #8d8c85; fill-opacity: .32; }
+  .s1 { stroke: #2a78d6; } .f1 { fill: #2a78d6; }
+  .s2 { stroke: #eb6834; } .f2 { fill: #eb6834; }
+  .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .ring { stroke: #fcfcfb; stroke-width: 2; }
+  @media (prefers-color-scheme: dark) {
+    .card { fill: #1a1a19; stroke: #333330; }
+    .title, .value { fill: #f0efec; }
+    .sub, .key { fill: #c3c2b7; }
+    .tick, .note { fill: #9a998f; }
+    .grid { stroke: #2a2a28; }
+    .axis { stroke: #4a4945; }
+    .dot { fill: #a3a299; fill-opacity: .3; }
+    .s1 { stroke: #3987e5; } .f1 { fill: #3987e5; }
+    .s2 { stroke: #d95926; } .f2 { fill: #d95926; }
+    .ring { stroke: #1a1a19; }
+  }
+</style>
+<rect class="card" x=".5" y=".5" width="959" height="499" rx="14"/>
+<text class="title" x="32" y="46">161 strategies on 167 seeds in 30 hours</text>
+<text class="sub" x="32" y="70">Counted over the 3,730 weeks played on the server and saved in this repository</text>
+<path class="line s1" d="M32.0 94h16"/>
+<text class="key" x="55.0" y="98">strategies tried so far</text>
+<path class="line s2" d="M228.79999999999998 94h16"/>
+<text class="key" x="251.79999999999998" y="98">seeds played so far</text>
+<path class="axis" d="M64 442.0H770"/>
+<text class="tick" x="54" y="446.0" text-anchor="end">0</text>
+<path class="grid" d="M64 362.0H770"/>
+<text class="tick" x="54" y="366.0" text-anchor="end">50</text>
+<path class="grid" d="M64 282.0H770"/>
+<text class="tick" x="54" y="286.0" text-anchor="end">100</text>
+<path class="grid" d="M64 202.0H770"/>
+<text class="tick" x="54" y="206.0" text-anchor="end">150</text>
+<path class="grid" d="M64 122.0H770"/>
+<text class="tick" x="54" y="126.0" text-anchor="end">200</text>
+<path class="axis" d="M64.0 442v5"/>
+<text class="tick" x="64.0" y="462" text-anchor="middle">Fri 18:00</text>
+<path class="axis" d="M181.7 442v5"/>
+<text class="tick" x="181.7" y="462" text-anchor="middle">Sat 00:00</text>
+<path class="axis" d="M299.3 442v5"/>
+<text class="tick" x="299.3" y="462" text-anchor="middle">06:00</text>
+<path class="axis" d="M417.0 442v5"/>
+<text class="tick" x="417.0" y="462" text-anchor="middle">12:00</text>
+<path class="axis" d="M534.7 442v5"/>
+<text class="tick" x="534.7" y="462" text-anchor="middle">18:00</text>
+<path class="axis" d="M652.3 442v5"/>
+<text class="tick" x="652.3" y="462" text-anchor="middle">Sun 00:00</text>
+<path class="axis" d="M770.0 442v5"/>
+<text class="tick" x="770.0" y="462" text-anchor="middle">06:00</text>
+<path class="line s1" d="M160.1 442.0H160.1V440.4H165.2V438.8H165.2V437.2H165.9V435.6H201.8V434.0H208.3V432.4H208.3V430.8H214.1V429.2H243.9V427.6H243.9V426.0H269.3V424.4H273.9V422.8H275.3V421.2H275.3V419.6H275.3V418.0H340.0V416.4H348.5V414.8H348.5V413.2H348.5V411.6H348.5V410.0H348.5V408.4H348.5V406.8H348.5V405.2H356.5V403.6H357.6V402.0H357.6V400.4H357.6V398.8H357.6V397.2H357.6V395.6H360.6V394.0H370.5V392.4H370.5V390.8H370.5V389.2H370.5V387.6H370.5V386.0H370.5V384.4H370.5V382.8H370.5V381.2H370.5V379.6H370.5V378.0H370.5V376.4H370.5V374.8H370.5V373.2H370.5V371.6H370.5V370.0H370.5V368.4H370.5V366.8H370.5V365.2H370.5V363.6H374.5V362.0H378.6V360.4H378.6V358.8H378.6V357.2H378.6V355.6H378.6V354.0H378.6V352.4H378.6V350.8H378.6V349.2H378.6V347.6H378.6V346.0H378.6V344.4H378.6V342.8H378.6V341.2H378.6V339.6H378.6V338.0H378.6V336.4H379.8V334.8H405.2V333.2H413.3V331.6H413.3V330.0H413.3V328.4H413.3V326.8H413.3V325.2H413.3V323.6H413.3V322.0H413.3V320.4H413.3V318.8H413.3V317.2H413.3V315.6H413.3V314.0H413.3V312.4H413.3V310.8H413.3V309.2H413.3V307.6H413.3V306.0H413.3V304.4H413.3V302.8H413.3V301.2H413.3V299.6H413.3V298.0H413.3V296.4H413.3V294.8H413.3V293.2H413.3V291.6H413.3V290.0H413.3V288.4H413.3V286.8H413.8V285.2H414.4V283.6H417.6V282.0H417.6V280.4H417.6V278.8H417.6V277.2H417.6V275.6H417.6V274.0H417.6V272.4H417.6V270.8H420.6V269.2H420.6V267.6H420.6V266.0H420.6V264.4H420.6V262.8H423.5V261.2H423.5V259.6H423.5V258.0H423.5V256.4H423.5V254.8H423.5V253.2H424.5V251.6H424.5V250.0H424.5V248.4H424.5V246.8H424.5V245.2H424.5V243.6H424.5V242.0H424.5V240.4H424.5V238.8H424.5V237.2H424.5V235.6H424.5V234.0H424.5V232.4H424.5V230.8H424.5V229.2H424.5V227.6H424.5V226.0H424.5V224.4H424.5V222.8H424.5V221.2H424.5V219.6H427.5V218.0H428.7V216.4H428.7V214.8H428.7V213.2H428.7V211.6H428.7V210.0H428.7V208.4H428.7V206.8H428.7V205.2H428.7V203.6H429.2V202.0H432.4V200.4H432.4V198.8H432.4V197.2H432.4V195.6H432.4V194.0H432.4V192.4H436.9V190.8H459.7V189.2H462.9V187.6H529.6V186.0H541.4V184.4H743.1"/>
+<circle class="f1 ring" cx="743.1" cy="184.4" r="5"/>
+<path class="line s2" d="M160.1 442.0H160.1V440.4H160.1V438.8H160.1V437.2H160.1V435.6H160.1V434.0H165.5V432.4H165.5V430.8H165.5V429.2H165.5V427.6H165.5V426.0H413.3V424.4H413.3V422.8H413.3V421.2H413.3V419.6H413.3V418.0H413.3V416.4H413.3V414.8H413.3V413.2H413.3V411.6H413.3V410.0H413.3V408.4H413.3V406.8H414.4V405.2H416.1V403.6H416.1V402.0H416.1V400.4H416.1V398.8H424.5V397.2H424.5V395.6H424.5V394.0H424.5V392.4H424.5V390.8H424.5V389.2H424.5V387.6H424.5V386.0H424.5V384.4H424.5V382.8H434.1V381.2H434.1V379.6H434.1V378.0H434.1V376.4H435.0V374.8H443.5V373.2H443.5V371.6H443.5V370.0H443.5V368.4H443.5V366.8H446.3V365.2H446.3V363.6H447.8V362.0H447.8V360.4H447.8V358.8H449.2V357.2H449.2V355.6H452.3V354.0H452.3V352.4H452.3V350.8H466.4V349.2H488.3V347.6H488.3V346.0H488.3V344.4H488.9V342.8H488.9V341.2H502.4V339.6H502.4V338.0H502.4V336.4H502.4V334.8H502.4V333.2H503.4V331.6H503.4V330.0H503.4V328.4H503.4V326.8H503.4V325.2H503.4V323.6H503.4V322.0H503.4V320.4H541.4V318.8H541.4V317.2H541.4V315.6H541.4V314.0H541.4V312.4H541.4V310.8H563.5V309.2H563.5V307.6H563.5V306.0H563.5V304.4H563.5V302.8H593.1V301.2H599.7V299.6H599.7V298.0H599.7V296.4H599.7V294.8H603.9V293.2H603.9V291.6H603.9V290.0H603.9V288.4H603.9V286.8H603.9V285.2H603.9V283.6H603.9V282.0H603.9V280.4H603.9V278.8H646.6V277.2H646.6V275.6H646.6V274.0H646.6V272.4H646.6V270.8H646.6V269.2H646.6V267.6H646.6V266.0H646.6V264.4H646.6V262.8H656.1V261.2H656.1V259.6H656.1V258.0H656.1V256.4H656.1V254.8H656.1V253.2H656.1V251.6H656.1V250.0H656.1V248.4H656.1V246.8H656.1V245.2H656.1V243.6H656.1V242.0H656.1V240.4H656.1V238.8H672.1V237.2H672.1V235.6H672.1V234.0H672.1V232.4H672.1V230.8H672.1V229.2H672.1V227.6H672.1V226.0H672.1V224.4H672.1V222.8H717.5V221.2H717.5V219.6H717.5V218.0H717.5V216.4H717.5V214.8H717.5V213.2H717.5V211.6H717.5V210.0H717.5V208.4H717.5V206.8H717.5V205.2H717.5V203.6H717.5V202.0H717.5V200.4H717.5V198.8H717.5V197.2H717.5V195.6H717.5V194.0H717.5V192.4H717.5V190.8H717.5V189.2H717.5V187.6H717.5V186.0H717.5V184.4H717.5V182.8H717.5V181.2H717.5V179.6H717.5V178.0H717.5V176.4H717.5V174.8H743.1"/>
+<circle class="f2 ring" cx="743.1" cy="174.8" r="5"/>
+<text class="value" x="755.1" y="178.8">167 seeds</text>
+<text class="value" x="755.1" y="198.8">161 strategies</text>
+<text class="note" x="32" y="486">Each week is dated by the commit that saved it, Helsinki time. A seed is one week; a strategy is a name that weeks were saved under.</text>
+</svg>
