@@ -193,6 +193,10 @@ export const DEFAULTS = {
   chainRamp: 20,
   /** Chains are posted on the first `chainDays` days of the week: 4 is Monday to Thursday, 5 adds Friday. */
   chainDays: 4,
+  /** The share of a chain's saving that comes off the cost of a request which would ride in that chain with open
+   * cars we hold (planner.ts, `saving`): such a car costs the chain's rate, not a single gig's, and it makes its
+   * partners cheaper too. 0 prices every request as a single gig. */
+  pairShare: 0,
   /** How much of the `taxLoad` charge is gone on Friday, and half of that on Thursday: an order costs the cars booked
    * after it, and few are booked after a Friday's. 0 keeps the charge all week, 1 has none on Friday. */
   taxFade: 0,
@@ -227,6 +231,8 @@ const LOAD_PRIOR = 150
 const LATE_PRIOR = 20
 const AT_RISK = 0.5
 const HARD_ROOM = 0.5
+/** A request's cost with a chain partner is no less than this × its cost alone (`pairShare`). */
+const PAIR_LEAST = 0.4
 /** A booking teaches the supply no less and no more than these × typical. */
 const BOOKED_LOW = 0.3
 const BOOKED_HIGH = 2.5
@@ -268,7 +274,16 @@ class Lean extends Strategy<LeanParams> {
   private readonly delivered = new Map<string, string[]>()
   private readonly late = new Set<string>()
   private done = 0
-  private readonly tally = { requests: 0, quoted: 0, won: 0, multiples: 0, bookings: 0, ratios: 0 }
+  private readonly tally = {
+    requests: 0,
+    quoted: 0,
+    won: 0,
+    multiples: 0,
+    bookings: 0,
+    ratios: 0,
+    pairs: 0,
+    pairCents: 0,
+  }
   constructor(setup: Setup, params: LeanParams) {
     super(setup, params)
     this.supply = new Supply(params.feeRatio)
@@ -301,7 +316,7 @@ class Lean extends Strategy<LeanParams> {
     for (const option of options) {
       if (!canServe(request, option, now, context).ok) continue
       if (this.setup.level <= 3) return { [option.kind]: option.listPriceCents }
-      const cost = this.cost(request, option, facts, now, open)
+      const cost = this.cost(request, option, facts, now, open, books)
       if (cost === null) continue
       const belief = this.demand.belief(this.demand.keys(request, option.kind), this.trustOffset(request.dealerId))
       const charge = this.params.value
@@ -331,6 +346,7 @@ class Lean extends Strategy<LeanParams> {
     facts: NoteFacts,
     now: number,
     open: number,
+    books: Books,
   ): number | null {
     const f = features(request, this.setup.map, option)
     const deadline = Math.min(option.deadline, facts.deadline ?? Infinity)
@@ -346,7 +362,8 @@ class Lean extends Strategy<LeanParams> {
     if (view) {
       ratio *= view.cost
       if (f.premium) ratio *= this.params.premium
-      return request.referenceFeeCents * ratio + view.late * this.params.lateCost * option.listPriceCents
+      const cents = request.referenceFeeCents * ratio + view.late * this.params.lateCost * option.listPriceCents
+      return this.paired(cents, request, readyAt, lastPickup, deadline, books)
     }
     if (f.privatePickup) ratio += this.params.privatePickup
     else if (f.privateDelivery) ratio += this.params.privateDelivery
@@ -355,6 +372,24 @@ class Lean extends Strategy<LeanParams> {
     if (facts.deadline !== null || facts.pickupHours !== null || facts.deliveryHours !== null) ratio += NARROW_NOTE
     if (f.premium) ratio *= this.params.premium // one driver in twelve may take it
     return request.referenceFeeCents * ratio
+  }
+
+  /** The cost of a request that would ride in a chain with open cars we hold: less `pairShare` of what that chain
+   * saves (planner.ts, `saving`), and no less than PAIR_LEAST of the cost. */
+  private paired(
+    cents: number,
+    request: PriceRequest,
+    ready: number,
+    lastPickup: number,
+    deadline: number,
+    books: Books,
+  ): number {
+    if (!(this.params.pairShare > 0)) return cents
+    const saving = this.planner.saving(request, ready, lastPickup, deadline, books)
+    if (saving <= 0) return cents
+    this.tally.pairs++
+    this.tally.pairCents += saving
+    return Math.max(PAIR_LEAST * cents, cents - this.params.pairShare * saving)
   }
 
   /** What the order model expects of this work at the minute `at` (outlook.ts): its cost against the mean order's,
@@ -683,7 +718,7 @@ class Lean extends Strategy<LeanParams> {
     const share = t.requests > 0 ? (100 * t.won) / t.requests : 0
     const multiple = t.won > 0 ? t.multiples / t.won : 0
     const paid = t.bookings > 0 ? t.ratios / t.bookings : 0
-    return `lean: won ${t.won} of ${t.requests} requests (${share.toFixed(1)}%) at ${multiple.toFixed(2)} × list, ${t.bookings} bookings at ${paid.toFixed(2)} × typical, ${this.late.size} late of ${this.done} done. ${this.planner.summary()}`
+    return `lean: won ${t.won} of ${t.requests} requests (${share.toFixed(1)}%) at ${multiple.toFixed(2)} × list, ${t.bookings} bookings at ${paid.toFixed(2)} × typical, ${this.late.size} late of ${this.done} done. ${this.planner.summary()}${t.pairs > 0 ? ` Pairs: ${t.pairs} options priced with a chain partner, saving €${(t.pairCents / t.pairs / 100).toFixed(0)} each.` : ''}`
   }
 
   private context(tightening = 1): Context {
