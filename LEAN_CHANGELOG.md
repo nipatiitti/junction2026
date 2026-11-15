@@ -39,7 +39,8 @@ every quote, post, withdrawal and reprice should be the same.
   gigs out of chains until repriced, and computes the chain model's `fresh` feature from views of earlier gigs instead of whether
   a car currently waits without a gig. `chainOpen` and `chainSpread` now affect the modelled booking chance and expected fee, and
   successful chain offers and their limits survive a rebuild. Python's `chainBid` candidate uses the same moved deadline and stop
-  requirements as the real gig.
+  requirements as the real gig. On 12 fresh paired server seeds against main: +€37.61 a week (SE €178.41), ahead
+  on 6 of 12, with all 24 weeks ranked.
 - **In step**: no (#329). The shared fixes are mirrored; the per-leg recovery was already present in Python, and the documented
   older Python model and defaults remain different. Python has no chain model or chain-offer reconstruction to mirror.
 
