@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Joke video player</title>
+    <title>Video player</title>
     <style>
       :root {
         color-scheme: dark;
@@ -73,6 +73,7 @@
   <body>
     <div id="stage"><canvas id="out" width="1080" height="1920"></canvas></div>
     <div id="controls">
+      <select id="video" title="Which video to play"></select>
       <select id="view" title="Which view to play"></select>
       <button id="play" type="button" title="Play or pause (Space)">Play</button>
       <button id="restart" type="button" title="Back to the start (Home)">⏮</button>
@@ -81,7 +82,7 @@
       <input id="scrub" type="range" min="0" max="1" step="any" value="0" />
       <span id="time"></span>
       <label><input id="loop" type="checkbox" checked /> loop</label>
-      <label><input id="safe" type="checkbox" /> TikTok safe areas</label>
+      <label><input id="safe" type="checkbox" /> safe areas</label>
       <label><input id="mute" type="checkbox" /> mute</label>
       <button id="render" type="button" title="Render the selected view with its sound to the Downloads folder">Render MP4</button>
       <span id="status"></span>

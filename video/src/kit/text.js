@@ -246,8 +246,8 @@ export function drawSafeAreas(g) {
 
 const point = new THREE.Vector3()
 
-/** Where a point of the 3D view lands on the 1080×1920 picture. Call it after the frame is rendered. */
-export function toScreen(position, camera) {
+/** Where a point of the 3D view lands on the picture (1080×1920 unless told). Call it after the frame is rendered. */
+export function toScreen(position, camera, width = 1080, height = 1920) {
   point.copy(position).project(camera)
-  return [(point.x + 1) * 540, (1 - point.y) * 960]
+  return [((point.x + 1) * width) / 2, ((1 - point.y) * height) / 2]
 }
