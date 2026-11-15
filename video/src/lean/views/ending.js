@@ -62,12 +62,11 @@ export default {
     }
     const noodle = new THREE.MeshStandardMaterial({ color: '#f0cf7a', roughness: 0.38, metalness: 0 })
     const shapes = [1, 2, 3, 4, 5, 6].map(strandGeometry)
-    for (let i = 0; i < 3; i++) {
-      const strand = new THREE.Mesh(shapes[i], noodle)
-      strand.position.set(1.7 + i * 0.05, 2.75 + i * 0.06, WALL + 0.04)
-      strand.rotation.z = 0.4 + i * 0.3
-      scene.add(strand)
-    }
+    // the single strand that stuck
+    const stuck = new THREE.Mesh(shapes[0], noodle)
+    stuck.position.set(1.7, 2.75, WALL + 0.04)
+    stuck.rotation.z = 0.7
+    scene.add(stuck)
     const winner = sign(segment.texts.winner, { w: 1.3, h: 0.36, bg: '#13a35a', fg: '#ffffff' })
     scene.add(at(winner, 1.85, 3.05, WALL + 0.06))
     for (let i = 0; i < 90; i++) {

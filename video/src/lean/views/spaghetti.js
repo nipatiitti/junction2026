@@ -12,16 +12,18 @@ import { SANS } from '../ui.js'
 
 // Joke 1, the hook: four developers tip pots of spaghetti at a wall, in slow motion: 63 strategies, each a bundle of
 // thin cooked strands. They slap the wall with a splash of tomato sauce, slide down one by one while a counter on the
-// wall runs down, and one sticks: ts:lean. The texts are in timeline.js. Beats (local seconds):
+// wall runs down, and one sticks: ts:lean, a single strand. The floor is clean until the first ones slide off. The
+// texts are in timeline.js. Beats (local seconds):
 //   0–1.9    the first frame is already mid-throw; the bundles fly at the wall and slap it from 1.2
-//   1.9–6.6  they slide down; the named ones get an ELIMINATED stamp; the counter runs from 63 to 1
+//   1.9–5.4  they slide down (the last is on the floor by 6.7); the named ones get an ELIMINATED stamp; the
+//            counter runs from 63 to 1
 //   6.6–9.0  one still sticks; push in on its tag, ts:lean; sparkles
 
 const COUNT = 63
 const STRANDS = 3 // strands in a bundle
 const WALL = -3 // z of the wall's face
 const WINNER = [1.7, 2.75] // where ts:lean sticks, x and y on the wall
-const SLIDES = [1.9, 6.6]
+const SLIDES = [1.9, 5.4]
 const NAMED_AT = [3.0, 3.6, 4.2, 4.8]
 /** Where the four developers stand, and when each tips the pot (the first two before the first frame). */
 const DEVS = [
@@ -153,21 +155,32 @@ export default {
       const winner = i === COUNT - 1
       const dev = devs[i % devs.length]
       const target = winner ? [...WINNER] : [rand.range(-1.7, 4.9), rand.range(0.8, 4.9)]
+      // none lands on the counter in the top right corner
+      if (target[0] > 3.8 && target[1] > 3.65) target[1] -= 1.4
+      const launch = dev.tip + 0.1 + rand() * 0.25
+      const hit = 1.2 + rand() * 0.7
+      const spin = [rand.range(-5, 5), rand.range(-5, 5), rand.range(-5, 5)]
+      const turn = rand() * Math.PI
+      const arc = rand.range(0.6, 1.4)
+      const drop = rand.range(6, 10)
+      const offsets = Array.from({ length: STRANDS }, () => [
+        rand.range(-0.08, 0.08),
+        rand.range(-0.08, 0.08),
+        rand() * 0.6,
+      ])
+      // the one that sticks is a single strand
+      const slide = winner ? Infinity : 0
       bundles.push({
         dev,
         target,
-        launch: dev.tip + 0.1 + rand() * 0.25,
-        hit: 1.2 + rand() * 0.7,
-        spin: [rand.range(-5, 5), rand.range(-5, 5), rand.range(-5, 5)],
-        turn: rand() * Math.PI,
-        arc: rand.range(0.6, 1.4),
-        slide: winner ? Infinity : 0,
-        drop: rand.range(5, 9),
-        offsets: Array.from({ length: STRANDS }, () => [
-          rand.range(-0.08, 0.08),
-          rand.range(-0.08, 0.08),
-          rand() * 0.6,
-        ]),
+        launch,
+        hit,
+        spin,
+        turn,
+        arc,
+        slide,
+        drop,
+        offsets: winner ? [[0, 0, 0.3]] : offsets,
         winner,
       })
       const splat = mesh(splatGeometry(i + 7), sauce, { shadow: false })
@@ -252,7 +265,11 @@ export default {
           const { splat, size } = splats[i]
           splat.scale.setScalar(Math.max(0.001, size * pop(t, b.hit, 0.15)))
         })
-        for (const m of instanced) m.instanceMatrix.needsUpdate = true
+        // draw only the strands set above: an instance left unset would stand on the floor at the origin
+        instanced.forEach((m, k) => {
+          m.count = counts[k]
+          m.instanceMatrix.needsUpdate = true
+        })
         counter.set({ n: t < 1.2 ? COUNT : Math.max(1, stuck + flying) })
 
         marks.length = 0
