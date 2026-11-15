@@ -193,10 +193,11 @@ export const DEFAULTS = {
   chainRamp: 20,
   /** Chains are posted on the first `chainDays` days of the week: 4 is Monday to Thursday, 5 adds Friday. */
   chainDays: 4,
-  /** The guard of the on-time share: when this many gigs were given back, not started or expired within 12 hours,
-   * the next 24 hours play safe: no `taxFade`, no `pairShare`, and the urgent and late climbs go to 2 and 1.7 ×
-   * typical at least. A day on which drivers stay at home shows in those events hours before the late cars do
-   * (one week of the combination ended at 90.0% on time; its refunds came after the weekend). 0 is off. */
+  /** The guard of the flu day (the rules: in every level 8 week 30% of the drivers stay at home for one day, and
+   * nobody announces it). The drivers give their gigs of that day back in its first hour: 10 of them at the
+   * median, against 3 on the next-worst day (41 server weeks). When that hour holds this many, the day and the
+   * next play safe: no `taxFade`, no `pairShare`, and the urgent and late climbs go to 2 and 1.7 × typical at
+   * least. 0 is off. */
   guard: 0,
   /** The share of a chain's saving that comes off the cost of a request which would ride in that chain with open
    * cars we hold (planner.ts, `saving`): such a car costs the chain's rate, not a single gig's, and it makes its
@@ -236,8 +237,9 @@ const LOAD_PRIOR = 150
 const LATE_PRIOR = 20
 const AT_RISK = 0.5
 const HARD_ROOM = 0.5
-/** The guard (`guard`) counts over this many minutes, holds this long, and lifts the climbs to these × typical. */
-const [GUARD_WINDOW, GUARD_HOLD, GUARD_URGENT, GUARD_LATE] = [12 * HOUR, 24 * HOUR, 2, 1.7]
+/** The guard (`guard`) counts the gigs given back in the first GUARD_HOUR minutes of a day, and lifts the climbs to
+ * these × typical. */
+const [GUARD_HOUR, GUARD_URGENT, GUARD_LATE] = [60, 2, 1.7]
 /** A request's cost with a chain partner is no less than this × its cost alone (`pairShare`). */
 const PAIR_LEAST = 0.4
 /** A booking teaches the supply no less and no more than these × typical. */
@@ -281,7 +283,7 @@ class Lean extends Strategy<LeanParams> {
   private readonly delivered = new Map<string, string[]>()
   private readonly late = new Set<string>()
   private done = 0
-  /** The minutes at which a driver gave a gig back or did not start it, or a gig expired; and the guard's state. */
+  /** The minutes at which a driver gave a gig back in the first hour of a day; and the guard's state. */
   private readonly troubles: number[] = []
   private guardSeen = 0
   private guardUntil = -1
@@ -385,15 +387,16 @@ class Lean extends Strategy<LeanParams> {
     return request.referenceFeeCents * ratio
   }
 
-  /** Whether the guard is up at `now` (`guard`): from the minute that GUARD_WINDOW held `guard` gigs given back, not
-   * started or expired, for GUARD_HOLD. It depends only on the events, so a rebuilt week decides the same. */
+  /** Whether the guard is up at `now` (`guard`): from the minute that the first hour of a day held `guard` gigs
+   * given back, to the end of the next day. It depends only on the events, so a rebuilt week decides the same. */
   private guarded(now: number): boolean {
     const least = this.params.guard
     if (!(least > 0)) return false
     while (this.guardSeen < this.troubles.length) {
       const at = this.troubles[this.guardSeen++] as number
-      const recent = this.troubles.filter((other) => other <= at && other > at - GUARD_WINDOW).length
-      if (recent >= least) this.guardUntil = at + GUARD_HOLD
+      const day = Math.floor(at / DAY) * DAY
+      const burst = this.troubles.filter((other) => other >= day && other <= at).length
+      if (burst >= least) this.guardUntil = day + 2 * DAY
     }
     return now < this.guardUntil
   }
@@ -492,7 +495,6 @@ class Lean extends Strategy<LeanParams> {
     const quoted = this.pending.get(requestId)
     const request = books.requests.get(requestId)
     this.pending.delete(requestId)
-    this.planner.release(requestId)
     if (won) {
       this.tally.won++
       const day = Math.floor(at / DAY)
@@ -699,14 +701,13 @@ class Lean extends Strategy<LeanParams> {
       }
       case 'gig_dropped':
       case 'no_show':
-        this.troubles.push(event.at)
+        if (event.kind === 'gig_dropped' && event.at % DAY < GUARD_HOUR) this.troubles.push(event.at)
         this.dropped.set(event.gigId, this.bookedAt.get(event.gigId) ?? 0)
         break
       case 'visit_failed':
         this.setback(event.orderId, event.leg, event.reason, event.at, books)
         break
       case 'gig_expired': {
-        this.troubles.push(event.at)
         const post = books.posts.get(event.gigId)
         this.planner.expired(event.gigId, post?.stops ?? [])
         const shown = feeAt(this.schedules.get(event.gigId) ?? post?.schedule ?? [], event.at)
