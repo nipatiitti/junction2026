@@ -680,3 +680,22 @@ from quota group by 1, 2 order by n desc limit 20;
 `level` and `policy` are kept, so a seed played at two levels or by several systems has one `world_stream` row per
 world, and `quota.week_id` joins back to `weeks` in `out/spread.sqlite`. `quote_facts` above has the same options
 with the win model's features; `quota` is the flat, one-file table for the seed questions.
+
+# Weekend charts
+
+`weekend.py` draws the two charts at the top of [lean's README](../src/strategies/lean/README.md) from the saved weeks
+under `data/scrape/runs`. It reads only the `meta.json` files and `git log`, and plays nothing online:
+
+```sh
+uv run python -m analysis.weekend              # writes docs/images/lean/best-score.svg and explored.svg
+uv run python -m analysis.weekend --out out    # another folder
+```
+
+- `best-score.svg`: every ranked level 8 practice week as a dot, the best one so far as a line, and the mean week of
+  our best system in each ranking round that it played in full (5 weeks, all ranked). `REMEMBERS` names the systems
+  that are left out because they replay seeds they have seen.
+- `explored.svg`: how many strategies (`policy` names) and seeds have a saved week so far.
+
+A saved week has no clock time, so each is dated by the first commit that added its `meta.json`, in Helsinki time;
+a week that is not committed yet is left out. Run it again after new weeks are committed. Each SVG file carries its
+own background and its colours for a light and a dark page, so it also works in a slide or on a web page.
