@@ -29,6 +29,16 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-15: the defaults of the orthogonal-array search (PR #390, issue #389)
+
+- **Version changed**: TypeScript.
+- **What changed**: ten defaults, the best levels of a Taguchi L27 search of 13 params on the server: `costLevel`
+  1.01, `middle` 1.55, `trust` 0.55, `pairShare` 0.3, `feeRatio` 0.8, `urgentTop` 1.45, `lateOpen` 1.15,
+  `lateRestart` 0.9, `holdHours` 3, `chainAlone` 0.97. On 132 seeds that the search had not seen: +€308 ± 82 a
+  week, ahead on 87. Results:
+  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#the-orthogonal-array-search-of-the-defaults-15-november-389).
+- **In step**: no (#329).
+
 ### 2026-11-15: a car that missed its last pickup starts again (PR #388, issue #387)
 
 - **Version changed**: TypeScript.

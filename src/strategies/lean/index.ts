@@ -76,7 +76,7 @@ export const DEFAULTS = {
   /** A gig posted with under `lateWithin` waking minutes left to plan it opens at `lateOpen` × typical and climbs
    * as an urgent one does: 5 such cars a week opened at 2 × typical and were booked within 3 minutes. */
   lateWithin: 60,
-  lateOpen: 1.25,
+  lateOpen: 1.15,
   /** The urgent climb, for a gig after its deadline warning or with under 45 minutes left to book: it opens at
    * `urgentOpen` × typical (and 0.05 over the fee it showed), and rises `urgentStep` every `urgentEvery` waking
    * minutes to `urgentTop`. The top was 2 until 15 November: with 1.6 here and `lateTop` 1.3, 30 fresh server seeds
@@ -84,7 +84,7 @@ export const DEFAULTS = {
   urgentOpen: 1.15,
   urgentStep: 0.125,
   urgentEvery: 15,
-  urgentTop: 1.6,
+  urgentTop: 1.45,
   /** The climb of a car that is late already: from `lateFrom` × typical, `lateStep` every `lateEvery` waking
    * minutes, to `lateTop` (1.7 until 15 November, measured with `urgentTop`). The other three are not measured. */
   lateFrom: 1.1,
@@ -92,7 +92,7 @@ export const DEFAULTS = {
   lateEvery: 30,
   lateTop: 1.3,
   /** What a booking costs × typical before this week's bookings say (supply.ts). */
-  feeRatio: 0.84,
+  feeRatio: 0.8,
   /** `lateCost` × the list price for each unit of the request's chance to be late (outlook.ts). */
   lateCost: 1,
   /** A premium car's cost × this. Below level 7, where the order model does not play: what a private pickup and a
@@ -104,7 +104,7 @@ export const DEFAULTS = {
    * order model says of this request against the mean order (outlook.ts, mean 1). It is the only level: 0.98 is the
    * one that the server played (five seeds, 351 orders a week); at 1.07 every quote rose 5% and 29 orders a week
    * were lost for the same margin. */
-  costLevel: 0.98,
+  costLevel: 1.01,
   /** × what the order model adds to the cost of a long drive (outlook.ts: over three hours of driving, up to 0.21 ×
    * typical). 1 is the fit; the chance to be late keeps its long-drive terms, and `lateCost` prices them. */
   longCost: 1,
@@ -134,9 +134,9 @@ export const DEFAULTS = {
   /** The multiple of the list price at which half of the quotes win at level 8, before the week's wins and losses
    * say (demand.ts). Measured over whole weeks, so with some trust in it: at zero trust the 349 recorded seeds
    * give 1.25. On the simulator 1.3 and 1.5 were flat or worse. */
-  middle: 1.4,
+  middle: 1.55,
   /** How much of the dealer's trust (1% for each order on time) goes into the price. */
-  trust: 0.7,
+  trust: 0.55,
   /** The late share from which options need twice the room. */
   lateHard: 0.05,
   /** Chains (chains.ts): post open cars together when one driver can take them one after the other. A car joins
@@ -157,7 +157,7 @@ export const DEFAULTS = {
   chainLast: 3,
   /** A new car that may join a chain waits this many hours for a partner before it is posted alone: half of the
    * single gigs book within half an hour, before a partner can arrive. 0 posts at once. */
-  holdHours: 2,
+  holdHours: 3,
   /** A chain that no driver took this many waking hours after its post is taken apart: 51% of the chains book
    * within the hour, and one still open then books 24% of the time. 0 waits until `chainLast`. */
   chainPatience: 1,
@@ -181,7 +181,7 @@ export const DEFAULTS = {
   chainModel: true,
   /** With the model: × what a chain's cars are taken to pay as single gigs (0.94 on the Monday, 0.99 after). Over
    * 1 the model pays chains more, so more of them book. */
-  chainAlone: 1,
+  chainAlone: 0.97,
   /** Direct offers of an open chain to the drivers who viewed it and did not book, at this × the fee in the app
    * (planner.ts). 0 sends none. `chainOfferSpread` 1 draws each chain's offer level from 1, 1.15 and 1.3: an
    * experiment that measures what such offers do. */
@@ -209,7 +209,7 @@ export const DEFAULTS = {
   /** The share of a chain's saving that comes off the cost of a request which would ride in that chain with open
    * cars we hold (planner.ts, `saving`): such a car costs the chain's rate, not a single gig's, and it makes its
    * partners cheaper too. 0 prices every request as a single gig. */
-  pairShare: 0.5,
+  pairShare: 0.3,
   /** How much of the `taxLoad` charge is gone on Friday, and half of that on Thursday: an order costs the cars booked
    * after it, and few are booked after a Friday's. 0 keeps the charge all week, 1 has none on Friday. */
   taxFade: 1,
@@ -233,7 +233,7 @@ export const DEFAULTS = {
    * 10 minutes of the repost, mostly between 18:00 and 21:00, and €774 a week paid over 1.0 × typical (50 server
    * weeks). At 1 on eight fresh server seeds: +€545 ± 187 a week, ahead on 7 of 8; such cars paid 1.20 × typical.
    * 0 is off. */
-  lateRestart: 1,
+  lateRestart: 0.9,
 }
 export type LeanParams = typeof DEFAULTS
 
