@@ -2,210 +2,165 @@
 // code and to move a block. The diagram lies flat on the ground. x runs to the right of the picture and z down it;
 // a rect is [x0, z0, x1, z1] in world units. The picture is 16:10. `bestPrice()` sits at the exact centre, (0, 0),
 // where the zoom in ends. Names are as in the code on main (15 November 2026); prompt.md says why each is in.
+//
+// The only words on it are names, of systems, classes and functions, and every block keeps the same margins: a system
+// keeps 1.5 clear inside its edge, a class plate 0.8 round its name and tiles, a tile is 2.2 high with at least 1 clear
+// either side of its name, and tiles side by side keep 0.9 to 1 apart. A class without tiles has its name in its
+// middle, and so has a system without blocks (`title: 'middle'`); `title: 'top'` puts a system's name at the top
+// centre, out of the way of the lanes.
 
-/** Label heights in world units: systems biggest, classes medium, functions smallest; tags and notes under them. */
-export const SIZES = { system: 6, class: 2.4, function: 1.3, tag: 1.0 }
+/** Label heights in world units: systems biggest, classes medium, functions smallest. */
+export const SIZES = { system: 6, class: 2.4, function: 1.3 }
 
 export const SYSTEMS = [
-  {
-    id: 'world',
-    label: 'SPREAD WORLD',
-    path: 'dealers · drivers · the gig app',
-    color: '#f59e0b',
-    rect: [-70, -82, 70, -68],
-  },
-  { id: 'kit', label: 'KIT', path: 'vendor/spread-typescript', color: '#94a3b8', rect: [-60, -64, 60, -47] },
-  {
-    id: 'harness',
-    label: 'HARNESS',
-    path: 'src/harness',
-    color: '#60a5fa',
-    rect: [-60, -43, 60, -30],
-    align: 'center',
-  },
-  {
-    id: 'lean',
-    label: 'TS:LEAN',
-    path: 'src/strategies/lean',
-    color: '#ef4444',
-    rect: [-36, -22.5, 36, 19],
-    pathBelow: true,
-  },
-  {
-    id: 'python',
-    label: 'PYTHON TWIN',
-    path: 'strategies/lean/',
-    color: '#f472b6',
-    rect: [-92, -22.5, -46, -3],
-    note: 'same week, action for action',
-    pathBelow: true,
-  },
-  { id: 'ops', label: 'OPS', path: 'src/ops', color: '#34d399', rect: [-92, 1, -46, 19] },
-  {
-    id: 'saved',
-    label: 'SAVED WEEKS',
-    path: 'src/record.ts',
-    color: '#a78bfa',
-    rect: [46, -22.5, 92, -3],
-    pathBelow: true,
-  },
-  { id: 'analysis', label: 'ANALYSIS', path: 'analysis/', color: '#facc15', rect: [46, 1, 92, 19] },
-  { id: 'sim', label: 'SIMULATOR', path: 'sim/', color: '#22d3ee', rect: [-30, 27, 30, 41], note: '40 seeds a batch' },
+  { id: 'world', label: 'SPREAD WORLD', color: '#f59e0b', rect: [-70, -82, 70, -68] },
+  { id: 'kit', label: 'KIT', color: '#94a3b8', rect: [-60, -64, 60, -47] },
+  { id: 'harness', label: 'HARNESS', color: '#60a5fa', rect: [-60, -43, 60, -28.5], title: 'top' },
+  { id: 'lean', label: 'TS:LEAN', color: '#ef4444', rect: [-36, -22.5, 36, 19] },
+  { id: 'python', label: 'PYTHON TWIN', color: '#f472b6', rect: [-98, -22.5, -46, -3], title: 'middle' },
+  { id: 'ops', label: 'OPS', color: '#34d399', rect: [-98, 1, -46, 19] },
+  { id: 'saved', label: 'SAVED WEEKS', color: '#a78bfa', rect: [46, -22.5, 98, -3] },
+  { id: 'analysis', label: 'ANALYSIS', color: '#facc15', rect: [46, 1, 98, 19] },
+  { id: 'sim', label: 'SIMULATOR', color: '#22d3ee', rect: [-30, 27, 30, 41], title: 'middle' },
 ]
 
-/** Classes: a plate on their system, the name at `labelAt` (its left end) or at the plate's top left. */
+/** Classes: a plate on their system, the name at its top left, or at `labelAt` (`align` 'center' centres it there). */
 export const CLASSES = [
-  { id: 'Client', system: 'kit', rect: [-58.6, -54, -40, -48.2] },
-  { id: 'World', system: 'kit', rect: [-28.5, -63, 28.5, -48.2], labelAt: [-6, -60.4] },
-  { id: 'Guard', system: 'harness', rect: [-58.6, -41.6, -40, -31.4], note: 'a time budget\nfor every call' },
-  { id: 'Desk', system: 'harness', rect: [-28.5, -35.4, 28.5, -31], labelAt: [-18.4, -33.2] },
-  { id: 'Journal', system: 'harness', rect: [40, -41.6, 58.6, -31.4], note: 'replays a\nrestarted week' },
-  { id: 'Lean', system: 'lean', rect: [-1.5, -21.8, 34.6, -9.8] },
-  { id: 'Demand', system: 'lean', rect: [-34.5, -6.9, -13, -0.6] },
-  { id: 'Supply', system: 'lean', rect: [-34.5, 0.4, -13, 7.6] },
-  { id: 'Planner', system: 'lean', rect: [-23, 9.4, 3, 16.6] },
-  { id: 'Recorder', system: 'saved', rect: [47.4, -11.4, 90.6, -4.4] },
+  { id: 'Client', system: 'kit', rect: [-58.5, -56.6, -40, -48.5] },
+  { id: 'World', system: 'kit', rect: [-30.5, -62.5, 30.5, -48.5], labelAt: [0, -60.8], align: 'center' },
+  { id: 'Guard', system: 'harness', rect: [-58.5, -41.5, -40, -30] },
+  { id: 'Desk', system: 'harness', rect: [-30.5, -35, 30.5, -30], labelAt: [-17.7, -32.5] },
+  { id: 'Journal', system: 'harness', rect: [40, -41.5, 58.5, -30] },
+  { id: 'Lean', system: 'lean', rect: [-6, -21, 34.5, -11.4] },
+  { id: 'Demand', system: 'lean', rect: [-34.5, -6.875, -13.5, -0.475] },
+  { id: 'Supply', system: 'lean', rect: [-34.5, 0.475, -13.5, 6.875] },
+  { id: 'Planner', system: 'lean', rect: [-11, 11.1, 11, 17.5] },
+  { id: 'Recorder', system: 'saved', rect: [60, -13, 84, -6.6] },
 ]
 
-/** Functions: a tile with the name in the monospace font; `tag` is a measured effect in green under it. */
+/** Functions: a tile with the name in the monospace font. bestPrice()'s tile is its chart. */
 export const FUNCTIONS = [
-  { id: 'stream', label: 'stream()', owner: 'World', rect: [-28, -56.4, -20, -54.6] },
-  { id: 'act', label: 'act()', owner: 'World', rect: [20, -56.4, 28, -54.6] },
-  { id: 'playLive', label: 'playLive()', system: 'harness', rect: [-28, -40, -20, -38.2] },
-  { id: 'handle', label: 'handle()', owner: 'Desk', rect: [-28, -34, -20, -32.2] },
-  { id: 'cost', label: 'cost()', owner: 'Lean', rect: [-0.8, -17.3, 7.2, -15.5] },
-  { id: 'load', label: 'load()', owner: 'Lean', rect: [8, -17.7, 16, -14.9], tag: '+€972 a week' },
-  { id: 'gig', label: 'gig()', owner: 'Lean', rect: [16.8, -17.3, 24.8, -15.5] },
-  { id: 'fees', label: 'fees()', owner: 'Lean', rect: [25.6, -17.3, 33.6, -15.5] },
-  { id: 'quote', label: 'quote()', owner: 'Lean', rect: [-0.8, -13, 7.2, -11.2] },
-  { id: 'tick', label: 'tick()', owner: 'Lean', rect: [8, -13, 16, -11.2] },
-  { id: 'observe', label: 'observe()', owner: 'Lean', rect: [25.6, -13, 33.6, -11.2] },
+  { id: 'stream', label: 'stream()', owner: 'World', rect: [-29, -55.3, -19, -53.1] },
+  { id: 'act', label: 'act()', owner: 'World', rect: [19, -55.3, 29, -53.1] },
+  { id: 'playLive', label: 'playLive()', system: 'harness', rect: [-29, -39.2, -19, -37] },
+  { id: 'handle', label: 'handle()', owner: 'Desk', rect: [-29, -33.6, -19, -31.4] },
+  // Lean: four columns in two rows, the right two over the fee column
+  { id: 'cost', label: 'cost()', owner: 'Lean', rect: [-5.2, -17.6, 3.25, -15.4] },
+  { id: 'load', label: 'load()', owner: 'Lean', rect: [4.15, -17.6, 12.6, -15.4] },
+  { id: 'gig', label: 'gig()', owner: 'Lean', rect: [13.5, -17.6, 23.15, -15.4] },
+  { id: 'fees', label: 'fees()', owner: 'Lean', rect: [24.05, -17.6, 33.7, -15.4] },
+  { id: 'quote', label: 'quote()', owner: 'Lean', rect: [-5.2, -14.4, 3.25, -12.2] },
+  { id: 'tick', label: 'tick()', owner: 'Lean', rect: [4.15, -14.4, 12.6, -12.2] },
+  { id: 'observe', label: 'observe()', owner: 'Lean', rect: [13.5, -14.4, 23.15, -12.2] },
+  // the middle band: Demand and Supply, bestPrice(), the fee column
   { id: 'bestPrice', label: 'bestPrice()', system: 'lean', rect: [-11, -6.875, 11, 6.875], chart: true },
-  { id: 'demandLearn', label: 'learn()', owner: 'Demand', rect: [-33.8, -3.3, -24.2, -1.5] },
-  { id: 'belief', label: 'belief()', owner: 'Demand', rect: [-23.2, -3.3, -13.6, -1.5] },
-  { id: 'ratio', label: 'ratio()', owner: 'Supply', rect: [-33.8, 3.6, -24.2, 6.6], tag: '+€769 a week (sim)' },
-  { id: 'supplyLearn', label: 'learn()', owner: 'Supply', rect: [-23.2, 4.2, -13.6, 6] },
-  { id: 'outlook', label: 'outlook()', system: 'lean', rect: [-34.5, 9.6, -25, 12.6], tag: '+€771 a week' },
-  { id: 'stepped', label: 'stepped()', system: 'lean', rect: [13, -6.9, 34.5, -4.1], tag: 'every week ranked' },
-  { id: 'planBy', label: 'planBy()', system: 'lean', rect: [13, -2.9, 34.5, -1.1] },
-  { id: 'rested', label: 'rested()', system: 'lean', rect: [13, 0.1, 34.5, 2.9], tag: '+€624 a week' },
-  { id: 'actions', label: 'actions()', owner: 'Planner', rect: [-22.4, 13, -11, 14.8] },
-  { id: 'hold', label: 'hold()', owner: 'Planner', rect: [-10, 12.4, 2.4, 15.4], tag: '+€826 a week (sim)' },
-  { id: 'findChains', label: 'findChains()', system: 'lean', rect: [6, 11.2, 21, 14.2], tag: '+€1,560 a week' },
-  { id: 'bookChance', label: 'bookChance()', system: 'lean', rect: [22, 11.2, 34.5, 14.2], tag: '+€1,126 a week' },
-  { id: 'readNote', label: 'readNote()', system: 'ops', rect: [-90.6, 7.4, -70.8, 9.2] },
-  { id: 'canServe', label: 'canServe()', system: 'ops', rect: [-69.4, 7.4, -49.6, 9.2] },
-  { id: 'gigShape', label: 'gigShape()', system: 'ops', rect: [-90.6, 11.4, -70.8, 13.2] },
-  { id: 'save', label: 'save()', owner: 'Recorder', rect: [74, -9.2, 89.8, -7.4] },
-  { id: 'supplyCurve', label: 'analysis.supply_curve', system: 'analysis', rect: [47.4, 7.4, 70, 9.2] },
-  { id: 'leanCost', label: 'analysis.lean_cost', system: 'analysis', rect: [47.4, 11, 70, 12.8] },
+  { id: 'demandLearn', label: 'learn()', owner: 'Demand', rect: [-33.7, -3.475, -24.5, -1.275] },
+  { id: 'belief', label: 'belief()', owner: 'Demand', rect: [-23.5, -3.475, -14.3, -1.275] },
+  { id: 'ratio', label: 'ratio()', owner: 'Supply', rect: [-33.7, 3.875, -24.5, 6.075] },
+  { id: 'supplyLearn', label: 'learn()', owner: 'Supply', rect: [-23.5, 3.875, -14.3, 6.075] },
+  { id: 'stepped', label: 'stepped()', system: 'lean', rect: [13.5, -6.875, 34.5, -4.675] },
+  { id: 'planBy', label: 'planBy()', system: 'lean', rect: [13.5, -1.1, 34.5, 1.1] },
+  { id: 'rested', label: 'rested()', system: 'lean', rect: [13.5, 4.675, 34.5, 6.875] },
+  // the bottom band: outlook(), the Planner, the chains
+  { id: 'outlook', label: 'outlook()', system: 'lean', rect: [-34.5, 13.2, -13.5, 15.4] },
+  { id: 'actions', label: 'actions()', owner: 'Planner', rect: [-10.2, 14.5, -0.5, 16.7] },
+  { id: 'hold', label: 'hold()', owner: 'Planner', rect: [0.5, 14.5, 10.2, 16.7] },
+  { id: 'findChains', label: 'findChains()', system: 'lean', rect: [13.5, 11.1, 34.5, 13.3] },
+  { id: 'bookChance', label: 'bookChance()', system: 'lean', rect: [13.5, 15.3, 34.5, 17.5] },
+  { id: 'readNote', label: 'readNote()', system: 'ops', rect: [-96.5, 10.25, -72.75, 12.45] },
+  { id: 'canServe', label: 'canServe()', system: 'ops', rect: [-71.25, 10.25, -47.5, 12.45] },
+  { id: 'gigShape', label: 'gigShape()', system: 'ops', rect: [-96.5, 13.45, -72.75, 15.65] },
+  { id: 'save', label: 'save()', owner: 'Recorder', rect: [60.8, -9.6, 83.2, -7.4] },
+  { id: 'supplyCurve', label: 'analysis.supply_curve', system: 'analysis', rect: [47.5, 11.85, 71.25, 14.05] },
+  { id: 'leanCost', label: 'analysis.lean_cost', system: 'analysis', rect: [72.75, 11.85, 96.5, 14.05] },
 ]
 
-/** Notes in the tag size: [text, x, z, align]. */
-export const NOTES = [
-  ['order.json', -34.5, 14, 'left'],
-  ['chain.json', 22, 15.6, 'left'],
-  ['→ noise 0.11 · taxLoad 0.47 · order.json', 47.4, 16.2, 'left'],
-]
-
-/** Roads that the traffic drives on, with what is painted beside them: { points, width, label, labelAt, turn }. */
+/** Roads that the traffic drives on: { points, width }. */
 export const ROADS = [
   {
     id: 'events',
     points: [
       [-24, -68],
-      [-24, -56.4],
+      [-24, -55.3],
     ],
-    label: 'events',
-    labelAt: [-27.4, -65],
-    turn: true,
   },
   {
     id: 'stream',
     points: [
-      [-24, -54.6],
-      [-24, -40],
+      [-24, -53.1],
+      [-24, -39.2],
     ],
   },
   {
     id: 'loop',
     points: [
-      [-24, -38.2],
-      [-24, -34],
+      [-24, -37],
+      [-24, -33.6],
     ],
   },
   {
     id: 'calls',
     points: [
-      [-24, -32.2],
-      [-24, -26.5],
-      [-39, -26.5],
-      [-39, -8],
+      [-24, -31.4],
+      [-24, -25.5],
+      [-39, -25.5],
+      [-39, -9],
     ],
   },
   {
     id: 'lane',
     points: [
-      [-39, -8],
-      [39, -8],
+      [-39, -9],
+      [39, -9],
     ],
     width: 1.6,
   },
   {
     id: 'back',
     points: [
-      [39, -8],
-      [39, -26.5],
-      [24, -26.5],
-      [24, -54.6],
+      [39, -9],
+      [39, -25.5],
+      [24, -25.5],
+      [24, -53.1],
     ],
   },
   {
     id: 'actions',
     points: [
-      [24, -56.4],
+      [24, -55.3],
       [24, -68],
     ],
-    label: 'actions',
-    labelAt: [27.4, -65],
-    turn: true,
   },
   {
     id: 'weeks',
     points: [
       [60, -55.5],
-      [69, -55.5],
-      [69, -22.5],
+      [72, -55.5],
+      [72, -22.5],
     ],
-    label: 'every week',
-    labelAt: [72.4, -40],
-    turn: true,
   },
   {
     id: 'fits',
     points: [
-      [69, -3],
-      [69, 1],
+      [72, -3],
+      [72, 1],
     ],
   },
   {
     id: 'constants',
     points: [
-      [46, 14],
-      [36, 14],
+      [46, 14.3],
+      [36, 14.3],
     ],
   },
   {
     id: 'seeds',
     points: [
-      [92, -13],
       [98, -13],
-      [98, 34],
+      [104, -13],
+      [104, 34],
       [30, 34],
     ],
-    label: 'recorded seeds',
-    labelAt: [101.4, 10],
-    turn: true,
   },
   {
     id: 'simulate',
@@ -217,15 +172,15 @@ export const ROADS = [
   {
     id: 'twin',
     points: [
-      [-46, -13],
-      [-36, -13],
+      [-46, -17.5],
+      [-36, -17.5],
     ],
   },
   {
     id: 'ops',
     points: [
-      [-36, 13],
-      [-46, 13],
+      [-36, 14.3],
+      [-46, 14.3],
     ],
     width: 1.6,
   },
@@ -233,113 +188,121 @@ export const ROADS = [
 
 /** Thin lines of data between blocks, under the tiles; `dotted` for what learning sends back. */
 export const LINES = [
+  // quote() into bestPrice(), cost() and load() into quote()
   {
     points: [
-      [3.2, -11.2],
-      [3.2, -6.875],
+      [-0.975, -12.2],
+      [-0.975, -6.875],
     ],
   },
   {
     points: [
-      [3.2, -15.5],
-      [3.2, -13],
+      [-0.975, -15.4],
+      [-0.975, -14.4],
     ],
   },
   {
     points: [
-      [8, -15.6],
-      [7.6, -15.6],
-      [7.6, -12.1],
-      [7.2, -12.1],
+      [4.15, -16.5],
+      [3.7, -16.5],
+      [3.7, -13.3],
+      [3.25, -13.3],
+    ],
+  },
+  // belief() into bestPrice()
+  {
+    points: [
+      [-14.3, -2.375],
+      [-11, -2.375],
+    ],
+  },
+  // Supply and outlook() into cost(), round the left edge and under the name TS:LEAN
+  {
+    points: [
+      [-34.5, 4.975],
+      [-35.25, 4.975],
+      [-35.25, -13.3],
+      [-5.6, -13.3],
+      [-5.6, -16.5],
+      [-5.2, -16.5],
     ],
   },
   {
     points: [
-      [-13.6, -2.4],
-      [-11, -2.4],
+      [-34.5, 14.3],
+      [-35.25, 14.3],
+      [-35.25, 4.975],
+    ],
+  },
+  // gig() into fees(), fees() down the fee column
+  {
+    points: [
+      [23.15, -16.5],
+      [24.05, -16.5],
     ],
   },
   {
     points: [
-      [-34.5, 5.1],
-      [-35.3, 5.1],
-      [-35.3, -11.4],
-      [-1.1, -11.4],
-      [-1.1, -16.4],
-      [-0.8, -16.4],
+      [28.875, -15.4],
+      [28.875, -6.875],
     ],
   },
   {
     points: [
-      [-34.5, 11.1],
-      [-35.3, 11.1],
-      [-35.3, 5.1],
+      [24, -4.675],
+      [24, -1.1],
     ],
   },
   {
     points: [
-      [24.8, -16.4],
-      [25.6, -16.4],
+      [24, 1.1],
+      [24, 4.675],
+    ],
+  },
+  // tick() runs the Planner, which uses the chains
+  {
+    points: [
+      [12.25, -12.2],
+      [12.25, 9],
+      [0, 9],
+      [0, 11.1],
     ],
   },
   {
     points: [
-      [32, -15.5],
-      [32, -6.9],
+      [11, 12.2],
+      [13.5, 12.2],
     ],
   },
   {
     points: [
-      [23.75, -4.1],
-      [23.75, -2.9],
+      [24, 13.3],
+      [24, 15.3],
     ],
   },
+  // the Desk writes the Journal
   {
     points: [
-      [23.75, -1.1],
-      [23.75, 0.1],
+      [30.5, -32.5],
+      [40, -32.5],
     ],
   },
-  {
-    points: [
-      [12, -11.2],
-      [12, 10.2],
-      [3, 10.2],
-    ],
-  },
-  {
-    points: [
-      [2.4, 13.9],
-      [6, 13.9],
-    ],
-  },
-  {
-    points: [
-      [21, 12.7],
-      [22, 12.7],
-    ],
-  },
-  {
-    points: [
-      [28.5, -33.2],
-      [40, -33.2],
-    ],
-  },
+  // what observe() learns goes back to Supply and Demand
   {
     id: 'learn',
     points: [
-      [29.6, -11.2],
-      [29.6, -9.3],
-      [-12.4, -9.3],
-      [-12.4, 5.1],
-      [-13.6, 5.1],
+      [18.325, -12.2],
+      [18.325, -10.6],
+      [-12.25, -10.6],
+      [-12.25, 4.975],
+      [-13.5, 4.975],
     ],
     dotted: true,
   },
   {
     points: [
-      [-12.4, -2.4],
-      [-13.6, -2.4],
+      [-12.25, -2.375],
+      [-13.5, -2.375],
     ],
     dotted: true,
   },
@@ -355,13 +318,12 @@ export const ROUTES = {
 }
 
 /** Where a request stops for its price, and an order for its fee, on the lane above the centre. */
-export const STOPS = { price: [0, -8], fee: [23.75, -8] }
+export const STOPS = { price: [0, -9], fee: [24, -9] }
 
-/** The framings the zooms pass through: the whole diagram, only TS:LEAN, and bestPrice() (the height of the ground
- * in the picture, and the point in its middle). */
+/** The framings the zooms pass through: the whole diagram between the chapter tag and the subtitles, and bestPrice()
+ * (the height of the ground in the picture, and the point in its middle). views/zoom.js fits the others. */
 export const FRAMES = {
-  whole: { centre: [0, -20.5], height: 160 },
-  lean: { centre: [0, -0.5], height: 56 },
+  whole: { centre: [0, -17], height: 166 },
   key: { centre: [0, 0], height: 19.6 },
 }
 

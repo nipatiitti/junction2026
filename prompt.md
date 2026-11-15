@@ -1,12 +1,12 @@
 # Prompt: build the ts:lean video
 
-Build a 106.5-second technical video for YouTube, 16:10 (1920×1200, 30 fps), that shows how `ts:lean` works: the
+Build a 119-second (1:59) technical video for YouTube, 16:10 (1920×1200, 30 fps), that shows how `ts:lean` works: the
 dispatch system our team Blib Blib built at Junction 2026 for Bahn's Spread challenge. It is built in `video/` beside
 the joke video and shares its player, kit, sound and export (`?video=lean`; `video/README.md` says where its parts
 are). Four developers throw spaghetti at a wall, the problem is stated, a race like a car leads into `ts:lean`, and
 the solution is shown as a block diagram of the real code: a 15-second zoom in, a closer look at the fees, the chains
 and the learning, and a zoom out during which cars and drivers drive along the diagram's lanes the way the code moves
-them. `ts:lean` is on screen for 63 seconds, more than a minute. It has three cutaway jokes and no more, ends with the
+them. `ts:lean` is on screen for 75.5 seconds, well over a minute. It has three cutaway jokes and no more, ends with the
 four developers' high five at the same wall, and stays under 2 minutes.
 
 ## The story
@@ -34,8 +34,11 @@ without it, on the same seeds, at level 8. All euros are game euros. Every text,
 
 ## Format and style
 
-- 106.5 s in all; no view is longer than 15 s; never over 2 minutes. `ts:lean` is on screen from the race to the end
-  of the traffic: 63 s.
+- 119 s (1:59) in all; no view is longer than 15 s; never over 2 minutes. `ts:lean` is on screen from the race to the
+  end of the traffic: 75.5 s, at a calm pace, its deep dives 11 to 14 s each.
+- In chapter 02 the only words are names, of systems, classes and functions, the cards' titles, and the subtitles;
+  graphs, colours and small pictures carry the rest, and the voice says the numbers. Every block keeps the same
+  margins (see the block diagram below), and nothing that matters is cut by the edge of the picture.
 - A professional technical YouTube look rather than a short: a dark navy ground with a fine grid, rounded panels with
   a rim in each system's colour, clean sans-serif names and monospace code, calm camera moves. The low-poly cast,
   cars and hall of the joke video come back in the scenes; they are our own models, not Roblox assets.
@@ -60,13 +63,13 @@ without it, on the same seeds, at level 8. All euros are game euros. Every text,
 | 23.0  | 27.5  | didnot    |                 | Joke 2: "This will definitely work." "It did not."        |
 | 27.5  | 33.0  | speed     |                 | Joke 3: "I am speed", a race down `ts:lean`'s lanes       |
 | 33.0  | 48.0  | zoomin    | 02 The solution | into the diagram, 15 s                                    |
-| 48.0  | 58.0  | fees      | 02 The solution | the fee steps and the weekend                             |
-| 58.0  | 68.0  | chains    | 02 The solution | one driver for up to four cars, and the chain's fee       |
-| 68.0  | 76.0  | learning  | 02 The solution | the win curve and the driver costs learn from every quote |
-| 76.0  | 86.0  | zoomout   | 02 The solution | out again, with the traffic, 10 s                         |
-| 86.0  | 90.5  | traffic   | 02 The solution | the whole map at its busiest                              |
-| 90.5  | 97.5  | result    | 03 The result   | three cards: margin, strategies, on time                  |
-| 97.5  | 106.5 | ending    |                 | the four developers' high five, with the end title        |
+| 48.0  | 62.0  | fees      | 02 The solution | the fee steps and the weekend                             |
+| 62.0  | 76.0  | chains    | 02 The solution | one driver for up to four cars, and the chain's fee       |
+| 76.0  | 87.0  | learning  | 02 The solution | the win curve and the driver costs learn from every quote |
+| 87.0  | 97.0  | zoomout   | 02 The solution | out again, with the traffic, 10 s                         |
+| 97.0  | 103.0 | traffic   | 02 The solution | the whole map at its busiest                              |
+| 103.0 | 110.0 | result    | 03 The result   | three cards: margin, strategies, on time                  |
+| 110.0 | 119.0 | ending    |                 | the four developers' high five, with the end title        |
 
 ## The block diagram
 
@@ -74,29 +77,30 @@ The code of `ts:lean` and everything that touches it, laid flat like a map: syst
 functions are tiles, and the arrows between them are lanes. Both zooms and the result use the same diagram. Every name
 is as in the code, and only the functions that every decision runs through or whose effect is measured are in.
 
-- Labels in three sizes: systems the biggest (bold sans-serif, in the system's colour, with the code's path beside or
-  under them), classes medium (bold sans-serif), functions the smallest (monospace, with `()`). A measured effect sits
-  under its function as a green tag, such as `+€1,560 a week`; "(sim)" marks a simulator measurement.
+- Names are its only words, in three sizes: systems the biggest (bold sans-serif, in the system's colour), classes
+  medium (bold sans-serif), functions the smallest (monospace, with `()`). No paths, notes, numbers or tags; the
+  measured effects stay in `src/strategies/lean/README.md`.
+- One grid of margins (`video/src/lean/diagram.js` says it, and every block keeps it): a system keeps 1.5 clear inside
+  its edge, a class plate 0.8 round its name and tiles, a tile is 2.2 high with at least 1 clear either side of its
+  name, and neighbours keep 0.9 to 1 apart. A class or system with nothing inside has its name in its middle.
 - Layout for 16:10: Bahn's world, the kit and the harness stacked above TS:LEAN; the Python twin and the ops on its
-  left; the saved weeks and the analysis on its right; the simulator below. Inside TS:LEAN: the `Lean` class across
-  the top, `Demand` and `Supply` on the left, `bestPrice()` at the exact centre, the fee functions on the right, and
-  `Planner` with `findChains()` at the bottom. The main loop runs down from Bahn's world, round TS:LEAN on its left,
-  along the lane over `bestPrice()`, and back up on its right.
+  left; the saved weeks and the analysis on its right; the simulator below. Inside TS:LEAN, in three bands: the name
+  and the `Lean` class across the top; `Demand` and `Supply` on the left, `bestPrice()` at the exact centre and the fee
+  functions on the right; `outlook()`, the `Planner` and the chain functions along the bottom. The main loop runs down
+  from Bahn's world, round TS:LEAN on its left, along the lane over `bestPrice()`, and back up on its right.
 - Systems: SPREAD WORLD (Bahn's server), KIT (`vendor/spread-typescript`: `Client`, `World` with `stream()` and
   `act()`), HARNESS (`src/harness`: `playLive()`, `Desk` with `handle()`, `Guard`, `Journal`), TS:LEAN
   (`src/strategies/lean`), OPS (`src/ops`: `canServe()`, `readNote()`, `gigShape()`), PYTHON TWIN
   (`strategies/lean/`), SAVED WEEKS (`src/record.ts`: `Recorder` with `save()`), ANALYSIS (`analysis/`:
-  `supply_curve`, `lean_cost`), SIMULATOR (`sim/`).
-- Inside TS:LEAN, with their tags: `quote()`, `cost()`, `load()` (`+€972 a week`), `gig()`, `fees()`, `tick()` and
-  `observe()` in `Lean`; `belief()` and `learn()` in `Demand`; `ratio()` (`+€769 a week (sim)`) and `learn()` in
-  `Supply`; `outlook()` (`+€771 a week`) with `order.json`; `stepped()` (`every week ranked`), `planBy()` and
-  `rested()` (`+€624 a week`); `actions()` and `hold()` (`+€826 a week (sim)`) in `Planner`; `findChains()`
-  (`+€1,560 a week`) and `bookChance()` (`+€1,126 a week`, the chain model of #351, with `chain.json`); and
+  `supply_curve`, `lean_cost`), SIMULATOR (`sim/`). The paths are for the reader of this brief; the picture has only
+  the names.
+- Inside TS:LEAN: `cost()`, `load()`, `gig()`, `fees()`, `quote()`, `tick()` and `observe()` in `Lean`; `learn()` and
+  `belief()` in `Demand`; `ratio()` and `learn()` in `Supply`; `stepped()`, `planBy()` and `rested()`; `outlook()`;
+  `actions()` and `hold()` in `Planner`; `findChains()` and `bookChance()` (the chain model of #351); and
   `bestPrice()`, whose tile is the chart.
-- The chart inside `bestPrice()`: on the left, the win chance `chance(p) = 1/(1 + e^((ln p − μ)/s))` with μ = ln 1.40
-  and s = 0.11, the margin `p − cost` for an example cost of 1.00 × list, and their product with its peak marked:
-  `quote 1.35 × list`, where 58% of such quotes win. On the right, the legend and the formula
-  `quote = argmax chance(p) × (p·list − cost·(1 + 0.47·load))`.
+- The chart inside `bestPrice()`: its name and three curves, the win chance `chance(p) = 1/(1 + e^((ln p − μ)/s))`
+  with μ = ln 1.40 and s = 0.11 (blue), the margin `p − cost` for an example cost of 1.00 × list (orange), and their
+  product (green), with its peak, the quote at 1.35 × list, marked. No axis numbers, legend or formula.
 
 ## Scenes
 
@@ -128,30 +132,31 @@ Times inside a scene are its local seconds.
 - **Zoom in (15.0 s), chapter 02.** One move with no cut, its height on a log scale. At 0 the whole diagram, seen
   tilted and slightly turned; the camera levels out by 6.5 and comes down so that at 7.5 only TS:LEAN fills the frame,
   lingers there while the three decisions light up, and dives from 11 until `bestPrice()` fills it at 15. The systems
-  light up as the voice names them (1.0–3.4), event tokens (`price_request`, `order_won`, `gig_booked`, `delivered`)
-  run down into TS:LEAN (3.2–7.2), the price, fee and chain functions light up in turn (7.9–11.0), and the chart draws
-  in from 11.4 and marks its peak at the end.
-- **Fees (10.0 s), chapter 02.** The camera glides to the fee functions on the right of TS:LEAN and leaves the left
-  third to a card: the fee opens at 0.88 × typical and steps to 1.05, 1.25 and 1.55, with 2.0 as the top, planned by
-  21:00 (`every week ranked`), and a weekend box for `rested()` (`+€624 a week`). Red cars stop over `stepped()`
-  while their fee climbs. Says "Fees open low and rise three times, when drivers plan their day." and "And no raises
-  on weekends: Monday's cars wait for Monday."
-- **Chains (10.0 s), chapter 02.** On to `Planner`, `findChains()` and `bookChance()`. The card shows four cars on
-  one driver's path, at most 60 minutes apart, at most 8 hours of driving and at least 15% under the cars' fees
-  (`+€1,560 a week`), then `bookChance()` raising the share of chains that get booked from 53% to 71%
-  (`+€1,126 a week`). Two chains form on the lanes and leave together. Says "Chains: one driver takes up to four
-  cars, one after another." and "Each chain's fee follows its chance to book."
-- **Learning (8.0 s), chapter 02.** On to `Demand` and `Supply` on the left; green sparks run back from `observe()`.
-  The card, now in the right third, shows the win curve: won and lost quotes land on it and move its middle from
-  1.40 to 1.46, 1.42 and 1.45 × list; then `Supply.ratio()` going from 0.84 to 0.97 (`+€769 a week (sim)`). Says
-  "Every won or lost quote moves the win curve." and "Every booking teaches what drivers cost."
-- **Zoom out (10.0 s), chapter 02.** The way back: up to TS:LEAN, then out to the whole diagram by 10, tilting again
-  from 6.0. A grey car is a price request: it comes down the loop, stops on the lane over `bestPrice()` for its price
-  tag, and goes back out. A red car is a won order: it stops over `stepped()` while a fee sign ticks up and a driver
-  gets in. Red cars that wait behind one driver leave together as a chain, and weeks, constants and simulator runs
-  fill the outer lanes. Says "Grey cars are price requests; red ones are won orders." and "A thousand requests a
-  week, all through these lanes."
-- **Traffic (4.5 s), chapter 02.** The whole map, turning slowly as the camera rises, with the most cars of the
+  light up as the voice names them (1.0–3.4), events in four colours (price requests, won orders, booked gigs,
+  deliveries) run down into TS:LEAN (3.2–7.2), the price, fee and chain functions light up in turn (7.9–11.0), and the
+  chart draws in from 11.4 and marks its peak at the end.
+- **Fees (14.0 s), chapter 02.** The camera glides to the fee column on the right of TS:LEAN, and the rest of the
+  picture dims, so only the blocks it is about stay bright. A card on the left holds two graphs under their
+  functions' names: `stepped()`, the fee opening low and rising three times while drivers plan their day, then the
+  top; and `rested()`, the same steps held flat over the weekend (the shaded band) where they would have risen
+  (dashed). Red cars stop over `stepped()` while a meter of four bars fills. Says "Fees open low and rise three times,
+  when drivers plan their day." and "And no raises on weekends: Monday's cars wait for Monday."
+- **Chains (14.0 s), chapter 02.** On to `tick()`, the `Planner`, `findChains()` and `bookChance()`, the bright part
+  moving with the camera. The card: `findChains()`, four cars on one route and the one driver going from the first to
+  the last; and `bookChance()`, the share of chains that book before it (grey) and with it (green, taller). Two
+  chains form on the lane and leave together under a link sign. Says "Chains: one driver takes up to four cars, one
+  after another." and "Each chain's fee follows its chance to book."
+- **Learning (11.0 s), chapter 02.** On to `Demand` and `Supply` on the left; green sparks run back from
+  `observe()`. The card, now on the right: `Demand.learn()`, the win curve whose middle moves as won (green) and lost
+  (red) quotes land on it; and `Supply.ratio()`, bookings coming in one by one while the line climbs to what drivers
+  really cost. Says "Every won or lost quote moves the win curve." and "Every booking teaches what drivers cost."
+- **Zoom out (10.0 s), chapter 02.** The dimming fades as the camera goes back up to TS:LEAN, then out to the whole
+  diagram by 10, tilting again from 6.0. A grey car is a price request: it comes down the loop, stops on the lane
+  over `bestPrice()` for its price (a green coin with a tick), and goes back out. A red car is a won order: it stops
+  over `stepped()` while the fee meter fills and a driver gets in. Red cars that wait behind one driver leave
+  together as a chain, and weeks, constants and simulator runs fill the outer lanes as coloured chips. Says "Grey cars
+  are price requests; red ones are won orders." and "A thousand requests a week, all through these lanes."
+- **Traffic (6.0 s), chapter 02.** The whole map, turning slowly as the camera rises, with the most cars of the
   video. No voice; the music comes up.
 - **Result (7.0 s), chapter 03.** The diagram stays behind, dimmed, with its traffic. Three cards come up:
   `+€24,451` (margin a week), `63 → 1` (strategies tried → shipped) and the on-time share, its decimals ticking in to
@@ -199,8 +204,7 @@ copyrighted songs, and nothing from the film the speed joke points at.
 - [x] The voice lines are made (`node --env-file=.env.local video/voices.ts`), and each fits its subtitle's time
 - [ ] Under 2 minutes, and the spaghetti makes someone curious within 3 seconds
 - [ ] Three cutaway jokes at most: the spaghetti, "It did not" and "I am speed"
-- [ ] Every system, class and function on the diagram exists under that name in the code, and every tag's number is
-      in `src/strategies/lean/README.md`
+- [ ] Every system, class and function on the diagram exists under that name in the code
 - [ ] +€24,451 and −€72,456 match the test URL; 99.9999999% is the one joke number
 - [ ] Subtitles on for every line, readable at 1080p, with `ts:lean`, Bahn and Blib Blib spelled right
 - [ ] No real logos, copyrighted music or film clips
