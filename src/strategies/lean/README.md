@@ -26,8 +26,13 @@ entry in [`LEAN_CHANGELOG.md`](../../../LEAN_CHANGELOG.md) in the same PR.
   to be late, and × 3 for a premium car. `costLevel` is the only level of the cost. The supply learns each booking
   over what the order model expected of that car when it was won, so a place effect holds only what the model does
   not say already.
-- **The quote** is, for each option, the price with the highest chance × (price − cost). There is no charge for
-  capacity, no target share and no least margin: with a noise of 0.28 the best price is never under 1.39 × cost.
+- **What an order costs the others.** Each order per driver more raises the fee of every booking by 0.355 × typical
+  and the refunds by €6.51 an order, so one more order costs the rest of the week €28.7 × the orders per driver:
+  0.47 of the mean order's cost (`taxLoad`). The week's load is the share of the requests won so far, over a week's
+  1,033 requests and the world's drivers.
+- **The quote** is, for each option, the price with the highest chance × (price − cost − that charge), on a win
+  curve of the dealers' measured scale (`noise` 0.11). A week that wins more raises its own charge, so it settles
+  where the next order earns nothing. [Supply and demand](#supply-and-demand-15-november) has the fit.
 
 ## 2. The fee (`fees.ts`)
 
@@ -38,15 +43,20 @@ drivers who booked on their first view paid 0.80 ×. So the fee holds still and 
 - The gig opens at `open` × typical (0.88; 0.8 in its first waking hour when it is for a later day) and rises three
   times over the waking time that drivers have to plan it (`planBy`: by 21:00 the evening before for a last pickup
   before 16:00, else 5 hours before it): after 0.3, 0.55 and 0.8 of that time to 1.05, 1.25 and 1.55 × typical, and
-  to `urgentTop` (2) when the time is over. With `jitter` 1, each raise moves by up to 20 minutes and 5%, drawn from
+  to `urgentTop` (1.6) when the time is over. With `jitter` 1, each raise moves by up to 20 minutes and 5%, drawn from
   the order id, so a driver cannot plan a second look for the rise.
 - A gig posted with under an hour of planning time left (`lateWithin`) opens at `lateOpen` (1.25) and climbs as an
   urgent one.
 - The urgent climb, from the deadline warning on or with under 45 minutes left to book: from `urgentOpen` (1.15),
   `urgentStep` (0.125) every `urgentEvery` (15) waking minutes to `urgentTop`. A car that is late already climbs
-  from `lateFrom` (1.1) by `lateStep` (0.05) every `lateEvery` (30) minutes to `lateTop` (1.7). A gig that a driver
+  from `lateFrom` (1.1) by `lateStep` (0.05) every `lateEvery` (30) minutes to `lateTop` (1.3). A gig that a driver
   gives back starts again from the fee that booked it.
 - Every time in a schedule counts waking minutes (07:00 to 21:00): a raise at night shows to nobody.
+- A gig whose last pickup is on the Monday after the weekend, posted before that Monday 06:00, keeps its opening
+  fee over the weekend and raises on the Monday: from 06:00 to its usual planning minute, or to 3 hours before the
+  last pickup when that minute fell on the Sunday (`rest`, #347). Of such cars 2 a week were booked on a Sunday and
+  31 on the Monday, at the 1.54 × typical that the weekend's raises had left. `rest` false spreads the raises over
+  the weekend as before.
 
 ## 3. Chains (`chains.ts`, `planner.ts`)
 
@@ -372,11 +382,525 @@ Left as they are, and worth their own measurement: the dealer middle of 1.40 (th
 trust), the raises' sizes and times, a lost request that teaches the shared effects once per option, and the
 premium factor of 3.
 
+## Supply and demand (15 November)
+
+Until now `noise` 0.28 did two jobs. It was the scale of the win curve, and, because the best price keeps at least
+`noise` of itself over the cost, the only limit on volume: no price under 1.39 × cost. The dealers' own scale is
+0.12, so the model read every lost quote as a far lower middle than the real one and then added a large markup.
+
+The split: `noise` is the dealers' scale, and a charge on the cost says what an order costs the others. The fit is
+`uv run python -m analysis.supply_curve`, on 60 server weeks of ten fresh seeds (`supply-1` to `supply-10`, level 8)
+that differ only in a fixed `tax`, with one level per seed. The load is the orders won per driver (0.36 to 0.75):
+
+| Function                | Fit                                 | R²   |
+| ----------------------- | ----------------------------------- | ---- |
+| Fee paid × typical      | +0.355 ± 0.038 per order per driver | 0.64 |
+| Refunds per order       | +€6.51 ± 0.98 per order per driver  | 0.47 |
+| Late share              | +0.143 ± 0.016 per order per driver | 0.62 |
+| Demand's logistic scale | 0.122 ± 0.006                       | 0.90 |
+
+One more order raises the load by 1 ÷ drivers for every order of the week, so it costs the others
+load × (typical × 0.355 + €6.51) = €28.7 × load, or 0.47 × load of the mean order's cost (€61.7). The trust that a
+late order loses with its dealer is not in it.
+
+The same ten seeds, every week ranked (mean margin a week, against the defaults before, `noise` 0.28):
+
+| Variant (`noise` 0.11 but the first) | Margin  | Orders | On time | Against `noise` 0.28   |
+| ------------------------------------ | ------- | ------ | ------- | ---------------------- |
+| `noise` 0.28, no charge              | €15,903 | 362    | 97.3%   |                        |
+| `tax` 0.04                           | €15,425 | 523    | 95.1%   | −€478 ± 579, 3 of 10   |
+| `tax` 0.12                           | €15,607 | 487    | 95.1%   | −€296 ± 474, 4 of 10   |
+| `tax` 0.24                           | €16,626 | 437    | 97.0%   | +€724 ± 330, 8 of 10   |
+| `tax` 0.28                           | €16,416 | 420    | 97.0%   | +€513 ± 504, 6 of 10   |
+| `tax` 0.32                           | €16,632 | 406    | 97.3%   | +€729 ± 316, 7 of 10   |
+| `tax` 0.40                           | €15,907 | 367    | 97.6%   | +€4 ± 250, 5 of 10     |
+| `taxEuros` 8                         | €15,653 | 465    | 95.1%   | −€249 ± 489, 5 of 10   |
+| `taxEuros` 16                        | €16,051 | 378    | 96.1%   | +€148 ± 630, 6 of 10   |
+| `taxLoad` 0.47 (**default**)         | €16,875 | 436    | 96.6%   | +€972 ± 386, 7 of 10   |
+| `taxLoad` 0.56                       | €16,946 | 421    | 97.1%   | +€1,043 ± 344, 7 of 10 |
+
+- **The split is the gain.** With the real scale and the same lowest price (`tax` 0.24), `lean` wins 75 more orders
+  at the same on-time share.
+- **A fixed charge peaks at 0.24 to 0.32**, where the fitted one is at these loads (0.21 to 0.28).
+- **The charge by load is €248 ± 322 ahead of `tax` 0.24**, on 7 of 10 seeds: within chance, and the default because
+  it is the fitted function and not a number read off these seeds. 0.56 is level with it.
+- **A flat charge in euros is worse than a share of the cost**: it turns away the short orders.
+- An earlier check on four seeds, on the code before #335 (`noisechk-1` to `noisechk-4`): `noise` 0.20 without a
+  charge made +€264 and 0.14 −€554 with one week unranked.
+
+## What chains earn (15 November, #349)
+
+`chains=false` on `supply-1` to `supply-10`, against the saved weeks of the defaults on the same seeds (level 8, mean
+margin a week, every week ranked):
+
+| Variant        | Margin  | Orders | On time | Fees × typical |
+| -------------- | ------- | ------ | ------- | -------------- |
+| Defaults       | €16,875 | 436    | 96.6%   | 0.96           |
+| `chains=false` | €15,314 | 395    | 97.3%   | 1.00           |
+
+Chains make €1,560 ± 495 a week, ahead on 8 of 10 seeds, with 41 more orders and 0.7 points fewer on time.
+
+What the 15 saved weeks of the defaults (these ten and five ranking runs) say of the chains:
+
+- **Half of them book.** 94 chains a week are posted and 53% book. 123 cars a week ride in booked chains at 0.68 ×
+  typical; 133 a week were in a chain that failed or was dropped and then paid 1.04 to 1.10 × as single gigs. All of
+  those at 0.68 would be €2,500 a week: the most that better chains can earn.
+- **A failed chain costs time, not fees.** Its cars pay 1.04 × typical where cars that were never in a chain pay 1.03.
+- **The fee does not decide it.** A chain that did not book was seen by a median 14 drivers. Booked and unbooked
+  chains opened at the same 0.67 × their cars' typical fees, and in the 89 older weeks where chains stayed open
+  through their raises, a view at 0.75 to 1.00 × booked 1% of the time against 3% at 0.60 to 0.75.
+- **The shape decides it.** A chain that 200 or more drivers can do as a round from home (home to the first pickup
+  and the last delivery to home in 90 road minutes together) books 80% of the time; 74% of the chains have no such
+  driver and book 48%. A trip from the last delivery to the first pickup of over 3 hours books 36%, one of 31 to 60
+  minutes 77%.
+- **A chain books at once or not at all.** Half of the bookings come within 4 minutes and 90% within 37.
+
+### Three tries to book more chains (#351)
+
+Each played on the same ten seeds, against the saved weeks of the defaults (mean margin a week, all weeks ranked):
+
+| Variant                                            | Margin  | Against the defaults | Orders | Chains posted, booked | Cars in booked chains |
+| -------------------------------------------------- | ------- | -------------------- | ------ | --------------------- | --------------------- |
+| Defaults                                           | €16,875 |                      | 440    | 94, 52%               | 120                   |
+| `chainFit` 1                                       | €16,971 | +€96 ± 343, 6 of 10  | 446    | 96, 56%               | 130                   |
+| `chainTries` 2                                     | €16,644 | −€230 ± 282, 3 of 10 | 443    | 132, 44%              | 142                   |
+| `chainPatience` 0.67                               | €16,578 | −€297 ± 155, 2 of 10 | 440    | 94, 53%               | 123                   |
+| `chainFit` 1, `chainTries` 2, `chainPatience` 0.67 | €17,028 | +€153 ± 351, 7 of 10 | 452    | 134, 47%              | 149                   |
+
+- **None is a measured gain** without the chain model below (`chainFit` 0, `chainPatience` 1); with it,
+  `chainTries` 3 is the default.
+- **`chainFit`** ranks two chains that want the same car by saving × chance to book (`bookChance` in `chains.ts`,
+  from the drivers who can do the chain as a round from home). 4 points more chains book and 10 more cars ride in
+  them.
+- **`chainTries`** lets a car of a failed chain join one more chain. 22 more cars ride in chains, but the second
+  chains book less often, and the fees over all orders do not fall (0.963 × typical against 0.960).
+- **The three together** put 29 more cars in chains (149 against 120) with 11 more orders; that should be worth
+  about €500 and measures as +€153 ± 351. It needs more seeds to say.
+
+### The chain model: a fee for each chain by its chance to book (#351)
+
+**The fee decides whether a chain books.** Ten server weeks drew each chain's fee level by its cars' orders
+(`chainSpread` 1, 898 chains): at 0.78 × the chain's fee 12% booked, at 0.88 × 31%, at 1 × 46% and at 1.12 × 66%.
+With chains off, the cars that could ride in one pay 0.94 × typical as single gigs when won on the Monday and
+0.99 × from Tuesday to Thursday (ten server weeks), so a chain at 0.75 × that books is worth more than one at
+0.68 × that does not. Today's level is right on the Monday (73% book) and too low after it (38%).
+
+**Which chains book is known ahead.** `uv run --no-project --python 3.13 --with scikit-learn python -m
+analysis.chain_model` fits the chance that a chain books within an hour on every chain that the saved weeks posted
+(26,151 chains of 295 weeks). On seeds it did not see, the fifth of the chains it rates lowest books 12% of the
+time and the fifth it rates highest 88%. What counts most: the fee for each hour of driving, long chains late in
+the week (the bookings so far per driver × the hours), the trip from the last delivery to the first pickup, the
+drivers who live near the last delivery or can do the chain as a round from home, cars that no driver has seen,
+and the Monday. The weights are in `chain.json`; `score` in `chains.ts` computes the same features.
+
+**What `chainModel` does.** Each path gets the fee level from 0.85 to 1.3 that earns the most: its chance to book
+at that level × (what its cars pay alone − the chain's fee) − (1 − the chance) × what a failed chain costs them
+(0.05 × typical). The best chain earns the most a car, and a path that earns nothing is not posted.
+`chainTries` 3 lets the cars of a chain that no driver took join two more chains.
+
+On the server, against the defaults with the weekend rule (mean margin a week, every week ranked):
+
+| Variant                                         | `supply-1` to `-10` | `supply-11` to `-20` | Both    |
+| ----------------------------------------------- | ------------------- | -------------------- | ------- |
+| Every chain at 1.12 × (`chainOpen`)             | +€307 ± 278         |                      |         |
+| `chainModel`                                    | +€581 ± 400         |                      |         |
+| `chainModel`, `chainTries` 2                    | +€914 ± 429         | +€1,242 ± 366        | +€1,078 |
+| `chainModel`, `chainTries` 3 (**the defaults**) | +€872 ± 463         | +€1,379 ± 355        | +€1,126 |
+| … and `chainAlone` 1.06                         | +€1,263 ± 450       | +€986 ± 414          | +€1,125 |
+| … and `pickLead` 12, `holdHours` 3              | +€982 ± 307         | +€1,479 ± 304        | +€1,231 |
+
+With the defaults 71% of the chains book where 53% did, 197 cars a week ride in them where 117 did, at 0.71 ×
+typical where they paid 0.68 ×, and the week wins 27 more orders at the same on-time share (96.1% against 96.2%).
+
+Each setting was then pushed one step past where it paid, on `supply-1` to `supply-10` over `chainModel` with
+`chainTries` 3 (+€872): `chainAlone` 1.06 +€1,263, 1.12 +€665, 1.18 +€621; `holdHours` 3 +€1,055, 4 +€577;
+`pickLead` 12 +€1,057, 6 +€985; `chainPatience` 1.5 +€943; `chainTries` 5 +€679; `minSaving` 0.05 +€780. On 20
+seeds the settings of the last two rows are level with the defaults, so the defaults change the fewest params.
+
+**Direct offers of an open chain do not pay** (`chainOfferSpread` 1, ten server weeks, 2,436 offers to drivers who
+viewed a chain and did not book it). Drivers who read the offer took it 2.7% of the time at the app's fee, 8.4% at
+1.15 × and 16.2% at 1.3 ×, so an offer over the app's fee does find drivers. But the chains they booked paid 0.79,
+0.85 and 0.97 × their cars' typical fees, where the cars alone pay 0.99 ×, and the week made €372 less than
+without offers. `chainOffers` stays 0.
+
+### Premium cars at a lower cost factor (#351)
+
+`premium` multiplies a premium car's cost by 3, so `lean` wins none of the 49 premium requests a week. Lower
+factors on `supply-1` to `supply-10`, over the chain defaults above (mean a week, every week ranked):
+
+| `premium` | Margin against 3 | Premium orders | Their fee × typical | Late  | Their margin |
+| --------- | ---------------- | -------------- | ------------------- | ----- | ------------ |
+| 2         | −€184 ± 270      | 0.4            | 0.89                | 0%    | €29 a week   |
+| 1.5       | −€132 ± 451      | 3.4            | 1.03                | 5.9%  | €204 a week  |
+| 1         | −€364 ± 433      | 15.2           | 1.09                | 13.2% | €496 a week  |
+
+The premium orders earn €33 to €60 each, but the week does not earn more with them: at 1 they are late four times
+as often as the other orders, and the week wins only 5 orders more in all. `premium` stays 3.
+
+## No raises over the weekend (15 November, #347)
+
+Cars due on the last Monday were booked at 0.84 to 0.91 × typical on the Friday and the Saturday (46 a week), 2 a
+week on the Sunday, and 31 a week on the Monday at 1.54 ×: the raises had come on Saturday and Sunday, and Monday's
+first drivers took what the app showed between 06:00 and 09:00. With `rest` such a gig raises on the Monday.
+
+Server check, the ten `supply-*` seeds, both schedules on the same seeds (level 8, a week). Both win the same
+orders, so the difference is fees and refunds alone:
+
+| Variant                   | Margin  | Orders | On time, mean and lowest week | Ranked   |
+| ------------------------- | ------- | ------ | ----------------------------- | -------- |
+| `rest` false (before)     | €16,861 | 436    | 96.7%, 94.7%                  | 10 of 10 |
+| `rest` true (**default**) | €17,485 | 436    | 96.4%, 94.3%                  | 10 of 10 |
+
++€624 ± 130 a week, ahead on 10 of 10 seeds (+€172 to +€1,375), with 0.3 points fewer orders on time. The `rest`
+false week of `supply-1` is the saved week of the old schedule to the cent.
+
+## Shared demand outcomes (14 November, experimental)
+
+`sharedOutcome` changes only losses with several quoted options. The old code updates the world, day, dealer, pickup
+and delivery effects once per option, so one lost request can count several times. With `sharedOutcome=true`, every
+option's contribution is calculated from the same pre-outcome state. Each delivery-option effect still learns alone;
+each shared effect receives the mean of the option contributions once. Wins and the `false` control are unchanged.
+The default was false until the check on today's defaults at the end of this section.
+
+The first 40 paired simulator seeds (`lean-so-screen-1..40`) were used to explore the change. Shared learning alone
+gained €426.35 (SE €156.81, paired 95% CI +€109.17 to +€743.53). Adding `costLevel=1` gained €485.18 over the control
+(SE €182.15, CI +€116.74 to +€853.62); its increment over shared learning alone was only €58.83 ± €140.35. These are
+selection results, not independent proof. The combined candidate was then frozen, including its SHA-256 hashes, before
+40 new seeds (`lean-so-validate-1..40`) were played. The hashes were unchanged afterward.
+
+| Frozen validation, 40 fresh paired simulator seeds | Control    | Candidate  |
+| -------------------------------------------------- | ---------- | ---------- |
+| Mean margin                                        | €17,694.01 | €18,243.68 |
+| Mean orders                                        | 449.0      | 420.2      |
+| Mean on time                                       | 96.36%     | 96.53%     |
+| Ranked                                             | 40 of 40   | 40 of 40   |
+
+The paired candidate-minus-control gain was **€549.67 a week**, SD €776.66, SE €122.80, t(39) 4.476 and 95% CI
+**+€301.29 to +€798.06**. It was ahead on 28 of 40 seeds, with a median gain of €588.67; a 10% winsorized mean was
+€517.26, so the result is not just one large seed. No candidate week became unranked. This is simulator evidence only;
+its CI does not establish that the true gain exceeds €500.
+
+Every benchmark used a new `SPREAD_JOURNAL_DIR`; reusing one contaminates a restarted simulator because its world ids
+repeat and the harness journals append by world id. Two identical configurations in a fresh directory produced the
+same score to the cent before these comparisons. The validation seeds map to 39 distinct recorded request/driver packs
+(one pack occurs twice), with independent hidden draws and quote decisions per named seed. Raw bench output:
+[`shared-outcome-screen.csv`](shared-outcome-screen.csv) and
+[`shared-outcome-validation.csv`](shared-outcome-validation.csv).
+
+### Server check on 15 fresh seeds (14 November, issue #357)
+
+Three arms played 15 new random server seeds each, level 8, one paired run at a time. The 45 weeks used `f1804809`
+with only the two TypeScript source changes; #347's weekend schedule and #351's chain model were merged into this
+branch afterward. These are therefore measurements on the pre-#347, pre-#351 base, not a replay of the final merge,
+and should be repeated on it before the parameter is enabled.
+
+| 15 paired server seeds | Control (`sharedOutcome=false`) | Shared only | Shared, `costLevel=1` |
+| ---------------------- | ------------------------------- | ----------- | --------------------- |
+| Mean margin            | €13,010.05                      | €13,457.10  | €13,173.53            |
+| Margin SD              | €3,404.08                       | €3,366.07   | €3,414.27             |
+| Mean orders            | 390.2                           | 370.7       | 359.7                 |
+| Mean on time           | 96.33%                          | 96.72%      | 96.50%                |
+| Ranked                 | 14 of 15                        | 15 of 15    | 14 of 15              |
+
+| Paired difference       | Mean ± SD              | SE      | 95% Student-t CI        | Ahead |
+| ----------------------- | ---------------------- | ------- | ----------------------- | ----- |
+| Shared − control        | **+€447.06 ± €825.33** | €213.10 | **−€10.00 to +€904.11** | 10/15 |
+| `costLevel=1` − control | +€163.48 ± €706.46     | €182.41 | −€227.74 to +€554.71    | 10/15 |
+| `costLevel=1` − shared  | −€283.57 ± €725.16     | €187.24 | −€685.15 to +€118.01    | 5/15  |
+
+Shared learning alone has the same sign as the simulator result but is not conclusive on 15 pairs: t(14) 2.098, with a
+median paired gain of €212.57 and per-seed differences from −€967.65 to +€2,227.75. None of its weeks became unranked;
+the control was unranked once where shared learning was ranked (its on-time share was 93.26% against 88.68%). There is
+no support here for also raising `costLevel` from 0.98 to 1. Do not change the defaults on this evidence alone. Raw
+bench output is [`shared-outcome-server-15.csv`](shared-outcome-server-15.csv); every week is under
+`data/scrape/runs/L8/so15-<seed>/<world id>`.
+
+The exact server comparison can be repeated with a fresh journal directory and recording enabled:
+
+```sh
+journal=$(mktemp -d)
+SPREAD_JOURNAL_DIR="$journal" \
+  pnpm bench lean:sharedOutcome=false lean:sharedOutcome=true lean:sharedOutcome=true,costLevel=1 \
+  --level 8 --jobs 3 --csv out/lean-so-15.csv \
+  --seeds so15-7b0c78dd,so15-65faabd4,so15-9ca165e4,so15-0dc06b05,so15-126df8b9,so15-61ebfa24,so15-ecb8752d,so15-8c6518e8,so15-63f8e141,so15-3d85f5d0,so15-a13b2a16,so15-7554c2e4,so15-7a3a06f0,so15-59edee08,so15-1ccfc1c6
+```
+
+The frozen candidate can be replayed offline against its unchanged control:
+
+```sh
+journal=$(mktemp -d)
+pnpm sim --port 8787  # in another terminal
+SPREAD_URL=http://localhost:8787 SPREAD_KEY=sim SPREAD_RECORD=0 SPREAD_JOURNAL_DIR="$journal" \
+  pnpm bench lean:sharedOutcome=false lean:sharedOutcome=true,costLevel=1 \
+  --level 8 --seeds lean-so-validate-1..lean-so-validate-40 --jobs 12
+```
+
+### Shared outcomes on today's defaults (15 November, #360)
+
+The server check above was on the code before the weekend rule and the chain model. On today's defaults,
+`supply-1` to `supply-20` (level 8, mean a week, every week ranked):
+
+| 20 paired server seeds | `sharedOutcome` false | true (**default**) |
+| ---------------------- | --------------------- | ------------------ |
+| Mean margin            | €17,189               | €17,494            |
+| Mean orders            | 453                   | 431                |
+| Price × list           | 1.450                 | 1.488              |
+| Fee × typical          | 0.916                 | 0.918              |
+| Late orders            | 4.8%                  | 4.4%               |
+| Margin an order        | €39.1                 | €41.8              |
+| Lowest week on time    | 92.5%                 | 91.2%              |
+
++€305 ± 203 a week, ahead on 13 of 20. With the 15 seeds above (+€447 ± 213) that is about +€366 ± 147 over 35
+seeds, so `sharedOutcome` is now true. The gain is the price: 22 fewer orders at 2.6% more, won less on Monday
+to Wednesday (40%, 47% and 41% of the requests against 44%, 51% and 44%) and as much after.
+
+Two biases of the same kind on the cost side were checked on those 20 weeks and are too small to act on. The
+supply learns from every booking, also one that the driver gives back: 30 gigs a week are booked twice, at 0.88 ×
+typical and then at 1.09 ×, but over all bookings that is 0.955 × learned against 0.961 × paid. And a car that
+cannot ride in a chain is priced by places whose bookings are half chains: the 16 a week with under 22 hours of
+lead pay 1.17 × typical and earn €26 an order against €38, which is €200 a week at most.
+
+## Five decision algorithms (tried and removed, 15 November, #354)
+
+Five well-known decision algorithms were tried in place of `lean`'s fixed rules, each as a param. None was a
+measured gain, so none is in the code: it is on the branch of the closed PR #355. The results stay here, so that
+nobody plays them again.
+
+**What the saved weeks said first** (157 `lean` weeks of 15 seeds, level 8, mean €16,269 at 96.5% on time):
+
+- Volume is at a flat top: within a seed, 40 orders more or fewer cost €400 to €700 a week, and 80 about €900.
+- Early orders cost the later ones more: each Monday order per driver raised the fee ratio of Tuesday and Wednesday
+  by 1.28 and their late share by 0.44, where `taxLoad` assumes 0.355 all week.
+- One week of 157 was under 90% on time and eight under 93%.
+- 59% of the single gigs booked after a raise, and 20% at 1.31 to 2 × typical.
+- The win share of Monday morning's quotes differs by 0.17 between weeks, and Tuesday's by 0.07.
+
+**What was tried** (the names are the params they had):
+
+- **`value`**: dynamic programming for the quote. The `taxLoad` charge gave way to `value` × the charge of a value
+  table: what one more order takes from the rest of the week, read by the minute of the week, the orders won so far
+  per driver and the late share so far. Crowding made an order dear on Monday (about €25 for a mean order) and
+  cheap on Friday (€4 to €6); the 90% rule charged an order for what it adds to the risk of an unranked week. At 1
+  its mean equalled the `taxLoad` charge.
+- **`feeTable`**: dynamic programming for the fee. A single gig's opening fee and planned raises came from a
+  program over (share of the planning time, fee shown) for six classes of gig, with a charge on a booking above the
+  opening fee for teaching drivers to wait. The table opened at 0.8 to 1.15 × typical, held for two thirds of the
+  planning time and then raised two to four times.
+- **`pace`**: pacing. A controller held a plan from the 40 best saved weeks (0.52 orders per driver, in day shares
+  of 23%, 25%, 19%, 20% and 13%), lowered the planned volume when bookings paid more than planned or over 4% of the
+  orders were late, and moved the charge between 0.5 and 2 × the plan's as the wins ran ahead of the plan or behind
+  it. 1 was its own gain.
+- **`sample`**: Thompson sampling. Each quote was the best price for one draw of the win model's effects, × `sample`
+  of each effect's standard deviation, seeded by the request id.
+- **`rollout`**: lookahead in the offline simulator. Before Monday and on the evenings of Monday to Wednesday it
+  played `lean` on the 8 recorded simulator weeks most like the live one with the charge × 1, 1.5 and 2.5, and kept
+  the scale in force unless another earned €500 a week more, clearly and over 92% on time.
+
+**Server, the same ten random seeds for all** (`dp-a22ce2`, `dp-0742db`, `dp-ab2341`, `dp-57e1da`, `dp-42b22f`,
+`dp-1f571c`, `dp-b49cf6`, `dp-c384ef`, `dp-8038fe`, `dp-200005`; level 8; every week ranked; ± is one standard
+error of the paired difference):
+
+Before the chain model (#351), against the defaults of that time:
+
+| Setting      | Margin a week | Against the defaults | Seeds ahead | Orders | On time | Lowest week |
+| ------------ | ------------: | -------------------: | ----------: | -----: | ------: | ----------: |
+| defaults     |       €16,449 |                      |             |    418 |   96.5% |       94.1% |
+| `value=1`    |       €16,970 |          +€521 ± 343 |     8 of 10 |    425 |   95.3% |       91.1% |
+| `pace=1`     |       €16,575 |          +€127 ± 293 |     6 of 10 |    416 |   96.7% |       94.3% |
+| `value=1.5`  |       €16,367 |           −€82 ± 429 |     3 of 10 |    377 |   95.6% |       90.7% |
+| `pace=2`     |       €16,246 |          −€202 ± 403 |     5 of 10 |    405 |   96.7% |       95.4% |
+| `rollout=1`  |       €16,144 |          −€305 ± 403 |     2 of 10 |    385 |   97.1% |       95.2% |
+| `sample=1`   |       €15,842 |          −€607 ± 271 |     2 of 10 |    438 |   96.2% |       94.3% |
+| `sample=0.5` |       €15,740 |          −€708 ± 365 |     3 of 10 |    419 |   96.4% |       94.1% |
+
+With the chain model, against the defaults of that hour (`sharedOutcome` was still false, #360):
+
+| Setting         | Margin a week | Against the defaults | Seeds ahead | Orders | On time | Lowest week |
+| --------------- | ------------: | -------------------: | ----------: | -----: | ------: | ----------: |
+| defaults        |       €17,669 |                      |             |    447 |   96.6% |       94.4% |
+| `value=1`       |       €17,919 |          +€251 ± 457 |     5 of 10 |    445 |   95.6% |       91.3% |
+| `pace=1`        |       €17,718 |           +€50 ± 280 |     5 of 10 |    442 |   96.6% |       94.7% |
+| `feeTable=true` |       €15,610 |        −€2,058 ± 292 |     0 of 10 |    430 |   95.7% |       91.8% |
+
+- **The value table** was the only one ahead, and with the chain model its gain is inside the noise, while it costs
+  a point of on-time share both times and its worst weeks come near 90%. It is fitted on weeks played before the
+  chain model, and those weeks vary the volume in one direction only, so it cannot tell many orders on one day from
+  many orders so far.
+- **The fee table** loses on every seed: it opens higher and raises late, pays more a gig and wins fewer orders.
+  The saved gigs all raise at the same shares of their planning time, so the fit could not tell a raise from the
+  hour.
+- **Pacing** changes nothing, and **sampling** loses: at 1 it wins 20 more orders at lower prices, at 0.5 the same
+  orders for less.
+- **The rollout** kept the charge in four weeks, which are then the defaults' weeks, and raised it in six, which
+  lost 33 orders a week on average: the simulator favours fewer orders than the server does.
+
+Every week of both rounds is in [`decision-algorithms-server.csv`](decision-algorithms-server.csv), and saved under
+`data/scrape/runs/L8/dp-*`.
+
+## The squeeze (15 November, #367)
+
+The ranking round "Sunday 00:00" and the recorded leaderboard of the 01:00 test final showed where `lean` was behind:
+the leaders win 445 to 488 orders a week where `lean` won 364 to 405, most of the difference on Thursday and Friday,
+and `lean`'s next order cost €92 in fees where its mean order cost €59, because the extra cars rode alone. Nine
+benches on the server measured what helps. Two things about the measuring:
+
+- **The defaults were tuned on `supply-1` to `supply-10`, so that set flatters them**: on it, both directions of
+  one lever lost (`taxLoad` 0.3 and 0.6, `lateCost` 0.5 and 1.5). From the third bench on, every variant plays on
+  fresh seeds (`squeeze-1` to `-10`, `confirm-1` to `-10`, `third-1` to `-10`) beside the defaults in the same
+  bench. ± is one standard error of the paired difference; every week below is ranked unless said.
+- "The combination" is `taxFade=1,urgentTop=1.6,lateTop=1.3,chainDays=5`.
+
+| Variant, against the defaults of 14 November                    | `squeeze`     | `confirm`   | `third`       | Orders | Lowest week on time |
+| --------------------------------------------------------------- | ------------- | ----------- | ------------- | -----: | ------------------: |
+| `urgentTop=1.6,lateTop=1.3`                                     | +€558 ± 129   | +€483 ± 149 |               |     +5 |               92.5% |
+| … and `chainDays=5` (**the defaults now**)                      | +€671 ± 150   | +€492 ± 147 | +€488 ± 176   |     +5 |               91.8% |
+| … and `taxFade=0.5`                                             | +€885 ± 226   | +€627 ± 128 |               |    +21 |               91.1% |
+| The combination (`taxFade=1`)                                   | +€1,024 ± 189 | +€729 ± 185 | +€1,168 ± 211 |    +41 |               90.0% |
+| The combination and `pairShare=0.5` (**`volume.json`**)         | +€1,210 ± 321 | +€916 ± 168 | +€1,353 ± 325 |    +84 |               90.1% |
+| The combination and `pairShare=1`                               | +€458 ± 340   |             |               |    +94 |               92.8% |
+| The combination, `pairShare=0.5` and the flu guard (`guard=8`)  | +€371 ± 311   | +€540 ± 225 | +€457 ± 412   |    +53 |               91.4% |
+| The combination, `pairShare=0.5` and the rescue (`rescue=0.06`) |               | +€281 ± 453 | +€927 ± 326   |    +78 |               90.1% |
+
+- **The new defaults** are the three that gain with almost no change in the orders on time: lower tops of the urgent
+  and late climbs (`urgentTop` 1.6, `lateTop` 1.3: the gigs that reached the last raises paid 1.47 × typical and
+  carried 19% of the single gigs' fees) and chains on Friday (`chainDays` 5; 6 plays the same weeks).
+- **`volume.json`** held `taxFade` 1 and `pairShare` 0.5. They are the defaults since
+  [the room for late orders](#the-room-for-late-orders-15-november-381), and the file is gone.
+  Over the defaults it wins about 80 orders a week more and makes €430 to €860 a week more, on all three sets. On
+  the ranking round "Sunday 03:00" it made €83,342 with 2,391 orders at 95.1% on time, 2nd of 37 teams
+  (`data/rankings/2026-11-15-0315/`). **Its risk is the delivery minimum**: of its 30 fresh weeks one ended at 90.1%
+  on time (480 orders and 48 late with the combination alone: one late order more and the week scores nothing), and
+  five of 74 weeks of the two volume settings were under 92%, against none of the defaults' 30.
+- **`taxFade`** takes the `taxLoad` charge off on Friday and half of it off on Thursday. It is a patch by weekday.
+  The reason it pays: fitted again on the 290 weeks with the chain model, one more order per driver no longer
+  raises the fees of the cars booked after it (slope −0.24, not above zero on any day), where `taxLoad` 0.47 was
+  fitted on 0.355 × typical before the chain model. A lower charge all week (`taxLoad=0.3`) made +€290 ± 344 on
+  `squeeze` with 30 more orders.
+- **`pairShare`** lets the quote see our books: a request that the chain search can put in a chain with open cars
+  we hold has that chain's saving (the chain model's `worth`), × `pairShare`, taken off its cost, and no less than
+  0.4 × the cost. It fires on about 600 quoted options a week at €22 to €26 each. Alone it gains nothing (−€93 to
+  +€183); on the combination 0.5 adds about €186 on each of the three sets. A stricter form (only what the chain
+  adds over the chains its partners make without the new car, one request per open car, half for a car already in
+  the app) made +€782, +€679 and +€710 at 0.5, 1 and 1.5 on `squeeze`, under the simple form, and is not in the code.
+
+**What lost, and stays off or as it was** (ten seeds each; the first eleven rows on `supply-1` to `-10`, against the
+saved weeks of the defaults there, so each is some €300 to €500 too low):
+
+| Variant                                        | Against the defaults                       |          Orders |
+| ---------------------------------------------- | ------------------------------------------ | --------------: |
+| `longCost=0` (no long-drive cost)              | −€1,319 ± 364                              |             −11 |
+| `longCost=0,lateCost=0.5`                      | −€1,910 ± 548                              |              −6 |
+| `lateCost=0.5` / `1.5`                         | −€505 / −€382                              |        +4 / −10 |
+| `longCost=1.5`                                 | −€380 ± 360                                |              −6 |
+| `chainStart=0.85` / `0.75` with `chainRamp=30` | −€665 / −€778                              |         −2 / −6 |
+| `value=1` / `0.5`, table fitted again          | −€1,029 / −€686                            |       −27 / +37 |
+| `taxLoad=0.15` / `0.3` / `0.6`                 | −€975 / −€698 / −€264                      | +62 / +28 / −25 |
+| `raise3=1.4`                                   | −€288 ± 204                                |              −1 |
+| `urgentTop=1.8,lateTop=1.5`                    | −€69 ± 171                                 |              −1 |
+| `urgentTop=1.4,lateTop=1.2`                    | +€388 ± 235 (and +€333 ± 176 on `squeeze`) |              +2 |
+| On the combination, `squeeze`: `maxHop=90`     | +€546 against the combination's +€1,024    |             +39 |
+| … `maxCars=5,maxDrive=10`                      | +€930                                      |             +39 |
+| … `holdHours=3,pickLead=12`                    | +€1,067                                    |             +44 |
+| … `taxLoad=0.35`                               | under the combination (4 seeds)            |                 |
+
+- **Long lanes are not underpriced.** `lean` wins 9% of the requests with a typical fee of €150 or more, and the
+  dealers' limit there is about 1.31 × list where `lean` quotes 2.04 ×. But without the long-drive cost the week won
+  6.5 long orders more that earned nothing more as a group, and the other orders lost €1,100 a week (16 fewer, fees
+  0.92 against 0.90 × typical, 4.0% late against 2.8%). In the test final no team of the top won them either: the
+  win share of long lanes has no relation to a team's margin (correlation +0.01 over 36 ranked teams).
+- **A chain's fee is right.** 97% of the chains book at their opening fee after 3 minutes at the median, but a
+  lower opening with a climb to the fee lost.
+- **Wider chains do nothing.** 108 cars a week may join a chain and never do; a longer hop, more cars or longer
+  drives did not bring them in.
+
+**The flu, and why no guard is on.** The rules give every level 8 week one day on which 30% of the drivers stay at
+home, unannounced. It shows in the first hour of that day: the drivers give that day's gigs back, 10 at the median
+against 3 on the week's next-worst day (41 weeks of the defaults). For the defaults the weekday of the flu does not
+matter (96 to 97% on time); with the combination a flu on Thursday or Friday costs 1.2 to 1.4 points, and the late
+cars are those due on the second Monday (102 a week with the defaults, 131 with the combination), whose refunds come
+after the weekend. Three guards were built and none pays:
+
+- `guard` as a count of gigs given back, not started or expired in 12 hours (14 or 10): +€359 and +€131 where the
+  combination made +€729, and the 90.0% week ended at 90.7%.
+- `guard` as the first hour of a day (8, the code now): costs €190 to €840 a week against the same settings without
+  it, and lifts the lowest week by about one point.
+- `rescue` (when late orders and warned cars without a driver are that share of the orders won, warned cars climb to
+  3 × typical): 0.06 made +€281 ± 453 on `confirm` and +€927 ± 326 on `third`, where the same settings without it
+  made +€916 and +€1,353, and the lowest week stayed at 90.1%; 0.04 made −€277 and +€123, with one week at 89.1%,
+  not ranked.
+
+**The test final of 01:00.** Every team plays the same requests and each resolves at the same world minute, so a
+team's order count in the recorded leaderboard (`data/finals/2026-11-15-0100-test/`) shows what it won among the
+requests of each step; against our own week this agrees in 282 of 283 steps. `lean` came 6th of 41 with €12,875 and
+364 orders, €1,236 behind the first. It sent its first quote at world minute 709 (the 50 requests before it got
+none, some 22 orders and €650 to €700: the system was started after the hour, and `--final` waits by itself when it
+is started before), and it won 101 orders on Thursday and Friday where the first three won 122 to 165.
+
+## The room for late orders (15 November, #381)
+
+A week under 90% on time scores nothing. The volume settings (`taxFade` 1, `pairShare` 0.5) end at 95.3% on average,
+and one of their 47 saved weeks ended at 90.1% (`confirm-7`). The rule `room` keeps such a week ranked, and with it
+the volume settings are the defaults.
+
+**Where the week is lost.** The saved weeks of four settings on the fresh seeds (188 weeks) say:
+
+- The last request comes on Friday before 18:20. From then on the number of orders is final, and so is the number of
+  late orders that the week can take: a tenth of the orders.
+- By Saturday 07:00 the worst week had used 85% of that number, and the median week 30%. No week was lost by then.
+- `confirm-7` had room for 29 more late orders on Saturday, and 29 of its Monday orders came late. Nothing in the
+  week before said so (0.7% of its orders were late by Thursday night). What said so on Saturday 07:00: 98 orders
+  for Monday had no driver, where 30 is usual. Friday was the day when 30% of the drivers stay at home, and Friday is
+  when Monday's gigs book.
+- An order without a driver on Saturday 07:00 is late in 38% of the cases when its typical fee is €80 or more and
+  its last pickup is before 15:00 on Monday, in 15% when only the fee is, in 19% when only the pickup is, and in 5%
+  otherwise. With a driver on Saturday it is late in 1.7%.
+- A long gig that books on Monday after 15:00 is always late (405 of 405): the deadline warning of such a car comes
+  hours after its last pickup, at the minute the pickup place closes. So the urgent climb cannot save it.
+- The drivers are there. In `confirm-7`, 283 drivers looked at the 107 open gigs on Saturday morning and 40 booked,
+  at 0.88 × typical. On a Monday from 07:00 to 08:00 a view of a long gig books in 6% of the cases at 1.0 × typical,
+  in 14% at 1.2 × and in 19% at 1.3 ×.
+
+**The rule.** From Friday 21:00, `lean` adds up the late chances of its orders without a driver (the four numbers
+above) and compares `room` (3.5) × that sum with the late orders the week can still take. The sum times 3.2 is the
+most that any saved week had. While the room is too small, each single gig of an order with a chance of 15% or more
+gets a new schedule from a higher fee: 1.1 × typical at least, then 0.1 × more at each rise, up to 2.5 ×. A rise
+comes every 60 minutes on Saturday and every 30 minutes on Monday, between 05:00 and 21:00, and not on Sunday, when
+nobody books (12 bookings in 62,000 views). The rises stop when enough orders have a driver. Chains keep their own
+schedule. The week's summary line says how many rises there were.
+
+In 174 of the 188 saved weeks the sum never reaches the room, and the rule does nothing.
+
+**The result** on ten saved seeds of the volume settings (one server week each, 15 November):
+
+| Seeds                                            | The rule    | Late on Monday, before → after | Margin against the saved week           |
+| ------------------------------------------------ | ----------- | ------------------------------ | --------------------------------------- |
+| `confirm-1`, `confirm-3`, `confirm-4`, `third-1` | did not act | the same                       | the same to the cent                    |
+| `third-5`                                        | did not act | 2                              | −€740 (13 orders fewer by Friday)       |
+| `confirm-7`                                      | 8 rises     | 29 → 20                        | −€687; 91.8% on time, was 90.1%         |
+| `third-2`                                        | 2 rises     | 10 → 6                         | +€157                                   |
+| `third-4`                                        | 13 rises    | 18 → 7                         | −€1,309 (12 more late orders by Friday) |
+| `confirm-2`                                      | 1 rise      | 7 → 4                          | +€596                                   |
+| `third-7`                                        | 3 rises     | 0 → 0                          | −€196                                   |
+
+- A week on the server does not always replay the same: four of the ten weeks had a different number of orders by
+  Friday, before the rule can act. `third-5` shows how much that moves a week without the rule.
+- `third-4` is the week the rule is for. This time it had 36 late orders by Friday night (24 in the saved week) and
+  room for 51. With the 18 late orders of its saved Monday it would have ended under 90%. With the rule 7 were late,
+  and the week ended at 91.7%.
+- In `confirm-7` the rule paid €1,353 more in fees and saved 9 late orders, which leaves room for 9 more.
+
+**What the rule does not cover:** a week that uses its room before Friday night. The closest saved week used 85%
+of it. `lateHard` works against that during the week.
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
-`early` 0.8, `lateWithin` 60, `lateOpen` 1.25, `urgentOpen` 1.15, `urgentStep` 0.125, `urgentEvery` 15, `urgentTop` 2,
-`lateFrom` 1.1, `lateStep` 0.05, `lateEvery` 30, `lateTop` 1.7, `feeRatio` 0.84, `lateCost` 1, `premium` 3,
-`privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 0.98, `minHours` 4, `noise` 0.28,
-`middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
-`pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1.
+`early` 0.8, `rest` true, `lateWithin` 60, `lateOpen` 1.25, `urgentOpen` 1.15, `urgentStep` 0.125, `urgentEvery` 15, `urgentTop` 1.6,
+`lateFrom` 1.1, `lateStep` 0.05, `lateEvery` 30, `lateTop` 1.3, `feeRatio` 0.84, `lateCost` 1, `premium` 3,
+`privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 0.98, `minHours` 4, `noise` 0.11,
+`sharedOutcome` true, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
+`pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1, `chainTries` 3, `chainFit` 0,
+`chainModel` true, `chainAlone` 1, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0,
+`chainDays` 5, `taxFade` 1, `pairShare` 0.5, `room` 3.5, and the switches of
+[the squeeze](#the-squeeze-15-november-367) that are off: `longCost` 1, `chainStart` 1, `chainRamp` 20, `value` 0,
+`guard` 0, `rescue` 0.

@@ -8,6 +8,7 @@ node_modules
 # Local output
 /out
 /data/spread.sqlite
+/video/out
 *.log
 
 # OS

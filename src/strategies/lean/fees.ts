@@ -16,6 +16,8 @@ const LAST = 1.3
 const CREEP_BY = 0.8
 const CREEP_STEPS = 10
 const STEP = 20
+/** A chain's ramp (`chainStart`, `chainRamp`) raises the fee this many waking minutes apart. */
+const RAMP_STEP = 5
 /** Drivers read the app between these minutes of the day. The rules say 07:00 to 23:00; late orders found their
  * driver "in the evening", so the planning day ends at 21:00 here. */
 const WAKE = 7 * HOUR
@@ -47,10 +49,18 @@ function later(from: number, minutes: number): number {
 
 /** The slow schedule from `now`, for chains: `open` × typical for half of the awake time to `bookBy` (HOLD at most),
  * then up to LAST when CREEP_BY of the time is gone. */
-export function slow(now: number, typical: number, bookBy: number, open: number): FeeStep[] {
+export function slow(now: number, typical: number, bookBy: number, open: number, start = 1, ramp = 0): FeeStep[] {
   const time = awake(now, bookBy)
   const points: [number, number][] = [[now, open]]
   const [begin, end, last] = [Math.min(time / 2, HOLD), CREEP_BY * time, Math.max(open, LAST)]
+  // The ramp: from `start` × the opening fee to the opening fee, a step every RAMP_STEP waking minutes.
+  const minutes = Math.min(ramp, begin)
+  if (start < 1 && minutes > 0) {
+    const count = Math.max(1, Math.ceil(minutes / RAMP_STEP))
+    points[0] = [now, open * start]
+    for (let i = 1; i <= count; i++)
+      points.push([later(now, (minutes * i) / count), open * (start + ((1 - start) * i) / count)])
+  }
   const steps = last > open ? Math.min(CREEP_STEPS, Math.floor((end - begin) / STEP)) : 0
   for (let i = 1; i <= steps; i++)
     points.push([later(now, begin + ((end - begin) * i) / steps), open + ((last - open) * i) / steps])
@@ -59,7 +69,15 @@ export function slow(now: number, typical: number, bookBy: number, open: number)
 
 /** What `stepped` needs: the opening fee, the early fee (0 for none), each raise as the share of the planning time
  * after which it comes and the fee it raises to, the top, and the jitter (0 to 1). All fees × typical. */
-export type Steps = { open: number; early: number; raises: [number, number][]; top: number; jitter: number }
+export type Steps = {
+  open: number
+  early: number
+  raises: [number, number][]
+  top: number
+  jitter: number
+  /** Whether a gig whose last pickup follows a Sunday keeps its raises for that day (`rested`). */
+  rest: boolean
+}
 
 /** With `jitter` 1 a raise moves by up to half of this many minutes either way and by up to half of this share in
  * size, drawn from the gig's seed, so that drivers cannot time a second look. */
@@ -85,7 +103,7 @@ export function stepped(
   lastPickup: number,
   shown: number,
   seed: string,
-  { open, early, raises, top, jitter }: Steps,
+  { open, early, raises, top, jitter, rest }: Steps,
 ): FeeStep[] {
   const random = rng(seed)
   const points: [number, number][] = [[now, Math.max(open, shown)]]
@@ -94,10 +112,14 @@ export function stepped(
     points[0] = [now, early]
     points.push([later(now, EARLY), open])
   }
-  const plan = planBy(now, lastPickup)
-  const left = awake(now, plan)
+  const start = rest ? rested(now, lastPickup) : undefined
+  // After a rest day the planning time is the day itself: from REST_WAKE to PLAN_GONE before the last pickup, or
+  // to the usual minute when that is later.
+  const usual = planBy(now, lastPickup)
+  const plan = start === undefined || usual >= start ? usual : Math.max(start, lastPickup - PLAN_GONE)
+  const left = start === undefined ? awake(now, plan) : plan - start
   const time = Math.min(left, PLAN_AHEAD)
-  const from = later(now, left - time)
+  const from = start ?? later(now, left - time)
   const add = (at: number, to: number) => {
     if (at <= now) points[0] = [now, Math.max(points[0]?.[1] ?? 0, to)]
     else points.push([at, to])
@@ -106,15 +128,29 @@ export function stepped(
     // Each gig raises at its own minutes and by its own size.
     const shift = (random() - 0.5) * JITTER_MINUTES * jitter
     const size = 1 + (random() - 0.5) * JITTER_SIZE * jitter
-    add(later(from, share * time) + shift, ratio * size)
+    // On the day after a rest day the raises count from REST_WAKE, an hour before the waking day begins.
+    add((start === undefined ? later(from, share * time) : from + share * time) + shift, ratio * size)
   }
   // The top at `plan` on the day itself, or at 07:00 on the day for a gig that drivers plan the evening before.
-  const evening = plan <= lastPickup - PLAN_LATE - HOUR
+  const evening = start === undefined && plan <= lastPickup - PLAN_LATE - HOUR
   add(evening ? Math.min(later(plan, 1), lastPickup - TOP_AHEAD) : plan, top)
   return schedule(
     points.sort((a, b) => a[0] - b[0]),
     typical,
   )
+}
+
+/** Drivers book a Monday's gigs on that Monday: of the cars due on the last Monday in ten server weeks, 25 a week
+ * were booked on the Friday and 21 on the Saturday at 0.84 to 0.91 × typical, 2 on the Sunday and 31 on the Monday,
+ * two thirds of those between 06:00 and 09:00. The raises that fell on the weekend reached nobody who booked, and
+ * Monday's first drivers took 1.54 × typical. So a gig whose last pickup is on a day after a Sunday, posted before
+ * that day's REST_WAKE, raises from that minute on. The minute, or undefined for any other gig. */
+const WEEK = 7 * DAY
+const REST_WAKE = 6 * HOUR
+export function rested(now: number, lastPickup: number): number | undefined {
+  const day = Math.floor(lastPickup / DAY) * DAY
+  const start = day + REST_WAKE
+  return day > 0 && day % WEEK === 0 && now < start && lastPickup > start ? start : undefined
 }
 
 /** The minute by which a gig should have its driver. Drivers plan a day the evening before: 53 of 103 late orders

@@ -267,8 +267,11 @@ on one line, so two PRs that each add a command do not conflict.
 - Play the snow-aware week: `uv run strategies/snow_aware/dispatch.py --level 8 --seed spread-1`
 - Measure the lead-cost table: `uv run python -m strategies.lead_cost.fit`
 - Fit lean's cost weights again (`--write` saves them): `uv run --with numpy python -m analysis.lean_cost`
+- Fit lean's value table again (`--write` saves it): `uv run python -m analysis.lean_value --db out/lean.sqlite`
+- Fit lean's chain model (`--write` saves it): `uv run --no-project --python 3.13 --with scikit-learn python -m analysis.chain_model`
 - Fit the lane fees: `uv run python -m strategies.lane_fee.fit`
 - Fit the lane priors: `uv run python -m strategies.lane_prior.fit`
+- Fit lean's supply and demand functions: `uv run python -m analysis.supply_curve`
 - Play the scarcity-ceiling week: `uv run strategies/scarcity_ceiling/dispatch.py --level 8 --seed spread-1`
 - Play the profit-max week: `uv run strategies/profit_max/dispatch.py --level 8 --seed spread-1`
 - Play the learned-cost week: `uv run strategies/learned_cost/dispatch.py --level 8 --seed spread-1`
@@ -319,6 +322,8 @@ on one line, so two PRs that each add a command do not conflict.
 - Split saved weeks' margin by the hour an order was won: `uv run python -m analysis.phases`
 - Build the simulator's data packs: `uv run python sim/build_data.py`
 - Serve the offline simulator: `pnpm sim --port 8787`
+- Serve the video player (the joke video; `?video=lean` for the ts:lean video): `node video/serve.ts --port 8790`
+- Make the videos' voice lines with ElevenLabs: `node --env-file=.env.local video/voices.ts`
 - Oracle margin of a week in the simulator: `pnpm oracle spread-1`
 - Probe a week (online unless `SPREAD_URL` is the simulator; needs the user's request): `pnpm prober --mode fee --seeds spread-1`
 - Replay a saved week in the simulator: `pnpm replay data/scrape/runs/L8/spread-1/<world id>`
