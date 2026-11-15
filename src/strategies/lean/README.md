@@ -759,7 +759,7 @@ benches on the server measured what helps. Two things about the measuring:
 | The combination and `pairShare=0.5` (**`volume.json`**)         | +€1,210 ± 321 | +€916 ± 168 | +€1,353 ± 325 |    +84 |               90.1% |
 | The combination and `pairShare=1`                               | +€458 ± 340   |             |               |    +94 |               92.8% |
 | The combination, `pairShare=0.5` and the flu guard (`guard=8`)  | +€371 ± 311   | +€540 ± 225 | +€457 ± 412   |    +53 |               91.4% |
-| The combination, `pairShare=0.5` and the rescue (`rescue=0.06`) |               | +€281 ± 453 |               |    +71 |               90.1% |
+| The combination, `pairShare=0.5` and the rescue (`rescue=0.06`)      |               | +€281 ± 453 | +€927 ± 326   |    +78 |               90.1% |
 
 - **The new defaults** are the three that gain with almost no change in the orders on time: lower tops of the urgent
   and late climbs (`urgentTop` 1.6, `lateTop` 1.3: the gigs that reached the last raises paid 1.47 × typical and
@@ -824,8 +824,9 @@ after the weekend. Three guards were built and none pays:
 - `guard` as the first hour of a day (8, the code now): costs €190 to €840 a week against the same settings without
   it, and lifts the lowest week by about one point.
 - `rescue` (when late orders and warned cars without a driver are that share of the orders won, warned cars climb to
-  3 × typical): 0.06 made +€281 ± 453 on `confirm` where the same settings without it made +€916, and the lowest
-  week stayed at 90.1%; 0.04 made −€277 with one week at 89.1%, not ranked.
+  3 × typical): 0.06 made +€281 ± 453 on `confirm` and +€927 ± 326 on `third`, where the same settings without it
+  made +€916 and +€1,353, and the lowest week stayed at 90.1%; 0.04 made −€277 and +€123, with one week at 89.1%,
+  not ranked.
 
 **The test final of 01:00.** Every team plays the same requests and each resolves at the same world minute, so a
 team's order count in the recorded leaderboard (`data/finals/2026-11-15-0100-test/`) shows what it won among the
