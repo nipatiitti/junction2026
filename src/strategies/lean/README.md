@@ -758,13 +758,13 @@ viewed, and that a driver who expects a raise waits. In the 250 saved server wee
 Server, five fresh random seeds (`dayof-*`, level 8, every week ranked; ± is one standard error of the paired
 difference; the weeks are in [`fee-raises-server.csv`](fee-raises-server.csv)):
 
-| Setting                                         | Margin a week | Against the defaults | Seeds ahead | Orders | On time | Lowest week |
-| ----------------------------------------------- | ------------: | -------------------: | ----------: | -----: | ------: | ----------: |
-| defaults                                        |       €15,492 |                      |             |    411 |   94.5% |       91.1% |
-| `raise3` 1.4, `urgentTop` 1.6                   |       €16,522 |        +€1,029 ± 669 |      4 of 5 |    419 |   94.1% |       92.0% |
-| `open` 0.84, `early` 0, and the two above       |       €16,247 |          +€755 ± 653 |      4 of 5 |    414 |   94.3% |       90.9% |
-| `dayOf` (tried and removed)                     |       €15,256 |          −€236 ± 426 |      2 of 5 |    408 |   94.4% |       91.2% |
-| `open` 0.84, `early` 0                          |       €15,177 |          −€315 ± 460 |      2 of 5 |    403 |   94.4% |       90.8% |
+| Setting                                   | Margin a week | Against the defaults | Seeds ahead | Orders | On time | Lowest week |
+| ----------------------------------------- | ------------: | -------------------: | ----------: | -----: | ------: | ----------: |
+| defaults                                  |       €15,492 |                      |             |    411 |   94.5% |       91.1% |
+| `raise3` 1.4, `urgentTop` 1.6             |       €16,522 |        +€1,029 ± 669 |      4 of 5 |    419 |   94.1% |       92.0% |
+| `open` 0.84, `early` 0, and the two above |       €16,247 |          +€755 ± 653 |      4 of 5 |    414 |   94.3% |       90.9% |
+| `dayOf` (tried and removed)               |       €15,256 |          −€236 ± 426 |      2 of 5 |    408 |   94.4% |       91.2% |
+| `open` 0.84, `early` 0                    |       €15,177 |          −€315 ± 460 |      2 of 5 |    403 |   94.4% |       90.8% |
 
 - **A lower top is the one to play on more seeds.** The gigs booked after a raise paid 1.32 × typical where they
   paid 1.42 ×, as many gigs reached the top, and the week won 8 more orders: the cost that the price learns from
@@ -929,6 +929,42 @@ In 174 of the 188 saved weeks the sum never reaches the room, and the rule does 
 
 **What the rule does not cover:** a week that uses its room before Friday night. The closest saved week used 85%
 of it. `lateHard` works against that during the week.
+
+## Tuning on today's defaults (15 November, #378)
+
+Three rounds on the server against the defaults of main (`taxFade` 1, `pairShare` 0.5, `urgentTop` 1.6, `lateTop`
+1.3, `chainDays` 5, `room` 3.5), each on five fresh random seeds (`tune-*`, level 8, every week ranked; ± is one
+standard error of the paired difference, about €100 to €500 at five seeds, so read all but the first row as a
+direction):
+
+| Round | Setting                        | Against the defaults | Seeds ahead | Orders | Lowest week on time |
+| ----- | ------------------------------ | -------------------: | ----------: | -----: | ------------------: |
+| B, C  | `trust` 0.55 (ten seeds)       |           +€342 ± 99 |     9 of 10 |     +3 |               91.8% |
+| C     | `costLevel` 1.02               |          +€421 ± 419 |      2 of 5 |    −17 |               92.7% |
+| B     | `pairShare` 0.35               |          +€154 ± 430 |      2 of 5 |     −6 |               92.3% |
+| B     | `holdHours` 1.5                |            +€1 ± 509 |      2 of 5 |     +4 |               92.3% |
+| B     | `taxFade` 0.75, `taxLoad` 0.4  |           −€25 ± 397 |      3 of 5 |     −2 |               91.4% |
+| B     | `pairShare` 0.65               |           −€64 ± 267 |      4 of 5 |     +3 |               91.9% |
+| A     | `raise3` 1.4                   |          −€114 ± 275 |      2 of 5 |     +1 |               91.8% |
+| C     | `trust` 0.4                    |          −€129 ± 139 |      2 of 5 |      0 |               93.1% |
+| C     | `chainAlone` 1.06              |          −€147 ± 356 |      3 of 5 |     +5 |               92.2% |
+| A     | `urgentTop` 1.4, `lateTop` 1.2 |          −€156 ± 173 |      3 of 5 |     −3 |               91.6% |
+| C     | `trust` 0.25                   |          −€187 ± 387 |      3 of 5 |     +5 |               92.3% |
+| A     | `noise` 0.12                   |          −€393 ± 426 |      2 of 5 |    −16 |               91.6% |
+| A     | `holdHours` 3, `pickLead` 12   |          −€619 ± 432 |      1 of 5 |     +3 |               90.9% |
+| A     | `trust` 0.85                   |          −€787 ± 375 |      1 of 5 |     −4 |               91.6% |
+
+The defaults made €16,634, €16,414 and €20,352 a week in rounds A, B and C, at 92.3%, 92.1% and 91.5% on time in
+the lowest week.
+
+- **`trust` 0.55 is the one gain**: ahead on 9 of 10 seeds, with 0.85 clearly behind and 0.4 and 0.25 level or
+  behind, so the best share of a dealer's trust in the price is a little under the 0.7 of the defaults.
+- **The defaults are at a flat top for the rest.** `raise3` 1.4 adds nothing once `urgentTop` is 1.6, and neither
+  does a top lower still; `pairShare`, `taxFade` with `taxLoad`, `holdHours`, `chainAlone` and `noise` are inside
+  what chance gives.
+- `costLevel` 1.02 hangs on two seeds; it is the next one to play if anybody tunes further.
+
+The defaults are unchanged; `trust` 0.55 is for the team to decide.
 
 ## Params
 
