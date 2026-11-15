@@ -8,6 +8,9 @@ import { DAY, HOUR } from '../../ops/index.ts'
 type Weights = Record<string, number>
 const clamp = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value))
 
+/** What the model adds to the cost of a long drive: `longCost` scales these three. */
+const LONG = new Set(['long_drive', 'very_long_drive', 'today_long_drive'])
+
 export type OrderModel = { meanCost: number; cost: Weights; late: Weights }
 
 /** A request as the model sees it, at the minute `at`. */
@@ -40,7 +43,7 @@ export const loadOrders = (): OrderModel =>
 /** What the model expects of this work, won now: its cost over the mean order's (1 = as dear as the mean order:
  * `meanCost` is the mean of the fit, so the level of a price is `costLevel` alone),
  * and its chance to be late. */
-export function outlook(model: OrderModel, work: Work): { cost: number; late: number } {
+export function outlook(model: OrderModel, work: Work, longCost = 1): { cost: number; late: number } {
   const offset = Math.floor(work.readyAt / DAY) - Math.floor(work.at / DAY)
   const hour = (work.at % DAY) / HOUR
   const day = Math.floor(work.at / DAY)
@@ -79,7 +82,13 @@ export function outlook(model: OrderModel, work: Work): { cost: number; late: nu
     won_today: work.wonToday / 80,
     open_gigs: clamp(work.open, 0, 120) / 40,
   }
-  const sum = (weights: Weights): number =>
-    Object.entries(x).reduce((total, [key, value]) => total + (weights[key] ?? 0) * value, weights.base ?? 0)
-  return { cost: clamp(sum(model.cost) / model.meanCost, 0.5, 3), late: 1 / (1 + Math.exp(-sum(model.late))) }
+  const sum = (weights: Weights, long = 1): number =>
+    Object.entries(x).reduce(
+      (total, [key, value]) => total + (weights[key] ?? 0) * value * (LONG.has(key) ? long : 1),
+      weights.base ?? 0,
+    )
+  return {
+    cost: clamp(sum(model.cost, longCost) / model.meanCost, 0.5, 3),
+    late: 1 / (1 + Math.exp(-sum(model.late))),
+  }
 }
