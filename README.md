@@ -4,6 +4,13 @@ Lean is our TypeScript entry for **Spread** by Bahn at Junction 2026.[^legacy] I
 for one simulated week in Finland: it quotes prices to dealers, hires freelance drivers, and manages every order until delivery.
 The goal is gross margin in game euros, with at least 90% of orders delivered on time.
 
+**In pictures:** [how it decides](#how-it-decides) · [the best score over the weekend](#the-best-score-over-the-weekend)
+· [the seeds and strategies explored](#the-seeds-and-strategies-explored)
+
+## How it decides
+
+[![How lean decides: a price request becomes a price, a chain and a fee, and every answer of the world sets the next quote](docs/images/lean/algorithm.svg)](docs/images/lean/algorithm.svg)
+
 ## What it does
 
 - **Prices each request** with online demand and cost models that learn from the week's quotes and bookings, while
@@ -17,6 +24,17 @@ The goal is gross margin in game euros, with at least 90% of orders delivered on
 
 The strategy lives in [`src/strategies/lean/`](src/strategies/lean/README.md). The detailed README there explains the
 models, parameters, and measured results.
+
+## The best score over the weekend
+
+[![The best level 8 week so far and the mean week of each ranking round, by the hour of the weekend](docs/images/lean/best-score.svg)](docs/images/lean/best-score.svg)
+
+## The seeds and strategies explored
+
+[![The number of strategies tried and of seeds played so far, by the hour of the weekend](docs/images/lean/explored.svg)](docs/images/lean/explored.svg)
+
+The [strategy's README](src/strategies/lean/README.md#the-best-score-over-the-weekend) says what each chart counts;
+`uv run python -m analysis.weekend` draws both from the saved weeks.
 
 ## Setup
 
