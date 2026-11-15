@@ -4,10 +4,10 @@ A dispatch system built on [`strategies/headroom`](../headroom/README.md). Inste
 the week, its `ContextualPricing` chooses between two existing policies for each request from the booking rate at the
 request's first pickup town. Admission, fees, bundling and offers are the headroom system's, unchanged.
 
-| File          | Class               | Builds on          | What it decides                                      |
-| ------------- | ------------------- | ------------------ | ---------------------------------------------------- |
-| `pricing.py`  | `ContextualPricing` | `Strategy`         | Which shared pricing policy quotes each request      |
-| `dispatch.py` | `Desk`              | the headroom desk  | The system, and the post times pricing needs         |
+| File          | Class               | Builds on         | What it decides                                 |
+| ------------- | ------------------- | ----------------- | ----------------------------------------------- |
+| `pricing.py`  | `ContextualPricing` | `Strategy`        | Which shared pricing policy quotes each request |
+| `dispatch.py` | `Desk`              | the headroom desk | The system, and the post times pricing needs    |
 
 ## Run it
 

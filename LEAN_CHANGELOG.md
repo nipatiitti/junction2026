@@ -105,6 +105,13 @@ every quote, post, withdrawal and reprice should be the same.
   [`src/strategies/lean/README.md`](src/strategies/lean/README.md#supply-and-demand-15-november).
 - **In step**: no (#329). The Python version still has `noise` 0.28 and no charge.
 
+### 2026-11-14: documentation formatting (PR #344, issue #343)
+
+- **Version changed**: both (documentation only).
+- **What changed**: Biome formatting in `src/strategies/lean/README.md` and `strategies/lean/README.md`. No decisions
+  or params changed.
+- **In step**: no code changed; the existing port status is unchanged (#329).
+
 ### 2026-11-14: straightening (PR #330, issue #335)
 
 - **Version changed**: TypeScript.

@@ -4,10 +4,10 @@ A dispatch system built on [`strategies/headroom`](../headroom/README.md). The o
 an order: every order waits for a chain, and its pickup town's recent bookings decide for how long. Headroom and the
 shared bundler stay as they are.
 
-| File          | Class                 | What it holds                                               |
-| ------------- | --------------------- | ----------------------------------------------------------- |
-| `dispatch.py` | `Desk`                | The headroom desk with the adaptive bundler                 |
-| `bundling.py` | `AdaptiveHoldBundler` | A `Bundler` with a learned wait for every order             |
+| File          | Class                 | What it holds                                   |
+| ------------- | --------------------- | ----------------------------------------------- |
+| `dispatch.py` | `Desk`                | The headroom desk with the adaptive bundler     |
+| `bundling.py` | `AdaptiveHoldBundler` | A `Bundler` with a learned wait for every order |
 
 ## Run it
 

@@ -4,11 +4,11 @@ A dispatch system built on [`strategies/headroom`](../headroom/README.md). Its a
 requests touching the region flagged by the existing outage detector, and its pricing sets the opening backup markup.
 Headroom and the systems it builds on stay as they are.
 
-| File           | Class             | Builds on           | What it decides                                      |
-| -------------- | ----------------- | ------------------- | ---------------------------------------------------- |
-| `admission.py` | `OutageAdmission` | `LaneCostAdmission` | Which requests may use an outage area's capacity     |
-| `pricing.py`   | `OutagePricing`   | `HeadroomPricing`   | The opening outage markup, learned as in headroom    |
-| `dispatch.py`  | `Desk`            | the headroom desk   | The system, with one outage flag shared by both      |
+| File           | Class             | Builds on           | What it decides                                   |
+| -------------- | ----------------- | ------------------- | ------------------------------------------------- |
+| `admission.py` | `OutageAdmission` | `LaneCostAdmission` | Which requests may use an outage area's capacity  |
+| `pricing.py`   | `OutagePricing`   | `HeadroomPricing`   | The opening outage markup, learned as in headroom |
+| `dispatch.py`  | `Desk`            | the headroom desk   | The system, with one outage flag shared by both   |
 
 Both strategies are subclasses of `Strategy` ([`strategies/strategy.py`](../strategy.py)) through their base classes,
 with frozen `Params` dataclasses. The desk passes its pricing model to admission, so there is only one outage detector.

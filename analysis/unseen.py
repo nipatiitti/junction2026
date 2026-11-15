@@ -13,11 +13,13 @@ import math
 import os
 import statistics
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
-import late_causes as lc  # noqa: E402
+import late_causes as lc
 
-MAP = json.load(open(os.path.join(os.path.dirname(__file__), "..", "data", "scrape", "runs", "map.json")))
+MAP_PATH = Path(__file__).parent / ".." / "data" / "scrape" / "runs" / "map.json"
+MAP = json.loads(MAP_PATH.read_text())
 POS = {p["id"]: (p["lat"], p["lon"]) for p in MAP["places"]}
 
 
@@ -44,12 +46,13 @@ def main():
         margin = collections.Counter()
         won = {}
         gig_order, post_at = {}, {}
-        for line in open(jpath):
-            x = json.loads(line)
-            if x["action"]["type"] == "post" and x["result"].get("ok"):
-                for s in x["action"]["stops"]:
-                    gig_order[x["result"]["id"]] = s["orderId"]
-                post_at[x["result"]["id"]] = x["at"]
+        with Path(jpath).open() as stream:
+            for line in stream:
+                x = json.loads(line)
+                if x["action"]["type"] == "post" and x["result"].get("ok"):
+                    for s in x["action"]["stops"]:
+                        gig_order[x["result"]["id"]] = s["orderId"]
+                    post_at[x["result"]["id"]] = x["at"]
         for e in lc.load_gz(d + "events.jsonl.gz"):
             if e["kind"] == "order_won":
                 won[e["order"]["id"]] = e["order"]
@@ -122,7 +125,9 @@ def main():
     print("cause-c gig views by hours since post (6 h buckets, 48 = 48+):", dict(sorted(by_h.items())))
     if viewers:
         ks = [k for _, k in viewers]
-        print(f"  viewer home km from pickup: median {statistics.median(ks):.0f}, within 30 km {sum(k <= 30 for k in ks) / len(ks):.0%}")
+        print(
+            f"  viewer home km from pickup: median {statistics.median(ks):.0f}, within 30 km {sum(k <= 30 for k in ks) / len(ks):.0%}"
+        )
 
 
 if __name__ == "__main__":
