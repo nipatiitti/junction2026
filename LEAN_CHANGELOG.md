@@ -29,7 +29,7 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
-### 2026-11-14: time-dependent opportunity cost (issue #371)
+### 2026-11-14: time-dependent opportunity cost (PR #376, issue #371)
 
 - **Version changed**: TypeScript.
 - **What changed**: `value` replaces the uniform load charge with a table of crowding and 90%-cliff costs by hour,
