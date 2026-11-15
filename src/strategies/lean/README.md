@@ -1028,6 +1028,23 @@ missed their last pickup.
 
 **The final** (15 November, 09:00) was played with these defaults: €21,744.80 with 484 orders at 96.1% on time,
 2nd of 58 ranked teams, €1,186 behind Juhus ([`data/finals/2026-11-15-0900/`](../../../data/finals/2026-11-15-0900/README.md)).
+## Trust farming (15 November, #391, off)
+
+In the 01:00 test final Juhus and HackandSeek had 131 and 128 orders by Tuesday noon where `lean` had 88, and at
+level 8 each order on time raises the prices that its dealer accepts by 1%, up to 25%. `farm` tries to buy that
+trust early: on the first `farmDays` days (2), a request of a dealer whose count of orders on time is under 25 is
+priced as if it cost `farm` × its list price less.
+
+A first look on five fresh server seeds (`farm-1` to `farm-5`, one key, stopped before the sixth):
+
+| Setup                     | Against the defaults | Lowest week on time |
+| ------------------------- | -------------------- | ------------------- |
+| `farm=0.1`                | −€297 ± 329          | 92.9%               |
+| `farm=0.2`                | +€563 ± 340          | 94.4%               |
+| `farm=0.2,farmDays=3`     | +€467 ± 451          | 92.5%               |
+
+Nothing is clear on five seeds, and 0.1 below both the defaults and 0.2 is what noise looks like. Whether the rule
+wins more orders on the Monday was not measured. `farm` stays 0; it needs 30 seeds or more to say.
 
 ## Params
 
@@ -1038,6 +1055,6 @@ missed their last pickup.
 `sharedOutcome` true, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.55, `trust` 0.55, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
 `pickLead` 20, `chainLast` 3, `holdHours` 3, `chainPatience` 1, `chainTries` 3, `chainFit` 0,
 `chainModel` true, `chainAlone` 0.97, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0,
-`chainDays` 5, `taxFade` 1, `pairShare` 0.3, `room` 3.5, `lateRestart` 0.9, and the switches of
+`chainDays` 5, `taxFade` 1, `pairShare` 0.3, `room` 3.5, `lateRestart` 0.9, `farm` 0, `farmDays` 2, and the switches of
 [the squeeze](#the-squeeze-15-november-367) that are off: `longCost` 1, `chainStart` 1, `chainRamp` 20, `value` 0,
 `guard` 0, `rescue` 0.

@@ -29,6 +29,15 @@ every quote, post, withdrawal and reprice should be the same.
 
 ## Entries
 
+### 2026-11-15: trust farming, off (issue #391)
+
+- **Version changed**: TypeScript.
+- **What changed**: new params `farm` (0, off) and `farmDays` (2): on the first days of the week a request of a
+  dealer with fewer than 25 orders on time is priced as if it cost `farm` × its list price less. Five server seeds
+  say nothing clear. Results:
+  [`src/strategies/lean/README.md`](src/strategies/lean/README.md#trust-farming-15-november-391-off).
+- **In step**: no (#329). With `farm` 0 the week is the same as before.
+
 ### 2026-11-15: the defaults of the orthogonal-array search (PR #390, issue #389)
 
 - **Version changed**: TypeScript.
