@@ -2,8 +2,15 @@
  * holds every piece of chain state, so index.ts only asks it four things: whether a new car waits for a partner
  * (`hold`), what to post and withdraw now (`actions`), what a gig's fee schedule counts in (`typical`), and what the
  * world answered (`sent`, `booked`, `expired`). */
-import type { Action, ActionResult, Order, StopRef, WorldMap } from '../../../vendor/spread-typescript/spread.ts'
-import { type Context, DAY, driveMinutes, FIRST_TRY, gigShape, HOUR, readNote } from '../../ops/index.ts'
+import type {
+  Action,
+  ActionResult,
+  Order,
+  PriceRequest,
+  StopRef,
+  WorldMap,
+} from '../../../vendor/spread-typescript/spread.ts'
+import { type Context, DAY, driveMinutes, FIRST_TRY, gigShape, HOUR, minutes, readNote } from '../../ops/index.ts'
 import type { Books, GigNeed } from '../../strategy.ts'
 import { type Car, type Chain, type ChainModel, type ChainParams, findChains } from './chains.ts'
 import { awake, BOOK_AHEAD, planBy, slow } from './fees.ts'
@@ -256,6 +263,44 @@ export class Planner {
       postable(collectBy, books.now + p.holdHours * HOUR, p.pickLead, p.chainDays) &&
       this.mayBeOpen(order.lastPickupAt, books.now, p.holdHours + this.patience())
     )
+  }
+
+  /** What winning this request saves through a chain with the open cars we hold, in cents: what the chain model
+   * expects of the best chain that carries the new car with them, over all its cars as single gigs. `ready`,
+   * `lastPickup` and `deadline` are the car's as the quote reads them. 0 without the model, for a car that may not
+   * join a chain, and when no open car is near either end of its drive. */
+  saving(request: PriceRequest, ready: number, lastPickup: number, deadline: number, books: Books): number {
+    const p = this.p
+    const now = books.now
+    const leg = request.legs[0]
+    if (!this.on || !this.host.model || !leg || request.legs.length !== 1) return 0
+    if (leg.car.premium || leg.pickup.privateAddress) return 0
+    const collectBy = Math.min(leg.pickup.window.to, lastPickup)
+    const drive = driveMinutes(this.map, [leg])
+    if (!postable(collectBy, now, p.pickLead, p.chainDays) || !Number.isFinite(drive)) return 0
+    const car: Car = {
+      gigId: undefined,
+      orderId: request.id,
+      from: leg.pickup.placeId,
+      to: leg.delivery.placeId,
+      ready,
+      collectBy,
+      due: leg.delivery.privateAddress ? Math.min(leg.delivery.window.to, deadline) : deadline,
+      drive,
+      typical: request.referenceFeeCents,
+      pickupHours: leg.pickup.hours,
+      deliveryHours: leg.delivery.hours,
+      stops: [],
+      audience: { experienced: false, manualLicence: false },
+    }
+    const near = this.openCars(books).filter(
+      (other) =>
+        postable(other.collectBy, now, p.pickLead, p.chainDays) &&
+        (minutes(this.map, other.to, car.from) <= p.maxHop || minutes(this.map, car.to, other.from) <= p.maxHop),
+    )
+    if (near.length === 0) return 0
+    const keep = (c: Chain) => c.cars.includes(car) && this.mayBeOpen(c.startBy, now, this.patience())
+    return Math.max(0, findChains([car, ...near], this.map, now, p, keep, this.scene())[0]?.worth ?? 0)
   }
 
   /** An order was won at the minute `at`. */
