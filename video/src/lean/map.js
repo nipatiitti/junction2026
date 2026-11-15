@@ -1,13 +1,20 @@
 import * as THREE from 'three'
 import { clamp, ease, progress } from '../kit/anim.js'
 import { liveTexture } from '../kit/sign.js'
-import { CLASSES, FUNCTIONS, LINES, NOTES, ROADS, SIZES, SYSTEMS } from './diagram.js'
+import { CLASSES, FUNCTIONS, LINES, ROADS, SIZES, SYSTEMS } from './diagram.js'
 import { MONO, SANS } from './ui.js'
 
 // The block diagram in 3D (the data is in diagram.js), in the dark style of a technical video: rounded panels for
 // systems with a rim in their colour, plates for classes, tiles for functions, lanes and thin lines of data between
-// them, every name painted flat on top. Everything lies on the ground and faces up, so a camera that looks straight
-// down sees a drawing, and a tilted one a town with traffic.
+// them, every name painted flat on top. The names are the only words on it. Everything lies on the ground and faces
+// up, so a camera that looks straight down sees a drawing, and a tilted one a town with traffic.
+
+/** How far a system's name sits inside its edge, and the middle of its line below the top edge. */
+const INSET = 1.5
+const TITLE = SIZES.system * 0.62
+/** How far a class's name sits inside its plate, and the middle of its line below the plate's top edge. */
+const PAD = 0.8
+const CLASS_LINE = 1.7
 
 export { MONO }
 
@@ -182,9 +189,10 @@ export function ground() {
 }
 
 /**
- * The chart inside bestPrice(), drawn in as `k` goes from 0 to 1: the win chance, the margin and their product, with
- * the peak marked; the name and the formula beside it. The tile is 16:10, as the picture, and fills most of it at the
- * end of the zoom.
+ * The chart inside bestPrice(), drawn in as `k` goes from 0 to 1: the win chance (blue), the margin (orange) and their
+ * product (green), with its peak, the quote, marked. Its name is the only word on it; the voice says the rest. The
+ * tile is 16:10, as the picture, and fills most of it at the end of the zoom. The plot keeps one margin, 80 px, from
+ * the tile's edges, under the name.
  */
 function chartPainter(g, { k }, w, h) {
   const mu = Math.log(1.4)
@@ -198,22 +206,19 @@ function chartPainter(g, { k }, w, h) {
   g.textBaseline = 'middle'
   g.textAlign = 'left'
   g.fillStyle = '#f8fafc'
-  g.font = `700 64px ${MONO}`
-  g.fillText('bestPrice()', 64, 78)
-  g.fillStyle = THEME.muted
-  g.font = `500 34px ${MONO}`
-  g.fillText('demand.ts', 64, 134)
+  g.font = `700 72px ${MONO}`
+  g.fillText('bestPrice()', 80, 104)
 
-  // the plot on the left
-  const left = 120
-  const right = 900
-  const top = 220
-  const bottom = 820
+  // the plot, under the name
+  const left = 80
+  const right = w - 80
+  const top = 210
+  const bottom = h - 80
   const px = (p) => left + ((p - from) / (to - from)) * (right - left)
   const py = (v) => bottom - v * (bottom - top)
   g.strokeStyle = '#1e293b'
   g.lineWidth = 2
-  for (let v = 0; v <= 1.001; v += 0.25) {
+  for (let v = 0.25; v <= 1.001; v += 0.25) {
     g.beginPath()
     g.moveTo(left, py(v))
     g.lineTo(right, py(v))
@@ -222,22 +227,12 @@ function chartPainter(g, { k }, w, h) {
   g.strokeStyle = '#64748b'
   g.lineWidth = 4
   g.beginPath()
-  g.moveTo(left, top - 20)
+  g.moveTo(left, top)
   g.lineTo(left, bottom)
-  g.lineTo(right + 10, bottom)
+  g.lineTo(right, bottom)
   g.stroke()
-  g.fillStyle = '#94a3b8'
-  g.font = `500 30px ${MONO}`
-  g.textAlign = 'center'
-  for (const p of [1.0, 1.2, 1.4, 1.6, 1.8, 2.0]) {
-    g.fillText(p.toFixed(1), px(p), bottom + 36)
-    g.fillRect(px(p) - 1.5, bottom, 3, 10)
-  }
-  g.fillText('price × list', (left + right) / 2, bottom + 84)
-  g.textAlign = 'right'
-  for (const v of [0, 0.5, 1]) g.fillText(v.toFixed(1), left - 16, py(v))
 
-  const curve = (f, a, b, colour, lineWidth = 7) => {
+  const curve = (f, a, b, colour, lineWidth = 8) => {
     const span = clamp((k - a) / (b - a))
     if (span <= 0) return
     g.strokeStyle = colour
@@ -258,7 +253,7 @@ function chartPainter(g, { k }, w, h) {
   // the margin is drawn on 0 to 1 (p − cost is 1 at p = 2); the product at 2.5 times its size
   curve(chance, 0.05, 0.35, '#60a5fa')
   curve((p) => p - cost, 0.3, 0.55, '#fb923c')
-  curve((p) => chance(p) * (p - cost) * 2.5, 0.55, 0.85, '#4ade80', 10)
+  curve((p) => chance(p) * (p - cost) * 2.5, 0.55, 0.85, '#4ade80', 11)
 
   // the peak: the quote
   if (k > 0.85) {
@@ -267,76 +262,22 @@ function chartPainter(g, { k }, w, h) {
     const x = px(peak)
     const v = py(chance(peak) * (peak - cost) * 2.5)
     g.strokeStyle = '#4ade80'
-    g.setLineDash([14, 12])
-    g.lineWidth = 3
+    g.setLineDash([16, 14])
+    g.lineWidth = 4
     g.beginPath()
     g.moveTo(x, v)
     g.lineTo(x, bottom)
     g.stroke()
     g.setLineDash([])
+    g.fillStyle = '#0f172a'
+    g.beginPath()
+    g.arc(x, v, 30 * s, 0, Math.PI * 2)
+    g.fill()
     g.fillStyle = '#4ade80'
     g.beginPath()
-    g.arc(x, v, 16 * s, 0, Math.PI * 2)
+    g.arc(x, v, 20 * s, 0, Math.PI * 2)
     g.fill()
-    g.save()
-    g.translate(x + 30, v - 130)
-    g.scale(s, s)
-    g.fillStyle = '#14532d'
-    g.strokeStyle = '#4ade80'
-    g.lineWidth = 3
-    g.beginPath()
-    g.roundRect(0, -56, 470, 124, 16)
-    g.fill()
-    g.stroke()
-    g.fillStyle = '#f0fdf4'
-    g.textAlign = 'left'
-    g.font = `700 42px ${MONO}`
-    g.fillText('quote 1.35 × list', 24, -18)
-    g.fillStyle = '#bbf7d0'
-    g.font = `500 32px ${SANS}`
-    g.fillText('58% of these quotes win', 24, 34)
-    g.restore()
   }
-
-  // the legend and the formula on the right
-  const panelX = 950
-  g.textAlign = 'left'
-  const legend = [
-    ['#60a5fa', 'chance(p)', 'the dealer takes it', 0.05],
-    ['#fb923c', 'p − cost', 'what is left', 0.3],
-    ['#4ade80', 'chance × margin', 'what we expect', 0.55],
-  ]
-  legend.forEach(([colour, name, what, at], i) => {
-    const y = 250 + i * 92
-    g.globalAlpha = clamp((k - at) / 0.08)
-    g.fillStyle = colour
-    g.fillRect(panelX, y - 4, 44, 8)
-    g.fillStyle = '#f1f5f9'
-    g.font = `600 34px ${MONO}`
-    g.fillText(name, panelX + 64, y - 14)
-    g.fillStyle = THEME.muted
-    g.font = `500 28px ${SANS}`
-    g.fillText(what, panelX + 64, y + 24)
-    g.globalAlpha = 1
-  })
-  g.fillStyle = '#1e293b'
-  g.beginPath()
-  g.roundRect(panelX - 24, 560, w - panelX - 8, 300, 16)
-  g.fill()
-  g.fillStyle = '#e2e8f0'
-  g.font = `600 28px ${MONO}`
-  const formula = [
-    'quote = argmax chance(p) ×',
-    '  (p·list − cost·(1 + 0.47·load))',
-    'chance(p) = 1/(1 + e^((ln p − μ)/s))',
-    'μ = ln 1.40   s = 0.11',
-  ]
-  formula.forEach((line, i) => {
-    g.fillText(line, panelX, 610 + i * 52)
-  })
-  g.fillStyle = THEME.muted
-  g.font = `500 26px ${SANS}`
-  g.fillText('p from 0.90 to 3.00 × list, in steps of 0.01', panelX, 830)
 }
 
 /**
@@ -352,34 +293,13 @@ export function buildMap(scene) {
     scene.add(panel(rect, 0.3, Y.slab - 0.02, paint(color), 1.2))
     const inner = [rect[0] + 0.35, rect[1] + 0.35, rect[2] - 0.35, rect[3] - 0.35]
     scene.add(panel(inner, 0.3, Y.slab, paint(blend(color, THEME.ground, 0.84)), 1.0))
-    const name = label(system.label, { size: SIZES.system, fill: color, y: Y.slab + 0.01, spacing: 0.02 })
-    const path = label(system.path, {
-      size: SIZES.function,
-      font: MONO,
-      weight: 500,
-      fill: THEME.muted,
-      y: Y.slab + 0.01,
-    })
-    const z = rect[1] + SIZES.system * 0.62
-    if (system.align === 'center') {
-      const total = name.width + 1.8 + path.width
-      const x = middle(rect)[0] - total / 2
-      scene.add(name.place(x, z), path.place(x + name.width + 1.8, z + 0.4))
-    } else if (system.pathBelow) {
-      scene.add(name.place(rect[0] + 1.4, z), path.place(rect[0] + 1.5, z + SIZES.system * 0.82))
-    } else {
-      scene.add(name.place(rect[0] + 1.4, z), path.place(rect[0] + 1.4 + name.width + 1.8, z + 0.4))
-    }
-    if (system.note)
-      scene.add(
-        label(system.note, {
-          size: SIZES.function,
-          font: MONO,
-          weight: 500,
-          fill: THEME.muted,
-          y: Y.slab + 0.01,
-        }).place(rect[0] + 1.5, z + SIZES.system * (system.pathBelow ? 1.2 : 0.95)),
-      )
+    // the name at the top left; at the top centre, out of the lanes' way; or in the middle of a system with no blocks
+    const align = system.title ? 'center' : 'left'
+    const name = label(system.label, { size: SIZES.system, fill: color, y: Y.slab + 0.01, spacing: 0.02, align })
+    const [cx, cz] = middle(rect)
+    if (system.title === 'middle') scene.add(name.place(cx, cz))
+    else if (system.title === 'top') scene.add(name.place(cx, rect[1] + TITLE))
+    else scene.add(name.place(rect[0] + INSET, rect[1] + TITLE))
     const frame = outline(rect, 0.7, Y.road + 0.05)
     scene.add(frame.group)
     lit.set(system.id, frame)
@@ -397,15 +317,11 @@ export function buildMap(scene) {
       ),
     )
     scene.add(panel(rect, 0.1, Y.plate, paint(THEME.plate), 0.4))
-    const [lx, lz] = cls.labelAt ?? [rect[0] + 0.7, rect[1] + 1.5]
-    scene.add(label(cls.id, { size: SIZES.class, weight: 700, y: Y.plate + 0.01 }).place(lx, lz))
-    if (cls.note)
-      scene.add(
-        label(cls.note, { size: SIZES.tag, font: MONO, weight: 500, fill: THEME.muted, y: Y.plate + 0.01 }).place(
-          rect[0] + 0.7,
-          rect[1] + 4.6,
-        ),
-      )
+    // a class with tiles has its name at its top left (or at labelAt); one without has it in its middle
+    const tiles = FUNCTIONS.some((fn) => fn.owner === cls.id)
+    const align = !tiles || cls.align === 'center' ? 'center' : 'left'
+    const at = !tiles ? middle(rect) : (cls.labelAt ?? [rect[0] + PAD, rect[1] + CLASS_LINE])
+    scene.add(label(cls.id, { size: SIZES.class, weight: 700, y: Y.plate + 0.01, align }).place(...at))
     const frame = outline(rect, 0.4, Y.road + 0.06)
     scene.add(frame.group)
     lit.set(cls.id, frame)
@@ -440,28 +356,12 @@ export function buildMap(scene) {
       chart = texture
     } else {
       const name = label(fn.label, { size: SIZES.function, font: MONO, weight: 600, align: 'center', y: Y.tile + 0.01 })
-      scene.add(name.place(cx, fn.tag ? rect[1] + 0.95 : cz))
-      if (fn.tag)
-        scene.add(
-          label(fn.tag, {
-            size: SIZES.tag,
-            font: MONO,
-            weight: 700,
-            fill: THEME.tag,
-            align: 'center',
-            y: Y.tile + 0.01,
-          }).place(cx, rect[3] - 0.72),
-        )
+      scene.add(name.place(cx, cz))
     }
     const frame = outline(rect, 0.3, Y.road + 0.07)
     scene.add(frame.group)
     lit.set(fn.id, frame)
   }
-
-  for (const [text, x, z, align] of NOTES)
-    scene.add(
-      label(text, { size: SIZES.tag, font: MONO, weight: 500, fill: THEME.muted, align, y: Y.slab + 0.01 }).place(x, z),
-    )
 
   // Lanes: a dashed middle line, and an arrowhead where the traffic leaves them
   const lane = paint(THEME.lane)
@@ -500,19 +400,6 @@ export function buildMap(scene) {
     arrow.rotation.set(-Math.PI / 2, 0, -heading)
     arrow.position.set(b[0] - Math.cos(heading) * 1.2, Y.road + 0.02, b[1] - Math.sin(heading) * 1.2)
     scene.add(arrow)
-    if (road.label) {
-      const text = label(road.label, {
-        size: SIZES.function,
-        font: MONO,
-        weight: 600,
-        fill: THEME.muted,
-        align: 'center',
-        y: Y.road + 0.03,
-      })
-      const mesh = text.place(...road.labelAt)
-      if (road.turn) mesh.rotation.z = Math.PI / 2
-      scene.add(mesh)
-    }
   }
 
   // Lines of data, under the tiles
