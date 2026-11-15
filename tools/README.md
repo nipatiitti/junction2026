@@ -3,17 +3,18 @@
 The scripts in this folder save, load and collect data; none of them decides anything in a week. Run each as a module
 from the repository root, for example `uv run python -m tools.db`.
 
-| File                   | What it does                                                                                          |
-| ---------------------- | ----------------------------------------------------------------------------------------------------- |
-| `record.py`            | Saves every week that a system plays online ([below](#every-online-run-is-saved))                     |
-| `db.py`                | Loads saved weeks and probe rows into the SQLite database `out/spread.sqlite`                         |
-| `stats.py`             | Turns saved weeks into distributions, in `summary.json`                                               |
-| `scrape.py`            | Plays weeks on the server only to collect data                                                        |
-| `sweep.py`             | Plays the models of `active-models.md` on fresh seeds until stopped ([below](#play-many-fresh-seeds)) |
-| `roster_tournament.py` | Tournaments for all systems, with a leaderboard ([below](#roster-tournament-and-shadow-leaderboard))  |
-| `probe.py`             | Forks a world to find the price or fee where an outcome flips                                         |
-| `kill_old_worlds.py`   | Deletes the team's open practice worlds older than 15 minutes ([below](#delete-forgotten-worlds))     |
-| `spread_proxy.py`      | The kit's client through `HTTPS_PROXY` ([below](#claude-code-cloud-environments))                     |
+| File                   | What it does                                                                                                   |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `record.py`            | Saves every week that a system plays online ([below](#every-online-run-is-saved))                              |
+| `db.py`                | Loads saved weeks and probe rows into the SQLite database `out/spread.sqlite`                                  |
+| `stats.py`             | Turns saved weeks into distributions, in `summary.json`                                                        |
+| `scrape.py`            | Plays weeks on the server only to collect data                                                                 |
+| `sweep.py`             | Plays the models of `active-models.md` on fresh seeds until stopped ([below](#play-many-fresh-seeds))          |
+| `roster_tournament.py` | Tournaments for all systems, with a leaderboard ([below](#roster-tournament-and-shadow-leaderboard))           |
+| `probe.py`             | Forks a world to find the price or fee where an outcome flips                                                  |
+| `kill_old_worlds.py`   | Deletes the team's open practice worlds older than 15 minutes ([below](#delete-forgotten-worlds))              |
+| `orthogonal.py`        | An orthogonal-array search of a TypeScript strategy's params on the server ([below](#orthogonal-array-search)) |
+| `spread_proxy.py`      | The kit's client through `HTTPS_PROXY` ([below](#claude-code-cloud-environments))                              |
 
 ## Every online run is saved
 
@@ -352,3 +353,18 @@ in `NO_PROXY`, it connects straight to the server, as the kit's client does. The
 does not pass WebSocket upgrades, so through a proxy the live event stream of `dispatch.py --final` polls
 `GET /events` every 0.2 seconds instead (`ProxyWorld.stream`), with the same events in the same order; that is at most 5
 of the final's 50 reads a second. Without a proxy, it uses the kit's WebSocket stream as before.
+
+## Orthogonal-array search
+
+`orthogonal.py` searches a TypeScript strategy's params on the server (it plays online, so it needs the user's
+request). `play` plays every setup on every seed with `pnpm bench`, 12 weeks at once on each Spread key of `.env`
+(the commented ones too; `--keys 1` uses the first only), saves every week, and goes on where a stopped search
+ended. `--l27` takes a JSON file `{param: [low, middle, high]}` of up to 13 params and makes the 27 setups of the
+Taguchi L27 array, plus `default`; `--setups` takes a JSON file `{name: {param: value}}` instead. `report` prints
+each setup's mean margin against `default` on the same seeds, with its standard error and lowest on-time share,
+and for an L27 search each param's mean by level.
+
+```sh
+uv run python -m tools.orthogonal play --dir out/orth/screen --l27 factors.json --seeds orth-1..orth-12
+uv run python -m tools.orthogonal report --dir out/orth/screen
+```

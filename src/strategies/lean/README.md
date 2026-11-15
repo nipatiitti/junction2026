@@ -962,15 +962,62 @@ week ranked. ± is one standard error of the paired difference:
 - **`trust=0.55`** is not a gain here: −€117 ± 130 a week over both pairs. An earlier bench had it at +€342 ± 99
   on ten seeds; the two together say it is near nothing, and `trust` stays 0.7.
 
+## The orthogonal-array search of the defaults (15 November, #389)
+
+Before the final, 13 params were searched together on the server with a Taguchi L27 array
+(`tools/orthogonal.py`, [`tools/README.md`](../../../tools/README.md#orthogonal-array-search)): three levels each,
+the default in the middle, 27 setups and the defaults on the same 12 fresh seeds (`orth-1` to `orth-12`, 336
+weeks). Each level of a param has 108 weeks, and the difference of two levels a standard error of €117.
+
+| Param         | Low         | Middle (the default then) | High        | Best less worst |
+| ------------- | ----------- | ------------------------- | ----------- | --------------- |
+| `chainAlone`  | 0.97: +€171 | 1: −€36                   | 1.03: −€164 | €335 (2.9 SE)   |
+| `holdHours`   | 1: −€148    | 2: −€20                   | 3: +€140    | €289 (2.5 SE)   |
+| `noise`       | 0.08: −€167 | 0.11: +€97                | 0.14: +€42  | €265 (2.3 SE)   |
+| `costLevel`   | 0.95: −€87  | 0.98: −€84                | 1.01: +€143 | €230 (2.0 SE)   |
+| `taxLoad`     | 0.35: −€132 | 0.47: +€89                | 0.6: +€15   | €221 (1.9 SE)   |
+| `trust`       | 0.55: +€89  | 0.7: −€26                 | 0.85: −€91  | €180 (1.5 SE)   |
+| `middle`      | 1.25: −€119 | 1.4: +€32                 | 1.55: +€59  | €178 (1.5 SE)   |
+| `feeRatio`    | 0.8: +€77   | 0.84: −€87                | 0.88: −€18  | €164 (1.4 SE)   |
+| `urgentTop`   | 1.45: +€36  | 1.6: +€14                 | 1.75: −€79  | €115 (1.0 SE)   |
+| `lateRestart` | 0.9: +€55   | 1: −€31                   | 1.1: −€52   | €107 (0.9 SE)   |
+| `open`        | 0.84: −€32  | 0.88: +€52                | 0.92: −€48  | €100 (0.9 SE)   |
+| `lateOpen`    | 1.15: +€54  | 1.25: −€38                | 1.35: −€45  | €99 (0.8 SE)    |
+| `pairShare`   | 0.3: +€29   | 0.5: −€2                  | 0.7: −€55   | €84 (0.7 SE)    |
+
+Each cell is the level's mean margin a week against the mean of its seed. No single param is clear on its own
+after allowing for 13 of them, and no setup of the array beat the defaults clearly (the best: +€364 ± 249). The
+defaults were near a local best: the mean setup of the array made €260 a week less than they did.
+
+Then the best level of every param together (`all_best`: the ten changes below; `noise`, `taxLoad` and `open`
+keep their middle) was played against the defaults on 132 seeds that the search had not seen (`climb-1` to
+`climb-132`), with the two chain params alone (`chains`) and those with `costLevel` 1.01 (`chains_cost`):
+
+| Setup                                         | Seeds | Margin a week | Against the defaults | Ahead on  |
+| --------------------------------------------- | ----- | ------------- | -------------------- | --------- |
+| The defaults before                           | 132   | €17,348       |                      |           |
+| `all_best` (**the defaults now**)             | 132   | €17,655       | +€308 ± 82           | 87 of 132 |
+| `chains` (`chainAlone` 0.97, `holdHours` 3)   | 84    |               | +€86 ± 95            | 46 of 84  |
+| `chains_cost` (`chains` and `costLevel` 1.01) | 48    |               | −€120 ± 112          | 24 of 48  |
+
+- **The new defaults**: `costLevel` 1.01, `middle` 1.55, `trust` 0.55, `pairShare` 0.3, `feeRatio` 0.8,
+  `urgentTop` 1.45, `lateOpen` 1.15, `lateRestart` 0.9, `holdHours` 3, `chainAlone` 0.97. They win 19 orders a
+  week fewer (469 against 488) at the same on-time share (95.4%).
+- **The gain is many small steps, not one param**: the two clearest params alone gain €86, and three of them
+  together lose. Which of the ten changes carry it is not known.
+- **Weeks under 90% on time are not a matter of these params**: 3 of the 132 weeks of each setup scored nothing,
+  on four seeds (`climb-20`, `-39`, `-72`, `-95`) where both setups end between 88.7% and 92.2%. With such a week
+  counted as €0, the new defaults are €272 ± 156 a week ahead.
+
 ## Params
 
 `open` 0.88, `raiseAt1` 0.3, `raise1` 1.05, `raiseAt2` 0.55, `raise2` 1.25, `raiseAt3` 0.8, `raise3` 1.55, `jitter` 1,
-`early` 0.8, `rest` true, `lateWithin` 60, `lateOpen` 1.25, `urgentOpen` 1.15, `urgentStep` 0.125, `urgentEvery` 15, `urgentTop` 1.6,
-`lateFrom` 1.1, `lateStep` 0.05, `lateEvery` 30, `lateTop` 1.3, `feeRatio` 0.84, `lateCost` 1, `premium` 3,
-`privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 0.98, `minHours` 4, `noise` 0.11,
-`sharedOutcome` true, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.4, `trust` 0.7, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
-`pickLead` 20, `chainLast` 3, `holdHours` 2, `chainPatience` 1, `chainTries` 3, `chainFit` 0,
-`chainModel` true, `chainAlone` 1, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0,
-`chainDays` 5, `taxFade` 1, `pairShare` 0.5, `room` 3.5, `lateRestart` 1, and the switches of
+`early` 0.8, `rest` true, `lateWithin` 60, `lateOpen` 1.15, `urgentOpen` 1.15, `urgentStep` 0.125, `urgentEvery` 15, `urgentTop` 1.45,
+`lateFrom` 1.1, `lateStep` 0.05, `lateEvery` 30, `lateTop` 1.3, `feeRatio` 0.8, `lateCost` 1, `premium` 3,
+`privatePickup` 0.25, `privateDelivery` 0.25 (both below level 7 only), `costLevel` 1.01, `minHours` 4, `noise` 0.11,
+`sharedOutcome` true, `tax` 0, `taxEuros` 0, `taxLoad` 0.47, `middle` 1.55, `trust` 0.55, `lateHard` 0.05, `chains` true, `maxHop` 60, `maxCars` 4, `minSaving` 0.15, `maxDrive` 8,
+`pickLead` 20, `chainLast` 3, `holdHours` 3, `chainPatience` 1, `chainTries` 3, `chainFit` 0,
+`chainModel` true, `chainAlone` 0.97, `chainOpen` 1, `chainSpread` 0, `chainOffers` 0, `chainOfferSpread` 0,
+`chainDays` 5, `taxFade` 1, `pairShare` 0.3, `room` 3.5, `lateRestart` 0.9, and the switches of
 [the squeeze](#the-squeeze-15-november-367) that are off: `longCost` 1, `chainStart` 1, `chainRamp` 20, `value` 0,
 `guard` 0, `rescue` 0.
