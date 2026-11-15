@@ -2,7 +2,7 @@
 
 Our run of the 14:00 test final with the TypeScript harness, kept for the after-action analysis.
 
-- **Team on the leaderboard:** `bobbing-wombat`. **World:** `f3d1d8961dc4ca1899d73`. **Commit played:** `c8d5338c`.
+- **World:** `f3d1d8961dc4ca1899d73`. **Commit played:** `c8d5338c`.
 - **Command:** `pnpm dispatch --final --set target=0.6` (strategy `lean`, chains on, every other param at its default).
 - **Result:** margin €890.13, revenue €4,185.67, 69 orders, 100% on time, ranked 42nd of 55 ranked teams (217 listed).
 - **Shape of the test final:** it ran from 14:00 to 14:18. Monday to Wednesday (614 requests) had passed before the
