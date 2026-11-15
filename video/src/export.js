@@ -54,7 +54,10 @@ async function encodeSound(muxer, audio, config, from, to, fail) {
  */
 export async function exportMp4({ canvas, from, to, fps, draw, audio, name, saveTo, onProgress }) {
   const { width, height } = canvas
-  const config = { codec: 'avc1.640028', width, height, bitrate: 12_000_000, framerate: fps }
+  // H.264 level 4.0 holds up to 8,192 macroblocks a frame (1920×1080); a bigger picture such as 1920×1200 needs 5.0
+  const blocks = Math.ceil(width / 16) * Math.ceil(height / 16)
+  const codec = blocks > 8192 ? 'avc1.640032' : 'avc1.640028'
+  const config = { codec, width, height, bitrate: 12_000_000, framerate: fps }
   if (!('VideoEncoder' in window) || !(await VideoEncoder.isConfigSupported(config)).supported) {
     throw new Error('this browser cannot encode H.264 with WebCodecs')
   }

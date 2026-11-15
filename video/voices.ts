@@ -1,16 +1,18 @@
-// Makes the voice lines of the joke video with ElevenLabs text to speech.
+// Makes the voice lines of the joke video and the ts:lean video with ElevenLabs text to speech.
 //   node --env-file=.env.local video/voices.ts                         lines that have no file yet
 //   node --env-file=.env.local video/voices.ts --force                 every line again
 //   node --env-file=.env.local video/voices.ts scene1-speed scene4-nah these lines again
 // The SDK reads ELEVENLABS_API_KEY from the environment (.env.local, which is not committed). Each line is saved as
 // video/audio/voice/<name>.mp3, and the player mixes it in at its cue (see sounds() in each view).
-// The words come from timeline.js, so a changed caption changes its line; the delivery tags and voices are here.
+// The words come from timeline.js and lean/timeline.js, so a changed line changes its voice; the delivery tags and
+// the voices are here.
 import { createWriteStream, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { fileURLToPath } from 'node:url'
 import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js'
+import { SEGMENTS as LEAN } from './src/lean/timeline.js'
 import { SEGMENTS } from './src/timeline.js'
 
 const folder = join(dirname(fileURLToPath(import.meta.url)), 'audio', 'voice')
@@ -36,6 +38,50 @@ function words(id: string, key: string): string {
   if (said === undefined) throw new Error(`timeline.js has no line ${id}.${key}`)
   return Array.isArray(said) ? said.join(', ') : String(said)
 }
+
+/** A line of the ts:lean video by the name of its file; the voice reads ts:lean as the letters. */
+function said(name: string): string {
+  for (const segment of LEAN)
+    for (const line of segment.lines) if (line.voice === name) return line.say.replaceAll('ts:lean', 'T S lean')
+  throw new Error(`lean/timeline.js has no line ${name}`)
+}
+
+// The ts:lean video: the developer (liam) explains, calm and clear; the narrator (adam) says "It did not."
+const CLEAR = '[calm, clear]'
+const LEAN_LINES: Line[] = [
+  { name: 'lean-careful', voice: VOICES.liam, text: `[deadpan] ${said('lean-careful')}` },
+  { name: 'lean-spaghetti', voice: VOICES.liam, text: `[matter-of-fact] ${said('lean-spaghetti')}` },
+  { name: 'lean-stuck', voice: VOICES.liam, text: `[hushed] ${said('lean-stuck')}` },
+  { name: 'lean-problem', voice: VOICES.liam, text: `${CLEAR} ${said('lean-problem')}` },
+  { name: 'lean-high', voice: VOICES.liam, text: `${CLEAR} ${said('lean-high')}` },
+  { name: 'lean-low', voice: VOICES.liam, text: `${CLEAR} ${said('lean-low')}` },
+  { name: 'lean-ranked', voice: VOICES.liam, text: `[serious] ${said('lean-ranked')}` },
+  { name: 'lean-work', voice: VOICES.liam, text: `[confident] ${said('lean-work')}` },
+  {
+    name: 'lean-didnot',
+    voice: VOICES.adam,
+    text: `[deep, slow] ${said('lean-didnot')}`,
+    effects: { environmentId: 'hall', distance: 0.2 },
+  },
+  { name: 'lean-speed', voice: VOICES.liam, text: `[whispers, intense] ${said('lean-speed')}`, stability: 0.3 },
+  { name: 'lean-touches', voice: VOICES.liam, text: `${CLEAR} ${said('lean-touches')}` },
+  { name: 'lean-events', voice: VOICES.liam, text: `${CLEAR} ${said('lean-events')}` },
+  { name: 'lean-decisions', voice: VOICES.liam, text: `${CLEAR} ${said('lean-decisions')}` },
+  { name: 'lean-price', voice: VOICES.liam, text: `${CLEAR} ${said('lean-price')}` },
+  { name: 'lean-fees', voice: VOICES.liam, text: `${CLEAR} ${said('lean-fees')}` },
+  { name: 'lean-weekend', voice: VOICES.liam, text: `${CLEAR} ${said('lean-weekend')}` },
+  { name: 'lean-chains', voice: VOICES.liam, text: `${CLEAR} ${said('lean-chains')}` },
+  { name: 'lean-chancefee', voice: VOICES.liam, text: `${CLEAR} ${said('lean-chancefee')}` },
+  { name: 'lean-learn', voice: VOICES.liam, text: `${CLEAR} ${said('lean-learn')}` },
+  { name: 'lean-supply', voice: VOICES.liam, text: `${CLEAR} ${said('lean-supply')}` },
+  { name: 'lean-cars', voice: VOICES.liam, text: `${CLEAR} ${said('lean-cars')}` },
+  { name: 'lean-requests', voice: VOICES.liam, text: `${CLEAR} ${said('lean-requests')}` },
+  { name: 'lean-margin', voice: VOICES.liam, text: `[proud] ${said('lean-margin')}` },
+  { name: 'lean-ontime', voice: VOICES.liam, text: `[smug] ${said('lean-ontime')}` },
+  { name: 'lean-stealing', voice: VOICES.liam, text: `[proud, matter-of-fact] ${said('lean-stealing')}` },
+  { name: 'lean-shipit', voice: VOICES.liam, text: `[excited, shouting] ${said('lean-shipit')}`, stability: 0.3 },
+  { name: 'lean-thatsit', voice: VOICES.liam, text: `[warm, satisfied] ${said('lean-thatsit')}` },
+]
 
 const LINES: Line[] = [
   { name: 'scene1-speed', voice: VOICES.liam, text: `[confident] ${words('scene1', 'speed')}` },
@@ -73,6 +119,7 @@ const LINES: Line[] = [
     effects: { environmentId: 'hall', distance: 0.2 },
   },
   { name: 'end-us', voice: VOICES.adam, text: `[ominous] ${words('end', 'us')}`, effects: { environmentId: 'hall' } },
+  ...LEAN_LINES,
 ]
 
 const force = process.argv.includes('--force')
