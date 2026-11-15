@@ -1,0 +1,202 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 1112" width="960" height="1112" role="img" aria-label="How lean decides: one price request becomes a price, a chain and a fee, and every answer of the world sets the next quote">
+<title>How lean decides: one price request becomes a price, a chain and a fee, and every answer of the world sets the next quote</title>
+<style>
+  text { font-family: system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; }
+  .card { fill: #fcfcfb; stroke: #e4e3de; }
+  .title { font-size: 20px; font-weight: 650; fill: #0b0b0b; }
+  .sub { font-size: 13.5px; fill: #52514e; }
+  .h { font-size: 17px; font-weight: 650; fill: #0b0b0b; }
+  .n { font-size: 13.5px; font-weight: 650; fill: #0b0b0b; }
+  .t { font-size: 12.5px; fill: #3d3c39; }
+  .b { font-weight: 650; fill: #0b0b0b; }
+  .s { font-size: 11px; fill: #76756f; }
+  .tag { font-size: 11px; font-weight: 700; letter-spacing: .09em; fill: #1c5cab; }
+  .f { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; fill: #0b0b0b; }
+  .world { fill: #f1f0ec; stroke: #cfcec7; }
+  .decide { fill: #eef5fd; stroke: #9ec5f4; }
+  .learn { fill: #fdf1eb; stroke: #f1b79d; }
+  .inset { fill: #fcfcfb; stroke: #cde2fb; }
+  .flow { fill: none; stroke: #76756f; stroke-width: 1.5; }
+  .flowhead { fill: #76756f; }
+  .loop { fill: none; stroke: #eb6834; stroke-width: 2; stroke-linejoin: round; }
+  .loophead { fill: #eb6834; }
+  .ax { fill: none; stroke: #b5b4ad; stroke-width: 1; }
+  .soft { fill: none; stroke: #8d8c85; stroke-width: 1.5; }
+  .dash { stroke-dasharray: 3 4; }
+  .mark { fill: none; stroke: #2a78d6; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .markfill { fill: #2a78d6; stroke: #eef5fd; stroke-width: 2; }
+  .hollow { fill: #eef5fd; stroke: #2a78d6; stroke-width: 2; }
+  @media (prefers-color-scheme: dark) {
+    .card { fill: #1a1a19; stroke: #333330; }
+    .title, .h, .n, .b, .f { fill: #f0efec; }
+    .sub, .t { fill: #c3c2b7; }
+    .s { fill: #9a998f; }
+    .tag { fill: #86b6ef; }
+    .world { fill: #262624; stroke: #45443f; }
+    .decide { fill: #162538; stroke: #2c5d9c; }
+    .learn { fill: #33201a; stroke: #8a4526; }
+    .inset { fill: #1a1a19; stroke: #24476f; }
+    .flow { stroke: #9a998f; }
+    .flowhead { fill: #9a998f; }
+    .loop { stroke: #d95926; }
+    .loophead { fill: #d95926; }
+    .ax { stroke: #5a5953; }
+    .soft { stroke: #9a998f; }
+    .mark { stroke: #3987e5; }
+    .markfill { fill: #3987e5; stroke: #162538; }
+    .hollow { fill: #162538; stroke: #3987e5; }
+  }
+</style>
+<defs>
+  <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="flowhead" d="M0 0L10 5L0 10z"/></marker>
+  <marker id="o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="loophead" d="M0 0L10 5L0 10z"/></marker>
+</defs>
+
+<rect class="card" x=".5" y=".5" width="959" height="1111" rx="14"/>
+<text class="title" x="32" y="46">How lean decides</text>
+<text class="sub" x="32" y="70">One price request becomes a price, a chain and a fee. Every answer of the world sets the next quote.</text>
+
+<!-- Legend -->
+<rect class="world" x="32" y="88" width="14" height="14" rx="4"/><text class="s" x="53" y="99">the world answers</text>
+<rect class="decide" x="172" y="88" width="14" height="14" rx="4"/><text class="s" x="193" y="99">lean decides</text>
+<rect class="learn" x="282" y="88" width="14" height="14" rx="4"/><text class="s" x="303" y="99">lean learns during the week</text>
+
+<!-- Row 1: the request and the gate -->
+<rect class="world" x="24" y="124" width="180" height="70" rx="10"/>
+<text class="n" x="40" y="148">Price request</text>
+<text class="t" x="40" y="166">one dealer, up to 3 options,</text>
+<text class="t" x="40" y="182">15 minutes to answer</text>
+<path class="flow" d="M204 159H232" marker-end="url(#a)"/>
+
+<rect class="decide" x="234" y="124" width="470" height="70" rx="10"/>
+<text class="n" x="252" y="148">Can the car arrive on time?</text>
+<text class="t" x="252" y="166">Quote only the options with 5 hours to spare and 4 waking hours</text>
+<text class="t" x="252" y="182">left to book a driver. Decline the rest: a price far above list.</text>
+
+<text class="t" x="734" y="140">Every constant is a level 8</text>
+<text class="t" x="734" y="156">fact measured on saved</text>
+<text class="t" x="734" y="172">weeks. Nothing is fitted to a</text>
+<text class="t" x="734" y="188">seed, a dealer or a place.</text>
+
+<path class="flow" d="M469 194V220" marker-end="url(#a)"/>
+
+<!-- Row 2: the price -->
+<rect class="decide" x="234" y="222" width="470" height="216" rx="12"/>
+<text class="tag" x="252" y="248">1 · THE PRICE</text>
+<text class="h" x="252" y="274">Quote where chance × margin peaks</text>
+<rect class="inset" x="252" y="286" width="312" height="30" rx="6"/>
+<text class="f" x="264" y="306">max P(win) × (price − cost − charge)</text>
+<text class="t b" x="252" y="342">P(win)</text>
+<text class="t" x="308" y="342">what this dealer takes today, on this</text>
+<text class="t" x="308" y="358">lane and for this option</text>
+<text class="t b" x="252" y="380">cost</text>
+<text class="t" x="308" y="380">typical fee × what this week's bookings</text>
+<text class="t" x="308" y="396">pay, plus the list price × the late risk</text>
+<text class="t b" x="252" y="418">charge</text>
+<text class="t" x="308" y="418">what one more order costs the others</text>
+
+<path class="ax" d="M588 268V400H690"/>
+<path class="soft" d="M588 282C624 282 632 384 690 392"/>
+<path class="ax dash" d="M640 296V400"/>
+<path class="mark" d="M598 398C618 330 628 296 640 296C654 296 664 350 684 396"/>
+<circle class="markfill" cx="640" cy="296" r="5"/>
+<text class="s" x="596" y="276">chance to win</text>
+<text class="s" x="668" y="318">profit</text>
+<text class="s" x="640" y="415" text-anchor="middle">the quote</text>
+
+<path class="flow" d="M469 438V464" marker-end="url(#a)"/>
+
+<!-- Row 3: the dealer -->
+<rect class="world" x="24" y="458" width="180" height="64" rx="10"/>
+<text class="n" x="40" y="482">Lost</text>
+<text class="t" x="40" y="500">The competitor takes the</text>
+<text class="t" x="40" y="516">car. It costs nothing.</text>
+<path class="flow" d="M314 490H206" marker-end="url(#a)"/>
+<text class="s" x="260" y="482" text-anchor="middle">lost</text>
+
+<rect class="world" x="314" y="466" width="310" height="48" rx="24"/>
+<text class="n" x="469" y="495" text-anchor="middle">The dealer decides after 15 minutes</text>
+
+<path class="loop" d="M624 490H732" marker-end="url(#o)"/>
+<text class="s" x="678" y="482" text-anchor="middle">won or lost</text>
+<rect class="learn" x="734" y="446" width="180" height="88" rx="10"/>
+<text class="n" x="750" y="470">Win model</text>
+<text class="t" x="750" y="488">world · day · dealer · pickup</text>
+<text class="t" x="750" y="504">· delivery · option: each</text>
+<text class="t" x="750" y="520">moves with every answer</text>
+
+<path class="flow" d="M469 514V544" marker-end="url(#a)"/>
+<text class="s" x="479" y="533">won</text>
+
+<!-- Row 4: the chain -->
+<rect class="decide" x="234" y="546" width="470" height="168" rx="12"/>
+<text class="tag" x="252" y="572">2 · THE CHAIN</text>
+<text class="h" x="252" y="598">One driver, several cars in a row</text>
+<text class="t" x="252" y="624">A new car waits up to 2 hours for a partner.</text>
+<text class="t" x="252" y="646">Up to 4 cars, each pickup within 60 road minutes</text>
+<text class="t" x="252" y="662">of the last delivery, 8 hours of driving at most.</text>
+<text class="t" x="252" y="684">Posted when 15% under the cars' typical fees.</text>
+<text class="t" x="252" y="700">After 1 waking hour unbooked, the cars go alone.</text>
+
+<path class="soft dash" d="M625 596L645 592M682 636L678 656M606 680L590 666"/>
+<path class="mark" d="M590 666L625 596M645 592L682 636M678 656L606 680"/>
+<circle class="hollow" cx="590" cy="666" r="4.5"/><circle class="markfill" cx="625" cy="596" r="5"/>
+<circle class="hollow" cx="645" cy="592" r="4.5"/><circle class="markfill" cx="682" cy="636" r="5"/>
+<circle class="hollow" cx="678" cy="656" r="4.5"/><circle class="markfill" cx="606" cy="680" r="5"/>
+<text class="s" x="638" y="704" text-anchor="middle">a loop pays no trip home</text>
+
+<path class="flow" d="M469 714V740" marker-end="url(#a)"/>
+
+<!-- Row 5: the fee, and the guard -->
+<rect class="decide" x="24" y="776" width="180" height="104" rx="10"/>
+<text class="n" x="40" y="800">The 90% guard</text>
+<text class="t" x="40" y="818">From Friday night: if too</text>
+<text class="t" x="40" y="834">many orders have no</text>
+<text class="t" x="40" y="850">driver, their fees rise</text>
+<text class="t" x="40" y="866">sooner.</text>
+<path class="flow" d="M204 828H232" marker-end="url(#a)"/>
+
+<rect class="decide" x="234" y="742" width="470" height="166" rx="12"/>
+<text class="tag" x="252" y="768">3 · THE FEE</text>
+<text class="h" x="252" y="794">Hold still, rise rarely</text>
+<text class="t" x="252" y="820">Drivers wait for a fee they have seen rise, so the</text>
+<text class="t" x="252" y="836">gig opens at 0.88 × the typical fee and holds.</text>
+<text class="t" x="252" y="858">Three raises, to 1.05, 1.25 and 1.55 ×, timed by</text>
+<text class="t" x="252" y="874">when drivers plan their day.</text>
+<text class="t" x="252" y="896">From the deadline warning: fast steps to 1.6 ×.</text>
+
+<path class="ax" d="M588 776V880H690"/>
+<path class="mark" d="M590 862H614V846H638V826H660V798H674V790H688"/>
+<text class="s" x="594" y="875">0.88</text>
+<text class="s" x="688" y="782" text-anchor="end">1.6 ×</text>
+<text class="s" x="639" y="896" text-anchor="middle">time left to plan</text>
+
+<path class="flow" d="M469 908V934" marker-end="url(#a)"/>
+
+<!-- Row 6: the driver -->
+<rect class="world" x="314" y="936" width="310" height="48" rx="24"/>
+<text class="n" x="469" y="965" text-anchor="middle">A driver books the gig</text>
+<path class="loop" d="M624 960H732" marker-end="url(#o)"/>
+<text class="s" x="678" y="952" text-anchor="middle">the fee paid</text>
+<rect class="learn" x="734" y="922" width="180" height="76" rx="10"/>
+<text class="n" x="750" y="946">Supply model</text>
+<text class="t" x="750" y="964">what bookings pay this</text>
+<text class="t" x="750" y="980">week, by place and day</text>
+
+<path class="flow" d="M469 984V1018" marker-end="url(#a)"/>
+
+<!-- Row 7: the delivery -->
+<rect class="world" x="314" y="1020" width="310" height="48" rx="24"/>
+<text class="n" x="469" y="1049" text-anchor="middle">The car arrives on time</text>
+<path class="loop" d="M624 1044H732" marker-end="url(#o)"/>
+<text class="s" x="678" y="1036" text-anchor="middle">on time</text>
+<rect class="learn" x="734" y="1006" width="180" height="76" rx="10"/>
+<text class="n" x="750" y="1030">Dealer trust</text>
+<text class="t" x="750" y="1048">each order on time: this</text>
+<text class="t" x="750" y="1064">dealer accepts 1% more</text>
+
+<!-- The loop back to the price -->
+<path class="loop" d="M914 1044H936V330H706" marker-end="url(#o)"/>
+<path class="loop" d="M914 490H936M914 960H936"/>
+<text class="s" x="820" y="322" text-anchor="middle">sets the next quote</text>
+</svg>

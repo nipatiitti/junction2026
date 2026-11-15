@@ -320,6 +320,7 @@ on one line, so two PRs that each add a command do not conflict.
 - Replay the strategies offline and serve the charts: `uv run python -m analysis.replay`
 - Write the replay files only: `uv run python -m analysis.replay --no-serve`
 - Split saved weeks' margin by the hour an order was won: `uv run python -m analysis.phases`
+- Draw the weekend charts of lean's README from the saved weeks: `uv run python -m analysis.weekend`
 - Build the simulator's data packs: `uv run python sim/build_data.py`
 - Serve the offline simulator: `pnpm sim --port 8787`
 - Serve the video player (the joke video; `?video=lean` for the ts:lean video): `node video/serve.ts --port 8790`
